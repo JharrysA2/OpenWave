@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+dist/
+build/
+target/
+
+# Backend Python
+backend/
+venv/
+*.py
+*.pyc
+
+# Tauri Rust
+src-tauri/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config files
+package-lock.json
+Cargo.lock

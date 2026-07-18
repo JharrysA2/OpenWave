@@ -1,0 +1,47 @@
+[tool.ruff]
+# Target Python version
+target-version = "py312"
+
+# Files to include
+include = ["backend/**/*.py"]
+
+# Ignore these files
+exclude = ["venv/", ".env", "dist/", "build/"]
+
+# Lint rules
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (unused imports, undefined names, etc.)
+    "I",   # isort (import sorting)
+    "N",   # pep8-naming
+    "UP",  # pyupgrade (modernize Python)
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "LOG", # flake8-logging
+]
+ignore = [
+    "E501", # line too long (handled by ruff format)
+    "E302", # expected 2 blank lines (handled by format)
+    "E303", # too many blank lines (handled by format)
+    "E305", # expected 2 blank lines after class/function (handled by format)
+    "N802", # function name should be lowercase (allow main.py)
+    "N803", # argument name should be lowercase
+    "N806", # variable in function should be lowercase
+    "SIM114", # combine if conditions
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/main.py" = ["F401"]  # Allow unused imports in entry point
+
+# Format options
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.pytest.ini_options]
+testpaths = ["backend"]
+asyncio_mode = "auto"
+python_files = ["test_*.py"]

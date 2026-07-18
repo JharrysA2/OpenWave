@@ -1,0 +1,58 @@
+# ── Node ──────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Build output ──────────────────────────────────────
+dist/
+build/
+coverage/
+
+# ── Tauri / Rust ──────────────────────────────────────
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# ── Python ────────────────────────────────────────────
+venv/
+.env
+__pycache__/
+*.pyc
+*.pyo
+backend/__pycache__/
+
+# ── Backend runtime data ──────────────────────────────
+backend/downloads/
+backend/soundwave.db
+backend/soundwave.db-shm
+backend/soundwave.db-wal
+backend/url_cache.json
+
+# ── IDE / Editor ──────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── OS files ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Local AI tooling ──────────────────────────────────
+.agents/
+.freebuff/
+skills-lock.json
+
+# ── Runtime artifacts / binaries ─────────────────────
+ffmpeg.exe
+ffplay.exe
+ffprobe.exe
+test-results/
+playwright-report/
+
+# ── Left-over accidental files ────────────────────────
+{src-tauri*
+
+# ── Logs genéricos ────────────────────────────────────
+*.log

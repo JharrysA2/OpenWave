@@ -63,6 +63,15 @@ function cacheSet(path, data) {
   }
 }
 
+// Invalidar entradas de caché cuyo path empiece por `prefix`.
+// E.g. borrar descargas muta `/downloads/all`, pero la lista se cacheó
+// exactamente bajo `/downloads` — hay que invalidarla también.
+function invalidatePrefix(prefix) {
+  for (const key of [...apiCache.keys()]) {
+    if (key.startsWith(prefix)) apiCache.delete(key);
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════
 //  NORMALIZACIÓN DE THUMBNAILS HD
 // ═══════════════════════════════════════════════════════════════════════════════════
@@ -325,15 +334,23 @@ export const api = {
       _handleError(err, toast);
     }),
 
-  deleteHistory: (toast) =>
-    api.del("/history/all").catch((err) => {
+  deleteHistory: async (toast) => {
+    try {
+      await api.del("/history/all");
+      invalidatePrefix("/history");
+    } catch (err) {
       _handleError(err, toast);
-    }),
+    }
+  },
 
-  deleteDownloads: (toast) =>
-    api.del("/downloads/all").catch((err) => {
+  deleteDownloads: async (toast) => {
+    try {
+      await api.del("/downloads/all");
+      invalidatePrefix("/downloads");
+    } catch (err) {
       _handleError(err, toast);
-    }),
+    }
+  },
 
   fetchDownloads: (toast) =>
     api

@@ -4,9 +4,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 use tauri::Manager;
 
-mod color_extract;
-use color_extract::extract_colors;
-
 struct BackendProcess(Mutex<Option<std::process::Child>>);
 
 /// Poll the backend health endpoint until it responds or timeout.
@@ -34,7 +31,6 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
         .manage(BackendProcess(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![extract_colors])
         .setup(|app| {
             let window = match app.get_webview_window("main") {
                 Some(w) => w,

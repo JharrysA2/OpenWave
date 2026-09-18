@@ -2,12 +2,15 @@
 
 App de música para PC usando **Tauri + React + FastAPI + ytmusicapi**.
 
-- ✅ ~40MB RAM en reposo
-- ✅ Instalador .exe para Windows con NSIS
-- ✅ Streaming desde YouTube Music
-- ✅ UI oscura con glassmorphism
+- ✅ Streaming desde YouTube Music con **crossfade estilo Spotify** (fade simultáneo A→B)
+- ✅ **Cola inteligente** (rellenada desde resultados y relacionados, con feedback de reproducción)
+- ✅ **Letras sincronizadas** estilo karaoke (LRCLib + YTMusic + Genius)
+- ✅ **Temas dinámicos** — colores extraídos de la portada del álbum
+- ✅ Vistas de **Álbum, Artista y Playlist**, historial y likes
 - ✅ Descarga offline con yt-dlp
-- ✅ Letras sincronizadas (LRCLib + YTMusic + Genius)
+- ✅ UI oscura con glassmorphism (True Liquid Glass)
+- ✅ Instalador .exe para Windows con NSIS (~40MB RAM en reposo)
+- ✅ Suite de **tests**: 552 tests unitarios (Vitest) + e2e (Playwright) + Pytest
 
 ---
 
@@ -40,6 +43,8 @@ cd backend && python main.py
 npm run tauri dev
 ```
 
+> 💡 Alternativa en Windows: ejecuta `start.bat`, que inicia el backend y la app automáticamente.
+
 ---
 
 ## 📦 Scripts disponibles
@@ -48,6 +53,14 @@ npm run tauri dev
 |--------|-------------|
 | `npm run dev` | Inicia Vite dev server |
 | `npm run build` | Build de producción (Vite) |
+| `npm run preview` | Previsualiza el build |
+| `npm run tauri [dev]` | Comandos de Tauri |
+| `npm test` | Tests unitarios (Vitest, modo run) |
+| `npm run test:watch` | Vitest en watch |
+| `npm run test:ui` | Vitest con UI |
+| `npm run test:e2e` | Tests e2e (Playwright) |
+| `npm run test:e2e:ui` | Playwright con UI |
+| `npm run test:e2e:debug` | Playwright en modo debug |
 | `npm run lint` | ESLint (frontend `src/`) |
 | `npm run lint:fix` | ESLint con auto-fix |
 | `npm run format` | Prettier (formateo frontend) |
@@ -56,6 +69,7 @@ npm run tauri dev
 | `npm run prepare` | Inicializa Husky (pre-commit hooks) |
 | `ruff check backend/` | Ruff linter (backend Python) |
 | `ruff format backend/` | Ruff formatter (backend) |
+| `python -m pytest` | Tests del backend (en `backend/`) |
 
 ---
 
@@ -64,50 +78,62 @@ npm run tauri dev
 ```
 soundwave/
 ├── .github/workflows/
-│   └── ci.yml              ← CI: lint + format + build (frontend + backend)
+│   └── ci.yml                 ← CI: lint + format + build + tests (frontend) y ruff + pytest (backend)
 ├── .husky/
-│   └── pre-commit           ← Ejecuta lint-staged antes de cada commit
-├── src/                     ← Frontend React
-│   ├── App.jsx              ← Entry point (~350 líneas)
+│   └── pre-commit             ← Ejecuta lint-staged antes de cada commit
+├── e2e/                       ← Tests e2e (Playwright)
+│   ├── helpers.js
+│   └── *.spec.js
+├── public/                    ← Assets estáticos (logo, favicon)
+├── src/                       ← Frontend React
+│   ├── App.jsx                ← Entry point (enrutado, dynamic theme, player)
 │   ├── main.jsx
 │   ├── constants.js
-│   ├── components/          ← 13 componentes UI
-│   │   ├── ErrorBoundary.jsx
-│   │   ├── HomeView.jsx
-│   │   ├── SearchView.jsx
-│   │   ├── LikedView.jsx
-│   │   ├── HistoryView.jsx
-│   │   ├── DownloadsView.jsx
-│   │   ├── PlayerBar.jsx
-│   │   ├── SettingsPanel.jsx
-│   │   ├── SongOptionsSheet.jsx
-│   │   ├── MusicCover.jsx
-│   │   ├── Toast.jsx
-│   │   ├── TrackPickerModal.jsx
-│   │   └── SelectionModal.jsx
-│   ├── hooks/
-│   │   └── useToast.js
+│   ├── components/            ← 23 componentes UI
+│   │   ├── AlbumView.jsx          HomeView.jsx        PlaylistView.jsx
+│   │   ├── ArtistView.jsx         LikedView.jsx       SearchView.jsx
+│   │   ├── ConfirmModal.jsx       LyricsView.jsx      SelectionModal.jsx
+│   │   ├── ConnectionBanner.jsx   MusicCover.jsx      SettingsComponents.jsx
+│   │   ├── CreatePlaylistModal.jsx PlayerBar.jsx      SettingsPanel.jsx
+│   │   ├── DownloadsView.jsx      SkeletonLoader.jsx  SettingsPages.jsx
+│   │   ├── ErrorBoundary.jsx      SongOptionsSheet.jsx Toast.jsx
+│   │   ├── HistoryView.jsx        TrackPickerModal.jsx
+│   ├── hooks/                  ← 6 hooks
+│   │   ├── useToast.js
+│   │   ├── usePlayer.js        ← reproducción, crossfade, cola inteligente
+│   │   ├── useLibrary.js
+│   │   ├── useSearch.js
+│   │   ├── useBackendStatus.js
+│   │   └── useDynamicTheme.js  ← tema dinámico desde la portada (rAF + --neon)
 │   ├── contexts/
-│   │   ├── SettingsContext.jsx
-│   │   └── useSettings.js
+│   │   └── SettingsContext.jsx / useSettings.js
 │   ├── icons/
 │   │   └── Icons.jsx
 │   ├── utils/
+│   │   ├── api.js              ← cliente HTTP del backend
+│   │   ├── backendHealth.js
 │   │   ├── formatTime.js
-│   │   ├── windowControls.js
-│   │   └── playerStyles.js
+│   │   ├── lrc.js              ← parser .lrc (multi-timestamp, offset)
+│   │   ├── playerStyles.js
+│   │   ├── theme.js            ← design tokens (colores, tipografía, radios, glass)
+│   │   ├── thumbnails.js
+│   │   └── windowControls.js
 │   └── i18n/
 │       └── translations.js
-├── backend/                 ← Backend Python (FastAPI)
-│   ├── main.py              ← Entry point (~120 líneas)
+├── backend/                    ← Backend Python (FastAPI)
+│   ├── main.py                 ← Entry point (health, thumbnail-proxy, extract-colors)
 │   ├── config.py
 │   ├── db.py
 │   ├── ytmusic_client.py
 │   ├── cache.py
+│   ├── logging_config.py
+│   ├── rate_limit.py
 │   ├── utils.py
 │   ├── streaming.py
 │   ├── downloads.py
 │   ├── lyrics.py
+│   ├── conftest.py             ← Fixtures de pytest
+│   ├── test_*.py               ← Tests (pytest)
 │   ├── requirements.txt
 │   └── routes/
 │       ├── __init__.py
@@ -118,16 +144,22 @@ soundwave/
 │       ├── playlists.py
 │       ├── history.py
 │       └── lyrics_routes.py
-├── src-tauri/               ← Tauri (Rust)
+├── src-tauri/                  ← Tauri (Rust)
 │   ├── src/
 │   │   ├── main.rs
 │   │   ├── lib.rs
-│   │   └── color_extract.rs
+│   │   └── color_extract.rs    ← extracción de color de la portada
+│   ├── capabilities/migrated.json
+│   ├── icons/
+│   ├── build.rs
+│   ├── Cargo.toml / Cargo.lock
 │   └── tauri.conf.json
+├── DESIGN.md                    ← System design (paleta, tipografía, glass)
 ├── .prettierrc
 ├── .prettierignore
 ├── eslint.config.js
-├── pyproject.toml           ← Ruff config (backend Python)
+├── pyproject.toml               ← Ruff config (backend Python)
+├── playwright.config.js
 ├── package.json
 └── vite.config.js
 ```
@@ -135,6 +167,14 @@ soundwave/
 ---
 
 ## 🔌 API Endpoints
+
+### Sistema
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/health` | Salud del backend |
+| GET | `/thumbnail-proxy` | Proxy de miniaturas (CORS) |
+| GET | `/extract-colors/{videoId}` | Extracción de colores de la portada |
 
 ### Búsqueda y home
 
@@ -146,19 +186,23 @@ soundwave/
 | GET | `/home/quick-picks` | Reproducciones recientes |
 | GET | `/home/for-you` | Recomendaciones personalizadas |
 | GET | `/home/albums` | Álbumes sugeridos |
+| GET | `/home/trending-fixed` | Tendencias fijas |
 
 ### Canciones y reproducción
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | GET | `/stream-url/{videoId}` | URL de streaming |
+| GET | `/stream/play/{videoId}` | Reproducción vía proxy |
 | GET | `/stream/{videoId}` | Stream de archivo local |
 | GET | `/stream/prefetch/{videoId}` | Precargar en caché |
 | GET | `/song/details/{videoId}` | Detalles de canción |
 | GET | `/song/album/{videoId}` | Álbum de canción |
 | GET | `/album/{browseId}` | Detalles de álbum |
 | GET | `/artist/{browseId}` | Detalles de artista |
+| GET | `/artist/related/{browseId}` | Artistas relacionados |
 | GET | `/queue/{videoId}` | Cola de reproducción |
+| POST | `/queue/feedback` | Feedback de reproducción (completada) |
 
 ### Descargas
 
@@ -177,11 +221,17 @@ soundwave/
 |--------|------|-------------|
 | GET | `/playlists` | Listar playlists |
 | POST | `/playlists` | Crear playlist |
+| PUT | `/playlists/{pid}` | Renombrar/actualizar playlist |
+| DELETE | `/playlists/{pid}` | Eliminar playlist |
+| GET | `/playlists/{pid}/songs` | Canciones de una playlist |
 | POST | `/playlists/{pid}/songs` | Agregar canciones |
+| DELETE | `/playlists/{pid}/songs/{videoId}` | Quitar canción |
 | POST | `/playlists/{pid}/reorder` | Reordenar |
 | GET | `/history` | Historial |
 | POST | `/history` | Registrar reproducción |
+| DELETE | `/history` | Eliminar una entrada |
 | DELETE | `/history/all` | Limpiar historial |
+| GET/POST | `/player/state` | Persistencia del estado del player |
 
 ### Letras
 
@@ -195,13 +245,14 @@ soundwave/
 
 ## 🧪 QA y calidad de código
 
-El proyecto tiene configurado:
-
 - **ESLint** — Reglas para React 18 + JSX + Hooks
 - **Prettier** — Formateo automático
+- **Vitest** — 552 tests unitarios (componentes, hooks y utils del frontend)
+- **Playwright** — Tests e2e (navegación, búsqueda, reproducción, settings, librería)
 - **Ruff** — Linter y formatter para Python backend
+- **Pytest** — Tests del backend (rutas, DB, streaming, descargas, letras, utils)
 - **Husky + lint-staged** — Pre-commit hook que ejecuta Prettier + ESLint automáticamente
-- **GitHub Actions CI** — Verifica lint, formato y build en cada push/PR
+- **GitHub Actions CI** — Frontend: lint + formato + build + `npm test`; Backend: ruff + pytest
 
 ---
 

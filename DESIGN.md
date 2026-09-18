@@ -54,53 +54,57 @@ colors:
   card-hover: rgba(255, 255, 255, 0.08)
 typography:
   display-lyrics:
-    fontFamily: Nunito Sans
-    fontSize: 34px
-    fontWeight: '800'
-    lineHeight: '1.2'
+    fontFamily: DM Sans
+    fontSize: 36px
+    fontWeight: '700'
+    lineHeight: 1.35
     letterSpacing: -0.02em
   headline-lg:
-    fontFamily: Nunito Sans
-    fontSize: 28px
-    fontWeight: '900'
-    lineHeight: 36px
-    letterSpacing: -0.01em
+    fontFamily: DM Sans
+    fontSize: 30px
+    fontWeight: '700'
+    lineHeight: 1.15
+    letterSpacing: -0.025em
   headline-lg-mobile:
-    fontFamily: Nunito Sans
-    fontSize: 24px
-    fontWeight: '900'
-    lineHeight: 32px
+    fontFamily: DM Sans
+    fontSize: 26px
+    fontWeight: '700'
+    lineHeight: 1.2
+    letterSpacing: -0.02em
   headline-md:
-    fontFamily: Nunito Sans
-    fontSize: 20px
-    fontWeight: '900'
-    lineHeight: 28px
+    fontFamily: DM Sans
+    fontSize: 22px
+    fontWeight: '700'
+    lineHeight: 1.2
+    letterSpacing: -0.015em
   subheading:
-    fontFamily: Nunito Sans
-    fontSize: 14px
-    fontWeight: '800'
-    lineHeight: 20px
+    fontFamily: DM Sans
+    fontSize: 15px
+    fontWeight: '600'
+    lineHeight: 22px
     letterSpacing: 0.05em
-  label-lg:
-    fontFamily: Nunito Sans
-    fontSize: 13.5px
-    fontWeight: '700'
-    lineHeight: 18px
-  body-md:
-    fontFamily: Nunito Sans
-    fontSize: 13px
+  label:
+    fontFamily: DM Sans
+    fontSize: 14px
     fontWeight: '600'
-    lineHeight: 18px
+    lineHeight: 20px
+  body:
+    fontFamily: DM Sans
+    fontSize: 14px
+    fontWeight: '500'
+    lineHeight: 1.45
   caption:
-    fontFamily: Nunito Sans
-    fontSize: 11.5px
-    fontWeight: '600'
-    lineHeight: 16px
+    fontFamily: DM Sans
+    fontSize: 12.5px
+    fontWeight: '500'
+    lineHeight: 1.4
+    letterSpacing: 0.01em
   metadata:
-    fontFamily: Nunito Sans
-    fontSize: 11px
-    fontWeight: '700'
-    lineHeight: 14px
+    fontFamily: DM Sans
+    fontSize: 12px
+    fontWeight: '600'
+    lineHeight: 1.35
+    letterSpacing: 0.02em
 rounded:
   sm: 0.25rem
   DEFAULT: 0.5rem
@@ -139,12 +143,13 @@ Neon accents must be accompanied by multi-layered shadows: a primary glow at 44%
 
 ## Typography
 
-This system relies on the **Nunito Sans** family, emphasizing heavy weights (600-900) to maintain a bold, professional presence against vibrant backgrounds. 
+This system relies on the **DM Sans** family, loading weights **400-700** (500 body, 600 labels/subheadings, 700 headlines/lyrics). Heavier weights keep a bold, professional presence against vibrant backgrounds without becoming aggressive on dense dark surfaces.
 
-The hierarchy is strictly enforced: 
-- **Display & Headlines:** Use the heaviest weights (900) to create clear entry points in a content-rich environment. 
-- **Lyrics:** Optimized for readability with tight letter spacing and substantial size, allowing the user to focus on the narrative of the music. 
+The hierarchy is strictly enforced:
+- **Display & Headlines:** Use the heaviest weight available (700) with negative tracking for large text, creating clear entry points in a content-rich environment.
+- **Lyrics:** Optimized for readability with tight letter spacing (-0.02em) and generous size (36px), so the user can focus on the narrative of the music.
 - **Upper-case Subheadings:** Used for section labels (e.g., "RECOMMENDED FOR YOU") to differentiate navigation logic from content titles.
+- **Small text:** Positive tracking (0.01-0.02em) for captions and metadata to preserve legibility.
 
 ## Layout & Spacing
 
@@ -203,3 +208,39 @@ Borders are strictly reserved for "Active" states, using a 1.5px stroke in the c
 
 ### Motion Details
 All component interactions must use the `cubic-bezier(.16, 1, .3, 1)` curve. Quick fades (0.12s) for buttons, and structural transitions (0.35s) for loading album art ensure the system feels responsive yet fluid.
+
+## Dynamic Theme Engine
+
+Album artwork drives the entire color system at runtime (`src/hooks/useDynamicTheme.js` + Rust `color_extract.rs`).
+
+- **Extraction:** Colors are extracted from the current track cover (backend `/extract-colors/{videoId}`) and hydrated on the frontend via a canvas fallback.
+- **`--neon` variable:** The accent is animated with `requestAnimationFrame` (lerp from the previous accent to the target, registered via `@property --neon` in `index.html`) so color changes glide instead of snapping.
+- **Derived tokens:** `--neon-border`, `--neon-18` (active-row background), `--neon-fg` (contrast-aware foreground for accent-filled buttons — white on dark accents, near-black on bright accents like cream), `--neon-btn`.
+- **Background tint:** `--bg-base` is derived from `color-mix(in srgb, var(--neon) 6%, <dark base>)`, tinting the whole app subtly.
+- **Aurora & vignette:** `sidebarBgGradient()` paints a neon-tinted aurora; `vignetteOverlay()` adds a `color-mix(black 73%, var(--neon))` vignette for depth.
+- **Grayscale covers:** Faces are skipped (`0x8 / `0x9` luminance buckets) to avoid skin-tone accents; all-black covers fall back to white.
+- **Reduced motion:** `prefers-reduced-motion` disables `--neon` rAF transitions.
+
+## Lyrics & Karaoke
+
+`LyricsView` renders synchronized LRC lyrics as a karaoke experience (backend: LRCLib + YTMusic + Genius).
+
+- **Parser (`src/utils/lrc.js`):** Handles multi-timestamp lines (`[00:12.00][01:10.00]Texto`), metadata tags (`[ti:]`, `[ar:]`), global/language offsets (`[offset:+500]`) and `m:ss[.xxx]` variants.
+- **Typography:** 36px / weight 700 / tight tracking, sized from the `lyricsFontSize` setting (base ×1.15 active / ×0.85 surrounding).
+- **Hierarchy:** Active line at full opacity with a neon glow; neighbors (≤2) at mid opacity; the rest dimmed to tertiary.
+- **Word-progress karaoke:** The active line paints `--neon` progressively per character (`progressInLine × totalChars`), animated with the spring curve.
+- **Auto-scroll & latch:** Smooth `scrollIntoView` centered on the active line; manual wheel/drag scroll latches control for 800ms and re-centers on resume (3s hold via `lyricsScrollResume`).
+- **Loading:** `SkeletonLyrics` shows 15 shimmer bars whose height derives from the configured font size.
+- **Cover art:** In immersive mode the cover uses a large 22px radius ("Lyrics View Art").
+
+## Loading & Perceived Performance
+
+- **Skeletons (`SkeletonLoader`):** Rows, cards, grids, sections, pages and lyrics follow the silhouette of the final content so nothing "jumps" when real data arrives.
+- **Image fading:** Album art crossfades in (0.35s spring) instead of popping; the player bar uses a `blur(6px)` placeholder behind the final art.
+- **Progressive immersion:** Dynamic background tint (`--bg-base`) is applied as soon as colors arrive, so the atmosphere is present before content finishes loading.
+
+## Player Bar — True Liquid Glass
+
+- `backdrop-filter: blur(50px) saturate(180%) brightness(1.05)` with a subtle translucent surface — the player bar reads as a physical frosted panel floating over artwork.
+- The volume **slider thumb** is pill-shaped, visible only on hover, with an 8px neon glow.
+- Progress fill, thumb glow and the equalizer all use `var(--neon)` so the player reacts visually to the current track's colors.

@@ -11,6 +11,7 @@ from downloads import do_download, get_mp3_path
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from rate_limit import limiter
+from utils import require_valid_video_id
 
 router = APIRouter()
 
@@ -19,6 +20,7 @@ router = APIRouter()
 @limiter.limit("5/minute")
 async def start_download(video_id: str, request: Request):
     """Iniciar descarga de una canción."""
+    require_valid_video_id(video_id)
     body = await request.json()
     # Iniciar en background thread
     thread = threading.Thread(
@@ -42,6 +44,7 @@ async def start_download(video_id: str, request: Request):
 @router.get("/download/progress/{video_id}")
 async def download_progress_route(video_id: str):
     """SSE endpoint para progreso de descarga."""
+    require_valid_video_id(video_id)
 
     async def event_stream():
 
@@ -108,6 +111,7 @@ async def delete_all_downloads(request: Request):
 @limiter.limit("10/minute")
 async def delete_download(request: Request, video_id: str):
     """Eliminar una descarga."""
+    require_valid_video_id(video_id)
     mp3_path = get_mp3_path(video_id)
     if mp3_path.exists():
         mp3_path.unlink()
@@ -135,6 +139,7 @@ async def delete_selected_downloads(request: Request):
     body = await request.json()
     video_ids = body.get("videoIds", [])
     for vid in video_ids:
+        require_valid_video_id(vid)
         mp3 = get_mp3_path(vid)
         if mp3.exists():
             mp3.unlink()

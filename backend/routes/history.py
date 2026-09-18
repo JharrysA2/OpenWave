@@ -1,13 +1,13 @@
-"""SoundWave Backend — Rutas de historial y estado del reproductor."""
+"""SoundWave Backend — Rutas de historial."""
 
-from db import db_get_history, db_get_state, db_log_history, db_save_state, get_db
-from fastapi import APIRouter, Request
+from db import db_get_history, db_log_history, get_db
+from fastapi import APIRouter, Query, Request
 
 router = APIRouter()
 
 
 @router.get("/history")
-async def get_history(limit: int = 100):
+async def get_history(limit: int = Query(100, ge=1, le=500)):
     """Obtener historial de reproducción."""
     return db_get_history(limit)
 
@@ -36,25 +36,4 @@ async def clear_history():
     """Limpiar todo el historial."""
     with get_db() as conn:
         conn.execute("DELETE FROM history")
-    return {"ok": True}
-
-
-@router.get("/player/state")
-async def get_player_state():
-    """Obtener estado guardado del reproductor."""
-    return {
-        "volume": db_get_state("volume", 0.7),
-        "queue": db_get_state("queue", []),
-        "lastSong": db_get_state("lastSong"),
-        "shuffle": db_get_state("shuffle", False),
-        "repeat": db_get_state("repeat", False),
-    }
-
-
-@router.post("/player/state")
-async def save_player_state(request: Request):
-    """Guardar estado del reproductor."""
-    body = await request.json()
-    for key, value in body.items():
-        db_save_state(key, value)
     return {"ok": True}

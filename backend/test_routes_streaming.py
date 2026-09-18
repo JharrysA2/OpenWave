@@ -29,9 +29,20 @@ class TestStreamFile:
             mp3_path.unlink(missing_ok=True)
 
     def test_stream_file_wrong_extension(self, client):
-        """Archivo con extensión incorrecta no debe ser servido como stream."""
+        """Extensiones fuera del allowlist de video_id no llegan al filesystem."""
         resp = client.get("/stream/archivo.txt")
-        assert resp.status_code == 404
+        assert resp.status_code == 400
+
+    def test_stream_file_traversal_rejected(self, client):
+        """Path traversal en video_id debe rechazarse (CWE-22)."""
+        # Vector Windows real: backslash como separador → llega al validador → 400
+        resp = client.get("/stream/..\\..\\evil")
+        assert resp.status_code == 400
+
+        # Barras normales no llegan ni a la ruta: el router las rechaza
+        for evil in ("../evil", "..%2F..%2Fevil", "a/../b"):
+            resp = client.get(f"/stream/{evil}")
+            assert resp.status_code in (400, 404), f"{evil} debería ser rechazado"
 
 
 class TestStreamUrl:

@@ -4,6 +4,7 @@ import json
 import re
 import sqlite3
 import threading
+from contextlib import contextmanager
 
 from config import DB_FILE
 from logging_config import get_logger
@@ -13,8 +14,14 @@ logger = get_logger(__name__)
 _db_lock = threading.Lock()
 
 
+@contextmanager
 def get_db():
-    """Obtener conexión SQLite con configuración optimizada."""
+    """Abrir conexión SQLite con configuración optimizada.
+
+    Context manager: hace commit al salir, rollback ante excepción y
+    SIEMPRE cierra la conexión. Evita la acumulación de file descriptors
+    en una app de escritorio de larga duración (modo WAL abre -wal/-shm).
+    """
     conn = sqlite3.connect(str(DB_FILE), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -22,7 +29,14 @@ def get_db():
     conn.execute("PRAGMA cache_size=-32768")
     conn.execute("PRAGMA temp_store=MEMORY")
     conn.execute("PRAGMA busy_timeout=5000")
-    return conn
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def init_db():
@@ -66,7 +80,6 @@ def init_db():
                 album_type TEXT DEFAULT ''
             );
             CREATE INDEX IF NOT EXISTS idx_h_count ON history(play_count DESC);
-            CREATE TABLE IF NOT EXISTS player_state (key TEXT PRIMARY KEY, value TEXT);
             CREATE TABLE IF NOT EXISTS playlists (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
                 created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now'))
@@ -244,29 +257,6 @@ def _parse_thumbs_json(raw) -> list:
     if isinstance(raw, list):
         return raw
     return []
-
-
-def db_save_state(key: str, value):
-    """Guardar estado del reproductor."""
-    with _db_lock, get_db() as conn:
-        conn.execute(
-            "INSERT INTO player_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            (key, json.dumps(value)),
-        )
-
-
-def db_get_state(key: str, default=None):
-    """Obtener estado guardado del reproductor."""
-    with get_db() as conn:
-        row = conn.execute(
-            "SELECT value FROM player_state WHERE key=?", (key,)
-        ).fetchone()
-    if row:
-        try:
-            return json.loads(row[0])
-        except Exception:
-            return row[0]
-    return default
 
 
 # ── Feedback (entrenar recomendaciones) ─────────────────────────────────────────

@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from downloads import do_download, get_mp3_path
 
 
@@ -12,20 +14,21 @@ class TestGetMp3Path:
 
     def test_returns_mp3_path(self):
         """Debe devolver un path con extensión .mp3 en el directorio MUSIC_DIR."""
-        path = get_mp3_path("abc123")
+        path = get_mp3_path("aaaaaaaaaaa")
         assert isinstance(path, Path)
-        assert path.name == "abc123.mp3"
+        assert path.name == "aaaaaaaaaaa.mp3"
 
     def test_different_ids_produce_different_paths(self):
         """IDs distintos deben dar paths distintos."""
-        p1 = get_mp3_path("id1")
-        p2 = get_mp3_path("id2")
+        p1 = get_mp3_path("bbbbbbbbbbb")
+        p2 = get_mp3_path("ccccccccccc")
         assert p1 != p2
 
-    def test_handles_special_chars(self):
-        """IDs con caracteres especiales deben funcionar."""
-        path = get_mp3_path("a-b_c.d")
-        assert path.name == "a-b_c.d.mp3"
+    def test_rejects_dots_and_separators(self):
+        """IDs con puntos o separadores deben rechazarse."""
+        for evil in ("a-b_c.d", "..\\..\\evil", "../evil", "evil\\x", ""):
+            with pytest.raises(ValueError):
+                get_mp3_path(evil)
 
 
 class TestDoDownload:

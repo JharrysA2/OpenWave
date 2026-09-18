@@ -3,7 +3,7 @@
 import asyncio
 
 from cache import api_cache_get, api_cache_set
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from logging_config import get_logger
 from pydantic import BaseModel
 from rate_limit import limiter
@@ -16,6 +16,7 @@ from utils import (
     fmt_song,
     fmt_thumbs,
     parse_duration,
+    require_valid_video_id,
 )
 
 
@@ -35,6 +36,7 @@ router = APIRouter()
 @router.get("/song/album/{video_id}")
 async def get_song_album(video_id: str):
     """Obtener el álbum exacto al que pertenece una canción."""
+    require_valid_video_id(video_id)
     cached = api_cache_get(f"song_album:{video_id}", ttl=3600)
     if cached:
         return cached
@@ -111,6 +113,10 @@ async def get_song_album(video_id: str):
 @router.get("/album/{browse_id}")
 async def get_album(browse_id: str):
     """Obtener tracks de un álbum/EP por browseId."""
+    cached = api_cache_get(f"album:{browse_id}", ttl=3600)
+    if cached:
+        return cached
+
     loop = asyncio.get_running_loop()
 
     def _do():
@@ -239,6 +245,7 @@ async def get_artist(browse_id: str):
 @router.get("/song/details/{video_id}")
 async def song_details(video_id: str):
     """Obtener detalles de una canción: reproducciones, vistas, likes, etc."""
+    require_valid_video_id(video_id)
     cached = api_cache_get(f"details:{video_id}", ttl=3600)
     if cached:
         return cached
@@ -419,7 +426,7 @@ def _rerank_by_artist(tracks: list, artist_name: str) -> list:
 
 @router.get("/queue/{video_id}")
 @limiter.limit("30/minute")
-async def get_queue(request: Request, video_id: str, limit: int = 25, artist: str = ""):
+async def get_queue(request: Request, video_id: str, limit: int = Query(25, ge=1, le=100), artist: str = ""):
     """Obtener cola de reproducción (radio) para una canción.
 
     Acepta un parámetro opcional `artist` para reordenar los
@@ -432,6 +439,7 @@ async def get_queue(request: Request, video_id: str, limit: int = 25, artist: st
       3. Búsqueda de canciones por artista/título
     Nunca devuelve 500; ante fallo total devuelve lista vacía.
     """
+    require_valid_video_id(video_id)
     cached = api_cache_get(f"queue:{video_id}", ttl=600)
     if cached:
         tracks = _rerank_by_artist(cached, artist)

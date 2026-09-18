@@ -123,6 +123,26 @@ class TestAlbum:
         assert data["tracks"] == []
 
     @patch("routes.songs.get_ytm")
+    def test_album_cache_hit(self, mock_get_ytm, client):
+        """Álbum cacheado debe devolverse sin consultar YTMusic."""
+        from cache import api_cache_set
+
+        cached = {
+            "name": "Cached Album",
+            "artists": [{"name": "Cached Artist"}],
+            "year": None,
+            "type": "Album",
+            "thumbnail": None,
+            "tracks": [{"videoId": "c1", "title": "Cached Track"}],
+        }
+        api_cache_set("album:cache_alb", cached)
+
+        resp = client.get("/album/cache_alb")
+        assert resp.status_code == 200
+        assert resp.json() == cached
+        mock_get_ytm.assert_not_called()
+
+    @patch("routes.songs.get_ytm")
     def test_album_with_tracks(self, mock_get_ytm, client):
         """Álbum con tracks debe devolver lista de canciones."""
         mock_ytm = MagicMock()

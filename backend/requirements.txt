@@ -9,5 +9,6 @@ python-multipart==0.0.32
 slowapi==0.1.9
 pytest==9.1.1
 pytest-asyncio==1.4.0
+pytest-mock==3.14.0
 pytest-timeout==2.4.0
 curl-cffi>=0.11,<0.16

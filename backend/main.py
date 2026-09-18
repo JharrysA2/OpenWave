@@ -29,6 +29,7 @@ from routes import api_router
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from utils import require_valid_video_id
 
 logger = get_logger(__name__)
 
@@ -154,6 +155,7 @@ async def extract_colors(request: Request, video_id: str):
     Si no se pueden extraer colores (error, sin thumbnail, imagen sin
     colores útiles), devuelve la paleta por defecto de la app.
     """
+    require_valid_video_id(video_id)
     default_colors = ["#a78bfa", "#7c3aed"]
     try:
         from ytmusic_client import get_ytm
@@ -221,35 +223,18 @@ def _startup_warmup():
     """Pre-cargar datos al iniciar."""
     time.sleep(2)
     try:
-        from db import db_get_state
-        from streaming import prefetch
+        from utils import extract_chart_items
         from ytmusic_client import get_ytm
 
-        last_song = db_get_state("lastSong")
-        if last_song and last_song.get("videoId"):
-            prefetch(last_song["videoId"])
-    except Exception as e:
-        logger.warning("warmup: %s", e)
-    try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-        try:
-            charts = get_ytm().get_charts(country="GT")
-            if charts:
-                songs_data = []
-                for key in ("songs", "topSongs", "trendingSongs"):
-                    sec = charts.get(key)
-                    if sec:
-                        items = sec.get("items") or sec.get("content") or []
-                        if items:
-                            songs_data = items[:30]
-                            break
-                if songs_data:
-                    api_cache_set("trending", songs_data)
-                    logger.info("warmup ✓ %d trending songs cached", len(songs_data))
-        except Exception as e:
-            logger.warning("warmup trending: %s", e)
+        charts = get_ytm().get_charts(country="GT")
+        if charts:
+            songs_data = extract_chart_items(charts, limit=30)
+            if songs_data:
+                api_cache_set("trending", songs_data)
+                logger.info("warmup ✓ %d trending songs cached", len(songs_data))
     except Exception as e:
         logger.warning("warmup: %s", e)
 

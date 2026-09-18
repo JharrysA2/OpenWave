@@ -15,6 +15,24 @@ download_progress: dict = {}
 in_flight: dict = {}
 in_flight_lock = threading.Lock()
 
+# Límite de entradas: al superarlo se podan las expiradas (evita leaks).
+MAX_CACHE_ENTRIES = 500
+
+# Writer único con debounce para url_cache.json
+_url_cache_lock = threading.Lock()
+_url_cache_dirty = False
+_url_cache_writer_active = False
+
+
+def _prune_cache(cache: dict, ttl: int, max_entries: int = MAX_CACHE_ENTRIES) -> None:
+    """Eliminar entradas expiradas cuando la caché supera el límite."""
+    if len(cache) < max_entries:
+        return
+    now = time.time()
+    stale = [k for k, v in cache.items() if now - v[-1] > ttl]
+    for k in stale:
+        cache.pop(k, None)
+
 
 def load_url_cache():
     """Cargar caché de URLs desde disco."""
@@ -31,7 +49,7 @@ def load_url_cache():
 
 
 def save_url_cache():
-    """Guardar caché de URLs a disco (en background)."""
+    """Guardar caché de URLs a disco."""
     with suppress(Exception):
         URL_CACHE_FILE.write_text(
             json.dumps(
@@ -42,12 +60,41 @@ def save_url_cache():
         )
 
 
+def _save_worker():
+    """Escritura en background con debounce: espera un rato, vuelca una vez."""
+    global _url_cache_dirty, _url_cache_writer_active
+    try:
+        while True:
+            with _url_cache_lock:
+                if not _url_cache_dirty:
+                    break
+                _url_cache_dirty = False
+            save_url_cache()
+            time.sleep(0.5)
+    finally:
+        with _url_cache_lock:
+            _url_cache_writer_active = False
+
+
+def _schedule_save():
+    """Programar un volcado a disco sin lanzar un thread por cada llamada."""
+    global _url_cache_dirty, _url_cache_writer_active
+    with _url_cache_lock:
+        _url_cache_dirty = True
+        if _url_cache_writer_active:
+            return
+        _url_cache_writer_active = True
+    threading.Thread(target=_save_worker, daemon=True).start()
+
+
 def cache_url(video_id: str, url: str, headers: dict):
     """Guardar URL en caché (memoria + disco)."""
     now = time.time()
     stream_cache[video_id] = (url, headers, now)
     url_disk_cache[video_id] = (url, headers, now)
-    threading.Thread(target=save_url_cache, daemon=True).start()
+    _prune_cache(stream_cache, CACHE_TTL)
+    _prune_cache(url_disk_cache, CACHE_TTL)
+    _schedule_save()
 
 
 def get_cached_url(video_id: str):
@@ -73,6 +120,7 @@ def api_cache_get(key: str, ttl: int = API_CACHE_TTL):
 def api_cache_set(key: str, value, ttl: int = None):
     """Guardar valor en caché de API."""
     api_cache[key] = (value, time.time())
+    _prune_cache(api_cache, ttl or API_CACHE_TTL)
 
 
 # Cargar caché de disco al importar

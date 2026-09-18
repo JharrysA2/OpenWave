@@ -186,58 +186,17 @@ class TestExtractColorsAdvanced:
 
 
 class TestWarmup:
-    """Tests para _startup_warmup — precarga en background.
+    """Tests para _startup_warmup — precarga de trending en background.
 
     Nota: _startup_warmup() usa imports locales dentro de la funcion:
-      - from db import db_get_state
-      - from streaming import prefetch
       - from ytmusic_client import get_ytm
       - from cache import api_cache_set
     Por eso los mocks apuntan a esos modulos, no a main.*
     """
 
-    def test_warmup_no_last_song(self, mocker):
-        """Sin lastSong, warmup no debe llamar a prefetch."""
-        mocker.patch("main.time.sleep")
-        mock_prefetch = mocker.patch("streaming.prefetch")
-        mocker.patch("db.db_get_state", return_value=None)
-        mocker.patch("ytmusic_client.get_ytm")
-
-        from main import _startup_warmup
-        _startup_warmup()
-
-        mock_prefetch.assert_not_called()
-
-    def test_warmup_with_last_song(self, mocker):
-        """Con lastSong, warmup debe llamar a prefetch con el videoId."""
-        mocker.patch("main.time.sleep")
-        mock_prefetch = mocker.patch("streaming.prefetch")
-        mocker.patch("db.db_get_state", return_value={"videoId": "test_video_123"})
-        mocker.patch("ytmusic_client.get_ytm")
-
-        from main import _startup_warmup
-        _startup_warmup()
-
-        mock_prefetch.assert_called_once_with("test_video_123")
-
-    def test_warmup_prefetch_error(self, mocker):
-        """Si prefetch falla, warmup debe capturar la excepcion."""
-        mocker.patch("main.time.sleep")
-        mocker.patch("streaming.prefetch", side_effect=Exception("prefetch failed"))
-        mocker.patch("db.db_get_state", return_value={"videoId": "test_video_123"})
-        mocker.patch("ytmusic_client.get_ytm")
-        mock_logger = mocker.patch("main.logger.warning")
-
-        from main import _startup_warmup
-        _startup_warmup()
-
-        assert mock_logger.call_count >= 1
-
     def test_warmup_trending_caching(self, mocker):
         """Warmup debe cachear trending charts cuando hay datos."""
         mocker.patch("main.time.sleep")
-        mocker.patch("streaming.prefetch")
-        mocker.patch("db.db_get_state", return_value=None)
         mock_logger_info = mocker.patch("main.logger.info")
 
         mock_charts = {
@@ -263,8 +222,6 @@ class TestWarmup:
     def test_warmup_trending_error(self, mocker):
         """Si get_charts falla, warmup debe capturar la excepcion."""
         mocker.patch("main.time.sleep")
-        mocker.patch("streaming.prefetch")
-        mocker.patch("db.db_get_state", return_value=None)
         mocker.patch(
             "ytmusic_client.get_ytm", side_effect=Exception("charts API error")
         )
@@ -278,8 +235,6 @@ class TestWarmup:
     def test_warmup_trending_no_songs_data(self, mocker):
         """Si charts no tiene songs data, no debe cachear."""
         mocker.patch("main.time.sleep")
-        mocker.patch("streaming.prefetch")
-        mocker.patch("db.db_get_state", return_value=None)
         mock_logger_info = mocker.patch("main.logger.info")
 
         mock_ytm = MagicMock()

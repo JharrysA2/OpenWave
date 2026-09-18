@@ -4,6 +4,23 @@ import re
 from pathlib import Path
 
 from config import MUSIC_DIR
+from fastapi import HTTPException
+
+# video_id de YouTube: solo caracteres URL-safe sin separadores de path.
+# Allowlist estricta que bloquea path traversal (CWE-22): rechaza "\", "/",
+# ".", ":" y cualquier carácter que pathlib/Windows use como separador.
+VIDEO_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{1,80}$")
+
+
+def is_valid_video_id(video_id) -> bool:
+    """Verificar que un video_id no contenga caracteres peligrosos."""
+    return isinstance(video_id, str) and bool(VIDEO_ID_RE.match(video_id))
+
+
+def require_valid_video_id(video_id) -> None:
+    """Rechazar video_ids inválidos en endpoints que tocan el filesystem."""
+    if not is_valid_video_id(video_id):
+        raise HTTPException(status_code=400, detail="video_id inválido")
 
 
 def upgrade_goog_url(url: str, px: int = 1200) -> str:
@@ -30,6 +47,66 @@ def best_thumb(thumbnails) -> str:
         default=pool[-1],
     )
     return upgrade_goog_url(best.get("url", ""))
+
+
+def extract_chart_items(charts, limit: int = 30):
+    """Normalizar respuesta de get_charts() a lista de canciones para la UI.
+
+    Unifica 3 forks previos del parsing (warmup de main.py, /trending y
+    /home/trending-fixed) y garantiza el MISMO shape en caché bajo la clave
+    "trending" (antes warmup guardaba items crudos y /trending, ya parseados).
+    """
+    if not charts:
+        return []
+
+    candidates = []
+    for key in (
+        "songs",
+        "topSongs",
+        "trendingSongs",
+        "trending",
+        "videos",
+        "topVideos",
+    ):
+        sec = charts.get(key)
+        if not sec:
+            continue
+        items = sec.get("items") or sec.get("content") or []
+        if items:
+            candidates.extend(items)
+            break
+    if not candidates and isinstance(charts, list):
+        candidates = charts
+    if not candidates:
+        for v in charts.values():
+            if isinstance(v, dict):
+                items = v.get("items") or v.get("content") or []
+                if items and isinstance(items[0], dict) and items[0].get("videoId"):
+                    candidates = items
+                    break
+
+    out = []
+    for r in candidates[:limit]:
+        vid = r.get("videoId") or r.get("id", "")
+        if not vid:
+            continue
+        raw = r.get("artists") or r.get("artist") or []
+        if isinstance(raw, str):
+            artist_str = raw
+        elif isinstance(raw, list):
+            artist_str = ", ".join((a.get("name") or a) for a in raw if a)
+        else:
+            artist_str = ""
+        out.append(
+            {
+                "videoId": vid,
+                "title": r.get("title", ""),
+                "artist": artist_str,
+                "thumbnail": best_thumb(r.get("thumbnails", [])) or "",
+                "duration": r.get("duration_seconds") or 0,
+            }
+        )
+    return out
 
 
 def best_thumb_raw(thumbnails) -> str:
@@ -200,7 +277,13 @@ def fmt_song(r: dict) -> dict:
 
 
 def get_mp3_path(video_id: str) -> Path:
-    """Ruta al archivo MP3 descargado."""
+    """Ruta al archivo MP3 descargado.
+
+    Valida video_id antes de construir la ruta: defensa en profundidad
+    contra path traversal en cualquier punto que construya rutas de archivo.
+    """
+    if not is_valid_video_id(video_id):
+        raise ValueError(f"video_id inválido: {video_id!r}")
     return MUSIC_DIR / f"{video_id}.mp3"
 
 

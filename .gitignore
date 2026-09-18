@@ -52,7 +52,7 @@ test-results/
 playwright-report/
 
 # ── Left-over accidental files ────────────────────────
-{src-tauri*
+[{]src-tauri*
 
 # ── Logs genéricos ────────────────────────────────────
 *.log

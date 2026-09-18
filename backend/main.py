@@ -29,6 +29,7 @@ from routes import api_router
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+
 from utils import require_valid_video_id
 
 logger = get_logger(__name__)
@@ -81,6 +82,7 @@ async def health(request: Request):
 _THUMB_CACHE = {}
 _THUMB_CACHE_TTL = 600  # 10 minutos
 
+
 @app.get("/thumbnail-proxy")
 @limiter.limit("300/minute")
 async def thumbnail_proxy(request: Request, url: str):
@@ -132,7 +134,9 @@ async def thumbnail_proxy(request: Request, url: str):
         # Limpiar cachés viejas si crece demasiado
         if len(_THUMB_CACHE) > 200:
             now = time.time()
-            stale = [k for k, v in _THUMB_CACHE.items() if (now - v["ts"]) > _THUMB_CACHE_TTL]
+            stale = [
+                k for k, v in _THUMB_CACHE.items() if (now - v["ts"]) > _THUMB_CACHE_TTL
+            ]
             for k in stale:
                 del _THUMB_CACHE[k]
 
@@ -223,8 +227,9 @@ def _startup_warmup():
     """Pre-cargar datos al iniciar."""
     time.sleep(2)
     try:
-        from utils import extract_chart_items
         from ytmusic_client import get_ytm
+
+        from utils import extract_chart_items
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

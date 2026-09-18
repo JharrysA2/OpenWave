@@ -1,7 +1,6 @@
 """Tests para routes/streaming.py — Archivos y prefetch de streaming."""
 
 
-
 class TestStreamFile:
     """Tests para GET /stream/{video_id} — servir archivo MP3."""
 
@@ -101,4 +100,3 @@ class TestStreamPrefetch:
         mock_prefetch = mocker.patch("routes.streaming.prefetch", return_value=None)
         client.get("/stream/prefetch/my_video_id")
         mock_prefetch.assert_called_once_with("my_video_id")
-

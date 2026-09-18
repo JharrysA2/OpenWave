@@ -120,10 +120,20 @@ def _ydl_get_url_with_cookies(video_id: str) -> tuple:
         except Exception as e:
             err_str = str(e).lower()
             # Diferenciar: "no browser" (DEBUG) vs "auth failed" (WARNING)
-            if any(kw in err_str for kw in ["not found", "no cookies", "unable to", "could not find"]):
-                logger.debug("cookies (%s) no disponible para %s: %s", browser, video_id, e)
+            if any(
+                kw in err_str
+                for kw in ["not found", "no cookies", "unable to", "could not find"]
+            ):
+                logger.debug(
+                    "cookies (%s) no disponible para %s: %s", browser, video_id, e
+                )
             else:
-                logger.warning("cookies (%s) falló para %s (posible auth expirado): %s", browser, video_id, e)
+                logger.warning(
+                    "cookies (%s) falló para %s (posible auth expirado): %s",
+                    browser,
+                    video_id,
+                    e,
+                )
             last_error = e
             continue
 
@@ -223,21 +233,27 @@ async def stream_audio_generator(video_id: str):
     try:
         proc = await asyncio.create_subprocess_exec(
             "yt-dlp",
-            "-f", "bestaudio",
-            "-o", "-",
+            "-f",
+            "bestaudio",
+            "-o",
+            "-",
             "--quiet",
             "--no-warnings",
-            "--js-runtimes", "deno",
-            "--impersonate", "chrome",
+            "--js-runtimes",
+            "deno",
+            "--impersonate",
+            "chrome",
             f"https://www.youtube.com/watch?v={video_id}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
 
         stderr_data = b""
+
         async def _read_stderr():
             nonlocal stderr_data
             stderr_data = await proc.stderr.read()
+
         stderr_task = asyncio.create_task(_read_stderr())
 
         has_data = False
@@ -269,14 +285,15 @@ async def stream_audio_generator(video_id: str):
     try:
         url, headers = await get_audio_url(video_id)
         if url:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client, client.stream(
-                "GET", url, headers=headers or {}
-            ) as response:
-                    if response.status_code == 200:
-                        logger.info("stream %s: ✓ httpx OK", video_id)
-                        async for chunk in response.aiter_bytes(65536):
-                            yield chunk
-                        return
+            async with (
+                httpx.AsyncClient(follow_redirects=True, timeout=30) as client,
+                client.stream("GET", url, headers=headers or {}) as response,
+            ):
+                if response.status_code == 200:
+                    logger.info("stream %s: ✓ httpx OK", video_id)
+                    async for chunk in response.aiter_bytes(65536):
+                        yield chunk
+                    return
     except Exception as e:
         logger.warning("stream %s: httpx falló: %s", video_id, e)
 
@@ -284,14 +301,15 @@ async def stream_audio_generator(video_id: str):
     try:
         url, headers = await _get_url_with_cookies_async(video_id)
         if url:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client, client.stream(
-                "GET", url, headers=headers or {}
-            ) as response:
-                    if response.status_code == 200:
-                        logger.info("stream %s: ✓ cookies OK", video_id)
-                        async for chunk in response.aiter_bytes(65536):
-                            yield chunk
-                        return
+            async with (
+                httpx.AsyncClient(follow_redirects=True, timeout=30) as client,
+                client.stream("GET", url, headers=headers or {}) as response,
+            ):
+                if response.status_code == 200:
+                    logger.info("stream %s: ✓ cookies OK", video_id)
+                    async for chunk in response.aiter_bytes(65536):
+                        yield chunk
+                    return
     except Exception as e:
         logger.warning("stream %s: cookies falló: %s", video_id, e)
 
@@ -311,20 +329,26 @@ def _extract_with_cookies_sync(video_id: str) -> tuple:
         try:
             with (
                 contextlib.redirect_stderr(io.StringIO()),
-                yt_dlp.YoutubeDL({
-                    "format": "bestaudio",
-                    "quiet": True,
-                    "no_warnings": True,
-                    "socket_timeout": 10,
-                    "cookiesfrombrowser": (browser,),
-                }) as ydl,
+                yt_dlp.YoutubeDL(
+                    {
+                        "format": "bestaudio",
+                        "quiet": True,
+                        "no_warnings": True,
+                        "socket_timeout": 10,
+                        "cookiesfrombrowser": (browser,),
+                    }
+                ) as ydl,
             ):
                 info = ydl.extract_info(
                     f"https://www.youtube.com/watch?v={video_id}", download=False
                 )
             url = info.get("url")
             if not url:
-                fmts = [f for f in (info.get("formats") or []) if f.get("acodec") != "none" and f.get("vcodec") == "none"]
+                fmts = [
+                    f
+                    for f in (info.get("formats") or [])
+                    if f.get("acodec") != "none" and f.get("vcodec") == "none"
+                ]
                 if fmts:
                     url = fmts[0].get("url")
             if url:

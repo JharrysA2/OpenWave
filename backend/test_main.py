@@ -40,9 +40,7 @@ class TestThumbnailProxy:
 
     def test_allowed_yt3(self, client):
         """URL de yt3.googleusercontent.com debe pasar la whitelist."""
-        resp = client.get(
-            "/thumbnail-proxy?url=https://yt3.googleusercontent.com/test"
-        )
+        resp = client.get("/thumbnail-proxy?url=https://yt3.googleusercontent.com/test")
         assert resp.status_code != 403
 
 
@@ -56,7 +54,11 @@ class TestExtractColors:
             "videoDetails": {
                 "thumbnail": {
                     "thumbnails": [
-                        {"url": "https://lh3.googleusercontent.com/test", "width": 120, "height": 120}
+                        {
+                            "url": "https://lh3.googleusercontent.com/test",
+                            "width": 120,
+                            "height": 120,
+                        }
                     ]
                 }
             }
@@ -129,7 +131,11 @@ class TestExtractColorsAdvanced:
             "videoDetails": {
                 "thumbnail": {
                     "thumbnails": [
-                        {"url": "https://i.ytimg.com/vi/test123/hqdefault.jpg", "width": 480, "height": 360}
+                        {
+                            "url": "https://i.ytimg.com/vi/test123/hqdefault.jpg",
+                            "width": 480,
+                            "height": 360,
+                        }
                     ]
                 }
             }
@@ -142,6 +148,7 @@ class TestExtractColorsAdvanced:
 
     def test_extract_colors_with_real_image(self, client, mocker):
         """Con imagen real de 3 colores, debe extraerlos correctamente."""
+
         def draw(pixels, size):
             for x in range(size):
                 for y in range(size):
@@ -165,7 +172,7 @@ class TestExtractColorsAdvanced:
             assert len(color) == 7
 
     def test_extract_colors_dark_pixels_filtered(self, client, mocker):
-        """ Pixeles muy oscuros deben filtrarse y devolver fallback."""
+        """Pixeles muy oscuros deben filtrarse y devolver fallback."""
         img_bytes = self._make_test_image_bytes((0, 0, 0))
         self._mock_extract_colors(mocker, img_bytes)
 
@@ -212,6 +219,7 @@ class TestWarmup:
         mocker.patch("ytmusic_client.get_ytm", return_value=mock_ytm)
 
         from main import _startup_warmup
+
         _startup_warmup()
 
         # logger.info se llama justo despues de api_cache_set
@@ -228,6 +236,7 @@ class TestWarmup:
         mock_logger = mocker.patch("main.logger.warning")
 
         from main import _startup_warmup
+
         _startup_warmup()
 
         assert mock_logger.call_count >= 1
@@ -242,6 +251,7 @@ class TestWarmup:
         mocker.patch("ytmusic_client.get_ytm", return_value=mock_ytm)
 
         from main import _startup_warmup
+
         _startup_warmup()
 
         # logger.info NO debe llamarse porque no hay datos de songs

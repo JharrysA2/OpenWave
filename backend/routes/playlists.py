@@ -90,14 +90,16 @@ async def get_playlist_songs(pid: int):
     songs = []
     for r in rows:
         d = dict(r)
-        songs.append({
-            "videoId": d.get("video_id", ""),
-            "title": d.get("title", ""),
-            "artist": d.get("artist", ""),
-            "thumbnail": d.get("thumbnail", ""),
-            "thumbnails": _parse_thumbs_json(d.get("thumbnails")),
-            "duration": d.get("duration", 0),
-        })
+        songs.append(
+            {
+                "videoId": d.get("video_id", ""),
+                "title": d.get("title", ""),
+                "artist": d.get("artist", ""),
+                "thumbnail": d.get("thumbnail", ""),
+                "thumbnails": _parse_thumbs_json(d.get("thumbnails")),
+                "duration": d.get("duration", 0),
+            }
+        )
     return songs
 
 
@@ -135,7 +137,9 @@ async def add_to_playlist(pid: int, request: Request):
                 thumbnail = meta.get("thumbnail", "")
                 duration = meta.get("duration", 0)
                 thumbs_raw = meta.get("thumbnails", [])
-                thumbs_json = _json.dumps(thumbs_raw, ensure_ascii=False) if thumbs_raw else "[]"
+                thumbs_json = (
+                    _json.dumps(thumbs_raw, ensure_ascii=False) if thumbs_raw else "[]"
+                )
 
             # 2. Fallback: try history/downloads
             if not title:

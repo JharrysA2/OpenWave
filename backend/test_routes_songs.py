@@ -269,7 +269,14 @@ class TestQueue:
         """Cola cachead debe devolver datos sin llamar a YTMusic."""
         from cache import api_cache_set
 
-        cached_tracks = [{"videoId": "cached_1", "title": "Cached Song", "artist": "Cached Artist", "duration": 180}]
+        cached_tracks = [
+            {
+                "videoId": "cached_1",
+                "title": "Cached Song",
+                "artist": "Cached Artist",
+                "duration": 180,
+            }
+        ]
         api_cache_set("queue:cached_vid", cached_tracks)
 
         resp = client.get("/queue/cached_vid")
@@ -294,7 +301,9 @@ class TestQueue:
         mock_ytm.search.assert_not_called()
 
     @patch("routes.songs.get_ytm")
-    def test_queue_radio_breaks_uses_watch_playlist_fallback(self, mock_get_ytm, client):
+    def test_queue_radio_breaks_uses_watch_playlist_fallback(
+        self, mock_get_ytm, client
+    ):
         """Si la radio (radio=True) falla con KeyError, usar watch playlist normal."""
         mock_ytm = MagicMock()
         # Radio falla como en ytmusicapi 1.7.3 (KeyError 'endpoint')
@@ -413,7 +422,12 @@ class TestSongAlbumErrors:
         # First search raises exception, second succeeds
         mock_ytm.search.side_effect = [
             Exception("search error"),
-            [{"videoId": "vid_srch", "album": {"id": "album_srch", "name": "Album Found"}}],
+            [
+                {
+                    "videoId": "vid_srch",
+                    "album": {"id": "album_srch", "name": "Album Found"},
+                }
+            ],
         ]
         mock_ytm.get_album.return_value = {
             "title": "Album Found",
@@ -437,7 +451,10 @@ class TestSongAlbumErrors:
             "videoDetails": {"title": "Album Error Song", "author": "Error Artist"}
         }
         mock_ytm.search.return_value = [
-            {"videoId": "vid_alb_err", "album": {"id": "album_err", "name": "Broken Album"}}
+            {
+                "videoId": "vid_alb_err",
+                "album": {"id": "album_err", "name": "Broken Album"},
+            }
         ]
         mock_ytm.get_album.side_effect = Exception("get_album failed")
         mock_get_ytm.return_value = mock_ytm
@@ -460,7 +477,12 @@ class TestSongAlbumErrors:
         # Second search (with title + author) finds it
         mock_ytm.search.side_effect = [
             [{"videoId": "other_vid", "album": {"id": "other_album"}}],
-            [{"videoId": "vid_2q", "album": {"id": "album_2q", "name": "Second Query Album"}}],
+            [
+                {
+                    "videoId": "vid_2q",
+                    "album": {"id": "album_2q", "name": "Second Query Album"},
+                }
+            ],
         ]
         mock_ytm.get_album.return_value = {
             "title": "Second Query Album",
@@ -518,7 +540,13 @@ class TestAlbumEdgeCases:
             "thumbnails": [],
             "tracks": [
                 {"videoId": "", "title": "Skip Me"},  # no videoId → skipped
-                {"videoId": "track_ok", "title": "Keep Me", "artists": [{"name": "Artist"}], "duration_seconds": 180, "trackNumber": 1},
+                {
+                    "videoId": "track_ok",
+                    "title": "Keep Me",
+                    "artists": [{"name": "Artist"}],
+                    "duration_seconds": 180,
+                    "trackNumber": 1,
+                },
             ],
         }
         mock_get_ytm.return_value = mock_ytm
@@ -566,7 +594,13 @@ class TestArtistCache:
         """Datos cacheados de artista deben devolverse sin llamar a YTMusic."""
         from cache import api_cache_set
 
-        cached = {"browseId": "cached_artist", "name": "Cached Artist", "songs": [], "albums": [], "singles": []}
+        cached = {
+            "browseId": "cached_artist",
+            "name": "Cached Artist",
+            "songs": [],
+            "albums": [],
+            "singles": [],
+        }
         api_cache_set("artist:cached_artist", cached)
 
         resp = client.get("/artist/cached_artist")
@@ -585,7 +619,11 @@ class TestArtistEdgeCases:
         mock_ytm.get_artist.return_value = {
             "name": "G Artist",
             "thumbnails": [
-                {"url": "https://lh3.googleusercontent.com/abc123=w200-h200", "width": 200, "height": 200}
+                {
+                    "url": "https://lh3.googleusercontent.com/abc123=w200-h200",
+                    "width": 200,
+                    "height": 200,
+                }
             ],
             "songs": {"results": []},
             "albums": {"results": []},
@@ -614,7 +652,13 @@ class TestArtistEdgeCases:
                         "title": "First Album",
                         "year": "2023",
                         "type": "Album",
-                        "thumbnails": [{"url": "https://example.com/alb1.jpg", "width": 100, "height": 100}],
+                        "thumbnails": [
+                            {
+                                "url": "https://example.com/alb1.jpg",
+                                "width": 100,
+                                "height": 100,
+                            }
+                        ],
                     }
                 ]
             },
@@ -829,7 +873,12 @@ class TestQueueWithArtist:
         from cache import api_cache_set
 
         cached_tracks = [
-            {"videoId": "c1", "title": "Other", "artist": "Different Artist", "duration": 180},
+            {
+                "videoId": "c1",
+                "title": "Other",
+                "artist": "Different Artist",
+                "duration": 180,
+            },
             {"videoId": "c2", "title": "Match", "artist": "My Artist", "duration": 200},
         ]
         api_cache_set("queue:cached_artist_vid", cached_tracks)
@@ -907,7 +956,9 @@ class TestFeedbackIntegration:
         assert tracks[0]["videoId"] == "current_track"
         # Then "Good Artist" (0 skips) should come before "Skippy Artist" (all skips)
         good_idx = next(i for i, t in enumerate(tracks) if t["videoId"] == "good_track")
-        skippy_idx = next(i for i, t in enumerate(tracks) if t["videoId"] == "skippy_track")
+        skippy_idx = next(
+            i for i, t in enumerate(tracks) if t["videoId"] == "skippy_track"
+        )
         assert good_idx < skippy_idx, (
             f"Good Artist (idx {good_idx}) should come before Skippy Artist (idx {skippy_idx})"
         )

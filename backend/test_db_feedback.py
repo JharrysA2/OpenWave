@@ -178,9 +178,7 @@ class TestCleanFeedbackFixture:
         """Insertar un feedback y verificar que existe en la DB."""
         db_record_feedback("fixture_test_vid", "skip", "Fixture Artist", "Fixture Song")
         with get_db() as conn:
-            count = conn.execute(
-                "SELECT COUNT(*) FROM song_feedback"
-            ).fetchone()[0]
+            count = conn.execute("SELECT COUNT(*) FROM song_feedback").fetchone()[0]
         assert count == 1, "Debería haber 1 fila después de insertar"
 
     def test_table_is_empty_after_fixture_cleanup(self):
@@ -190,9 +188,7 @@ class TestCleanFeedbackFixture:
         no está funcionando correctamente.
         """
         with get_db() as conn:
-            count = conn.execute(
-                "SELECT COUNT(*) FROM song_feedback"
-            ).fetchone()[0]
+            count = conn.execute("SELECT COUNT(*) FROM song_feedback").fetchone()[0]
         assert count == 0, (
             f"Esperaba 0 filas pero encontré {count}. "
             "El fixture _clean_feedback debería haber limpiado la tabla "
@@ -205,17 +201,13 @@ class TestCleanFeedbackFixture:
         db_record_feedback("clean_test_a", "complete", "Artist Clean")
         db_record_feedback("clean_test_b", "like", "Artist Clean")
         with get_db() as conn:
-            count = conn.execute(
-                "SELECT COUNT(*) FROM song_feedback"
-            ).fetchone()[0]
+            count = conn.execute("SELECT COUNT(*) FROM song_feedback").fetchone()[0]
         assert count == 2, "Deberían haber 2 filas después de insertar"
 
     def test_yet_another_clean_state(self):
         """Confirmar que el fixture limpió lo del test anterior."""
         with get_db() as conn:
-            rows = conn.execute(
-                "SELECT video_id, action FROM song_feedback"
-            ).fetchall()
+            rows = conn.execute("SELECT video_id, action FROM song_feedback").fetchall()
         assert len(rows) == 0, (
             f"Se encontraron {len(rows)} filas residuales. "
             "El fixture _clean_feedback no está limpiando correctamente."

@@ -146,7 +146,15 @@ class TestListDownloads:
                 """INSERT INTO downloads
                    (video_id, title, artist, thumbnail, duration, album_title, album_type)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                ("lst_data_1", "Cancion 1", "Artista 1", "thumb1.jpg", 200, "Album 1", "Album"),
+                (
+                    "lst_data_1",
+                    "Cancion 1",
+                    "Artista 1",
+                    "thumb1.jpg",
+                    200,
+                    "Album 1",
+                    "Album",
+                ),
             )
 
         resp = client.get("/downloads")
@@ -166,9 +174,11 @@ class TestListDownloads:
             for i in range(3):
                 uid = f"mltpl_{i}"
                 conn.execute(
-                    ("INSERT OR REPLACE INTO downloads "
-                     "(video_id, title, artist, thumbnail, duration) "
-                     "VALUES (?, ?, ?, ?, ?)"),
+                    (
+                        "INSERT OR REPLACE INTO downloads "
+                        "(video_id, title, artist, thumbnail, duration) "
+                        "VALUES (?, ?, ?, ?, ?)"
+                    ),
                     (uid, f"Song {i}", f"Artist {i}", f"thumb{i}.jpg", 180),
                 )
 
@@ -184,9 +194,11 @@ class TestListDownloads:
         uid = "size_test_vid"
         with get_db() as conn:
             conn.execute(
-                ("INSERT OR REPLACE INTO downloads "
-                 "(video_id, title, artist, thumbnail, duration) "
-                 "VALUES (?, ?, ?, ?, ?)"),
+                (
+                    "INSERT OR REPLACE INTO downloads "
+                    "(video_id, title, artist, thumbnail, duration) "
+                    "VALUES (?, ?, ?, ?, ?)"
+                ),
                 (uid, "Size Song", "Artist", "thumb.jpg", 200),
             )
 
@@ -363,15 +375,19 @@ class TestDeleteSelectedDownloads:
         # Insertar BD
         with get_db() as conn:
             conn.execute(
-                ("INSERT OR REPLACE INTO downloads "
-                 "(video_id, title, artist, thumbnail, duration) "
-                 "VALUES (?, ?, ?, ?, ?)"),
+                (
+                    "INSERT OR REPLACE INTO downloads "
+                    "(video_id, title, artist, thumbnail, duration) "
+                    "VALUES (?, ?, ?, ?, ?)"
+                ),
                 (vid_to_delete, "Delete Me", "Artist", "t.jpg", 200),
             )
             conn.execute(
-                ("INSERT OR REPLACE INTO downloads "
-                 "(video_id, title, artist, thumbnail, duration) "
-                 "VALUES (?, ?, ?, ?, ?)"),
+                (
+                    "INSERT OR REPLACE INTO downloads "
+                    "(video_id, title, artist, thumbnail, duration) "
+                    "VALUES (?, ?, ?, ?, ?)"
+                ),
                 (vid_to_keep, "Keep Me", "Artist", "t.jpg", 200),
             )
 

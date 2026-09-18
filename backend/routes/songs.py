@@ -28,6 +28,7 @@ def _get_artist_browse_id(data):
             return aid
     return ""
 
+
 logger = get_logger(__name__)
 
 router = APIRouter()
@@ -310,7 +311,7 @@ async def get_related_artists(browse_id: str):
         ytm = get_ytm()
         data = ytm.get_artist(browse_id)
         related = []
-        for r in (data.get("related", {}).get("results") or []):
+        for r in data.get("related", {}).get("results") or []:
             thumbs = r.get("thumbnails") or []
             best = (
                 max(
@@ -342,6 +343,7 @@ async def get_related_artists(browse_id: str):
 
 class FeedbackRequest(BaseModel):
     """Cuerpo de la solicitud de feedback para entrenar recomendaciones."""
+
     videoId: str  # noqa: N815 — contrato JSON con el frontend (camelCase)
     action: str  # 'skip' | 'complete' | 'like' | 'unlike'
     artist: str = ""
@@ -387,11 +389,7 @@ def _rerank_by_artist(tracks: list, artist_name: str) -> list:
     if not artist_name or not tracks:
         return tracks
 
-    current_artists = {
-        a.strip().lower()
-        for a in artist_name.split(",")
-        if a.strip()
-    }
+    current_artists = {a.strip().lower() for a in artist_name.split(",") if a.strip()}
     if not current_artists:
         return tracks
 
@@ -399,9 +397,7 @@ def _rerank_by_artist(tracks: list, artist_name: str) -> list:
     others: list = []
     for t in tracks:
         track_artist = (t.get("artist") or "").lower()
-        track_artists = {
-            a.strip() for a in track_artist.split(",") if a.strip()
-        }
+        track_artists = {a.strip() for a in track_artist.split(",") if a.strip()}
         if track_artists & current_artists:
             matches.append(t)
         else:
@@ -426,7 +422,12 @@ def _rerank_by_artist(tracks: list, artist_name: str) -> list:
 
 @router.get("/queue/{video_id}")
 @limiter.limit("30/minute")
-async def get_queue(request: Request, video_id: str, limit: int = Query(25, ge=1, le=100), artist: str = ""):
+async def get_queue(
+    request: Request,
+    video_id: str,
+    limit: int = Query(25, ge=1, le=100),
+    artist: str = "",
+):
     """Obtener cola de reproducción (radio) para una canción.
 
     Acepta un parámetro opcional `artist` para reordenar los

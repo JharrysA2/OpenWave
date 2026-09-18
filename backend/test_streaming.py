@@ -32,7 +32,9 @@ class TestExtractAudioUrlSync:
         mock_cache.assert_called_once()
         assert url == "https://stream.url/audio"
 
-    @patch("streaming._ydl_get_url_with_cookies", side_effect=RuntimeError("no cookies"))
+    @patch(
+        "streaming._ydl_get_url_with_cookies", side_effect=RuntimeError("no cookies")
+    )
     @patch("streaming.get_cached_url", return_value=(None, None))
     @patch(
         "streaming._ydl_get_url",
@@ -50,7 +52,9 @@ class TestExtractAudioUrlSync:
         assert url == "https://fallback.url"
         assert mock_cache.called
 
-    @patch("streaming._ydl_get_url_with_cookies", side_effect=RuntimeError("no cookies"))
+    @patch(
+        "streaming._ydl_get_url_with_cookies", side_effect=RuntimeError("no cookies")
+    )
     @patch("streaming.get_cached_url", return_value=(None, None))
     @patch("streaming._ydl_get_url", side_effect=RuntimeError("no audio"))
     def test_ytdlp_all_fail_raises(self, mock_ydl, mock_get_cached, mock_cookies):
@@ -71,10 +75,14 @@ class TestExtractAudioUrlSync:
         with in_flight_lock:
             assert "vid_clear" not in in_flight
 
-    @patch("streaming._ydl_get_url_with_cookies", side_effect=RuntimeError("no cookies"))
+    @patch(
+        "streaming._ydl_get_url_with_cookies", side_effect=RuntimeError("no cookies")
+    )
     @patch("streaming.get_cached_url", return_value=(None, None))
     @patch("streaming._ydl_get_url", side_effect=RuntimeError("fail"))
-    def test_clears_in_flight_after_error(self, mock_ydl, mock_get_cached, mock_cookies):
+    def test_clears_in_flight_after_error(
+        self, mock_ydl, mock_get_cached, mock_cookies
+    ):
         """Incluso en error, debe limpiar in_flight."""
         from streaming import in_flight, in_flight_lock
 

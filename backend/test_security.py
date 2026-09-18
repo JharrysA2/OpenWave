@@ -13,7 +13,7 @@ from utils import get_mp3_path, is_valid_video_id, require_valid_video_id
 TRAVERSAL_PAYLOADS = [
     "..\\..\\evil",
     "..\\..\\..\\windows",
-    "..\evil",
+    r"..\evil",
     "evil\\..\\x",
 ]
 
@@ -76,7 +76,12 @@ class TestEndpointsRejectTraversal:
     """Cada endpoint con video_id debe responder 400 ante payloads de traversa."""
 
     def test_stream_endpoints(self, client):
-        for path in ("/stream/{v}", "/stream/play/{v}", "/stream-url/{v}", "/stream/prefetch/{v}"):
+        for path in (
+            "/stream/{v}",
+            "/stream/play/{v}",
+            "/stream-url/{v}",
+            "/stream/prefetch/{v}",
+        ):
             for evil in TRAVERSAL_PAYLOADS:
                 resp = client.get(path.format(v=evil))
                 assert resp.status_code == 400, f"{path} con {evil!r}"
@@ -105,6 +110,11 @@ class TestEndpointsRejectTraversal:
 
     def test_song_and_queue_endpoints(self, client):
         for evil in TRAVERSAL_PAYLOADS:
-            for path in ("/song/details/{v}", "/song/album/{v}", "/queue/{v}", "/extract-colors/{v}"):
+            for path in (
+                "/song/details/{v}",
+                "/song/album/{v}",
+                "/queue/{v}",
+                "/extract-colors/{v}",
+            ):
                 resp = client.get(path.format(v=evil))
                 assert resp.status_code == 400, f"{path} con {evil!r}"

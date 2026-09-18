@@ -11,6 +11,7 @@ from cache import download_progress
 from config import BASE_DIR, COVERS_DIR, LYRICS_DIR, MUSIC_DIR
 from db import _db_lock, get_db
 from logging_config import get_logger
+
 from utils import get_mp3_path
 
 logger = get_logger(__name__)

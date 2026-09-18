@@ -74,7 +74,11 @@ class TestSearch:
                     "year": "2024",
                     "type": "Album",
                     "thumbnails": [
-                        {"url": "https://example.com/thumb.jpg", "width": 100, "height": 100}
+                        {
+                            "url": "https://example.com/thumb.jpg",
+                            "width": 100,
+                            "height": 100,
+                        }
                     ],
                 }
             ],
@@ -253,7 +257,9 @@ class TestTrending:
                         "title": "Trending Song",
                         "artists": [{"name": "Trend Artist"}],
                         "duration_seconds": 180,
-                        "thumbnails": [{"url": "thumb.jpg", "width": 100, "height": 100}],
+                        "thumbnails": [
+                            {"url": "thumb.jpg", "width": 100, "height": 100}
+                        ],
                     }
                 ]
             }
@@ -414,12 +420,28 @@ class TestHomeQuickPicks:
             conn.execute(
                 "INSERT INTO history (video_id, title, artist, thumbnail, duration, play_count, last_played_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                ("hist1", "History Song", "Hist Artist", "thumb.jpg", 200, 5, "2024-01-01"),
+                (
+                    "hist1",
+                    "History Song",
+                    "Hist Artist",
+                    "thumb.jpg",
+                    200,
+                    5,
+                    "2024-01-01",
+                ),
             )
             conn.execute(
                 "INSERT INTO history (video_id, title, artist, thumbnail, duration, play_count, last_played_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                ("hist2", "Another Song", "Other Artist", "thumb2.jpg", 180, 3, "2024-01-02"),
+                (
+                    "hist2",
+                    "Another Song",
+                    "Other Artist",
+                    "thumb2.jpg",
+                    180,
+                    3,
+                    "2024-01-02",
+                ),
             )
 
         try:
@@ -445,7 +467,15 @@ class TestHomeQuickPicks:
             conn.execute(
                 "INSERT INTO history (video_id, title, artist, thumbnail, duration, play_count, last_played_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                ("orig2", "Song Title (feat. Someone)", "Artist", "t2.jpg", 200, 3, "2024-01-02"),
+                (
+                    "orig2",
+                    "Song Title (feat. Someone)",
+                    "Artist",
+                    "t2.jpg",
+                    200,
+                    3,
+                    "2024-01-02",
+                ),
             )
 
         try:
@@ -497,7 +527,15 @@ class TestHomeForYou:
             conn.execute(
                 "INSERT INTO history (video_id, title, artist, thumbnail, duration, play_count, last_played_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                ("fy_hist", "Hist Song", "Search Artist", "t.jpg", 200, 10, "2024-01-01"),
+                (
+                    "fy_hist",
+                    "Hist Song",
+                    "Search Artist",
+                    "t.jpg",
+                    200,
+                    10,
+                    "2024-01-01",
+                ),
             )
 
         mock_ytm = MagicMock()
@@ -586,7 +624,9 @@ class TestHomeAlbums:
                 "artists": [{"name": "Alb Artist"}],
                 "year": "2024",
                 "type": "Album",
-                "thumbnails": [{"url": "https://example.com/alb.jpg", "width": 100, "height": 100}],
+                "thumbnails": [
+                    {"url": "https://example.com/alb.jpg", "width": 100, "height": 100}
+                ],
             },
             {"browseId": "", "title": "No Id"},  # filtered: empty browseId
             {"title": "No BrowseId"},  # filtered: no browseId key
@@ -634,7 +674,15 @@ class TestHomeAlbums:
             conn.execute(
                 "INSERT INTO history (video_id, title, artist, thumbnail, duration, play_count, last_played_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                ("alb_cma", "Song", "Primary Artist, Secondary Artist", "t.jpg", 200, 5, "2024-01-01"),
+                (
+                    "alb_cma",
+                    "Song",
+                    "Primary Artist, Secondary Artist",
+                    "t.jpg",
+                    200,
+                    5,
+                    "2024-01-01",
+                ),
             )
 
         mock_ytm = MagicMock()
@@ -647,7 +695,9 @@ class TestHomeAlbums:
             data = resp.json()
             assert isinstance(data["results"], list)
             # Verificar que search se llamó con "Primary Artist" (primera parte)
-            mock_ytm.search.assert_called_once_with("Primary Artist", filter="albums", limit=4)
+            mock_ytm.search.assert_called_once_with(
+                "Primary Artist", filter="albums", limit=4
+            )
         finally:
             with get_db() as conn:
                 conn.execute("DELETE FROM history")

@@ -68,9 +68,21 @@ class TestParseThumbsJson:
     def test_google_thumbnails_structure(self):
         """Estructura típica de thumbnails de googleusercontent."""
         data = [
-            {"url": "https://lh3.googleusercontent.com/abc=w120-h120-l90-rj", "width": 120, "height": 120},
-            {"url": "https://lh3.googleusercontent.com/abc=w576-h576-l90-rj", "width": 576, "height": 576},
-            {"url": "https://lh3.googleusercontent.com/abc=w2048-h2048-l90-rj", "width": 2048, "height": 2048},
+            {
+                "url": "https://lh3.googleusercontent.com/abc=w120-h120-l90-rj",
+                "width": 120,
+                "height": 120,
+            },
+            {
+                "url": "https://lh3.googleusercontent.com/abc=w576-h576-l90-rj",
+                "width": 576,
+                "height": 576,
+            },
+            {
+                "url": "https://lh3.googleusercontent.com/abc=w2048-h2048-l90-rj",
+                "width": 2048,
+                "height": 2048,
+            },
         ]
         result = _parse_thumbs_json(json.dumps(data))
         assert len(result) == 3
@@ -83,20 +95,30 @@ class TestHistoryThumbnails:
 
     def _log_song(self, video_id, thumbnail="", thumbnails=None):
         """Helper para registrar una canción en el historial."""
-        db_log_history({
-            "videoId": video_id,
-            "title": f"Song {video_id}",
-            "artist": "Test Artist",
-            "thumbnail": thumbnail,
-            "duration": 200,
-            "thumbnails": thumbnails or [],
-        })
+        db_log_history(
+            {
+                "videoId": video_id,
+                "title": f"Song {video_id}",
+                "artist": "Test Artist",
+                "thumbnail": thumbnail,
+                "duration": 200,
+                "thumbnails": thumbnails or [],
+            }
+        )
 
     def test_log_stores_thumbnails_as_json_string(self):
         """db_log_history debe guardar thumbnails[] como JSON string en la DB."""
         thumbs = [
-            {"url": "https://lh3.googleusercontent.com/test=w120-h120-l90-rj", "width": 120, "height": 120},
-            {"url": "https://lh3.googleusercontent.com/test=w576-h576-l90-rj", "width": 576, "height": 576},
+            {
+                "url": "https://lh3.googleusercontent.com/test=w120-h120-l90-rj",
+                "width": 120,
+                "height": 120,
+            },
+            {
+                "url": "https://lh3.googleusercontent.com/test=w576-h576-l90-rj",
+                "width": 576,
+                "height": 576,
+            },
         ]
         self._log_song("thumbs_test_1", thumbnail=thumbs[-1]["url"], thumbnails=thumbs)
 
@@ -126,8 +148,16 @@ class TestHistoryThumbnails:
     def test_get_history_returns_parsed_thumbnails(self):
         """db_get_history debe devolver thumbnails[] como lista de dicts."""
         thumbs = [
-            {"url": "https://i.ytimg.com/vi/test123/maxresdefault.jpg", "width": 1280, "height": 720},
-            {"url": "https://i.ytimg.com/vi/test123/mqdefault.jpg", "width": 320, "height": 180},
+            {
+                "url": "https://i.ytimg.com/vi/test123/maxresdefault.jpg",
+                "width": 1280,
+                "height": 720,
+            },
+            {
+                "url": "https://i.ytimg.com/vi/test123/mqdefault.jpg",
+                "width": 320,
+                "height": 180,
+            },
         ]
         self._log_song("thumbs_get_test", thumbnail=thumbs[0]["url"], thumbnails=thumbs)
 
@@ -152,13 +182,25 @@ class TestHistoryThumbnails:
 
     def test_log_updates_thumbnails_on_conflict(self):
         """Al reproducir la misma canción, thumbnails debe actualizarse."""
-        old_thumbs = [{"url": "https://example.com/old.jpg", "width": 200, "height": 200}]
-        new_thumbs = [{"url": "https://example.com/new.jpg", "width": 400, "height": 400}]
+        old_thumbs = [
+            {"url": "https://example.com/old.jpg", "width": 200, "height": 200}
+        ]
+        new_thumbs = [
+            {"url": "https://example.com/new.jpg", "width": 400, "height": 400}
+        ]
 
         # Primera reproducción (insert)
-        self._log_song("thumbs_update", thumbnail="https://example.com/old.jpg", thumbnails=old_thumbs)
+        self._log_song(
+            "thumbs_update",
+            thumbnail="https://example.com/old.jpg",
+            thumbnails=old_thumbs,
+        )
         # Segunda reproducción (update ON CONFLICT)
-        self._log_song("thumbs_update", thumbnail="https://example.com/new.jpg", thumbnails=new_thumbs)
+        self._log_song(
+            "thumbs_update",
+            thumbnail="https://example.com/new.jpg",
+            thumbnails=new_thumbs,
+        )
 
         history = db_get_history(limit=50)
         found = [h for h in history if h["videoId"] == "thumbs_update"]
@@ -169,8 +211,12 @@ class TestHistoryThumbnails:
     def test_multiple_songs_each_have_correct_thumbnails(self):
         """Varias canciones deben tener sus thumbnails correctos."""
         songs = {
-            "multi_a": [{"url": "https://example.com/a.jpg", "width": 100, "height": 100}],
-            "multi_b": [{"url": "https://example.com/b.jpg", "width": 200, "height": 200}],
+            "multi_a": [
+                {"url": "https://example.com/a.jpg", "width": 100, "height": 100}
+            ],
+            "multi_b": [
+                {"url": "https://example.com/b.jpg", "width": 200, "height": 200}
+            ],
             "multi_c": [],
         }
         for vid, thumbs in songs.items():
@@ -203,7 +249,9 @@ class TestDownloadThumbnailsMigration:
         """La tabla downloads debe tener la columna thumbnails."""
         init_db()
         with get_db() as conn:
-            cols = [r[1] for r in conn.execute("PRAGMA table_info(downloads)").fetchall()]
+            cols = [
+                r[1] for r in conn.execute("PRAGMA table_info(downloads)").fetchall()
+            ]
         assert "thumbnails" in cols, (
             f"Columna thumbnails no encontrada en downloads. Columnas: {cols}"
         )
@@ -212,7 +260,10 @@ class TestDownloadThumbnailsMigration:
         """La tabla playlist_songs debe tener la columna thumbnails."""
         init_db()
         with get_db() as conn:
-            cols = [r[1] for r in conn.execute("PRAGMA table_info(playlist_songs)").fetchall()]
+            cols = [
+                r[1]
+                for r in conn.execute("PRAGMA table_info(playlist_songs)").fetchall()
+            ]
         assert "thumbnails" in cols, (
             f"Columna thumbnails no encontrada en playlist_songs. Columnas: {cols}"
         )

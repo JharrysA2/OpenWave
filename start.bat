@@ -1,49 +1,54 @@
 @echo off
+setlocal
 title SoundWave
+cd /d "%~dp0"
+
 echo.
 echo  ================================================
 echo   SoundWave - Iniciando...
 echo  ================================================
 echo.
 
-:: Verificar que el venv existe
+:: Verificar que el venv existe (si no, crearlo e instalar dependencias)
 if not exist "venv\Scripts\python.exe" (
   echo  [!] Entorno virtual no encontrado.
   echo      Creando venv e instalando dependencias...
   echo.
   python -m venv venv
-  venv\Scripts\pip install -r backend\requirements.txt
+  if errorlevel 1 goto :error
+  "venv\Scripts\pip.exe" install -r backend\requirements.txt
+  if errorlevel 1 goto :error
   echo.
 )
 
-:: Iniciar backend Python usando el entorno virtual (VENV)
-echo  [1/2] Iniciando backend con Python...
-start "SoundWave Backend" /min cmd /k "cd /d %~dp0 && call venv\Scripts\activate && cd backend && python main.py"
-
-:: Esperar 4 segundos para que el backend arranque bien
-timeout /t 4 /nobreak >nul
-
-:: Verificar que el backend esta corriendo (puerto 8765)
-curl -s http://127.0.0.1:8765/openapi.json >nul 2>&1
-if %errorlevel% neq 0 (
-  echo  [!] Advertencia: El backend puede no haber iniciado correctamente.
+:: Backend: solo abrimos una ventana si no hay ya uno respondiendo.
+:: Si ya está corriendo, saltamos el arranque (evita terminales duplicadas).
+set "STARTED_BACKEND="
+curl -s http://127.0.0.1:8765/health >nul 2>&1
+if not errorlevel 1 (
+  echo  [OK] Backend ya esta corriendo en http://127.0.0.1:8765
   echo.
 ) else (
-  echo  [OK] Backend corriendo en http://127.0.0.1:8765
-  echo.
+  echo  [1/2] Iniciando backend con Python...
+  start "SoundWave Backend (Python)" /min cmd /k "cd /d ""%~dp0"" && call venv\Scripts\activate && cd backend && python main.py"
+  set "STARTED_BACKEND=1"
+  timeout /t 5 /nobreak >nul
+  curl -s http://127.0.0.1:8765/health >nul 2>&1
+  if errorlevel 1 (
+    echo  [!] Advertencia: El backend no respondio en http://127.0.0.1:8765
+    echo.
+  ) else (
+    echo  [OK] Backend corriendo en http://127.0.0.1:8765
+    echo.
+  )
 )
 
 :: Iniciar la app Tauri
 echo  [2/2] Iniciando app Tauri...
-cd /d %~dp0
-
-:: Agregar cargo al PATH si no esta (necesario para Tauri/Rust)
 set "PATH=%USERPROFILE%\.cargo\bin;%PATH%"
 
 npm run tauri dev
-
-:: Si npm run tauri dev falla, mostrar error y pausar
-if %errorlevel% neq 0 (
+if errorlevel 1 (
   echo.
   echo  ================================================
   echo   ERROR: La app se cerro inesperadamente.
@@ -58,7 +63,17 @@ if %errorlevel% neq 0 (
   pause
 )
 
-:: Al cerrar la app, matar el backend
+:: Al cerrar la app, apagar el backend SOLO si lo arrancamos en esta ejecucion
+if defined STARTED_BACKEND (
+  echo.
+  echo  Cerrando backend...
+  powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+)
+exit /b 0
+
+:error
 echo.
-echo  Cerrando backend...
-taskkill /f /fi "WINDOWTITLE eq SoundWave Backend" >nul 2>&1
+echo  [!] Fallo durante la inicializacion.
+echo      Revisa los mensajes anteriores y vuelve a intentarlo.
+pause
+exit /b 1

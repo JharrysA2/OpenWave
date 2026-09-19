@@ -17,6 +17,8 @@ import {
   safeAccentText,
 } from "../utils/theme";
 import { SkeletonArtistView } from "./SkeletonLoader";
+import { AlbumCardRow } from "./AlbumCardRow";
+import { ArtistCardPill } from "./ArtistCardPill";
 
 export function ArtistView({
   browseId,
@@ -456,58 +458,14 @@ export function ArtistView({
             </h3>
             <div style={LAYOUTS.horizontalScroll}>
               {allAlbums.map((a, i) => (
-                <div
+                <AlbumCardRow
                   key={a.browseId || i}
+                  album={a}
+                  minWidth="140px"
+                  animationDelay={200 + i * 40}
+                  subtitle={`${a.type}${a.year ? ` · ${a.year}` : ""}`}
                   onClick={() => onGoToAlbum && onGoToAlbum(a)}
-                  style={{
-                    ...ANIMATIONS.fadeSlideUp(200 + i * 40),
-                    ...LAYOUTS.albumCard,
-                    minWidth: "140px",
-                    transition: `${TRANSITIONS.fast}, transform .12s ease`,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = GLASS.cardHover.background;
-                    e.currentTarget.style.borderColor = GLASS.cardHover.borderColor;
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = GLASS.card.background;
-                    e.currentTarget.style.borderColor = GLASS.card.borderColor;
-                    e.currentTarget.style.transform = "translateY(0)";
-                  }}
-                >
-                  <MusicCover
-                    thumbnails={a.thumbnails}
-                    src={a.thumbnail}
-                    displaySize={160}
-                    alt={a.title}
-                    style={{ width: "100%", aspectRatio: "1" }}
-                  />
-                  <div style={{ padding: "8px 10px 10px" }}>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        fontWeight: "800",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        color: COLORS.textPrimary,
-                      }}
-                    >
-                      {a.title}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "10px",
-                        color: COLORS.textTertiary,
-                        fontWeight: "600",
-                        marginTop: "2px",
-                      }}
-                    >
-                      {a.type} {a.year ? `· ${a.year}` : ""}
-                    </div>
-                  </div>
-                </div>
+                />
               ))}
             </div>
           </div>
@@ -528,55 +486,16 @@ export function ArtistView({
             </h3>
             <div style={LAYOUTS.horizontalScroll}>
               {relatedArtists.map((a, i) => (
-                <div
+                <ArtistCardPill
                   key={a.browseId || i}
+                  artist={a}
+                  animationDelay={300 + i * 50}
+                  leaveBackground={GLASS.card.background}
+                  leaveBorder={GLASS.card.borderColor}
                   onClick={() => {
                     if (onGoToRelatedArtist) onGoToRelatedArtist(a.browseId);
                   }}
-                  style={{
-                    ...ANIMATIONS.fadeSlideUp(300 + i * 50),
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: SPACING.gap.tight,
-                    minWidth: "80px",
-                    cursor: "pointer",
-                    padding: "8px",
-                    borderRadius: RADIUS.card,
-                    transition: TRANSITIONS.fast,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = GLASS.cardHover.background;
-                    e.currentTarget.style.borderColor = GLASS.cardHover.borderColor;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = GLASS.card.background;
-                    e.currentTarget.style.borderColor = GLASS.card.borderColor;
-                  }}
-                >
-                  <div style={LAYOUTS.circularCover("72px")}>
-                    <MusicCover
-                      src={a.thumbnail}
-                      displaySize={80}
-                      alt={a.name}
-                      style={{ width: "72px", height: "72px" }}
-                    />
-                  </div>
-                  <span
-                    style={{
-                      fontSize: "11.5px",
-                      fontWeight: "700",
-                      color: "rgba(255,255,255,.8)",
-                      textAlign: "center",
-                      maxWidth: "80px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {a.name}
-                  </span>
-                </div>
+                />
               ))}
             </div>
           </div>

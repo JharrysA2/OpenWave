@@ -2,19 +2,9 @@ import React, { useState } from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
-import { MusicCover } from "./MusicCover";
 import { ConfirmModal } from "./ConfirmModal";
-import {
-  COLORS,
-  RADIUS,
-  SPACING,
-  TRANSITIONS,
-  LAYOUTS,
-  GLASS,
-  withAlpha,
-  safeAccentText,
-  ANIMATIONS,
-} from "../utils/theme";
+import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, withAlpha, ANIMATIONS } from "../utils/theme";
+import { SongRow } from "./SongRow";
 
 export function DownloadsView({
   downloads,
@@ -264,91 +254,31 @@ export function DownloadsView({
               downloaded: true,
             };
             return (
-              <div
+              <SongRow
                 key={vid || i}
-                style={{
-                  ...ANIMATIONS.staggerFast(i),
-                  ...LAYOUTS.songRow(isActive, accentColor),
-                }}
+                song={songData}
+                isActive={isActive}
+                accentColor={accentColor}
+                index={i}
                 onClick={() => playSong(songData)}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = LAYOUTS.songRowHover.background;
-                    e.currentTarget.style.borderColor = LAYOUTS.songRowHover.borderColor;
-                    e.currentTarget.style.boxShadow = LAYOUTS.songRowHover.boxShadow;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.borderColor = "transparent";
-                    e.currentTarget.style.boxShadow = "none";
-                  }
-                }}
-              >
-                <div style={LAYOUTS.listCover}>
-                  <MusicCover
-                    src={song.thumbnail}
-                    displaySize={50}
-                    alt=""
-                    style={{ width: "40px", height: "40px" }}
-                  />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
+                badge={
+                  <span
                     style={{
-                      fontSize: "13.5px",
-                      fontWeight: "700",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      color: isActive ? safeAccentText(accentColor) : COLORS.textPlayerTitle,
+                      fontSize: "9px",
+                      color: COLORS.successColor || "#22c55e",
+                      fontWeight: "800",
+                      background: withAlpha(COLORS.successColor || "#22c55e", "1a"),
+                      borderRadius: RADIUS.pill,
+                      padding: "2px 8px",
+                      flexShrink: 0,
+                      letterSpacing: ".2px",
                     }}
                   >
-                    {song.title}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11.5px",
-                      color: COLORS.textTertiary,
-                      fontWeight: "600",
-                      marginTop: "1px",
-                    }}
-                  >
-                    {song.artist}
-                  </div>
-                </div>
-                <span
-                  style={{
-                    fontSize: "9px",
-                    color: COLORS.successColor || "#22c55e",
-                    fontWeight: "800",
-                    background: withAlpha(COLORS.successColor || "#22c55e", "1a"),
-                    borderRadius: RADIUS.pill,
-                    padding: "2px 8px",
-                    flexShrink: 0,
-                    letterSpacing: ".2px",
-                  }}
-                >
-                  OFFLINE
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openOptions(songData);
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: COLORS.iconDefault,
-                    display: "flex",
-                    padding: "4px",
-                  }}
-                >
-                  {Ic.dots}
-                </button>
-              </div>
+                    OFFLINE
+                  </span>
+                }
+                onOpenOptions={() => openOptions(songData)}
+              />
             );
           })}
         </div>

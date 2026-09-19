@@ -15,6 +15,7 @@ import {
   safeAccentText,
 } from "../utils/theme";
 import { SkeletonGrid, SkeletonSongRow } from "./SkeletonLoader";
+import { SearchBar } from "./SearchBar";
 
 /** Devuelve un saludo según la hora del día */
 const getGreeting = () => {
@@ -52,12 +53,6 @@ export function HomeView({
   // ── Search bar state ────────────────────────────────────────────────────────
   const [searchValue, setSearchValue] = React.useState("");
   const searchInputRef = React.useRef(null);
-
-  const handleSearchKeyDown = (e) => {
-    if (e.key === "Enter" && searchValue.trim() && onSearch) {
-      onSearch(searchValue.trim());
-    }
-  };
 
   return (
     <div
@@ -111,110 +106,23 @@ export function HomeView({
         </div>
 
         {/* Search bar — glassmorphism */}
-        <div
-          style={{
-            ...ANIMATIONS.fadeSlideUp(60),
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            ...GLASS.searchbar,
-            borderRadius: "14px",
-            padding: "0 16px",
-            height: "44px",
-            transition: "all .2s cubic-bezier(.16,1,.3,1)",
+        <SearchBar
+          value={searchValue}
+          onChange={setSearchValue}
+          onSearch={(v) => {
+            const trimmed = v.trim();
+            if (trimmed) onSearch(trimmed);
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(255,255,255,.10)";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,.14)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = GLASS.searchbar.background;
-            e.currentTarget.style.borderColor = GLASS.searchbar.borderColor;
-          }}
-        >
-          <svg
-            width="17"
-            height="17"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="rgba(255,255,255,.3)"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ flexShrink: 0 }}
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            onFocus={() => {
-              const container = searchInputRef.current?.parentElement;
-              if (container) {
-                container.style.borderColor = `${accentColor}55`;
-                container.style.boxShadow = `0 0 0 3px ${accentColor}15, 0 0 20px ${accentColor}08`;
-              }
-            }}
-            onBlur={() => {
-              const container = searchInputRef.current?.parentElement;
-              if (container) {
-                container.style.borderColor = "rgba(255,255,255,.08)";
-                container.style.boxShadow = "none";
-              }
-            }}
-            placeholder="Buscar canciones, artistas, álbumes…"
-            style={{
-              flex: 1,
-              border: "none",
-              background: "transparent",
-              color: "#fff",
-              fontSize: "14px",
-              fontWeight: "500",
-              fontFamily: FONT,
-              outline: "none",
-              height: "100%",
-            }}
-          />
-          {searchValue && (
-            <button
-              onClick={() => {
-                setSearchValue("");
-                searchInputRef.current?.focus();
-              }}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "rgba(255,255,255,.35)",
-                cursor: "pointer",
-                padding: "4px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "color .12s",
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,.7)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,.35)")}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-              >
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
+          inputRef={searchInputRef}
+          placeholder="Buscar canciones, artistas, álbumes…"
+          accentColor={accentColor}
+          glowOnFocus
+          clearCircle
+          height="44px"
+          padding="0 16px"
+          borderRadius="14px"
+          containerStyle={{ ...ANIMATIONS.fadeSlideUp(60) }}
+        />
       </div>
 
       {/* Skeleton loading state — shows when no data yet */}

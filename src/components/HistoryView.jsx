@@ -2,18 +2,9 @@ import React, { useState } from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
-import { MusicCover } from "./MusicCover";
 import { ConfirmModal } from "./ConfirmModal";
-import {
-  COLORS,
-  RADIUS,
-  SPACING,
-  TRANSITIONS,
-  LAYOUTS,
-  GLASS,
-  ANIMATIONS,
-  safeAccentText,
-} from "../utils/theme";
+import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, ANIMATIONS } from "../utils/theme";
+import { SongRow } from "./SongRow";
 
 export function HistoryView({
   history,
@@ -242,79 +233,19 @@ export function HistoryView({
           {history.map((song, i) => {
             const isActive = currentSong?.videoId === song.videoId;
             return (
-              <div
+              <SongRow
                 key={song.videoId || i}
-                style={{
-                  ...ANIMATIONS.staggerFast(i),
-                  ...LAYOUTS.songRow(isActive, accentColor),
-                }}
+                song={song}
+                isActive={isActive}
+                accentColor={accentColor}
+                index={i}
                 onClick={() => playSong(song)}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = LAYOUTS.songRowHover.background;
-                    e.currentTarget.style.borderColor = LAYOUTS.songRowHover.borderColor;
-                    e.currentTarget.style.boxShadow = LAYOUTS.songRowHover.boxShadow;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.borderColor = "transparent";
-                    e.currentTarget.style.boxShadow = "none";
-                  }
-                }}
-              >
-                <div style={LAYOUTS.listCover}>
-                  <MusicCover
-                    thumbnails={song.thumbnails}
-                    src={song.thumbnail || song.thumbnails?.[0]?.url}
-                    displaySize={50}
-                    alt=""
-                    style={{ width: "40px", height: "40px" }}
-                  />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: "13.5px",
-                      fontWeight: "700",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      color: isActive ? safeAccentText(accentColor) : COLORS.textPlayerTitle,
-                    }}
-                  >
-                    {song.title}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11.5px",
-                      color: COLORS.textTertiary,
-                      fontWeight: "600",
-                      marginTop: "1px",
-                    }}
-                  >
-                    {song.artist} · {song.playCount || 1} reproducción
-                    {song.playCount !== 1 ? "es" : ""}
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openOptions(song);
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: COLORS.iconDefault,
-                    display: "flex",
-                    padding: "4px",
-                  }}
-                >
-                  {Ic.dots}
-                </button>
-              </div>
+                coverSrc={song.thumbnail || song.thumbnails?.[0]?.url}
+                subtitle={`${song.artist} · ${song.playCount || 1} reproducción${
+                  song.playCount !== 1 ? "es" : ""
+                }`}
+                onOpenOptions={openOptions}
+              />
             );
           })}
         </div>

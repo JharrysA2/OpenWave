@@ -1,17 +1,8 @@
 import React from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
-import { MusicCover } from "./MusicCover";
-import {
-  COLORS,
-  RADIUS,
-  SPACING,
-  TRANSITIONS,
-  LAYOUTS,
-  GLASS,
-  safeAccentText,
-  ANIMATIONS,
-} from "../utils/theme";
+import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, ANIMATIONS } from "../utils/theme";
+import { SongRow } from "./SongRow";
 
 export function LikedView({
   likedSongs,
@@ -192,94 +183,17 @@ export function LikedView({
           {likedSongs.map((song, i) => {
             const isActive = currentSong?.videoId === song.videoId;
             return (
-              <div
+              <SongRow
                 key={song.videoId || i}
-                style={{
-                  ...ANIMATIONS.staggerFast(i),
-                  ...LAYOUTS.songRow(isActive, accentColor),
-                }}
+                song={song}
+                isActive={isActive}
+                accentColor={accentColor}
+                index={i}
                 onClick={() => playSong(song)}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = LAYOUTS.songRowHover.background;
-                    e.currentTarget.style.borderColor = LAYOUTS.songRowHover.borderColor;
-                    e.currentTarget.style.boxShadow = LAYOUTS.songRowHover.boxShadow;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.borderColor = "transparent";
-                    e.currentTarget.style.boxShadow = "none";
-                  }
-                }}
-              >
-                <div style={LAYOUTS.listCover}>
-                  <MusicCover
-                    thumbnails={song.thumbnails}
-                    src={song.thumbnail}
-                    displaySize={50}
-                    alt=""
-                    style={{ width: "40px", height: "40px" }}
-                  />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: "13.5px",
-                      fontWeight: "700",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      color: isActive ? safeAccentText(accentColor) : COLORS.textPlayerTitle,
-                    }}
-                  >
-                    {song.title}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11.5px",
-                      color: COLORS.textTertiary,
-                      fontWeight: "600",
-                      marginTop: "1px",
-                    }}
-                  >
-                    {song.artist}
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleLike(song.videoId, song);
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: COLORS.likeColor,
-                    display: "flex",
-                    padding: "4px",
-                  }}
-                >
-                  {Ic.heart(true, 16)}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openOptions(song);
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: COLORS.iconDefault,
-                    display: "flex",
-                    padding: "4px",
-                  }}
-                >
-                  {Ic.dots}
-                </button>
-              </div>
+                onToggleLike={(id, s) => toggleLike(id, s)}
+                liked
+                onOpenOptions={openOptions}
+              />
             );
           })}
         </div>

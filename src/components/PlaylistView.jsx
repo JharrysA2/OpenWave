@@ -4,6 +4,8 @@ import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
 import { MusicCover } from "./MusicCover";
 import { ConfirmModal } from "./ConfirmModal";
+import { useMultiSelect } from "../hooks/useMultiSelect";
+import { TransferModal } from "./TransferModal";
 import {
   COLORS,
   RADIUS,
@@ -35,8 +37,14 @@ export function PlaylistView({
   const [dragIdx, setDragIdx] = useState(null);
 
   // ── Multi-select mode ──
-  const [selectMode, setSelectMode] = useState(false);
-  const [selected, setSelected] = useState(new Set());
+  const {
+    selectMode,
+    selected,
+    count: selectedCount,
+    toggleSelect,
+    toggleSelectMode,
+    resetSelect,
+  } = useMultiSelect();
 
   // ── Transfer modal ──
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -88,8 +96,7 @@ export function PlaylistView({
     if (selected.size === 0) return;
     const toRemove = [...selected];
     setSongs((prev) => prev.filter((s) => !selected.has(s.videoId)));
-    setSelected(new Set());
-    setSelectMode(false);
+    resetSelect();
     for (const vid of toRemove) {
       await api.removeFromPlaylist(playlist.id, vid, toast).catch(() => {});
     }
@@ -106,8 +113,7 @@ export function PlaylistView({
       "success",
     );
     setShowTransferModal(false);
-    setSelected(new Set());
-    setSelectMode(false);
+    resetSelect();
     if (refreshPlaylists) await refreshPlaylists();
   };
 
@@ -120,16 +126,6 @@ export function PlaylistView({
     },
     [songs, playSong],
   );
-
-  // ── Toggle select a song ──
-  const toggleSelect = useCallback((videoId) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(videoId)) next.delete(videoId);
-      else next.add(videoId);
-      return next;
-    });
-  }, []);
 
   // ── Drag & drop ──
   const dragIdxRef = useRef(null);
@@ -447,10 +443,7 @@ export function PlaylistView({
             {/* Select mode toggle */}
             {songs.length > 0 && (
               <button
-                onClick={() => {
-                  setSelectMode((v) => !v);
-                  setSelected(new Set());
-                }}
+                onClick={toggleSelectMode}
                 style={{
                   background: selectMode ? `${accentColor}18` : "rgba(255,255,255,.06)",
                   border: selectMode
@@ -494,7 +487,7 @@ export function PlaylistView({
                   <polyline points="9 11 12 14 22 4" />
                   <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                 </svg>
-                {selectMode ? `Seleccionar (${selected.size})` : "Seleccionar"}
+                {selectMode ? `Seleccionar (${selectedCount})` : "Seleccionar"}
               </button>
             )}
 
@@ -527,7 +520,7 @@ export function PlaylistView({
                 }}
               >
                 {Ic.trash}
-                Eliminar ({selected.size})
+                Eliminar ({selectedCount})
               </button>
             )}
 
@@ -571,7 +564,7 @@ export function PlaylistView({
                 >
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
-                Mover ({selected.size})
+                Mover ({selectedCount})
               </button>
             )}
 
@@ -847,194 +840,14 @@ export function PlaylistView({
       )}
 
       {/* ── Transfer Modal ─────────────────────────── */}
-      {showTransferModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1000010,
-            background: "rgba(0,0,0,.7)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            animation: "sw-fade-in .15s ease both",
-          }}
-          onClick={() => setShowTransferModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              ...GLASS.sheet,
-              borderRadius: RADIUS.card,
-              width: "380px",
-              maxWidth: "90vw",
-              maxHeight: "70vh",
-              overflowY: "auto",
-              display: "flex",
-              flexDirection: "column",
-              fontFamily: FONT,
-              animation: "sw-fade-slide-up .2s cubic-bezier(.16,1,.3,1) both",
-            }}
-          >
-            {/* Header */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "18px 20px 14px",
-                borderBottom: `1px solid ${COLORS.borderSubtle}`,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "15px",
-                  fontWeight: "700",
-                  color: COLORS.textPrimary,
-                  fontFamily: FONT,
-                }}
-              >
-                Mover a playlist
-              </span>
-              <button
-                onClick={() => setShowTransferModal(false)}
-                style={{
-                  ...GLASS.btn,
-                  borderRadius: RADIUS.full,
-                  width: "30px",
-                  height: "30px",
-                  cursor: "pointer",
-                  color: COLORS.winCtrlDefault,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                  transition: TRANSITIONS.fast,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = COLORS.surfaceCardHover;
-                  e.currentTarget.style.color = COLORS.textPrimary;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "";
-                  e.currentTarget.style.color = COLORS.winCtrlDefault;
-                }}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Playlist list */}
-            <div style={{ padding: "8px 0" }}>
-              {otherPlaylists.length === 0 ? (
-                <div
-                  style={{
-                    padding: "24px 20px",
-                    textAlign: "center",
-                    color: COLORS.textTertiary,
-                    fontSize: "13px",
-                    fontWeight: "500",
-                    fontFamily: FONT,
-                  }}
-                >
-                  No hay otras playlists disponibles
-                </div>
-              ) : (
-                otherPlaylists.map((pl) => (
-                  <button
-                    key={pl.id}
-                    onClick={() => handleTransferSelected(pl.id)}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      padding: "10px 20px",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      fontFamily: FONT,
-                      textAlign: "left",
-                      transition: TRANSITIONS.fast,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,.06)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "none";
-                    }}
-                  >
-                    {/* Playlist color dot or icon */}
-                    <div
-                      style={{
-                        width: "36px",
-                        height: "36px",
-                        borderRadius: "8px",
-                        flexShrink: 0,
-                        background: pl.color
-                          ? `linear-gradient(135deg, ${pl.color}55, ${pl.color}11)`
-                          : "linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.02))",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke={pl.color || "rgba(255,255,255,.3)"}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      >
-                        <path d="M9 18V5l12-2v13" />
-                        <circle cx="6" cy="18" r="3" />
-                        <circle cx="18" cy="16" r="3" />
-                      </svg>
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: "13.5px",
-                          fontWeight: "600",
-                          color: COLORS.textPrimary,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {pl.name}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          color: COLORS.textTertiary,
-                          fontWeight: "500",
-                          marginTop: "1px",
-                        }}
-                      >
-                        {pl.song_count || 0} canciones
-                      </div>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <TransferModal
+        open={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        title="Mover a playlist"
+        emptyMessage="No hay otras playlists disponibles"
+        playlists={otherPlaylists}
+        onSelect={handleTransferSelected}
+      />
 
       <ConfirmModal
         open={showDeleteModal}

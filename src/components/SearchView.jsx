@@ -1,6 +1,5 @@
 import React from "react";
 import { FONT } from "../constants";
-import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { fmtTime } from "../utils/formatTime";
 import {
@@ -12,10 +11,13 @@ import {
   withAlpha,
   LAYOUTS,
   ANIMATIONS,
-  GLASS,
   safeAccentText,
 } from "../utils/theme";
 import { SkeletonSongRow, SkeletonHorizontalRow } from "./SkeletonLoader";
+import { SongRow } from "./SongRow";
+import { SearchBar } from "./SearchBar";
+import { AlbumCardRow } from "./AlbumCardRow";
+import { ArtistCardPill } from "./ArtistCardPill";
 
 export function SearchView({
   query,
@@ -75,84 +77,19 @@ export function SearchView({
       }}
     >
       {/* Search bar — glassmorphism */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          ...GLASS.searchbar,
-          borderRadius: RADIUS.search,
-          padding: SPACING.search.pad,
-          marginBottom: SPACING.gap.xwide,
-          transition: "all .2s cubic-bezier(.16,1,.3,1)",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "rgba(255,255,255,.10)";
-          e.currentTarget.style.borderColor = "rgba(255,255,255,.14)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = GLASS.searchbar.background;
-          e.currentTarget.style.borderColor = GLASS.searchbar.borderColor;
-        }}
-      >
-        <button
-          onClick={() => triggerSearch(localQuery)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "rgba(255,255,255,.35)",
-            cursor: "pointer",
-            padding: "2px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "color .12s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,.7)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,.35)")}
-        >
-          {Ic.search}
-        </button>
-        <input
-          ref={searchInputRef}
-          autoFocus
-          value={localQuery}
-          onChange={(e) => setLocalQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") triggerSearch(localQuery);
-          }}
-          placeholder="Busca canciones, artistas, álbumes..."
-          style={{
-            flex: 1,
-            background: "none",
-            border: "none",
-            outline: "none",
-            color: COLORS.textPrimary,
-            fontSize: "14px",
-            fontWeight: "600",
-            fontFamily: FONT,
-          }}
-        />
-        {localQuery && (
-          <button
-            onClick={() => {
-              setLocalQuery("");
-              onQueryChange("");
-              searchInputRef?.current?.focus();
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              color: "rgba(255,255,255,.3)",
-              cursor: "pointer",
-              padding: "2px",
-              display: "flex",
-            }}
-          >
-            {Ic.close}
-          </button>
-        )}
-      </div>
+      <SearchBar
+        value={localQuery}
+        onChange={setLocalQuery}
+        onSearch={triggerSearch}
+        onClear={() => onQueryChange("")}
+        inputRef={searchInputRef}
+        placeholder="Busca canciones, artistas, álbumes..."
+        autoFocus
+        showSearchButton
+        borderRadius={RADIUS.search}
+        padding={SPACING.search.pad}
+        marginBottom={SPACING.gap.xwide}
+      />
 
       {/* Tabs: Música / Videos — pill-shaped con transición suave */}
       <div
@@ -300,53 +237,12 @@ export function SearchView({
               </h3>
               <div style={LAYOUTS.horizontalScroll}>
                 {searchArtists.map((a, i) => (
-                  <div
+                  <ArtistCardPill
                     key={a.browseId || i}
+                    artist={a}
+                    animationDelay={i * 50}
                     onClick={() => onSelectArtist && onSelectArtist(a)}
-                    style={{
-                      ...ANIMATIONS.fadeSlideUp(i * 50),
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: SPACING.gap.tight,
-                      minWidth: "80px",
-                      cursor: "pointer",
-                      padding: "8px",
-                      borderRadius: RADIUS.card,
-                      transition: TRANSITIONS.fast,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = GLASS.cardHover.background;
-                      e.currentTarget.style.borderColor = GLASS.cardHover.borderColor;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.borderColor = "transparent";
-                    }}
-                  >
-                    <div style={LAYOUTS.circularCover("72px")}>
-                      <MusicCover
-                        src={a.thumbnail}
-                        displaySize={80}
-                        alt={a.name}
-                        style={{ width: "72px", height: "72px" }}
-                      />
-                    </div>
-                    <span
-                      style={{
-                        fontSize: "11.5px",
-                        fontWeight: "700",
-                        color: "rgba(255,255,255,.8)",
-                        textAlign: "center",
-                        maxWidth: "80px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {a.name}
-                    </span>
-                  </div>
+                  />
                 ))}
               </div>
             </div>
@@ -368,115 +264,18 @@ export function SearchView({
                   const isActive = currentSong?.videoId === song.videoId;
                   const isLiked = liked.has(song.videoId);
                   return (
-                    <div
+                    <SongRow
                       key={song.videoId || i}
-                      style={{
-                        ...ANIMATIONS.staggerFast(i),
-                        ...LAYOUTS.songRow(isActive, accentColor),
-                      }}
+                      song={song}
+                      isActive={isActive}
+                      accentColor={accentColor}
+                      index={i}
                       onClick={() => playSong(song)}
-                      onMouseEnter={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = LAYOUTS.songRowHover.background;
-                          e.currentTarget.style.borderColor = LAYOUTS.songRowHover.borderColor;
-                          e.currentTarget.style.boxShadow = LAYOUTS.songRowHover.boxShadow;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = "transparent";
-                          e.currentTarget.style.borderColor = "transparent";
-                          e.currentTarget.style.boxShadow = "none";
-                        }
-                      }}
-                    >
-                      <div
-                        style={{
-                          ...LAYOUTS.listCover,
-                          background: COLORS.surfaceCoverBg,
-                        }}
-                      >
-                        <MusicCover
-                          thumbnails={song.thumbnails}
-                          src={song.thumbnail}
-                          displaySize={50}
-                          alt=""
-                          style={{ width: "40px", height: "40px" }}
-                        />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: "13.5px",
-                            fontWeight: "700",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            color: isActive ? safeAccentText(accentColor) : COLORS.textPlayerTitle,
-                          }}
-                        >
-                          {song.title}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "11.5px",
-                            color: COLORS.textTertiary,
-                            fontWeight: "600",
-                            marginTop: "1px",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {song.artist}
-                        </div>
-                      </div>
-                      {song.duration > 0 && (
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: "700",
-                            color: COLORS.textMuted,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {fmtTime(song.duration)}
-                        </span>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleLike(song.videoId);
-                        }}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          color: isLiked ? COLORS.likeColor : COLORS.iconDimmer,
-                          display: "flex",
-                          padding: "4px",
-                          transition: TRANSITIONS.fast,
-                        }}
-                      >
-                        {Ic.heart(isLiked, 16)}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openOptions(song);
-                        }}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          color: COLORS.iconDefault,
-                          display: "flex",
-                          padding: "4px",
-                        }}
-                      >
-                        {Ic.dots}
-                      </button>
-                    </div>
+                      showDuration
+                      onToggleLike={(id) => toggleLike(id)}
+                      liked={isLiked}
+                      onOpenOptions={openOptions}
+                    />
                   );
                 })}
                 {results.length > songsVisible && (
@@ -520,57 +319,14 @@ export function SearchView({
               </h3>
               <div style={LAYOUTS.horizontalScroll}>
                 {searchAlbums.map((a, i) => (
-                  <div
+                  <AlbumCardRow
                     key={a.browseId || i}
+                    album={a}
+                    minWidth="130px"
+                    animationDelay={i * 60 + 200}
+                    subtitle={`${a.type} · ${a.year || a.artist}`}
                     onClick={() => onSelectAlbum && onSelectAlbum(a)}
-                    style={{
-                      ...ANIMATIONS.fadeSlideUp(i * 60 + 200),
-                      ...LAYOUTS.albumCard,
-                      minWidth: "130px",
-                      transition: `${TRANSITIONS.fast}, transform .12s ease`,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = GLASS.cardHover.background;
-                      e.currentTarget.style.borderColor = GLASS.cardHover.borderColor;
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = GLASS.card.background;
-                      e.currentTarget.style.borderColor = GLASS.card.borderColor;
-                      e.currentTarget.style.transform = "translateY(0)";
-                    }}
-                  >
-                    <MusicCover
-                      src={a.thumbnail}
-                      displaySize={150}
-                      alt={a.title}
-                      style={{ width: "100%", aspectRatio: "1" }}
-                    />
-                    <div style={{ padding: "8px 10px 10px" }}>
-                      <div
-                        style={{
-                          fontSize: "12px",
-                          fontWeight: "800",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          color: COLORS.textPrimary,
-                        }}
-                      >
-                        {a.title}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "10px",
-                          color: COLORS.textTertiary,
-                          fontWeight: "600",
-                          marginTop: "2px",
-                        }}
-                      >
-                        {a.type} · {a.year || a.artist}
-                      </div>
-                    </div>
-                  </div>
+                  />
                 ))}
               </div>
             </div>

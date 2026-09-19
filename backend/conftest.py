@@ -52,6 +52,21 @@ def _clean_feedback():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _drain_db_pool():
+    """Vaciar el pool de conexiones antes y después de cada test.
+
+    get_db() ahora reutiliza conexiones de un pool; los tests que mockean
+    sqlite3.connect esperan un pool vacío, y vaciar después libera el DB
+    temporal entre tests.
+    """
+    from db import _drain_pool
+
+    _drain_pool()
+    yield
+    _drain_pool()
+
+
 @pytest.fixture
 def client():
     """Cliente de prueba para la API de FastAPI."""

@@ -1,5 +1,7 @@
 """SoundWave Backend — Rutas de playlists."""
 
+import asyncio
+
 from db import _parse_thumbs_json, get_db
 from fastapi import APIRouter, Request
 
@@ -9,26 +11,31 @@ router = APIRouter()
 @router.get("/playlists")
 async def list_playlists():
     """Listar todas las playlists con cantidad de canciones."""
-    with get_db() as conn:
-        rows = conn.execute(
-            """SELECT p.*,
-               COALESCE(s.song_count,0) as song_count,
-               s.first_cover
-               FROM playlists p
-               LEFT JOIN (
-                 SELECT playlist_id, COUNT(*) as song_count,
-                        (
-                          SELECT thumbnail FROM playlist_songs ps2
-                          WHERE ps2.playlist_id = ps.playlist_id
-                            AND thumbnail IS NOT NULL AND thumbnail != ''
-                          ORDER BY ps2.added_at ASC LIMIT 1
-                        ) as first_cover
-                 FROM playlist_songs ps
-                 GROUP BY playlist_id
-               ) s ON p.id = s.playlist_id
-               ORDER BY p.created_at DESC"""
-        ).fetchall()
-    return [dict(r) for r in rows]
+    loop = asyncio.get_running_loop()
+
+    def _read():
+        with get_db() as conn:
+            rows = conn.execute(
+                """SELECT p.*,
+                   COALESCE(s.song_count,0) as song_count,
+                   s.first_cover
+                   FROM playlists p
+                   LEFT JOIN (
+                     SELECT playlist_id, COUNT(*) as song_count,
+                            (
+                              SELECT thumbnail FROM playlist_songs ps2
+                              WHERE ps2.playlist_id = ps.playlist_id
+                                AND thumbnail IS NOT NULL AND thumbnail != ''
+                              ORDER BY ps2.added_at ASC LIMIT 1
+                            ) as first_cover
+                     FROM playlist_songs ps
+                     GROUP BY playlist_id
+                   ) s ON p.id = s.playlist_id
+                   ORDER BY p.created_at DESC"""
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    return await loop.run_in_executor(None, _read)
 
 
 @router.post("/playlists")

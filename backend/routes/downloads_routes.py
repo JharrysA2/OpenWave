@@ -64,31 +64,36 @@ async def download_progress_route(video_id: str):
 @router.get("/downloads")
 async def list_downloads():
     """Listar canciones descargadas."""
-    with get_db() as conn:
-        rows = conn.execute(
-            "SELECT * FROM downloads ORDER BY downloaded_at DESC"
-        ).fetchall()
-    songs = []
-    for r in rows:
-        mp3_path = get_mp3_path(r["video_id"])
-        size = mp3_path.stat().st_size if mp3_path.exists() else 0
-        parsed_thumbs = _parse_thumbs_json(r["thumbnails"])
+    loop = asyncio.get_running_loop()
 
-        songs.append(
-            {
-                "videoId": r["video_id"],
-                "title": r["title"],
-                "artist": r["artist"],
-                "thumbnail": r["thumbnail"],
-                "thumbnails": parsed_thumbs,
-                "duration": r["duration"],
-                "downloaded": True,
-                "size": size,
-                "albumTitle": r["album_title"] or "",
-                "albumType": r["album_type"] or "",
-            }
-        )
-    return songs
+    def _read():
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT * FROM downloads ORDER BY downloaded_at DESC"
+            ).fetchall()
+        songs = []
+        for r in rows:
+            mp3_path = get_mp3_path(r["video_id"])
+            size = mp3_path.stat().st_size if mp3_path.exists() else 0
+            parsed_thumbs = _parse_thumbs_json(r["thumbnails"])
+
+            songs.append(
+                {
+                    "videoId": r["video_id"],
+                    "title": r["title"],
+                    "artist": r["artist"],
+                    "thumbnail": r["thumbnail"],
+                    "thumbnails": parsed_thumbs,
+                    "duration": r["duration"],
+                    "downloaded": True,
+                    "size": size,
+                    "albumTitle": r["album_title"] or "",
+                    "albumType": r["album_type"] or "",
+                }
+            )
+        return songs
+
+    return await loop.run_in_executor(None, _read)
 
 
 @router.delete("/downloads/all")

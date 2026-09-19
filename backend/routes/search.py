@@ -212,36 +212,42 @@ async def home_quick_picks(request: Request):
     if cached:
         return {"results": cached}
 
-    with get_db() as conn:
-        rows = conn.execute(
-            "SELECT * FROM history ORDER BY last_played_at DESC LIMIT 60"
-        ).fetchall()
+    loop = asyncio.get_running_loop()
 
-    seen_titles = set()
-    songs = []
-    for r in rows:
-        norm = (
-            re.sub(
-                r"\s*(\(feat\..*?\)|\(with.*?\)|\[.*?\])\s*", "", r["title"], flags=re.I
+    def _read():
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT * FROM history ORDER BY last_played_at DESC LIMIT 60"
+            ).fetchall()
+
+        seen_titles = set()
+        songs = []
+        for r in rows:
+            norm = (
+                re.sub(
+                    r"\s*(\(feat\..*?\)|\(with.*?\)|\[.*?\])\s*", "", r["title"], flags=re.I
+                )
+                .strip()
+                .lower()
             )
-            .strip()
-            .lower()
-        )
-        if norm in seen_titles:
-            continue
-        seen_titles.add(norm)
-        songs.append(
-            {
-                "videoId": r["video_id"],
-                "title": r["title"],
-                "artist": r["artist"],
-                "thumbnail": r["thumbnail"],
-                "duration": r["duration"],
-                "playCount": r["play_count"],
-            }
-        )
-        if len(songs) >= 20:
-            break
+            if norm in seen_titles:
+                continue
+            seen_titles.add(norm)
+            songs.append(
+                {
+                    "videoId": r["video_id"],
+                    "title": r["title"],
+                    "artist": r["artist"],
+                    "thumbnail": r["thumbnail"],
+                    "duration": r["duration"],
+                    "playCount": r["play_count"],
+                }
+            )
+            if len(songs) >= 20:
+                break
+        return songs
+
+    songs = await loop.run_in_executor(None, _read)
     api_cache_set("home:quick-picks", songs)
     return {"results": songs}
 
@@ -349,7 +355,7 @@ async def home_albums(request: Request):
             try:
                 results_list = get_ytm().search(primary, filter="albums", limit=4)
                 for r in results_list:
-                    bid = r.get("browseId") or r.get("browseId", "")
+                    bid = r.get("browseId") or ""
                     title = r.get("title", "")
                     if not bid or not title or bid in seen:
                         continue

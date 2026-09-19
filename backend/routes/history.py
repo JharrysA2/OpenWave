@@ -1,5 +1,7 @@
 """SoundWave Backend — Rutas de historial."""
 
+import asyncio
+
 from db import db_get_history, db_log_history, get_db
 from fastapi import APIRouter, Query, Request
 
@@ -9,7 +11,8 @@ router = APIRouter()
 @router.get("/history")
 async def get_history(limit: int = Query(100, ge=1, le=500)):
     """Obtener historial de reproducción."""
-    return db_get_history(limit)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, db_get_history, limit)
 
 
 @router.post("/history")

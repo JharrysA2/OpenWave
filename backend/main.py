@@ -82,6 +82,15 @@ async def health(request: Request):
 _THUMB_CACHE = {}
 _THUMB_CACHE_TTL = 600  # 10 minutos
 
+# Whitelist de hosts permitidos (regex precompiladas para no compilar por request)
+_THUMB_ALLOWED = [
+    re.compile(r"^https://i\.ytimg\.com/"),
+    re.compile(r"^https://lh3\.googleusercontent\.com/"),
+    re.compile(r"^https://yt3\.googleusercontent\.com/"),
+    re.compile(r"^https://music[\w-]*\.apple\.com/"),
+    re.compile(r"^https://is[\d]-ssl\.mzstatic\.com/"),
+]
+
 
 @app.get("/thumbnail-proxy")
 @limiter.limit("300/minute")
@@ -90,15 +99,7 @@ async def thumbnail_proxy(request: Request, url: str):
     Cachea respuestas en el navegador por 7 días + caché en memoria 10 min.
     Solo permite URLs de YouTube, Google y servicios de imágenes conocidos.
     """
-    # Whitelist de hosts permitidos
-    allowed_patterns = [
-        r"^https://i\.ytimg\.com/",
-        r"^https://lh3\.googleusercontent\.com/",
-        r"^https://yt3\.googleusercontent\.com/",
-        r"^https://music[\w-]*\.apple\.com/",
-        r"^https://is[\d]-ssl\.mzstatic\.com/",
-    ]
-    if not any(re.match(p, url) for p in allowed_patterns):
+    if not any(p.match(url) for p in _THUMB_ALLOWED):
         return JSONResponse(
             status_code=403,
             content={"error": "URL no permitida"},

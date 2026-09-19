@@ -276,7 +276,8 @@ async def get_lyrics(video_id: str, title: str = "", artist: str = ""):
                         "https://lrclib.net/api/search", params=params
                     )
                     if r2.status_code == 200:
-                        data = r2.json() if isinstance(r2.json(), list) else []
+                        data = r2.json()
+                        data = data if isinstance(data, list) else []
                         for item in data[:5]:
                             text = (
                                 item.get("syncedLyrics")

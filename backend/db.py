@@ -1,10 +1,12 @@
 """SoundWave Backend — Base de datos SQLite."""
 
+import atexit
 import json
+import queue
 import re
 import sqlite3
 import threading
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 from config import DB_FILE
 from logging_config import get_logger
@@ -13,15 +15,18 @@ logger = get_logger(__name__)
 
 _db_lock = threading.Lock()
 
+# ── Pool de conexiones SQLite ──────────────────────────────────────────────
+# Antes se abría/cerraba UNA conexión por operación (más las PRAGMA de
+# configuración), lo que volvía lentos cada /history, /playlists, /downloads
+# y /home/*. Ahora se reutilizan hasta _POOL_SIZE conexiones: la config se
+# aplica una sola vez y el costo por request baja a un get/put de cola.
+_POOL_SIZE = 6
 
-@contextmanager
-def get_db():
-    """Abrir conexión SQLite con configuración optimizada.
+_pool: "queue.LifoQueue[sqlite3.Connection]" = queue.LifoQueue(maxsize=_POOL_SIZE)
 
-    Context manager: hace commit al salir, rollback ante excepción y
-    SIEMPRE cierra la conexión. Evita la acumulación de file descriptors
-    en una app de escritorio de larga duración (modo WAL abre -wal/-shm).
-    """
+
+def _create_conn() -> sqlite3.Connection:
+    """Crear conexión SQLite con configuración optimizada (WAL + cache en memoria)."""
     conn = sqlite3.connect(str(DB_FILE), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -29,14 +34,65 @@ def get_db():
     conn.execute("PRAGMA cache_size=-32768")
     conn.execute("PRAGMA temp_store=MEMORY")
     conn.execute("PRAGMA busy_timeout=5000")
+    return conn
+
+
+def _acquire_conn() -> sqlite3.Connection:
+    """Obtener conexión del pool o crear una nueva si está vacío."""
+    try:
+        return _pool.get_nowait()
+    except queue.Empty:
+        return _create_conn()
+
+
+def _return_conn(conn: sqlite3.Connection) -> None:
+    """Devolver conexión al pool; si está lleno, cerrarla."""
+    try:
+        _pool.put_nowait(conn)
+    except Exception:
+        with suppress(Exception):
+            conn.close()
+
+
+def _drain_pool() -> None:
+    """Cerrar y vaciar el pool (shutdown y limpieza en tests)."""
+    while True:
+        try:
+            conn = _pool.get_nowait()
+        except queue.Empty:
+            break
+        with suppress(Exception):
+            conn.close()
+
+
+atexit.register(_drain_pool)
+
+
+@contextmanager
+def get_db():
+    """Obtener conexión SQLite del pool con commit/rollback automático.
+
+    Context manager: hace commit al salir, rollback ante excepción y
+    devuelve la conexión al pool para reutilizarla (no se cierra).
+    Si el rollback falla, la conexión se descarta (posible estado corrupto).
+    """
+    conn = _acquire_conn()
+    healthy = True
     try:
         yield conn
         conn.commit()
     except Exception:
-        conn.rollback()
+        try:
+            conn.rollback()
+        except Exception:
+            healthy = False
         raise
     finally:
-        conn.close()
+        if healthy:
+            _return_conn(conn)
+        else:
+            with suppress(Exception):
+                conn.close()
 
 
 def init_db():
@@ -287,26 +343,38 @@ def db_get_artist_feedback_scores(artist_names: list[str]) -> dict:
     - 0.0 = nunca se salta (siempre se completa)
     - 0.5 = sin datos / neutral
     - 1.0 = siempre se salta
+
+    Antes corría una query LIKE por artista; ahora trae las filas relevantes
+    una sola vez y agrega en memoria (mismo match por substring case-insensitive).
     """
     if not artist_names:
         return {}
-    scores = {}
+    names = [n for n in artist_names if n]
+    scores = {n: 0.5 for n in artist_names}
+    if not names:
+        return scores
+
     with get_db() as conn:
-        for name in artist_names:
-            if not name:
-                scores[name] = 0.5
-                continue
-            escaped = name.replace("%", "\\%").replace("_", "\\_")
-            row = conn.execute(
-                """
-                SELECT
-                    CAST(SUM(CASE WHEN action='skip' THEN 1 ELSE 0 END) AS REAL)
-                    / NULLIF(SUM(CASE WHEN action IN ('skip','complete') THEN 1 ELSE 0 END), 0)
-                FROM song_feedback
-                WHERE artist LIKE ? ESCAPE '\\' AND action IN ('skip','complete')
-                """,
-                (f"%{escaped}%",),
-            ).fetchone()
-            score = row[0] if row and row[0] is not None else 0.5
-            scores[name] = score
+        rows = conn.execute(
+            "SELECT artist, action FROM song_feedback "
+            "WHERE action IN ('skip','complete')"
+        ).fetchall()
+
+    skips = {n: 0 for n in names}
+    totals = {n: 0 for n in names}
+    lowered = {n: n.lower() for n in names}
+    for row in rows:
+        artist_db = (row["artist"] or "").lower()
+        if not artist_db:
+            continue
+        action = row["action"]
+        for name in names:
+            if lowered[name] in artist_db:
+                if action == "skip":
+                    skips[name] += 1
+                totals[name] += 1
+
+    for name in names:
+        if totals[name]:
+            scores[name] = skips[name] / totals[name]
     return scores

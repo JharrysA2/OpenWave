@@ -147,8 +147,7 @@ soundwave/
 ├── src-tauri/                  ← Tauri (Rust)
 │   ├── src/
 │   │   ├── main.rs
-│   │   ├── lib.rs
-│   │   └── color_extract.rs    ← extracción de color de la portada
+│   │   └── lib.rs
 │   ├── capabilities/migrated.json
 │   ├── icons/
 │   ├── build.rs

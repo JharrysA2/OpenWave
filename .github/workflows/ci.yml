@@ -35,10 +35,17 @@ jobs:
           logdir=""
           [ -n "$npm_config_cache" ] && logdir="$npm_config_cache/_logs"
           [ -z "$logdir" ] && logdir="$HOME/.npm/_logs"
-          echo "::warning::node $(node -v) / npm $(npm -v) | cache=$logdir"
           latest=$(ls -1t "$logdir" 2>/dev/null | head -1)
+          echo "::warning::node $(node -v) / npm $(npm -v) | log=$logdir/$latest"
           if [ -n "$latest" ]; then
-            tail -n 80 "$logdir/$latest" | while IFS= read -r line; do
+            f="$logdir/$latest"
+            echo "::warning::log total lines: $(wc -l < "$f")"
+            echo "::error::--- ERROR LINES ---"
+            grep -aiE 'error|err!|enoent|not found|command|failed|exit' "$f" | tail -n 30 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            echo "::error::--- LAST 30 NON-SILLY LINES ---"
+            grep -av 'silly' "$f" | tail -n 30 | while IFS= read -r line; do
               echo "::error::$line"
             done
           else

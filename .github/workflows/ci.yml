@@ -27,30 +27,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        continue-on-error: true
-
-      - name: Expose npm failure logs as annotations (diagnostic)
-        if: always()
-        run: |
-          logdir=""
-          [ -n "$npm_config_cache" ] && logdir="$npm_config_cache/_logs"
-          [ -z "$logdir" ] && logdir="$HOME/.npm/_logs"
-          latest=$(ls -1t "$logdir" 2>/dev/null | head -1)
-          echo "::warning::node $(node -v) / npm $(npm -v) | log=$logdir/$latest"
-          if [ -n "$latest" ]; then
-            f="$logdir/$latest"
-            echo "::warning::log total lines: $(wc -l < "$f")"
-            echo "::error::--- ERROR LINES ---"
-            grep -aiE 'error|err!|enoent|not found|command|failed|exit' "$f" | tail -n 30 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-            echo "::error::--- LAST 30 NON-SILLY LINES ---"
-            grep -av 'silly' "$f" | tail -n 30 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-          else
-            echo "::error::no npm logs found in $logdir"
-          fi
 
       - name: Run linter
         run: npm run lint

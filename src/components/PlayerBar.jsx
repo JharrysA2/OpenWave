@@ -16,6 +16,16 @@ import {
   safeAccentText,
 } from "../utils/theme";
 
+/* Botones del player — mismo material que GLASS.btn pero SIN backdrop-filter:
+   el propio bar ya difumina el fondo (GLASS.player), así que un blur por botón
+   no aporta nada visible y añade 6 regiones que se re-rasterizan en cada hover
+   (y con --disable-gpu todas se pagan en CPU). */
+const BAR_BTN = {
+  ...GLASS.btn,
+  backdropFilter: "none",
+  WebkitBackdropFilter: "none",
+};
+
 // ── VolSlider: slider de volumen vertical — barra gruesa, thumb solo en hover ─
 
 function VolSlider({ visible, volPos, volume, onVolume, accentColor, onMouseEnter, onMouseLeave }) {
@@ -434,7 +444,7 @@ export const PlayerBar = memo(function PlayerBar({
                 style={{
                   width: "36px",
                   height: "36px",
-                  ...GLASS.btn,
+                  ...BAR_BTN,
                   border: "none",
                   color: btn.color,
                   cursor: "pointer",
@@ -542,7 +552,7 @@ export const PlayerBar = memo(function PlayerBar({
                 style={{
                   width: "36px",
                   height: "36px",
-                  ...GLASS.btn,
+                  ...BAR_BTN,
                   border: "none",
                   color: btn.color,
                   cursor: "pointer",
@@ -591,7 +601,7 @@ export const PlayerBar = memo(function PlayerBar({
               style={{
                 width: "36px",
                 height: "36px",
-                ...GLASS.btn,
+                ...BAR_BTN,
                 border: "none",
                 color: volume > 0 ? COLORS.iconActive : COLORS.iconDimmer,
                 cursor: "pointer",
@@ -641,7 +651,7 @@ export const PlayerBar = memo(function PlayerBar({
               style={{
                 width: "36px",
                 height: "36px",
-                ...GLASS.btn,
+                ...BAR_BTN,
                 border: "none",
                 color: crossfadeDuration > 0 ? safeAccentText(accentColor) : COLORS.iconDim,
                 cursor: "pointer",
@@ -761,7 +771,7 @@ export const PlayerBar = memo(function PlayerBar({
               style={{
                 width: "36px",
                 height: "36px",
-                ...GLASS.btn,
+                ...BAR_BTN,
                 border: "none",
                 cursor: "pointer",
                 color: COLORS.iconActive,
@@ -794,7 +804,7 @@ export const PlayerBar = memo(function PlayerBar({
             style={{
               width: "36px",
               height: "36px",
-              ...GLASS.btn,
+              ...BAR_BTN,
               border: "none",
               cursor: song ? "pointer" : "default",
               color: lyricsOpen ? accentColor : song ? "rgba(255,255,255,.45)" : COLORS.textDimmest,

@@ -561,21 +561,26 @@ export const TRANSITIONS = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const GLASS = {
-  /** Player bar — Liquid Glass: translucent + light blur */
+  /** Player bar — Liquid Glass: translucent + light blur
+   *  Sin `saturate`: superficie permanente a ancho completo (ver GLASS.sidebar). */
   player: {
     background: "rgba(10,10,18,.18)",
-    backdropFilter: "blur(10px) saturate(140%)",
-    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
     border: "none",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), " + "0 4px 20px rgba(0,0,0,.25)",
   },
 
-  /** Sidebar — Liquid Glass estructural */
+  /** Sidebar — Liquid Glass estructural
+   *  Sin `border`: el divisor lo aporta el `borderRight` inline de Sidebar.jsx
+   *  (color-mix con el acento). Un border de 4 lados se ve como línea blanca
+   *  sobre el blur.
+   *  Sin `saturate`: es una columna a altura completa presente en TODAS las
+   *  pantallas; la pasada extra de color no compensa su coste fijo. */
   sidebar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%)",
-    backdropFilter: "blur(10px) saturate(140%)",
-    WebkitBackdropFilter: "blur(10px) saturate(140%)",
-    border: "1px solid rgba(255,255,255,.06)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
   },
 
   /** Nav items — Liquid Glass sutil */
@@ -657,11 +662,12 @@ export const GLASS = {
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), " + "0 24px 80px rgba(0,0,0,.6)",
   },
 
-  /** Title bar — Liquid Glass */
+  /** Title bar — Liquid Glass. Igual que el sidebar: superficie permanente
+   *  a ancho completo, así que sin `saturate` (ver GLASS.sidebar). */
   titleBar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
-    backdropFilter: "blur(10px) saturate(140%)",
-    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
     border: "1px solid rgba(255,255,255,.06)",
   },
 
@@ -675,12 +681,16 @@ export const GLASS = {
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.12), " + "0 12px 40px rgba(0,0,0,.5)",
   },
 
-  /** Settings panel — Liquid Glass */
+  /** Settings panel — Liquid Glass. Panel full-screen (inset 0), así que:
+   *  - sin `saturate`: sobre una superficie tan grande el coste de GPU hunde
+   *    el frame rate. Solo blur.
+   *  - sin `border`: dibujaría un marco de 1px en los 4 bordes del viewport.
+   *    La jerarquía la dan el `borderBottom` del header y los divisores de
+   *    `SettingRow`. */
   settings: {
     background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
-    backdropFilter: "blur(10px) saturate(140%)",
-    WebkitBackdropFilter: "blur(10px) saturate(140%)",
-    border: "1px solid rgba(255,255,255,.10)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
   },
 
   /** Window control buttons (minimize, maximize, close) — Liquid Glass */
@@ -932,6 +942,9 @@ export const vignetteOverlay = () =>
 //    reemplazando las keyframes por transiciones de opacity simple.
 
 /** Curva Apple-style: critically damped, no overshoot — damping 1.0, response ~0.35 */
+/** Tope de items con retardo propio en `staggerFast` (ver su comentario). */
+const MAX_STAGGER_ITEMS = 12;
+
 const SPRING = "cubic-bezier(.16,1,.3,1)";
 
 /** Curva más suave para elementos que entran desde fuera de vista */
@@ -965,6 +978,14 @@ export const ANIMATIONS = {
 
   /**
    * Stagger rápido para listas largas (delay más corto).
+   *
+   * El retardo se TOPA en `MAX_STAGGER_ITEMS`: con `animationFillMode: "both"`
+   * cada item está invisible hasta que le toca, así que un retardo lineal hacía
+   * que una lista de 100 canciones tardase 2.5s en aparecer del todo — y como
+   * `App.jsx` remonta la vista en cada cambio de pestaña (`key={tab}`), esa
+   * espera se repetía al volver a la pantalla. Con el tope, el peor caso son
+   * 300ms y la lista se percibe instantánea.
+   *
    * @param {number} index - Índice del item en la lista
    */
   staggerFast: (index) => ({
@@ -972,7 +993,7 @@ export const ANIMATIONS = {
     animationDuration: "0.3s",
     animationTimingFunction: SPRING,
     animationFillMode: "both",
-    animationDelay: `${index * 25}ms`,
+    animationDelay: `${Math.min(index, MAX_STAGGER_ITEMS) * 25}ms`,
   }),
 };
 

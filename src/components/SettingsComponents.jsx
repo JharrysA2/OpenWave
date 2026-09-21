@@ -28,6 +28,11 @@ export function SettingRow({ icon, label, desc, right, onClick, border = true })
             borderRadius: RADIUS.cover,
             flexShrink: 0,
             ...GLASS.btn,
+            // Sin blur propio: ya está dentro del panel difuminado. Un
+            // backdrop-filter de 34px no aporta nada visible pero crea otra
+            // región que la GPU debe re-blurar en cada repintado (hover).
+            backdropFilter: "none",
+            WebkitBackdropFilter: "none",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -78,6 +83,12 @@ export function SettingsSection({ title, children }) {
       <div
         style={{
           ...GLASS.card,
+          // Sin blur propio: el panel (GLASS.settings) ya difumina el fondo y
+          // este backdrop-filter anidado obligaba a re-blurar toda la tarjeta
+          // (ancho completo) en cada repintado, incluido cada hover de fila.
+          // El degradado y el borde de GLASS.card se conservan intactos.
+          backdropFilter: "none",
+          WebkitBackdropFilter: "none",
           borderRadius: RADIUS.card,
           overflow: "hidden",
         }}

@@ -54,7 +54,7 @@ export default function SettingsPanel({
   const PAGES = {
     appearance: {
       label: t.appearance,
-      icon: <Ic.paintBrush style={iconStyle} />,
+      icon: <PaintBrush style={iconStyle} weight="fill" />,
       comp: <PageApariencia neonColor={neonColor} />,
     },
     player: {
@@ -185,6 +185,9 @@ export default function SettingsPanel({
                 height: "34px",
                 borderRadius: RADIUS.cover,
                 ...GLASS.btn,
+                // Sin blur propio: el panel ya difumina el fondo (ver GLASS.settings)
+                backdropFilter: "none",
+                WebkitBackdropFilter: "none",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -221,6 +224,9 @@ export default function SettingsPanel({
               onClick={onClose}
               style={{
                 ...GLASS.btn,
+                // Sin blur propio: el panel ya difumina el fondo (ver GLASS.settings)
+                backdropFilter: "none",
+                WebkitBackdropFilter: "none",
                 color: "rgba(255,255,255,.55)",
                 cursor: "pointer",
                 width: "34px",
@@ -250,7 +256,11 @@ export default function SettingsPanel({
           <div style={{ padding: SPACING.settings.sectionPad }}>
             <SettingsSection title={t.generalSettings}>
               {[
-                ["appearance", <Ic.paintBrush key="appearance" style={iconStyle} />, t.appearance],
+                [
+                  "appearance",
+                  <PaintBrush key="appearance" style={iconStyle} weight="fill" />,
+                  t.appearance,
+                ],
                 [
                   "player",
                   <MusicNote key="player" style={iconStyle} weight="fill" />,

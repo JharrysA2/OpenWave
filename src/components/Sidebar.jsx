@@ -135,14 +135,13 @@ export const Sidebar = React.memo(function Sidebar({
               e.currentTarget.style.transform = "scale(0.97)";
             }}
             onMouseUp={(e) => {
-              e.currentTarget.style.transform = tab !== t ? "translateY(-1px)" : "scale(1)";
+              e.currentTarget.style.transform = "scale(1)";
             }}
             onMouseEnter={(e) => {
               if (tab !== t) {
                 e.currentTarget.style.background = "rgba(255,255,255,.09)";
                 e.currentTarget.style.color = "rgba(255,255,255,.88)";
                 e.currentTarget.style.borderColor = "rgba(255,255,255,.12)";
-                e.currentTarget.style.transform = "translateY(-1px)";
               }
             }}
             onMouseLeave={(e) => {
@@ -151,7 +150,6 @@ export const Sidebar = React.memo(function Sidebar({
                   "linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%)";
                 e.currentTarget.style.color = "rgba(255,255,255,.55)";
                 e.currentTarget.style.borderColor = "rgba(255,255,255,.06)";
-                e.currentTarget.style.transform = "translateY(0)";
               }
             }}
           >

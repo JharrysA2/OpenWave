@@ -21,9 +21,9 @@
         "minWidth": 800,
         "minHeight": 600,
         "decorations": false,
-        "transparent": true,
+        "transparent": false,
         "center": true,
-        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI --disable-gpu --disable-gpu-compositing --disable-accelerated-2d-canvas --disable-accelerated-video-decode"
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI"
       }
     ],
     "security": {

@@ -62,20 +62,22 @@ export const MainRouter = React.memo(function MainRouter({
 }) {
   if (showSettingsPanel) {
     return (
-      <SettingsPanel
-        open={showSettingsPanel}
-        onClose={onCloseSettings}
-        neonColor={neonColor}
-        crossfadeDuration={crossfadeDuration}
-        setCrossfadeDuration={setCrossfadeDuration}
-        downloads={downloads}
-        onClearDownloads={onClearDownloads}
-        onClearHistory={onClearHistory}
-        liked={liked}
-        history={history}
-        playlists={playlists}
-        toast={toast}
-      />
+      <Suspense fallback={<div>Cargando ajustes...</div>}>
+        <SettingsPanel
+          open={showSettingsPanel}
+          onClose={onCloseSettings}
+          neonColor={neonColor}
+          crossfadeDuration={crossfadeDuration}
+          setCrossfadeDuration={setCrossfadeDuration}
+          downloads={downloads}
+          onClearDownloads={onClearDownloads}
+          onClearHistory={onClearHistory}
+          liked={liked}
+          history={history}
+          playlists={playlists}
+          toast={toast}
+        />
+      </Suspense>
     );
   }
 

@@ -17,6 +17,7 @@ import { SkeletonSongRow, SkeletonHorizontalRow } from "./SkeletonLoader";
 import SongRow from "./SongRow";
 import AlbumCardRow from "./AlbumCardRow";
 import ArtistCardPill from "./ArtistCardPill";
+import { SearchBar } from "./SearchBar";
 
 export default function SearchView({
   query,

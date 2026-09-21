@@ -35,7 +35,7 @@ const getGreetingIcon = () => {
   return Ic.moon(22);
 };
 
-export function HomeView({
+export default function HomeView({
   currentSong,
   isPlaying: isActuallyPlaying,
   playSong,

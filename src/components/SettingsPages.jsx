@@ -6,3 +6,4 @@ export { PageAlmacenamiento } from "./settings/PageAlmacenamiento";
 export { PageCopias } from "./settings/PageCopias";
 export { PageAcercaDe } from "./settings/PageAcercaDe";
 export { PageTraduccion } from "./settings/PageTraduccion";
+export { PageRendimiento } from "./settings/PageRendimiento";

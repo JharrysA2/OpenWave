@@ -9,7 +9,7 @@ import { COLORS, TRANSITIONS, LAYOUTS, ANIMATIONS, safeAccentText } from "../uti
  * Centraliza el patrón de SearchView/LikedView/HistoryView/DownloadsView.
  * Props opcionales añaden duración, corazón, badge y menú de 3 puntos.
  */
-export function SongRow({
+export default React.memo(function SongRow({
   song,
   isActive = false,
   accentColor,
@@ -27,6 +27,8 @@ export function SongRow({
   return (
     <div
       style={{
+        contentVisibility: "auto",
+        containIntrinsicSize: "auto 60px",
         ...ANIMATIONS.staggerFast(index),
         ...LAYOUTS.songRow(isActive, accentColor),
         ...style,
@@ -135,4 +137,4 @@ export function SongRow({
       )}
     </div>
   );
-}
+});

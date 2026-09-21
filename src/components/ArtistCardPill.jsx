@@ -7,7 +7,7 @@ import { GLASS, LAYOUTS, RADIUS, SPACING, TRANSITIONS, ANIMATIONS } from "../uti
  * `leaveBackground`/`leaveBorder` permiten que cada vista defina su estado
  * de reposo (Search: transparente; Artist: GLASS.card).
  */
-export function ArtistCardPill({
+export default React.memo(function ArtistCardPill({
   artist,
   animationDelay = 0,
   leaveBackground = "transparent",
@@ -18,6 +18,8 @@ export function ArtistCardPill({
     <div
       onClick={onClick}
       style={{
+        contentVisibility: "auto",
+        containIntrinsicSize: "auto 104px",
         ...ANIMATIONS.fadeSlideUp(animationDelay),
         display: "flex",
         flexDirection: "column",
@@ -62,4 +64,4 @@ export function ArtistCardPill({
       </span>
     </div>
   );
-}
+});

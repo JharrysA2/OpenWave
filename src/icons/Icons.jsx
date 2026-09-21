@@ -33,6 +33,7 @@ import {
   LockOpen,
   Moon,
   Sun,
+  PaintBrush,
   Cloud,
 } from "@phosphor-icons/react";
 
@@ -78,6 +79,7 @@ export const Ic = {
     </svg>
   ),
   gear: <Gear size={18} weight="fill" />,
+  paintBrush: <PaintBrush size={18} weight="fill" />,
   edit: <PencilSimple size={17} weight="fill" />,
   check: <Check size={17} weight="fill" />,
   reload: <ArrowClockwise size={17} weight="fill" />,
@@ -125,4 +127,6 @@ export const Ic = {
   moon: (s = 22) => <Moon size={s} weight="fill" />,
   sun: (s = 22) => <Sun size={s} weight="fill" />,
   cloud: (s = 22) => <Cloud size={s} weight="fill" />,
+  bookOpen: (s = 18) => <BookOpen size={s} weight="fill" />,
+  hardDrive: (s = 18) => <HardDrive size={s} weight="fill" />,
 };

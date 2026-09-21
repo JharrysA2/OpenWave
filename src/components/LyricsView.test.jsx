@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SettingsProvider } from "../contexts/SettingsContext";
 import { LyricsView } from "./LyricsView";
 import { parseLrc } from "../utils/lrc";
+import { COLORS } from "../utils/theme";
 
 // JSDOM no implementa scrollIntoView; los synced lyrics lo necesitan
 Element.prototype.scrollIntoView = vi.fn();
@@ -320,10 +321,10 @@ describe("LyricsView", () => {
     await waitFor(() => {
       expect(screen.getByText("Line one")).toBeInTheDocument();
     });
-    // currentLine === -1 → las primeras líneas usan el estilo "cerca" (0.8)
+    // currentLine === -1 → las primeras líneas tienen opacidad por distancia (0.64).
     const row = document.querySelector('[data-testid="lyric-line-0"]');
     expect(row).not.toBeNull();
-    expect(row.style.opacity).toBe("0.8");
+    expect(row.style.opacity).toBe("0.64");
   });
 
   // ── Karaoke: resaltado palabra por palabra ───────────────────────────────
@@ -344,24 +345,34 @@ describe("LyricsView", () => {
     const row = await screen.findByTestId("lyric-line-0");
     expect(row).not.toBeNull();
 
-    // El color iluminado es el primario; el no-iluminado es el terciario
+    // El color iluminado es el primario; el no-iluminado es el terciario.
+    // jsdom normaliza `style.color`, así que normalizamos el esperado igual.
+    const unlitColor = (() => {
+      const el = document.createElement("span");
+      el.style.color = COLORS.textTertiary;
+      return el.style.color;
+    })();
     const litCount = () =>
       Array.from(row.querySelectorAll("span")).filter(
-        (s) => s.style.color && s.style.color !== "rgba(255, 255, 255, 0.4)",
+        (s) => s.style.color && s.style.color !== unlitColor,
       ).length;
 
     // Esperar a que la línea 0 quede ACTIVA (el karaoke solo corre en la activa)
-    await waitFor(() => expect(row.style.opacity).toBe("1"));
-    await waitFor(() => expect(litCount()).toBeGreaterThan(0));
+    // Con el tick de 1000ms, el timeout por defecto (1000ms) queda al filo.
+    await waitFor(() => expect(row.style.opacity).toBe("1"), { timeout: 3000 });
+    await waitFor(() => expect(litCount()).toBeGreaterThan(0), { timeout: 3000 });
     const earlyCount = litCount();
 
     // Avanzar dentro de la línea → más palabras iluminadas
     act(() => {
       progressRef.current = 20;
     });
-    await waitFor(() => {
-      expect(litCount()).toBeGreaterThan(earlyCount);
-    });
+    await waitFor(
+      () => {
+        expect(litCount()).toBeGreaterThan(earlyCount);
+      },
+      { timeout: 3000 },
+    );
   });
 
   // ── Recargar letras nunca re-usa el cache viejo ni hace doble fetch ──────
@@ -485,9 +496,9 @@ describe("LyricsView auto-scroll latch", () => {
     expect(scrollBox).not.toBeNull();
     const calls = () => Element.prototype.scrollIntoView.mock.calls.length;
 
-    // Tick 400ms: progressSec=3 → línea 0 activa → scroll programático
+    // Tick 1000ms: progressSec=3 → línea 0 activa → scroll programático
     act(() => {
-      vi.advanceTimersByTime(400);
+      vi.advanceTimersByTime(1000);
     });
     expect(document.querySelector('[data-testid="lyric-line-0"]').style.opacity).toBe("1");
     expect(calls()).toBe(1);
@@ -502,7 +513,7 @@ describe("LyricsView auto-scroll latch", () => {
       progressRef.current = 12;
     });
     act(() => {
-      vi.advanceTimersByTime(400);
+      vi.advanceTimersByTime(1000);
     });
     expect(document.querySelector('[data-testid="lyric-line-1"]').style.opacity).toBe("1");
     expect(calls()).toBe(2);
@@ -520,7 +531,7 @@ describe("LyricsView auto-scroll latch", () => {
       progressRef.current = 18;
     });
     act(() => {
-      vi.advanceTimersByTime(400);
+      vi.advanceTimersByTime(1000);
     });
     expect(document.querySelector('[data-testid="lyric-line-2"]').style.opacity).toBe("1");
     expect(calls()).toBe(2);

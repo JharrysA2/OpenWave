@@ -129,11 +129,11 @@ export const COLORS = {
   //    usan el color acento como FONDO deben usar contraste dinámico (--neon-fg).
   textPrimary: "#ffffff",
   textSecondary: "rgba(255,255,255,.6)",
-  textTertiary: "rgba(255,255,255,.4)",
-  textMuted: "rgba(255,255,255,.25)",
-  textDimmest: "rgba(255,255,255,.18)",
+  textTertiary: "rgba(255,255,255,.46)",
+  textMuted: "rgba(255,255,255,.46)",
+  textDimmest: "rgba(255,255,255,.46)",
   textPlayerTitle: "rgba(255,255,255,.92)",
-  textPlayerArtist: "rgba(255,255,255,.4)",
+  textPlayerArtist: "rgba(255,255,255,.46)",
 
   // On-surface desde paleta
   onSurface: PALETTE.onSurface,
@@ -527,10 +527,10 @@ export const TRANSITIONS = {
   spring: "cubic-bezier(.16,1,.3,1)",
 
   /** Quick fade para botones (0.12s) — curva característica */
-  fast: "all .12s cubic-bezier(.16,1,.3,1)",
+  fast: "opacity .12s cubic-bezier(.16,1,.3,1), transform .12s cubic-bezier(.16,1,.3,1)",
 
   /** Hover medio (tarjetas, listas) — curva característica */
-  normal: "all .15s cubic-bezier(.16,1,.3,1)",
+  normal: "opacity .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
 
   /** Transiciones estructurales lentas (0.35s) */
   slow: ".35s cubic-bezier(.16,1,.3,1)",
@@ -561,11 +561,11 @@ export const TRANSITIONS = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const GLASS = {
-  /** Player bar — TRUE Liquid Glass: ultra-translucent + heavy blur */
+  /** Player bar — Liquid Glass: translucent + light blur */
   player: {
-    background: "rgba(10,10,18,.15)",
-    backdropFilter: "blur(50px) saturate(180%) brightness(1.05)",
-    WebkitBackdropFilter: "blur(50px) saturate(180%) brightness(1.05)",
+    background: "rgba(10,10,18,.18)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
     border: "none",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), " + "0 4px 20px rgba(0,0,0,.25)",
   },
@@ -573,8 +573,8 @@ export const GLASS = {
   /** Sidebar — Liquid Glass estructural */
   sidebar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%)",
-    backdropFilter: "blur(32px) saturate(180%)",
-    WebkitBackdropFilter: "blur(32px) saturate(180%)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
     border: "1px solid rgba(255,255,255,.06)",
   },
 
@@ -622,8 +622,8 @@ export const GLASS = {
   /** Search bar — Liquid Glass */
   searchbar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
-    backdropFilter: "blur(24px) saturate(160%)",
-    WebkitBackdropFilter: "blur(24px) saturate(160%)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
     border: "1px solid rgba(255,255,255,.10)",
     borderColor: "rgba(255,255,255,.10)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 2px 8px rgba(0,0,0,.15)",
@@ -632,8 +632,8 @@ export const GLASS = {
   /** Card / Album card — Liquid Glass */
   card: {
     background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
-    backdropFilter: "blur(20px) saturate(160%)",
-    WebkitBackdropFilter: "blur(20px) saturate(160%)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
     border: "1px solid rgba(255,255,255,.08)",
     borderColor: "rgba(255,255,255,.08)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 4px 16px rgba(0,0,0,.2)",
@@ -650,8 +650,8 @@ export const GLASS = {
   /** Popup / Sheet / Modal — Liquid Glass */
   sheet: {
     background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-    backdropFilter: "blur(40px) saturate(200%)",
-    WebkitBackdropFilter: "blur(40px) saturate(200%)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
     border: "1px solid rgba(255,255,255,.12)",
     borderColor: "rgba(255,255,255,.12)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), " + "0 24px 80px rgba(0,0,0,.6)",
@@ -660,16 +660,16 @@ export const GLASS = {
   /** Title bar — Liquid Glass */
   titleBar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
-    backdropFilter: "blur(24px) saturate(160%)",
-    WebkitBackdropFilter: "blur(24px) saturate(160%)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
     border: "1px solid rgba(255,255,255,.06)",
   },
 
   /** Volume / Crossfade popup — Liquid Glass */
   popup: {
     background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-    backdropFilter: "blur(32px) saturate(180%)",
-    WebkitBackdropFilter: "blur(32px) saturate(180%)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
     border: "1px solid rgba(255,255,255,.10)",
     borderColor: "rgba(255,255,255,.10)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.12), " + "0 12px 40px rgba(0,0,0,.5)",
@@ -678,8 +678,8 @@ export const GLASS = {
   /** Settings panel — Liquid Glass */
   settings: {
     background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
-    backdropFilter: "blur(40px) saturate(200%)",
-    WebkitBackdropFilter: "blur(40px) saturate(200%)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
     border: "1px solid rgba(255,255,255,.10)",
   },
 

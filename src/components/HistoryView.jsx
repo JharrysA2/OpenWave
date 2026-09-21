@@ -4,9 +4,9 @@ import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
 import { ConfirmModal } from "./ConfirmModal";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, ANIMATIONS } from "../utils/theme";
-import { SongRow } from "./SongRow";
+import SongRow from "./SongRow";
 
-export function HistoryView({
+export default function HistoryView({
   history,
   currentSong,
   accentColor,

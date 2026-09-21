@@ -211,14 +211,14 @@ All component interactions must use the `cubic-bezier(.16, 1, .3, 1)` curve. Qui
 
 ## Dynamic Theme Engine
 
-Album artwork drives the entire color system at runtime (`src/hooks/useDynamicTheme.js` + Rust `color_extract.rs`).
+Album artwork drives the entire color system at runtime (`src/hooks/useDynamicTheme.js` + `src/utils/colorTheme.js`).
 
-- **Extraction:** Colors are extracted from the current track cover (backend `/extract-colors/{videoId}`) and hydrated on the frontend via a canvas fallback.
+- **Extraction:** An OKLCH canvas extractor (`useDynamicTheme`) samples the current track cover in a Web Worker, returning `{ accent, ambient, onAccent }` hex values. No backend API required.
 - **`--neon` variable:** The accent is animated with `requestAnimationFrame` (lerp from the previous accent to the target, registered via `@property --neon` in `index.html`) so color changes glide instead of snapping.
-- **Derived tokens:** `--neon-border`, `--neon-18` (active-row background), `--neon-fg` (contrast-aware foreground for accent-filled buttons — white on dark accents, near-black on bright accents like cream), `--neon-btn`.
+- **Derived tokens:** `--neon-border`, `--neon-18` (active-row background), `--neon-fg` (contrast-aware foreground for accent-filled buttons — white on dark accents, near-black on bright accents like cream), `--neon-btn`, `--aurora-*` (vignette/aurora tints).
 - **Background tint:** `--bg-base` is derived from `color-mix(in srgb, var(--neon) 6%, <dark base>)`, tinting the whole app subtly.
-- **Aurora & vignette:** `sidebarBgGradient()` paints a neon-tinted aurora; `vignetteOverlay()` adds a `color-mix(black 73%, var(--neon))` vignette for depth.
-- **Grayscale covers:** Faces are skipped (`0x8 / `0x9` luminance buckets) to avoid skin-tone accents; all-black covers fall back to white.
+- **Aurora & vignette:** `--aurora-*` CSS variables apply `color-mix`-based neon tints and a vignette for depth.
+- **Grayscale covers:** `extractOklchAccent` returns `null` when fewer than 4% of pixels have meaningful chroma (C ≥ 0.04), triggering `ACHROMATIC_THEME` (white accent) so every cover gets a visible accent.
 - **Reduced motion:** `prefers-reduced-motion` disables `--neon` rAF transitions.
 
 ## Lyrics & Karaoke

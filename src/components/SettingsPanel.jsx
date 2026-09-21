@@ -13,6 +13,7 @@ import {
   PageCopias,
   PageAcercaDe,
   PageTraduccion,
+  PageRendimiento,
 } from "./SettingsPages";
 import {
   PaintBrush,
@@ -23,9 +24,10 @@ import {
   Cloud,
   Info,
   Globe,
+  Lightning,
 } from "@phosphor-icons/react";
 
-export function SettingsPanel({
+export default function SettingsPanel({
   open,
   onClose,
   neonColor,
@@ -52,7 +54,7 @@ export function SettingsPanel({
   const PAGES = {
     appearance: {
       label: t.appearance,
-      icon: <PaintBrush style={iconStyle} />,
+      icon: <Ic.paintBrush style={iconStyle} />,
       comp: <PageApariencia neonColor={neonColor} />,
     },
     player: {
@@ -109,6 +111,11 @@ export function SettingsPanel({
       label: t.translation,
       icon: <Globe style={iconStyle} weight="fill" />,
       comp: <PageTraduccion />,
+    },
+    performance: {
+      label: t.performance,
+      icon: <Lightning style={iconStyle} weight="fill" />,
+      comp: <PageRendimiento neonColor={neonColor} />,
     },
   };
 
@@ -243,7 +250,7 @@ export function SettingsPanel({
           <div style={{ padding: SPACING.settings.sectionPad }}>
             <SettingsSection title={t.generalSettings}>
               {[
-                ["appearance", <PaintBrush key="appearance" style={iconStyle} />, t.appearance],
+                ["appearance", <Ic.paintBrush key="appearance" style={iconStyle} />, t.appearance],
                 [
                   "player",
                   <MusicNote key="player" style={iconStyle} weight="fill" />,
@@ -254,6 +261,11 @@ export function SettingsPanel({
                   "translation",
                   <Globe key="translation" style={iconStyle} weight="fill" />,
                   t.translation,
+                ],
+                [
+                  "performance",
+                  <Lightning key="performance" style={iconStyle} weight="fill" />,
+                  t.performance,
                 ],
               ].map(([key, icon, label], i, arr) => (
                 <SettingRow

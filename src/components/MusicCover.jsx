@@ -100,11 +100,10 @@ const MusicCover = memo(function MusicCover({
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            filter: "blur(20px) saturate(0.7) brightness(1.1)",
+            filter: "blur(8px) saturate(0.8) brightness(1.05)",
             transform: "scale(1.12)",
             pointerEvents: "none",
             opacity: 0.7,
-            willChange: "opacity",
           }}
         />
       )}

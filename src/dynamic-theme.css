@@ -1,0 +1,144 @@
+/* ═════════════════════════════════════════════════════════════════════════════
+   dynamic-theme.css — Variables derivadas de --neon Y la transición del color.
+
+   El hook useDynamicTheme escribe SOLO estas variables inline (dependen de la
+   canción): --neon, --neon-fg, --neon-transition, --bg-base, --corner-radius.
+
+   Aquí viven las que son FÓRMULAS ESTÁTICAS de var(--neon) vía color-mix().
+   Como --neon está registrada con @property <color> (index.html), la regla
+   `transition: --neon` la interpola suavemente y todo lo que usa var(--neon)
+   (color-mix, bordes, botones, aurora, fondo) se actualiza en sincronía, sin
+   animación JS. Acentos de portada acromática → var(--neon)=#ffffff también.
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Borde/estados del acento (antes: `${neonColor}aa` …) */
+  --neon-border: color-mix(in srgb, var(--neon) 67%, transparent);
+  --neon-18: color-mix(in srgb, var(--neon) 18%, transparent);
+  /* Botones derivados (antes: fórmulas HSL de getContrastColors) */
+  --neon-btn: color-mix(in srgb, var(--neon) 53%, transparent);
+  --neon-btn-hover: color-mix(in srgb, var(--neon) 67%, transparent);
+  /* Aurora mesh (antes: `${neonColor}`, `${neonColor}aa`, `${neonColor}66`) */
+  --aurora-1: color-mix(in srgb, var(--neon) 100%, transparent);
+  --aurora-2: color-mix(in srgb, var(--neon) 67%, transparent);
+  --aurora-3: color-mix(in srgb, var(--neon) 40%, transparent);
+}
+
+/* ═══ Transición del color de acento ═════════════════════════════════════════
+   Sustituye la animación rAF del hook. La duración la controla el hook vía
+   --neon-transition ("0s" o "Ns"). 0.2s es el fallback pre-React. */
+
+* {
+  transition: --neon var(--neon-transition, 0.2s);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   #sw-slider-style — estilos globales de sliders, scrollbars y placeholders
+   (migrado íntegro desde el hook useDynamicTheme).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+input[type="range"] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08) !important;
+  outline: none !important;
+  cursor: pointer;
+  margin: 8px 0;
+  accent-color: transparent !important;
+  padding: 0;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--neon) !important;
+  margin-top: -5px;
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 0 12px color-mix(in srgb, var(--neon) 93%, transparent),
+    0 0 24px color-mix(in srgb, var(--neon) 40%, transparent),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s,
+    opacity 0.15s;
+  opacity: 0;
+}
+input[type="range"]:hover::-webkit-slider-thumb {
+  opacity: 1;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.25) !important;
+  box-shadow:
+    0 0 20px var(--neon),
+    0 0 40px color-mix(in srgb, var(--neon) 53%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+}
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  opacity: 1;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--neon) 53%, transparent),
+    0 0 16px color-mix(in srgb, var(--neon) 80%, transparent) !important;
+}
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--neon);
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  opacity: 0;
+}
+input[type="range"]:hover::-moz-range-thumb {
+  opacity: 1;
+}
+::placeholder,
+::-webkit-input-placeholder,
+:-moz-placeholder,
+::-moz-placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+  opacity: 1 !important;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--neon) 67%, transparent);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}

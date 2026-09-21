@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
+import { usePerformance } from "../contexts/PerformanceContext";
 import { fmtTime } from "../utils/formatTime";
 import {
   COLORS,
@@ -192,6 +193,7 @@ export const PlayerBar = memo(function PlayerBar({
   const progressFillRef = useRef(null);
   const progressThumbRef = useRef(null);
   const progressTimeRef = useRef(null);
+  const { visible } = usePerformance();
   // Último valor/duración ya pintados en el DOM → evita escrituras repetidas
   const paintedProgressRef = useRef(null);
   const paintedDurationRef = useRef(null);
@@ -239,22 +241,21 @@ export const PlayerBar = memo(function PlayerBar({
     [duration, progressRef],
   );
 
-  // Loop rAF: solo mientras hay reproducción activa
+  // Loop: 1s interval while playing (was rAF ~60fps, GPU-heavy).
+  // Se pausa cuando la ventana no es visible — no aporta nada leer el reloj
+  // si nadie mira la barra, y la música sigue sonando.
   useEffect(() => {
-    if (!isPlaying) return undefined;
+    if (!isPlaying || !visible) return undefined;
 
-    let frame = requestAnimationFrame(function tick() {
-      paintProgress();
-      frame = requestAnimationFrame(tick);
-    });
+    const interval = setInterval(() => paintProgress(), 1000);
 
-    return () => cancelAnimationFrame(frame);
-  }, [isPlaying, paintProgress]);
+    return () => clearInterval(interval);
+  }, [isPlaying, visible, paintProgress]);
 
   // Sync puntual: montaje y cada cambio de canción/duración/estado
   useEffect(() => {
     paintProgress();
-  }, [paintProgress, isPlaying, song?.videoId]);
+  }, [paintProgress, isPlaying, song?.videoId, visible]);
 
   const openCf = () => {
     clearTimeout(cfTimerRef.current);

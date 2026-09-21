@@ -5,6 +5,7 @@ import { FONT } from "./constants";
 import { api } from "./utils/api";
 import { ANIMATIONS } from "./utils/theme";
 import { SettingsProvider } from "./contexts/SettingsContext";
+import { PerformanceProvider } from "./contexts/PerformanceContext";
 import { useSettings } from "./contexts/useSettings";
 import { usePlayer } from "./hooks/usePlayer";
 import { useDynamicTheme } from "./hooks/useDynamicTheme";
@@ -115,6 +116,22 @@ function AppInner() {
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
+  // ── useCallback para evitar re-renders en Sidebar ────────────────────────────
+  const onSelectPlaylist = useCallback(
+    (pl) => {
+      setSelectedPlaylist(pl);
+      setTab("playlist");
+    },
+    [setSelectedPlaylist, setTab],
+  );
+
+  const onOpenSettings = useCallback(() => setShowSettingsPanel(true), [setShowSettingsPanel]);
+
+  const onCreatePlaylist = useCallback(
+    () => setShowCreatePlaylistModal(true),
+    [setShowCreatePlaylistModal],
+  );
+
   // ── Playlist picker (desde el botón "Agregar a") ───────────────────────
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [playlistPickerSong, setPlaylistPickerSong] = useState(null);
@@ -200,11 +217,11 @@ function AppInner() {
   // ── Canciones que te gustan (de todas las fuentes) ──────────────────────────
 
   const likedSongs = useMemo(() => {
-    const all = [...(results || []), ...queue, currentSong].filter(Boolean);
+    const all = [...queue, currentSong].filter(Boolean);
     return [...new Map(all.map((s) => [s.videoId, s])).values()].filter((s) =>
       liked.has(s.videoId),
     );
-  }, [liked, results, queue, currentSong]);
+  }, [liked, queue, currentSong]);
 
   // ── Handlers de navegación a detalle ──────────────────────────────────────
 
@@ -381,12 +398,9 @@ function AppInner() {
           playlists={playlists}
           selectedPlaylist={selectedPlaylist}
           onTabChange={setTab}
-          onSelectPlaylist={(pl) => {
-            setSelectedPlaylist(pl);
-            setTab("playlist");
-          }}
-          onOpenSettings={() => setShowSettingsPanel(true)}
-          onCreatePlaylist={() => setShowCreatePlaylistModal(true)}
+          onSelectPlaylist={onSelectPlaylist}
+          onOpenSettings={onOpenSettings}
+          onCreatePlaylist={onCreatePlaylist}
         />
 
         {/* Main content */}
@@ -632,9 +646,11 @@ function AppInner() {
 export default function App() {
   return (
     <SettingsProvider>
-      <ErrorBoundary>
-        <AppInner />
-      </ErrorBoundary>
+      <PerformanceProvider>
+        <ErrorBoundary>
+          <AppInner />
+        </ErrorBoundary>
+      </PerformanceProvider>
     </SettingsProvider>
   );
 }

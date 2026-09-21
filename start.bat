@@ -10,11 +10,16 @@ echo  ================================================
 echo.
 
 :: Verificar que el venv existe (si no, crearlo e instalar dependencias)
+
+:: Elegir el interprete de Python que si este en el PATH de cmd (py o python)
+set "PY_CMD=python"
+py -3 -c "pass" >nul 2>&1 && set "PY_CMD=py -3"
+
 if not exist "venv\Scripts\python.exe" (
   echo  [!] Entorno virtual no encontrado.
   echo      Creando venv e instalando dependencias...
   echo.
-  python -m venv venv
+  %PY_CMD% -m venv venv
   if errorlevel 1 goto :error
   "venv\Scripts\pip.exe" install -r backend\requirements.txt
   if errorlevel 1 goto :error
@@ -22,7 +27,7 @@ if not exist "venv\Scripts\python.exe" (
 )
 
 :: Backend: solo abrimos una ventana si no hay ya uno respondiendo.
-:: Si ya está corriendo, saltamos el arranque (evita terminales duplicadas).
+:: Si ya esta corriendo, saltamos el arranque (evita terminales duplicadas).
 set "STARTED_BACKEND="
 curl -s http://127.0.0.1:8765/health >nul 2>&1
 if not errorlevel 1 (

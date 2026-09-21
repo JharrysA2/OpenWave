@@ -14,6 +14,7 @@ export function useSearch() {
   const [searchLoading, setSearchLoading] = useState(false);
 
   const searchInputRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
 
   // ── Búsqueda de canciones ──────────────────────────────────────────────────
 
@@ -64,7 +65,7 @@ export function useSearch() {
   //    el ícono de búsqueda (no en cada tecleo).
   //    ⚡ Rule: async-parallel — Promise.all para operaciones independientes
 
-  const handleSearchChange = useCallback(
+const handleSearchChange = useCallback(
     (value) => {
       setQuery(value);
       if (!value.trim()) {
@@ -72,10 +73,23 @@ export function useSearch() {
         setSearchArtists([]);
         setSearchAlbums([]);
         setVideoResults([]);
+        if (searchTimeoutRef.current) {
+          clearTimeout(searchTimeoutRef.current);
+          searchTimeoutRef.current = null;
+        }
         return;
       }
-      // Ejecutar ambas búsquedas en paralelo (antes: secuencial)
-      Promise.all([doSearch(value), doSearchVideos(value)]).catch(() => {});
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      searchTimeoutRef.current = setTimeout(async () => {
+        searchTimeoutRef.current = null;
+        try {
+          await Promise.all([doSearch(value), doSearchVideos(value)]).catch(() => {});
+        } catch (e) {
+          // Silently fail
+        }
+      }, 300);
     },
     [doSearch, doSearchVideos],
   );

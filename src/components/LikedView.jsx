@@ -2,9 +2,9 @@ import React from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, ANIMATIONS } from "../utils/theme";
-import { SongRow } from "./SongRow";
+import SongRow from "./SongRow";
 
-export function LikedView({
+export default function LikedView({
   likedSongs,
   currentSong,
   accentColor,

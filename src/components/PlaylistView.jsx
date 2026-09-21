@@ -17,7 +17,7 @@ import {
   safeAccentText,
 } from "../utils/theme";
 
-export function PlaylistView({
+export default function PlaylistView({
   playlist,
   currentSong,
   accentColor,

@@ -870,98 +870,85 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
     });
   }, []);
 
-  // ── Pre-cache automático inteligente: precargar las siguientes 3 canciones ──
-  //    Cuando la cola cambia, precargamos stream URL, lyrics y TODAS las
-  //    resoluciones HD de thumbnails para cambio instantáneo.
+  // ── Pre-cache inteligente: solo 1 canción + debounce ──────────────
+  //    Solo precargamos 1 canción en lugar de 3 para reducir llamadas API
+  //    y asignaciones de memoria. Debounce de 500ms + requestIdleCallback.
+  const preCacheTimeoutRef = useRef(null);
 
   useEffect(() => {
-    // Limpiar imgs precargadas previas del effect (P5: evitar acumular requests)
-    // Reutilizar la misma ref para no crear objetos cada render.
     const prevImgs = preloadedImgsRef.current;
     if (prevImgs) {
-      prevImgs.forEach((img) => {
-        // Revoke object URL si existiera (no usamos eso, pero buena práctica)
-        img.src = "";
-      });
+      prevImgs.forEach((img) => { img.src = ""; });
     }
     preloadedImgsRef.current = [];
 
-    const nextSongs = [];
-    if (queueIndex >= 0) {
-      if (queueIndex < queue.length - 1) nextSongs.push(queue[queueIndex + 1]);
-      if (queueIndex < queue.length - 2) nextSongs.push(queue[queueIndex + 2]);
-      if (queueIndex < queue.length - 3) nextSongs.push(queue[queueIndex + 3]);
-    } else if (queue.length > 0) {
-      nextSongs.push(queue[0]);
-      if (queue.length > 1) nextSongs.push(queue[1]);
-      if (queue.length > 2) nextSongs.push(queue[2]);
+    if (preCacheTimeoutRef.current) {
+      clearTimeout(preCacheTimeoutRef.current);
     }
 
-    for (const s of nextSongs) {
-      if (!s?.videoId) continue;
+    let nextSong = null;
+    if (queueIndex >= 0 && queueIndex < queue.length - 1) {
+      nextSong = queue[queueIndex + 1];
+    } else if (queue.length > 0 && queueIndex < 0) {
+      nextSong = queue[0];
+    }
 
-      // 1. Pre-cache stream URL
-      if (!streamCacheRef.current[s.videoId]) {
-        api
-          .get(`/stream-url/${s.videoId}`)
-          .then((d) => {
-            if (d?.url) streamCacheRef.current[s.videoId] = d;
-          })
-          .catch(() => {});
-      }
+    if (!nextSong || !nextSong.videoId) return;
 
-      // 2. Pre-cache lyrics
-      if (!lyricsCacheRef.current[s.videoId]) {
-        api
-          .get(
-            `/lyrics/${s.videoId}?title=${encodeURIComponent(s.title || "")}&artist=${encodeURIComponent(s.artist || "")}`,
-          )
-          .then((data) => {
-            if (data?.lyrics) lyricsCacheRef.current[s.videoId] = data;
-          })
-          .catch(() => {});
-      }
+    preCacheTimeoutRef.current = setTimeout(() => {
+      preCacheTimeoutRef.current = null;
+      const doPreCache = () => {
+        if (!nextSong?.videoId) return;
 
-      // 3. Pre-cache HD thumbnails (normalizar + precargar TODOS los tamaños)
-      const normalized = normalizeThumbnails(s);
-      const thumbs = normalized.thumbnails || s.thumbnails;
-      if (Array.isArray(thumbs)) {
-        // 3a. Pre-cache the largest thumbnail for lyrics background blur
-        const sorted = [...thumbs].sort((a, b) => (b.width || 0) - (a.width || 0));
-        const largestThumb = sorted[0]?.url;
-        if (largestThumb) {
-          const imgLg = new Image();
-          imgLg.fetchPriority = "high";
-          imgLg.loading = "eager";
-          imgLg.src = largestThumb;
-          // Also cache via proxy for lyrics view (googleusercontent may block direct)
-          const proxyUrl = `${api.base}/thumbnail-proxy?url=${encodeURIComponent(largestThumb)}`;
-          const imgProxy = new Image();
-          imgProxy.fetchPriority = "high";
-          imgProxy.loading = "eager";
-          imgProxy.src = proxyUrl;
+        if (!streamCacheRef.current[nextSong.videoId]) {
+          api.get(`/stream-url/${nextSong.videoId}`)
+            .then((d) => { if (d?.url) streamCacheRef.current[nextSong.videoId] = d; })
+            .catch(() => {});
         }
 
-        for (const t of thumbs) {
-          if (t?.url) {
+        if (!lyricsCacheRef.current[nextSong.videoId]) {
+          api.get(`/lyrics/${nextSong.videoId}?title=${encodeURIComponent(nextSong.title || "")}&artist=${encodeURIComponent(nextSong.artist || "")}`)
+            .then((data) => { if (data?.lyrics) lyricsCacheRef.current[nextSong.videoId] = data; })
+            .catch(() => {});
+        }
+
+        const normalized = normalizeThumbnails(nextSong);
+        const thumbs = normalized.thumbnails || nextSong.thumbnails;
+        if (Array.isArray(thumbs) && thumbs.length > 0) {
+          const sorted = [...thumbs].sort((a, b) => (b.width || 0) - (a.width || 0));
+          const largestThumb = sorted[0]?.url;
+          if (largestThumb) {
+            const imgLg = new Image();
+            imgLg.fetchPriority = "high";
+            imgLg.loading = "eager";
+            imgLg.src = largestThumb;
+            preloadedImgsRef.current.push(imgLg);
+          }
+        } else {
+          const thumbUrl = nextSong.thumbnail || nextSong.thumbnails?.[0]?.url;
+          if (thumbUrl) {
             const img = new Image();
-            // HD grande con prioridad alta, pequeño con baja
-            img.fetchPriority = (t.width || 0) >= 640 ? "high" : "low";
-            img.loading = "eager"; // eager para que el navegador descargue YA
-            img.src = t.url;
+            img.fetchPriority = "high";
+            img.loading = "eager";
+            img.src = thumbUrl;
+            preloadedImgsRef.current.push(img);
           }
         }
+      };
+
+      if (typeof requestIdleCallback === "function") {
+        requestIdleCallback(doPreCache, { timeout: 1000 });
       } else {
-        // Fallback: precargar al menos la URL única
-        const thumbUrl = s.thumbnail || s.thumbnails?.[0]?.url;
-        if (thumbUrl) {
-          const img = new Image();
-          img.fetchPriority = "high";
-          img.loading = "eager";
-          img.src = thumbUrl;
-        }
+        doPreCache();
       }
-    }
+    }, 500);
+
+    return () => {
+      if (preCacheTimeoutRef.current) {
+        clearTimeout(preCacheTimeoutRef.current);
+        preCacheTimeoutRef.current = null;
+      }
+    };
   }, [queue, queueIndex, normalizeThumbnails]);
 
   // ── Sincronizar volumen con el elemento audio ──────────────────────────────

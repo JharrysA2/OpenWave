@@ -23,4 +23,9 @@ export const DEFAULT_SETTINGS = {
   lyricsScrollResume: 3,
   showProgressTime: true,
   colorTransitionSpeed: 0.5,
+  perfMode: "balanced",
+  perfBlur: true,
+  perfAnim: true,
+  perfShadow: true,
+  perfAurora: true,
 };

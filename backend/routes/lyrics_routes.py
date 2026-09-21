@@ -1,7 +1,7 @@
 """SoundWave Backend — Rutas de letras."""
 
 from fastapi import APIRouter, Request
-from lyrics import get_local_lyrics, search_lyrics
+from lyrics import get_local_lyrics, search_lyrics, search_lyrics_multi
 from lyrics import get_lyrics as lyrics_service
 from rate_limit import limiter
 
@@ -20,9 +20,15 @@ async def lyrics_local(video_id: str):
 @router.get("/lyrics/search")
 @limiter.limit("15/minute")
 async def lyrics_search(
-    request: Request, title: str = "", artist: str = "", source: str = "lrclib"
+    request: Request,
+    title: str = "",
+    artist: str = "",
+    source: str = "lrclib",
+    sources: str = "",
 ):
-    """Buscar letras desde múltiples fuentes — 15 req/min."""
+    """Buscar letras — si `sources` viene separado por comas, intenta en orden (fallback)."""
+    if sources:
+        return await search_lyrics_multi(title, artist, sources)
     return await search_lyrics(title, artist, source)
 
 

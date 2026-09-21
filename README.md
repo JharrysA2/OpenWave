@@ -121,7 +121,7 @@ soundwave/
 │   └── i18n/
 │       └── translations.js
 ├── backend/                    ← Backend Python (FastAPI)
-│   ├── main.py                 ← Entry point (health, thumbnail-proxy, extract-colors)
+│   ├── main.py                 ← Entry point (health, thumbnail-proxy)
 │   ├── config.py
 │   ├── db.py
 │   ├── ytmusic_client.py
@@ -173,7 +173,6 @@ soundwave/
 |--------|------|-------------|
 | GET | `/health` | Salud del backend |
 | GET | `/thumbnail-proxy` | Proxy de miniaturas (CORS) |
-| GET | `/extract-colors/{videoId}` | Extracción de colores de la portada |
 
 ### Búsqueda y home
 

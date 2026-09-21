@@ -18,7 +18,7 @@ import {
 } from "../utils/theme";
 import { SkeletonAlbumView } from "./SkeletonLoader";
 
-export function AlbumView({
+export default function AlbumView({
   browseId,
   accentColor,
   currentSong,
@@ -160,7 +160,7 @@ export function AlbumView({
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              filter: "blur(40px) saturate(1.4) brightness(0.5)",
+              filter: "blur(12px) saturate(1.2) brightness(0.6)",
               transform: "scale(1.3)",
             }}
           />

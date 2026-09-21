@@ -1,9 +1,10 @@
 import React from "react";
-import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { api } from "./utils/api";
 import { winCtrl } from "./utils/windowControls";
 import { __resetHealth, isHeartbeatRunning, markOffline, markOnline } from "./utils/backendHealth";
+import { contrastRatio } from "./utils/colorTheme";
 import App from "./App";
 
 // ── Mock hooks ──────────────────────────────────────────────────────────────────
@@ -530,6 +531,56 @@ describe("App — conexión con el backend", () => {
 //  Tests de overlay opacity y colores de contraste
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/**
+ * Mockea Image + canvas para inyectar una portada de un color uniforme y
+ * disparar su onload. Devuelve `fireLoad()` para simular la carga.
+ */
+function installThumbnailMock([r, g, b]) {
+  const total = 64 * 64;
+  const data = new Uint8ClampedArray(total * 4);
+  for (let i = 0; i < total; i++) {
+    data[i * 4] = r;
+    data[i * 4 + 1] = g;
+    data[i * 4 + 2] = b;
+    data[i * 4 + 3] = 255;
+  }
+  const ctx = {
+    drawImage: vi.fn(),
+    getImageData: vi.fn(() => ({ data })),
+  };
+  const canvas = { width: 0, height: 0, getContext: vi.fn(() => ctx) };
+  const originalCreateElement = document.createElement.bind(document);
+  vi.spyOn(document, "createElement").mockImplementation((tag, ...rest) =>
+    tag === "canvas" ? canvas : originalCreateElement(tag, ...rest),
+  );
+
+  let lastImage = null;
+  class FakeImage {
+    constructor() {
+      this.crossOrigin = null;
+      this.onload = null;
+      this.onerror = null;
+      this._src = null;
+      lastImage = this;
+    }
+    set src(value) {
+      this._src = value;
+    }
+    get src() {
+      return this._src;
+    }
+  }
+  vi.stubGlobal("Image", FakeImage);
+
+  return {
+    async fireLoad() {
+      await act(async () => {
+        lastImage?.onload?.();
+      });
+    },
+  };
+}
+
 describe("App — Contraste y overlayOpacity", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -537,17 +588,19 @@ describe("App — Contraste y overlayOpacity", () => {
     mockPlayer.currentSong = null;
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it("should set neon CSS variables to default purple when no extracted colors", () => {
     render(<App />);
     const root = document.documentElement;
     expect(root.style.getPropertyValue("--neon")).toBe("#a78bfa");
     expect(root.style.getPropertyValue("--neon-fg")).toBe("#ffffff");
-    // Con hasAccent=false → overlayOpacity=0.35
-    // No hay CSS var directa, pero el --neon-fg es blanco para el purple default
   });
 
-  it("should set --neon-fg to #111111 for bright cream accent", async () => {
-    // Configurar un currentSong para activar la extracción de colores
+  it("portada acromática → acento blanco y --neon-fg negro", async () => {
     mockPlayer.currentSong = {
       videoId: "bright123",
       title: "Bright Song",
@@ -555,92 +608,34 @@ describe("App — Contraste y overlayOpacity", () => {
       thumbnail: "https://example.com/bright.jpg",
     };
 
-    // Mock fetch para que /extract-colors devuelva #ffeedd (crema brillante, no grisáceo)
-    const mockFetch = vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
-      if (typeof url === "string" && url.includes("/extract-colors/")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ colors: ["#ffeedd", "#f5e6cc"] }),
-          headers: {
-            get: (h) => (h === "content-type" ? "application/json" : null),
-          },
-        });
-      }
-      // Para otras APIs (playlists, history, etc.) devolver arrays vacíos
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve([]),
-        headers: {
-          get: (h) => (h === "content-type" ? "application/json" : null),
-        },
-      });
-    });
-
+    // Crema sin apenas croma (C ≈ 0.01) → el extractor la considera acromática
+    const thumb = installThumbnailMock([250, 245, 235]);
     render(<App />);
-
-    // Esperar a que la extracción de colores se resuelva
-    await waitFor(
-      () => {
-        const root = document.documentElement;
-        const neon = root.style.getPropertyValue("--neon");
-        expect(neon).toBe("#ffeedd");
-      },
-      { timeout: 3000, interval: 100 },
-    );
+    await thumb.fireLoad();
 
     const root = document.documentElement;
-    // Para #ffeedd (luminancia ≈ 0.87 > 0.45), neonForeground debe ser #111111
+    expect(root.style.getPropertyValue("--neon")).toBe("#ffffff");
     expect(root.style.getPropertyValue("--neon-fg")).toBe("#111111");
-
-    mockFetch.mockRestore();
   });
 
-  it("should set --neon-fg to #ffffff for dark accent", async () => {
+  it("portada cromática → on-accent con contraste ≥ 4.5:1 contra el acento", async () => {
     mockPlayer.currentSong = {
-      videoId: "dark456",
-      title: "Dark Song",
-      artist: "Dark Artist",
-      thumbnail: "https://example.com/dark.jpg",
+      videoId: "blue789",
+      title: "Blue Song",
+      artist: "Blue Artist",
+      thumbnail: "https://example.com/blue.jpg",
     };
 
-    const mockFetch = vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
-      if (typeof url === "string" && url.includes("/extract-colors/")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ colors: ["#1a1a2e", "#16213e"] }),
-          headers: {
-            get: (h) => (h === "content-type" ? "application/json" : null),
-          },
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve([]),
-        headers: { get: (h) => (h === "content-type" ? "application/json" : null) },
-      });
-    });
-
+    const thumb = installThumbnailMock([40, 120, 200]);
     render(<App />);
-
-    await waitFor(
-      () => {
-        const root = document.documentElement;
-        const neon = root.style.getPropertyValue("--neon");
-        expect(neon).toBe("#1a1a2e");
-      },
-      { timeout: 3000, interval: 100 },
-    );
+    await thumb.fireLoad();
 
     const root = document.documentElement;
-    // Para acento oscuro, neonForeground debe ser #ffffff (texto claro)
-    expect(root.style.getPropertyValue("--neon-fg")).toBe("#ffffff");
-    // Y overlayOpacity debe ser 1 (lum < 0.7)
-    // El --neon-btn también debe ser un color claro (btn para acento oscuro)
-    const btn = root.style.getPropertyValue("--neon-btn");
-    expect(btn).toBeTruthy();
-    expect(btn).not.toBe("");
-
-    mockFetch.mockRestore();
+    const neon = root.style.getPropertyValue("--neon");
+    const fg = root.style.getPropertyValue("--neon-fg");
+    expect(neon).not.toBe("#a78bfa");
+    expect(fg).not.toBe("");
+    expect(contrastRatio(fg, neon)).toBeGreaterThanOrEqual(4.5);
   });
 
   it("should NOT set --neon-text-* CSS variables (proving revert from global contrast)", () => {
@@ -654,7 +649,9 @@ describe("App — Contraste y overlayOpacity", () => {
     // Pero --neon-fg y --neon SÍ deben seguir existiendo
     expect(root.style.getPropertyValue("--neon-fg")).toBeTruthy();
     expect(root.style.getPropertyValue("--neon")).toBeTruthy();
-    expect(root.style.getPropertyValue("--neon-btn")).toBeTruthy();
-    expect(root.style.getPropertyValue("--neon-btn-hover")).toBeTruthy();
+    // --neon-btn / --neon-btn-hover ya NO se escriben inline: viven en
+    // src/dynamic-theme.css como color-mix(var(--neon) …).
+    expect(root.style.getPropertyValue("--neon-btn")).toBe("");
+    expect(root.style.getPropertyValue("--neon-btn-hover")).toBe("");
   });
 });

@@ -17,6 +17,7 @@ import { SkeletonLyrics } from "./SkeletonLoader";
 import { fmtTime } from "../utils/formatTime";
 import { parseLrc } from "../utils/lrc";
 import { useSettings } from "../contexts/useSettings";
+import { usePerformance } from "../contexts/PerformanceContext";
 
 // ── dnd-kit: Drag & Drop para reordenar cola ─────────────────────────────
 import {
@@ -260,35 +261,731 @@ function SortableQueueItem({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  LyricsSettingsModal — Modal de configuración rápida de letras
-//  Inspirado en: Spotify (3-dots), Apple Music (inline controls),
-//  Musixmatch (gear icon con font size, alignment, sync).
+//  FloatingModal — Base compartida para modales flotantes centrados.
+//  Liquid glass + backdrop overlay + cierre con click afuera o ESC.
+// ═══════════════════════════════════════════════════════════════════════════
+function FloatingModal({ title, icon, accentColor, onClose, children, width = "480px" }) {
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(0,0,0,.55)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        animation: "sw-fade-in .2s ease both",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width,
+          maxHeight: "calc(100vh - 80px)",
+          borderRadius: "20px",
+          ...GLASS.sheet,
+          border: `1px solid ${accentColor}44`,
+          boxShadow: `0 24px 80px rgba(0,0,0,.7), 0 0 0 1px ${accentColor}22, 0 0 60px ${accentColor}18`,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          animation: "sw-modal-in .3s cubic-bezier(.16,1,.3,1) both",
+          position: "relative",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Rim light shine */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "40%",
+            background: "linear-gradient(180deg, rgba(255,255,255,.06) 0%, transparent 100%)",
+            borderRadius: "20px 20px 0 0",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        />
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "18px 22px 14px",
+            borderBottom: `1px solid ${accentColor}18`,
+            flexShrink: 0,
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ color: safeAccentText(accentColor), display: "flex" }}>{icon}</span>
+            <span
+              style={{
+                fontSize: "16px",
+                fontWeight: "800",
+                color: safeAccentText(accentColor),
+                letterSpacing: ".3px",
+              }}
+            >
+              {title}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: "30px",
+              height: "30px",
+              borderRadius: "50%",
+              border: `1px solid ${accentColor}33`,
+              background: `${accentColor}12`,
+              color: safeAccentText(accentColor),
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all .15s",
+              fontSize: "14px",
+              fontWeight: "700",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = `${accentColor}30`;
+              e.currentTarget.style.transform = "scale(1.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = `${accentColor}12`;
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          >
+            {Ic.close}
+          </button>
+        </div>
+        {/* Content */}
+        <div
+          style={{
+            padding: "18px 22px 22px",
+            overflowY: "auto",
+            flex: 1,
+            minHeight: 0,
+            position: "relative",
+            zIndex: 1,
+            scrollbarWidth: "thin",
+            scrollbarColor: `${accentColor}33 transparent`,
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SearchLyricsModal — Modal flotante para buscar letras por título/artista.
+// ═══════════════════════════════════════════════════════════════════════════
+function SearchLyricsModal({
+  accentColor,
+  song,
+  settings,
+  onSearch,
+  onApplyResult,
+  searchResults,
+  searchLoading,
+  onClose,
+}) {
+  const [title, setTitle] = useState(song?.title || "");
+  const [artist, setArtist] = useState(song?.artist || "");
+
+  const selectedSources = settings?.lyricsSources || ["lrclib", "ytmusic"];
+  const fallbackEnabled = settings?.lyricsFallback !== false;
+  const hasSources = selectedSources.length > 0;
+
+  React.useEffect(() => {
+    setTitle(song?.title || "");
+    setArtist(song?.artist || "");
+  }, [song?.title, song?.artist]);
+
+  const inputSt = {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    border: `1px solid ${accentColor}33`,
+    background: "rgba(0,0,0,.25)",
+    color: "rgba(255,255,255,.9)",
+    fontSize: "14px",
+    fontFamily: FONT,
+    outline: "none",
+    boxSizing: "border-box",
+    transition: "border-color .2s",
+  };
+
+  return (
+    <FloatingModal
+      title="Buscar letras"
+      icon={Ic.search}
+      accentColor={accentColor}
+      onClose={onClose}
+    >
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Título de la canción"
+        style={inputSt}
+        onFocus={(e) => {
+          e.target.style.borderColor = accentColor;
+        }}
+        onBlur={(e) => {
+          e.target.style.borderColor = `${accentColor}33`;
+        }}
+      />
+      <input
+        type="text"
+        value={artist}
+        onChange={(e) => setArtist(e.target.value)}
+        placeholder="Artista"
+        style={{ ...inputSt, marginTop: "10px" }}
+        onFocus={(e) => {
+          e.target.style.borderColor = accentColor;
+        }}
+        onBlur={(e) => {
+          e.target.style.borderColor = `${accentColor}33`;
+        }}
+      />
+      <button
+        onClick={() => {
+          const sources = fallbackEnabled
+            ? selectedSources.join(",")
+            : selectedSources[0] || "lrclib";
+          onSearch(title, artist, sources);
+        }}
+        disabled={searchLoading || (!title && !artist) || !hasSources}
+        style={{
+          width: "100%",
+          padding: "12px",
+          marginTop: "14px",
+          borderRadius: "12px",
+          border: "none",
+          background: hasSources
+            ? `linear-gradient(135deg, ${accentColor}, color-mix(in srgb, ${accentColor} 80%, white))`
+            : "rgba(255,255,255,.1)",
+          color: hasSources ? "#fff" : "rgba(255,255,255,.35)",
+          fontWeight: "800",
+          fontSize: "14px",
+          fontFamily: FONT,
+          cursor: hasSources ? "pointer" : "not-allowed",
+          opacity: searchLoading || (!title && !artist) ? 0.5 : 1,
+          transition: "all .15s",
+          boxShadow: hasSources ? `0 0 16px ${accentColor}44` : "none",
+        }}
+      >
+        {searchLoading ? "Buscando..." : !hasSources ? "Sin fuentes configuradas" : "Buscar"}
+      </button>
+      {!hasSources && (
+        <div
+          style={{
+            marginTop: "10px",
+            padding: "10px 14px",
+            borderRadius: "10px",
+            background: "rgba(234,179,8,.1)",
+            border: "1px solid rgba(234,179,8,.25)",
+            fontSize: "12px",
+            color: "rgba(234,179,8,.9)",
+            textAlign: "center",
+            lineHeight: "1.4",
+          }}
+        >
+          Activa al menos una fuente en <strong>Fuente de letras</strong> para poder buscar.
+        </div>
+      )}
+      {searchResults && searchResults.length > 0 && (
+        <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+          {searchResults.map((r, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                onApplyResult(r);
+                onClose();
+              }}
+              style={{
+                background: `linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)`,
+                border: `1px solid ${accentColor}22`,
+                borderRadius: "12px",
+                padding: "12px 14px",
+                cursor: "pointer",
+                textAlign: "left",
+                color: "rgba(255,255,255,.7)",
+                fontSize: "13px",
+                fontFamily: FONT,
+                transition: "all .15s",
+                backdropFilter: "blur(10px)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.05) 100%)`;
+                e.currentTarget.style.borderColor = accentColor;
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = `linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)`;
+                e.currentTarget.style.borderColor = `${accentColor}22`;
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: "700",
+                  color: "rgba(255,255,255,.9)",
+                  marginBottom: "4px",
+                  fontSize: "14px",
+                }}
+              >
+                {r.title || "Sin título"}
+              </div>
+              <div style={{ fontSize: "12px", color: "rgba(255,255,255,.5)", marginBottom: "6px" }}>
+                {r.artist || "Desconocido"}
+              </div>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: "700",
+                    color: safeAccentText(accentColor),
+                    background: `${accentColor}20`,
+                    padding: "2px 8px",
+                    borderRadius: "6px",
+                  }}
+                >
+                  {r.source}
+                </span>
+                {r.synced && (
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: "700",
+                      color: "#4ade80",
+                      background: "rgba(74,222,128,.15)",
+                      padding: "2px 8px",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    Sincronizado
+                  </span>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      {searchResults && searchResults.length === 0 && !searchLoading && (
+        <div
+          style={{
+            marginTop: "16px",
+            fontSize: "13px",
+            color: "rgba(255,255,255,.35)",
+            textAlign: "center",
+            padding: "20px",
+          }}
+        >
+          Sin resultados — intenta con otro nombre
+        </div>
+      )}
+    </FloatingModal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  SourceModal — Modal flotante para elegir fuente de letras con fallback.
+// ═══════════════════════════════════════════════════════════════════════════
+function SourceModal({ accentColor, settings, updateSetting, onClose }) {
+  const SOURCES = [
+    { key: "lrclib", label: "LRCLib", desc: "Sincronizado (LRC)", badge: "Sync" },
+    { key: "ytmusic", label: "YTMusic", desc: "Texto plano", badge: null },
+    { key: "genius", label: "Genius", desc: "Texto plano + URL", badge: null },
+  ];
+
+  const [selected, setSelected] = useState(settings.lyricsSources || ["lrclib", "ytmusic"]);
+  const [fallback, setFallback] = useState(settings.lyricsFallback !== false);
+
+  const toggleSource = (key) => {
+    const next = selected.includes(key) ? selected.filter((s) => s !== key) : [...selected, key];
+    setSelected(next);
+    updateSetting("lyricsSources", next);
+  };
+
+  const toggleFallback = () => {
+    const next = !fallback;
+    setFallback(next);
+    updateSetting("lyricsFallback", next);
+  };
+
+  return (
+    <FloatingModal
+      title="Fuente de letras"
+      icon={Ic.music}
+      accentColor={accentColor}
+      onClose={onClose}
+      width="400px"
+    >
+      <p
+        style={{
+          fontSize: "12px",
+          color: "rgba(255,255,255,.45)",
+          margin: "0 0 16px",
+          lineHeight: "1.5",
+        }}
+      >
+        Selecciona cuáles fuentes usar para buscar letras sincronizadas. El orden importa si el
+        fallback está activado.
+      </p>
+      {SOURCES.map((s) => (
+        <label
+          key={s.key}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "14px",
+            padding: "14px",
+            marginBottom: "8px",
+            cursor: "pointer",
+            borderRadius: "12px",
+            border: `1px solid ${selected.includes(s.key) ? `${accentColor}55` : "rgba(255,255,255,.08)"}`,
+            background: selected.includes(s.key)
+              ? `linear-gradient(135deg, ${accentColor}18 0%, ${accentColor}08 100%)`
+              : "rgba(255,255,255,.03)",
+            transition: "all .2s",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={selected.includes(s.key)}
+            onChange={() => toggleSource(s.key)}
+            style={{ display: "none" }}
+          />
+          <div
+            style={{
+              width: "22px",
+              height: "22px",
+              borderRadius: "6px",
+              border: `2px solid ${selected.includes(s.key) ? accentColor : "rgba(255,255,255,.2)"}`,
+              background: selected.includes(s.key) ? accentColor : "transparent",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all .15s",
+              flexShrink: 0,
+            }}
+          >
+            {selected.includes(s.key) && (
+              <span style={{ color: "#fff", fontSize: "12px", fontWeight: "900" }}>✓</span>
+            )}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "14px", fontWeight: "700", color: "rgba(255,255,255,.9)" }}>
+              {s.label}
+            </div>
+            <div style={{ fontSize: "11px", color: "rgba(255,255,255,.4)", marginTop: "1px" }}>
+              {s.desc}
+            </div>
+          </div>
+          {s.badge && (
+            <span
+              style={{
+                fontSize: "10px",
+                fontWeight: "700",
+                color: "#4ade80",
+                background: "rgba(74,222,128,.12)",
+                padding: "3px 8px",
+                borderRadius: "6px",
+              }}
+            >
+              {s.badge}
+            </span>
+          )}
+        </label>
+      ))}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "16px 14px",
+          marginTop: "12px",
+          borderRadius: "12px",
+          border: "1px solid rgba(255,255,255,.08)",
+          background: "rgba(255,255,255,.03)",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: "13px", fontWeight: "700", color: "rgba(255,255,255,.85)" }}>
+            Fallback automático
+          </div>
+          <div style={{ fontSize: "11px", color: "rgba(255,255,255,.4)", marginTop: "2px" }}>
+            Si una fuente falla, usa la siguiente en la lista
+          </div>
+        </div>
+        <button
+          onClick={toggleFallback}
+          style={{
+            width: "44px",
+            height: "24px",
+            borderRadius: "12px",
+            border: "none",
+            cursor: "pointer",
+            background: fallback ? accentColor : "rgba(255,255,255,.15)",
+            position: "relative",
+            transition: "background .2s",
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              width: "18px",
+              height: "18px",
+              borderRadius: "50%",
+              background: "#fff",
+              position: "absolute",
+              top: "3px",
+              left: fallback ? "24px" : "3px",
+              transition: "left .2s cubic-bezier(.16,1,.3,1)",
+              boxShadow: "0 1px 3px rgba(0,0,0,.3)",
+            }}
+          />
+        </button>
+      </div>
+    </FloatingModal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  EditLyricsModal — Modal flotante para editar letras manualmente.
+// ═══════════════════════════════════════════════════════════════════════════
+function EditLyricsModal({ accentColor, lyrics, onEditLyrics, onClose }) {
+  const [text, setText] = useState(() => {
+    if (!Array.isArray(lyrics)) return "";
+    return lyrics
+      .map((l) => {
+        if (typeof l === "object" && l.time !== undefined) {
+          const m = Math.floor(l.time / 60);
+          const s = (l.time % 60).toFixed(2).padStart(5, "0");
+          return `[${m}:${s}]${l.text}`;
+        }
+        return typeof l === "string" ? l : l.text || "";
+      })
+      .join("\n");
+  });
+
+  const handleSave = () => {
+    const lines = text.split("\n").filter((l) => l.trim());
+    onEditLyrics(lines);
+    onClose();
+  };
+
+  return (
+    <FloatingModal
+      title="Editar letras"
+      icon={Ic.edit}
+      accentColor={accentColor}
+      onClose={onClose}
+      width="540px"
+    >
+      <p
+        style={{
+          fontSize: "12px",
+          color: "rgba(255,255,255,.45)",
+          margin: "0 0 12px",
+          lineHeight: "1.5",
+        }}
+      >
+        Edita las letras directamente. Formato LRC soportado:{" "}
+        <code
+          style={{
+            color: safeAccentText(accentColor),
+            background: `${accentColor}15`,
+            padding: "1px 5px",
+            borderRadius: "4px",
+            fontSize: "11px",
+          }}
+        >
+          [mm:ss.xx]Texto
+        </code>
+      </p>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        style={{
+          width: "100%",
+          minHeight: "300px",
+          background: "rgba(0,0,0,.3)",
+          border: `1px solid ${accentColor}33`,
+          borderRadius: "12px",
+          padding: "14px",
+          color: "rgba(255,255,255,.9)",
+          fontSize: "13px",
+          fontFamily: "'JetBrains Mono', monospace",
+          lineHeight: "1.8",
+          resize: "vertical",
+          outline: "none",
+          boxSizing: "border-box",
+          transition: "border-color .2s",
+        }}
+        onFocus={(e) => {
+          e.target.style.borderColor = accentColor;
+        }}
+        onBlur={(e) => {
+          e.target.style.borderColor = `${accentColor}33`;
+        }}
+        placeholder="[00:12.00] Primera línea&#10;[00:16.50] Segunda línea"
+      />
+      <div style={{ display: "flex", gap: "10px", marginTop: "14px" }}>
+        <button
+          onClick={handleSave}
+          style={{
+            flex: 1,
+            padding: "12px",
+            borderRadius: "12px",
+            border: "none",
+            background: `linear-gradient(135deg, ${accentColor}, color-mix(in srgb, ${accentColor} 80%, white))`,
+            color: "#fff",
+            fontWeight: "800",
+            fontSize: "14px",
+            fontFamily: FONT,
+            cursor: "pointer",
+            boxShadow: `0 0 16px ${accentColor}44`,
+            transition: "transform .15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "scale(1.02)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+          }}
+        >
+          Guardar cambios
+        </button>
+        <button
+          onClick={onClose}
+          style={{
+            flex: 1,
+            padding: "12px",
+            borderRadius: "12px",
+            border: `1px solid ${accentColor}33`,
+            background: "rgba(255,255,255,.06)",
+            color: "rgba(255,255,255,.6)",
+            fontWeight: "600",
+            fontSize: "14px",
+            fontFamily: FONT,
+            cursor: "pointer",
+            transition: "all .15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,.1)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,.06)";
+          }}
+        >
+          Cancelar
+        </button>
+      </div>
+    </FloatingModal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LyricsSettingsModal — Modal de configuración de letras
+//  Secciones: búsqueda, fuente, edición, recarga, ajustes visuales.
 //  ═══════════════════════════════════════════════════════════════════════════
-function LyricsSettingsModal({ accentColor, settings, updateSetting, onReload, onClose }) {
+function LyricsSettingsModal({
+  accentColor,
+  settings,
+  updateSetting,
+  onReload,
+  song,
+  source,
+  lyrics,
+  onSearch,
+  onApplyResult,
+  onEditLyrics,
+  searchResults,
+  searchLoading,
+  onOpenSearch,
+  onOpenSource,
+  onOpenEdit,
+}) {
   const FONT_SIZES = [
     { key: "small", label: "Pequeño", px: "30px" },
     { key: "medium", label: "Mediano", px: "36px" },
     { key: "large", label: "Grande", px: "44px" },
   ];
   const ALIGN_OPTIONS = [
-    { key: "left", label: "Izquierda", icon: "left" },
-    { key: "center", label: "Centrado", icon: "center" },
+    { key: "left", label: "Izq" },
+    { key: "center", label: "Centro" },
   ];
+
+  const [expandedSection, setExpandedSection] = useState(null);
 
   const rowStyle = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "12px 0",
-    borderBottom: `1px solid ${accentColor}22`,
+    padding: "10px 0",
+    borderBottom: `1px solid ${accentColor}15`,
   };
 
-  const labelStyle = { fontSize: "13px", fontWeight: "700", color: "rgba(255,255,255,.8)" };
+  const labelStyle = { fontSize: "12px", fontWeight: "700", color: "rgba(255,255,255,.8)" };
   const descStyle = {
-    fontSize: "11px",
+    fontSize: "10px",
     fontWeight: "500",
-    color: "rgba(255,255,255,.4)",
-    marginTop: "2px",
+    color: "rgba(255,255,255,.35)",
+    marginTop: "1px",
+  };
+
+  const toggleStyle = (on) => ({
+    width: "38px",
+    height: "22px",
+    borderRadius: "11px",
+    border: "none",
+    cursor: "pointer",
+    background: on ? accentColor : "rgba(255,255,255,.15)",
+    position: "relative",
+    transition: "background .2s",
+    flexShrink: 0,
+  });
+
+  const toggleKnob = (on) => ({
+    width: "16px",
+    height: "16px",
+    borderRadius: "50%",
+    background: "#fff",
+    position: "absolute",
+    top: "3px",
+    left: on ? "20px" : "3px",
+    transition: "left .2s cubic-bezier(.16,1,.3,1)",
+    boxShadow: "0 1px 3px rgba(0,0,0,.3)",
+  });
+
+  const sectionBtnStyle = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "9px 0",
+    cursor: "pointer",
+    userSelect: "none",
+    borderBottom: `1px solid ${accentColor}15`,
   };
 
   return (
@@ -299,13 +996,16 @@ function LyricsSettingsModal({ accentColor, settings, updateSetting, onReload, o
         right: "22px",
         zIndex: 100,
         width: "320px",
+        maxHeight: "calc(100vh - 100px)",
         borderRadius: "16px",
         ...GLASS.sheet,
         border: `1px solid ${accentColor}44`,
         boxShadow: `0 16px 48px rgba(0,0,0,.6), 0 0 0 1px ${accentColor}22, 0 0 40px ${accentColor}22`,
-        padding: "18px 20px",
+        padding: "14px 16px",
         animation: "sw-fade-slide-up .2s cubic-bezier(.16,1,.3,1) both",
         overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
       }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -315,12 +1015,13 @@ function LyricsSettingsModal({ accentColor, settings, updateSetting, onReload, o
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: "6px",
+          marginBottom: "4px",
+          flexShrink: 0,
         }}
       >
         <span
           style={{
-            fontSize: "15px",
+            fontSize: "14px",
             fontWeight: "800",
             color: safeAccentText(accentColor),
             letterSpacing: ".3px",
@@ -329,216 +1030,319 @@ function LyricsSettingsModal({ accentColor, settings, updateSetting, onReload, o
         >
           Letras
         </span>
-        <button
-          onClick={onClose}
-          style={{
-            width: "32px",
-            height: "32px",
-            borderRadius: "50%",
-            border: `1px solid ${accentColor}33`,
-            background: `${accentColor}15`,
-            color: safeAccentText(accentColor),
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "all .15s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = `${accentColor}30`;
-            e.currentTarget.style.transform = "scale(1.1)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = `${accentColor}15`;
-            e.currentTarget.style.transform = "scale(1)";
-          }}
-        >
-          {Ic.close}
-        </button>
+        {source && (
+          <span
+            style={{
+              fontSize: "9px",
+              fontWeight: "600",
+              color: `${accentColor}aa`,
+              background: `${accentColor}15`,
+              padding: "2px 7px",
+              borderRadius: "5px",
+              border: `1px solid ${accentColor}22`,
+              textTransform: "uppercase",
+            }}
+          >
+            {source}
+          </span>
+        )}
       </div>
 
-      {/* ── Recargar letras ──────────────────────────────────────────── */}
-      <button
-        onClick={onReload}
+      {/* Scrollable content */}
+      <div
         style={{
-          ...rowStyle,
-          width: "100%",
-          background: "none",
-          border: `1px solid ${accentColor}33`,
-          borderRadius: "10px",
-          padding: "10px 14px",
-          marginTop: "12px",
-          marginBottom: "14px",
-          cursor: "pointer",
-          fontFamily: FONT,
-          display: "flex",
-          gap: "10px",
-          transition: "all .15s",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = `${accentColor}20`;
-          e.currentTarget.style.borderColor = accentColor;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "none";
-          e.currentTarget.style.borderColor = `${accentColor}33`;
+          overflowY: "auto",
+          overflowX: "hidden",
+          flex: 1,
+          minHeight: 0,
+          scrollbarWidth: "thin",
+          scrollbarColor: `${accentColor}33 transparent`,
         }}
       >
-        <div style={{ color: safeAccentText(accentColor), display: "flex" }}>{Ic.reload}</div>
-        <div style={{ textAlign: "left" }}>
-          <div style={labelStyle}>Recargar letras</div>
-          <div style={descStyle}>Re-buscar desde las fuentes disponibles</div>
+        {/* ── Buscar letras ────────────────────────────────────── */}
+        <div onClick={onOpenSearch} style={sectionBtnStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ color: safeAccentText(accentColor), display: "flex" }}>{Ic.search}</span>
+            <span style={labelStyle}>Buscar letras</span>
+          </div>
+          <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)" }}>▶</span>
         </div>
-      </button>
 
-      {/* ── Modo karaoke toggle ──────────────────────────────────────── */}
-      <div style={rowStyle}>
-        <div>
-          <div style={labelStyle}>Modo karaoke</div>
-          <div style={descStyle}>Resaltado palabra por palabra sincronizado</div>
+        {/* ── Fuente de letras ─────────────────────────────────── */}
+        <div onClick={onOpenSource} style={sectionBtnStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ color: safeAccentText(accentColor), display: "flex" }}>{Ic.music}</span>
+            <span style={labelStyle}>Fuente de letras</span>
+          </div>
+          <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)" }}>▶</span>
         </div>
-        <button
-          onClick={() => updateSetting("lyricsAnimate", !settings.lyricsAnimate)}
+
+        {/* ── Editar letras ────────────────────────────────────── */}
+        <div onClick={onOpenEdit} style={sectionBtnStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ color: safeAccentText(accentColor), display: "flex" }}>{Ic.edit}</span>
+            <span style={labelStyle}>Editar letras</span>
+          </div>
+          <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)" }}>▶</span>
+        </div>
+
+        {/* ── Recargar ─────────────────────────────────────────── */}
+        <div
+          onClick={onReload}
           style={{
-            width: "46px",
-            height: "26px",
-            borderRadius: "13px",
-            border: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "9px 0",
             cursor: "pointer",
-            background: settings.lyricsAnimate ? accentColor : "rgba(255,255,255,.15)",
-            position: "relative",
-            transition: "background .2s",
-            flexShrink: 0,
+            borderBottom: `1px solid ${accentColor}15`,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = "0.8";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = "1";
           }}
         >
-          <div
-            style={{
-              width: "20px",
-              height: "20px",
-              borderRadius: "50%",
-              background: "#fff",
-              position: "absolute",
-              top: "3px",
-              left: settings.lyricsAnimate ? "24px" : "3px",
-              transition: "left .2s cubic-bezier(.16,1,.3,1)",
-              boxShadow: "0 1px 3px rgba(0,0,0,.3)",
-            }}
-          />
-        </button>
-      </div>
-
-      {/* ── Tamaño de letra ──────────────────────────────────────────── */}
-      <div style={rowStyle}>
-        <div>
-          <div style={labelStyle}>Tamaño de letra</div>
-          <div style={descStyle}>
-            {FONT_SIZES.find((s) => s.key === settings.lyricsFontSize)?.px || "36px"}
+          <span style={{ color: safeAccentText(accentColor), display: "flex" }}>{Ic.reload}</span>
+          <div>
+            <div style={labelStyle}>Recargar letras</div>
+            <div style={descStyle}>Re-buscar desde fuentes seleccionadas</div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "6px" }}>
-          {FONT_SIZES.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => updateSetting("lyricsFontSize", opt.key)}
-              style={{
-                padding: "6px 12px",
-                borderRadius: "8px",
-                border: `1px solid ${settings.lyricsFontSize === opt.key ? accentColor : `${accentColor}33`}`,
-                background:
-                  settings.lyricsFontSize === opt.key ? `${accentColor}30` : "transparent",
-                color: settings.lyricsFontSize === opt.key ? accentColor : "rgba(255,255,255,.6)",
-                fontWeight: settings.lyricsFontSize === opt.key ? "800" : "600",
-                fontSize: "12px",
-                cursor: "pointer",
-                fontFamily: FONT,
-                transition: "all .15s",
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {/* ── Alineación del texto ─────────────────────────────────────── */}
-      <div style={rowStyle}>
-        <div>
-          <div style={labelStyle}>Alineación</div>
-          <div style={descStyle}>Posición del texto en pantalla</div>
-        </div>
-        <div style={{ display: "flex", gap: "6px" }}>
-          {ALIGN_OPTIONS.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => updateSetting("lyricsTextPos", opt.key)}
-              style={{
-                padding: "8px 14px",
-                borderRadius: "8px",
-                border: `1px solid ${settings.lyricsTextPos === opt.key ? accentColor : `${accentColor}33`}`,
-                background: settings.lyricsTextPos === opt.key ? `${accentColor}30` : "transparent",
-                color: settings.lyricsTextPos === opt.key ? accentColor : "rgba(255,255,255,.6)",
-                fontWeight: settings.lyricsTextPos === opt.key ? "800" : "600",
-                fontSize: "12px",
-                cursor: "pointer",
-                fontFamily: FONT,
-                transition: "all .15s",
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Auto-scroll toggle ───────────────────────────────────────── */}
-      <div style={{ ...rowStyle, borderBottom: "none" }}>
-        <div>
-          <div style={labelStyle}>Auto-scroll</div>
-          <div style={descStyle}>Sigue automáticamente la línea activa</div>
-        </div>
-        <button
-          onClick={() =>
-            updateSetting("lyricsScrollResume", settings.lyricsScrollResume > 0 ? 0 : 3)
-          }
-          style={{
-            width: "46px",
-            height: "26px",
-            borderRadius: "13px",
-            border: "none",
-            cursor: "pointer",
-            background:
-              (settings.lyricsScrollResume ?? 3) > 0 ? accentColor : "rgba(255,255,255,.15)",
-            position: "relative",
-            transition: "background .2s",
-            flexShrink: 0,
-          }}
+        {/* ── Apariencia ───────────────────────────────────────── */}
+        <div
+          onClick={() => setExpandedSection(expandedSection === "visual" ? null : "visual")}
+          style={sectionBtnStyle}
         >
-          <div
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ color: safeAccentText(accentColor), display: "flex" }}>{Ic.gear}</span>
+            <span style={labelStyle}>Apariencia</span>
+          </div>
+          <span
             style={{
-              width: "20px",
-              height: "20px",
-              borderRadius: "50%",
-              background: "#fff",
-              position: "absolute",
-              top: "3px",
-              left: (settings.lyricsScrollResume ?? 3) > 0 ? "24px" : "3px",
-              transition: "left .2s cubic-bezier(.16,1,.3,1)",
-              boxShadow: "0 1px 3px rgba(0,0,0,.3)",
+              fontSize: "10px",
+              color: "rgba(255,255,255,.3)",
+              transition: "transform .2s",
+              transform: expandedSection === "visual" ? "rotate(180deg)" : "rotate(0)",
             }}
-          />
-        </button>
+          >
+            ▾
+          </span>
+        </div>
+        {expandedSection === "visual" && (
+          <div style={{ padding: "4px 0 4px" }}>
+            <div style={rowStyle}>
+              <div>
+                <div style={labelStyle}>Karaoke</div>
+                <div style={descStyle}>Resaltado palabra por palabra</div>
+              </div>
+              <button
+                onClick={() => updateSetting("lyricsAnimate", !settings.lyricsAnimate)}
+                style={toggleStyle(settings.lyricsAnimate)}
+              >
+                <div style={toggleKnob(settings.lyricsAnimate)} />
+              </button>
+            </div>
+            <div style={rowStyle}>
+              <div>
+                <div style={labelStyle}>Tamaño</div>
+                <div style={descStyle}>
+                  {FONT_SIZES.find((s) => s.key === settings.lyricsFontSize)?.px || "36px"}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "4px" }}>
+                {FONT_SIZES.map((opt) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => updateSetting("lyricsFontSize", opt.key)}
+                    style={{
+                      padding: "4px 9px",
+                      borderRadius: "6px",
+                      border: `1px solid ${settings.lyricsFontSize === opt.key ? accentColor : `${accentColor}22`}`,
+                      background:
+                        settings.lyricsFontSize === opt.key ? `${accentColor}25` : "transparent",
+                      color:
+                        settings.lyricsFontSize === opt.key ? accentColor : "rgba(255,255,255,.5)",
+                      fontWeight: settings.lyricsFontSize === opt.key ? "800" : "600",
+                      fontSize: "10px",
+                      cursor: "pointer",
+                      fontFamily: FONT,
+                      transition: "all .15s",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={rowStyle}>
+              <div style={labelStyle}>Alineación</div>
+              <div style={{ display: "flex", gap: "4px" }}>
+                {ALIGN_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => updateSetting("lyricsTextPos", opt.key)}
+                    style={{
+                      padding: "4px 9px",
+                      borderRadius: "6px",
+                      border: `1px solid ${settings.lyricsTextPos === opt.key ? accentColor : `${accentColor}22`}`,
+                      background:
+                        settings.lyricsTextPos === opt.key ? `${accentColor}25` : "transparent",
+                      color:
+                        settings.lyricsTextPos === opt.key ? accentColor : "rgba(255,255,255,.5)",
+                      fontWeight: settings.lyricsTextPos === opt.key ? "800" : "600",
+                      fontSize: "10px",
+                      cursor: "pointer",
+                      fontFamily: FONT,
+                      transition: "all .15s",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ ...rowStyle, borderBottom: "none" }}>
+              <div>
+                <div style={labelStyle}>Auto-scroll</div>
+                <div style={descStyle}>Seguir la línea activa</div>
+              </div>
+              <button
+                onClick={() =>
+                  updateSetting("lyricsScrollResume", settings.lyricsScrollResume > 0 ? 0 : 3)
+                }
+                style={toggleStyle((settings.lyricsScrollResume ?? 3) > 0)}
+              >
+                <div style={toggleKnob((settings.lyricsScrollResume ?? 3) > 0)} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* ── Animación de giro para el icono reload ────────────────────── */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  KaraokeWords — Iluminación palabra por palabra con glow sutil.
+//  NO usa transform: scale() (causa overlap). Solo color + text-shadow.
+// ═══════════════════════════════════════════════════════════════════════════
+const KaraokeWords = React.memo(
+  function KaraokeWords({ text, activeWordIdx, accentColor }) {
+    let idx = -1;
+    return text.split(/(\s+)/).map((part, pi) => {
+      const isSpace = /^\s+$/.test(part);
+      if (!isSpace) idx++;
+      const isLit = !isSpace && idx <= activeWordIdx;
+      const isActiveWord = !isSpace && idx === activeWordIdx;
+      return (
+        <span
+          key={pi}
+          style={{
+            transition:
+              "color .5s cubic-bezier(.25,.1,.25,1), text-shadow .5s cubic-bezier(.25,.1,.25,1), font-weight .4s cubic-bezier(.25,.1,.25,1)",
+            color: isLit ? "#ffffff" : COLORS.textTertiary,
+            fontWeight: isActiveWord ? "900" : isLit ? "700" : "500",
+            textShadow: isLit ? `0 0 16px ${accentColor}88, 0 0 32px ${accentColor}44` : "none",
+          }}
+        >
+          {part}
+        </span>
+      );
+    });
+  },
+  (prev, next) =>
+    prev.text === next.text &&
+    prev.activeWordIdx === next.activeWordIdx &&
+    prev.accentColor === next.accentColor,
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LyricLine — Línea sincronizada memoizada.
+//  Recibe props PRIMITIVAS + handlers estables, así React la salta cuando no
+//  cambia. En cada tick de progreso (400ms) solo se re-renderiza la línea
+//  activa; el resto de la lista no se toca.
+//  ═══════════════════════════════════════════════════════════════════════════
+const LyricLine = React.memo(function LyricLine({
+  index,
+  text,
+  time,
+  isActive,
+  isNearActive,
+  lineDistance,
+  activeWordIdx,
+  lyricsFontSize,
+  accentColor,
+  animate,
+  clickSeek,
+  onLineClick,
+  lineRefs,
+  align,
+}) {
+  const basePx = parseFloat(lyricsFontSize) || 36;
+
+  // ── Lente cilíndrico ligero: font-size + escala + opacidad (sin 3D compositing) ──
+  //    Font-size: jerarquía de tamaño (afecta layout, sin overlap).
+  //    scaleX/scaleY: los extremos se comprimen → curvatura tipo tubo.
+  //    opacity: las lejanas se atenúan como profundidad de campo.
+  const sizeFactor = isActive ? 1.3 : Math.max(0.78, 1 - 0.04 * lineDistance * lineDistance);
+  const lineFontPx = basePx * sizeFactor;
+  const scaleX = isActive ? 1 : Math.max(0.6, 1 - 0.05 * lineDistance);
+  const scaleY = isActive ? 1 : Math.max(0.85, 1 - 0.015 * lineDistance);
+
+  return (
+    <div
+      data-testid={`lyric-line-${index}`}
+      ref={(el) => {
+        lineRefs.current[index] = el;
+      }}
+      onClick={() => onLineClick(time)}
+      style={{
+        position: "relative",
+        fontSize: `${lineFontPx.toFixed(1)}px`,
+        fontWeight: isActive ? "900" : isNearActive ? "700" : "500",
+        lineHeight: isActive ? "1.5" : "1.7",
+        transition:
+          "opacity .6s cubic-bezier(.25,.1,.25,1), font-size .65s cubic-bezier(.25,.1,.25,1), transform .65s cubic-bezier(.25,.1,.25,1)",
+        transform: `scaleX(${scaleX}) scaleY(${scaleY})`,
+        transformOrigin: align === "center" ? "center top" : "left top",
+        cursor: clickSeek ? "pointer" : "default",
+        padding: `${isActive ? 8 : 3}px 0`,
+        opacity: isActive ? 1 : Math.max(0.15, 1 - 0.18 * lineDistance),
+      }}
+    >
+      {/* ── Karaoke palabra por palabra (si lyricsAnimate está activo) ──── */}
+      {isActive && activeWordIdx >= 0 && animate ? (
+        <span
+          style={{
+            position: "relative",
+            zIndex: 1,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          <KaraokeWords text={text} activeWordIdx={activeWordIdx} accentColor={accentColor} />
+        </span>
+      ) : (
+        <span
+          style={{
+            position: "relative",
+            zIndex: 1,
+            transition: "color .35s ease",
+            color: isActive ? "#ffffff" : "rgba(255,255,255,.45)",
+            textShadow: isActive ? `0 0 12px ${accentColor}66` : "none",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {text || "\u00A0"}
+        </span>
+      )}
+    </div>
+  );
+});
 
 export function LyricsView({
   song,
@@ -556,6 +1360,7 @@ export function LyricsView({
   streamCacheRef,
 }) {
   const { settings, updateSetting } = useSettings();
+  const { visible } = usePerformance();
   const [lyrics, setLyrics] = useState(null);
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState(null);
@@ -582,6 +1387,67 @@ export function LyricsView({
   // ⭐ Ref (no dispara re-render): marca que el próximo fetch debe saltarse
   //    el cache. Evita el doble disparo que causaba resetear reloadCounter.
   const skipCacheRef = useRef(false);
+
+  // ── Búsqueda de letras ──────────────────────────────────────────────────
+  const [searchResults, setSearchResults] = useState(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [openSearchModal, setOpenSearchModal] = useState(false);
+  const [openSourceModal, setOpenSourceModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
+
+  const handleSearchLyrics = useCallback((title, artist, sources) => {
+    setSearchLoading(true);
+    setSearchResults(null);
+    api
+      .get(
+        `/lyrics/search?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}&sources=${encodeURIComponent(sources)}`,
+      )
+      .then((data) => setSearchResults(data?.results || []))
+      .catch(() => setSearchResults([]))
+      .finally(() => setSearchLoading(false));
+  }, []);
+
+  const handleApplySearchResult = useCallback((result) => {
+    if (result?.text) {
+      const lines = result.text.split("\n").filter((l) => l.trim());
+      const hasTimeTags = lines.some((l) => /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/.test(l));
+      if (hasTimeTags) {
+        const parsed = parseLrc(lines);
+        if (parsed.length > 0) {
+          setLyrics(parsed);
+          setIsSynced(true);
+        } else {
+          setLyrics(lines);
+          setIsSynced(false);
+        }
+      } else {
+        setLyrics(lines);
+        setIsSynced(false);
+      }
+      setSource(result.source || "unknown");
+      setSearchResults(null);
+    }
+  }, []);
+
+  const handleEditLyrics = useCallback((lines) => {
+    if (lines && lines.length > 0) {
+      const hasTimeTags = lines.some((l) => /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/.test(l));
+      if (hasTimeTags) {
+        const parsed = parseLrc(lines);
+        if (parsed.length > 0) {
+          setLyrics(parsed);
+          setIsSynced(true);
+        } else {
+          setLyrics(lines);
+          setIsSynced(false);
+        }
+      } else {
+        setLyrics(lines);
+        setIsSynced(false);
+      }
+      setSource("editado");
+    }
+  }, []);
 
   // ── Helper compartido: procesar datos de letras (usado por cache y API) ─
   const processLyricsData = useCallback((data) => {
@@ -660,17 +1526,17 @@ export function LyricsView({
     reloadCounter,
   ]);
 
-  // ── Track progress for synced lyrics (cada 400ms) ────────────────────────
+  // ── Track progress for synced lyrics (cada 1s) ────────────────────────
 
   useEffect(() => {
-    if (!open || !isSynced) return;
+    if (!open || !isSynced || !visible) return;
     const interval = setInterval(() => {
       if (progressRef?.current !== undefined) {
         setProgressSec(progressRef.current);
       }
-    }, 400);
+    }, 1000);
     return () => clearInterval(interval);
-  }, [open, isSynced, progressRef]);
+  }, [open, isSynced, visible, progressRef]);
 
   // ── Auto-scroll to current synced line ─────────────────────────────────────
 
@@ -1019,7 +1885,7 @@ export function LyricsView({
               backgroundImage: bgLoaded && bgSrc ? `url(${bgSrc})` : "none",
               backgroundSize: "cover",
               backgroundPosition: "center",
-              filter: "blur(40px) saturate(1.3) brightness(0.65)",
+              filter: "blur(12px) saturate(1.2) brightness(0.7)",
               transform: "scale(1.1)",
               opacity: bgLoaded ? 1 : 0,
               transition: "opacity .3s cubic-bezier(.16,1,.3,1)",
@@ -1052,9 +1918,9 @@ export function LyricsView({
           gap: "10px",
         }}
       >
-        {/* 3-dots — abre modal de configuración de letras */}
+        {/* 3-dots — abre/cierra modal de configuración de letras */}
         <button
-          onClick={() => setShowLyricsSettings(true)}
+          onClick={() => setShowLyricsSettings((v) => !v)}
           title="Configuración de letras"
           style={btnGlass}
           onMouseEnter={(e) => {
@@ -1111,7 +1977,46 @@ export function LyricsView({
             skipCacheRef.current = true;
             setShowLyricsSettings(false);
           }}
-          onClose={() => setShowLyricsSettings(false)}
+          song={song}
+          source={source}
+          lyrics={lyrics}
+          onSearch={handleSearchLyrics}
+          onApplyResult={handleApplySearchResult}
+          onEditLyrics={handleEditLyrics}
+          searchResults={searchResults}
+          searchLoading={searchLoading}
+          onOpenSearch={() => setOpenSearchModal(true)}
+          onOpenSource={() => setOpenSourceModal(true)}
+          onOpenEdit={() => setOpenEditModal(true)}
+        />
+      )}
+
+      {openSearchModal && (
+        <SearchLyricsModal
+          accentColor={accentColor}
+          song={song}
+          settings={settings}
+          onSearch={handleSearchLyrics}
+          onApplyResult={handleApplySearchResult}
+          searchResults={searchResults}
+          searchLoading={searchLoading}
+          onClose={() => setOpenSearchModal(false)}
+        />
+      )}
+      {openSourceModal && (
+        <SourceModal
+          accentColor={accentColor}
+          settings={settings}
+          updateSetting={updateSetting}
+          onClose={() => setOpenSourceModal(false)}
+        />
+      )}
+      {openEditModal && (
+        <EditLyricsModal
+          accentColor={accentColor}
+          lyrics={lyrics}
+          onEditLyrics={handleEditLyrics}
+          onClose={() => setOpenEditModal(false)}
         />
       )}
 
@@ -1389,7 +2294,9 @@ export function LyricsView({
       >
         <div
           style={{
-            maxWidth: "780px",
+            // ⭐ Izquierda: el texto aprovecha más rango a la derecha.
+            //    Centrado: mantiene su ancho actual (hasta 960px).
+            maxWidth: textAlign === "center" ? "min(100%, 960px)" : "min(100%, 1200px)",
             width: "100%",
             textAlign,
             overflowWrap: "anywhere",
@@ -1423,7 +2330,11 @@ export function LyricsView({
                 //    primeras líneas visibles con estilo "cerca" en vez de todo apagado.
                 const isNearActive = currentLine >= 0 ? Math.abs(i - currentLine) <= 2 : i <= 2;
 
-                // ── Calcular qué palabra está iluminada ──────────────
+                // ── Distancia al activo (para efecto lente / profundidad) ──
+                const lineDistance =
+                  currentLine >= 0 ? Math.abs(i - currentLine) : Math.max(0, 2 - i);
+
+                // ── Calcular qué palabra está iluminada (solo línea activa) ──
                 let activeWordIdx = -1;
                 if (isActive && lyrics[i]) {
                   const lineStart = line.time;
@@ -1452,78 +2363,26 @@ export function LyricsView({
                   }
                 }
 
-                // ⭐ Font sizes sin multiplicación en CSS calc() (compat.)
-                const basePx = parseFloat(lyricsFontSize) || 36;
-
+                // ⭐ LyricLine memoizada: con props primitivas y handlers
+                //    estables, en cada tick SOLO cambia la línea activa.
                 return (
-                  <div
+                  <LyricLine
                     key={i}
-                    data-testid={`lyric-line-${i}`}
-                    ref={(el) => (lineRefs.current[i] = el)}
-                    onClick={() => handleLineClick(line.time)}
-                    style={{
-                      fontSize: isActive
-                        ? `${(basePx * 1.15).toFixed(1)}px`
-                        : isNearActive
-                          ? lyricsFontSize
-                          : `${(basePx * 0.85).toFixed(1)}px`,
-                      fontWeight: isActive ? "900" : isNearActive ? "700" : "500",
-                      lineHeight: "2",
-                      transition:
-                        "opacity .4s cubic-bezier(.16,1,.3,1), transform .4s cubic-bezier(.16,1,.3,1), font-size .4s cubic-bezier(.16,1,.3,1)",
-                      transform: isActive
-                        ? "scale(1.06)"
-                        : isNearActive
-                          ? "scale(1)"
-                          : "scale(0.92)",
-                      cursor: settings.lyricsClickSeek ? "pointer" : "default",
-                      padding: "6px 0",
-                      transformOrigin: textAlign === "center" ? "center" : "left",
-                      opacity: isActive ? 1 : isNearActive ? 0.8 : 0.55,
-                    }}
-                  >
-                    {/* ── Karaoke palabra por palabra (solo si settings.lyricsAnimate está activo) ── */}
-                    {isActive && activeWordIdx >= 0 && settings.lyricsAnimate ? (
-                      /* ── Palabra por palabra (karaoke) ─────────── */
-                      <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                        {(() => {
-                          let idx = -1;
-                          return line.text.split(/(\s+)/).map((part, pi) => {
-                            const isSpace = /^\s+$/.test(part);
-                            if (!isSpace) idx++;
-                            const isLit = !isSpace && idx <= activeWordIdx;
-                            return (
-                              <span
-                                key={pi}
-                                style={{
-                                  transition: "color .2s ease",
-                                  color: isLit ? COLORS.textPrimary : COLORS.textTertiary,
-                                  textShadow: isLit ? `0 0 14px ${accentColor}bb` : "none",
-                                }}
-                              >
-                                {part}
-                              </span>
-                            );
-                          });
-                        })()}
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          color: isActive
-                            ? "#ffffff"
-                            : isNearActive
-                              ? "rgba(255,255,255,.75)"
-                              : "rgba(255,255,255,.45)",
-                          textShadow: isActive ? `0 0 18px ${accentColor}88` : "none",
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {line.text || "\u00A0"}
-                      </span>
-                    )}
-                  </div>
+                    index={i}
+                    text={line.text}
+                    time={line.time}
+                    isActive={isActive}
+                    isNearActive={isNearActive}
+                    lineDistance={lineDistance}
+                    activeWordIdx={activeWordIdx}
+                    lyricsFontSize={lyricsFontSize}
+                    accentColor={accentColor}
+                    animate={settings.lyricsAnimate}
+                    clickSeek={settings.lyricsClickSeek}
+                    onLineClick={handleLineClick}
+                    lineRefs={lineRefs}
+                    align={textAlign}
+                  />
                 );
               })}
             </div>
@@ -1569,9 +2428,17 @@ export function LyricsView({
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.7; }
-        }
-      `}</style>
+50% { opacity: 0.7; }
+         }
+         @keyframes sw-fade-in {
+           from { opacity: 0; }
+           to { opacity: 1; }
+         }
+         @keyframes sw-modal-in {
+           from { opacity: 0; transform: scale(0.92) translateY(20px); }
+           to { opacity: 1; transform: scale(1) translateY(0); }
+         }
+       `}</style>
     </div>
   );
 }

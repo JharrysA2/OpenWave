@@ -46,8 +46,8 @@ export function ConnectionBanner() {
         background: "rgba(45,28,4,.86)",
         border: `1px solid ${AMBER}66`,
         boxShadow: "0 4px 20px rgba(0,0,0,.35)",
-        backdropFilter: "blur(20px) saturate(160%)",
-        WebkitBackdropFilter: "blur(20px) saturate(160%)",
+        backdropFilter: "blur(10px) saturate(140%)",
+        WebkitBackdropFilter: "blur(10px) saturate(140%)",
         pointerEvents: "none",
         animation: "sw-fade-slide-up .25s cubic-bezier(.16,1,.3,1)",
       }}

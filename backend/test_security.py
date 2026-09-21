@@ -114,7 +114,6 @@ class TestEndpointsRejectTraversal:
                 "/song/details/{v}",
                 "/song/album/{v}",
                 "/queue/{v}",
-                "/extract-colors/{v}",
             ):
                 resp = client.get(path.format(v=evil))
                 assert resp.status_code == 400, f"{path} con {evil!r}"

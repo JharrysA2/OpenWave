@@ -19,11 +19,14 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
+.ruff_cache/
 backend/__pycache__/
 
 # ── Backend runtime data ──────────────────────────────
 backend/downloads/
 backend/soundwave.db
+backend/htmlcov/
 backend/soundwave.db-shm
 backend/soundwave.db-wal
 backend/url_cache.json
@@ -43,6 +46,7 @@ Thumbs.db
 .agents/
 .freebuff/
 skills-lock.json
+opencode.json
 
 # ── Runtime artifacts / binaries ─────────────────────
 ffmpeg.exe

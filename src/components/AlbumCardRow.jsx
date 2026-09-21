@@ -6,11 +6,13 @@ import { COLORS, GLASS, LAYOUTS, TRANSITIONS, ANIMATIONS } from "../utils/theme"
  * Tarjeta de álbum horizontal (SearchView/ArtistView).
  * `subtitle` es texto ya formateado por el caller; `animationDelay` en ms.
  */
-export function AlbumCardRow({ album, minWidth = 130, animationDelay = 200, subtitle, onClick }) {
+export default React.memo(function AlbumCardRow({ album, minWidth = 130, animationDelay = 200, subtitle, onClick }) {
   return (
     <div
       onClick={onClick}
       style={{
+        contentVisibility: "auto",
+        containIntrinsicSize: "auto 172px",
         ...ANIMATIONS.fadeSlideUp(animationDelay),
         ...LAYOUTS.albumCard,
         minWidth,
@@ -60,4 +62,4 @@ export function AlbumCardRow({ album, minWidth = 130, animationDelay = 200, subt
       </div>
     </div>
   );
-}
+});

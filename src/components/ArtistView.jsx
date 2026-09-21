@@ -17,10 +17,10 @@ import {
   safeAccentText,
 } from "../utils/theme";
 import { SkeletonArtistView } from "./SkeletonLoader";
-import { AlbumCardRow } from "./AlbumCardRow";
-import { ArtistCardPill } from "./ArtistCardPill";
+import AlbumCardRow from "./AlbumCardRow";
+import ArtistCardPill from "./ArtistCardPill";
 
-export function ArtistView({
+export default function ArtistView({
   browseId,
   accentColor,
   currentSong,
@@ -131,7 +131,7 @@ export function ArtistView({
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              filter: "blur(40px) saturate(1.4) brightness(0.5)",
+              filter: "blur(12px) saturate(1.2) brightness(0.6)",
               transform: "scale(1.3)",
             }}
           />

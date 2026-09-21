@@ -14,12 +14,11 @@ import {
   safeAccentText,
 } from "../utils/theme";
 import { SkeletonSongRow, SkeletonHorizontalRow } from "./SkeletonLoader";
-import { SongRow } from "./SongRow";
-import { SearchBar } from "./SearchBar";
-import { AlbumCardRow } from "./AlbumCardRow";
-import { ArtistCardPill } from "./ArtistCardPill";
+import SongRow from "./SongRow";
+import AlbumCardRow from "./AlbumCardRow";
+import ArtistCardPill from "./ArtistCardPill";
 
-export function SearchView({
+export default function SearchView({
   query,
   onQueryChange,
   searchTab,

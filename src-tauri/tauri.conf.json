@@ -23,7 +23,7 @@
         "decorations": false,
         "transparent": true,
         "center": true,
-        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI"
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI --disable-gpu --disable-gpu-compositing --disable-accelerated-2d-canvas --disable-accelerated-video-decode"
       }
     ],
     "security": {

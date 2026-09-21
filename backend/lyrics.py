@@ -204,6 +204,20 @@ async def search_lyrics(title: str = "", artist: str = "", source: str = "lrclib
     return {"results": results, "source": source}
 
 
+async def search_lyrics_multi(
+    title: str = "", artist: str = "", sources: str = "lrclib,ytmusic,genius"
+):
+    """Buscar letras intentando múltiples fuentes en orden hasta encontrar resultados."""
+    source_list = [s.strip().lower() for s in sources.split(",") if s.strip()]
+    all_results = []
+    for src in source_list:
+        data = await search_lyrics(title, artist, src)
+        if data.get("results"):
+            all_results.extend(data["results"])
+            break  # Encontró en esta fuente → no intentar las siguientes
+    return {"results": all_results, "source": source_list[0] if source_list else "lrclib"}
+
+
 async def get_lyrics(video_id: str, title: str = "", artist: str = ""):
     """Auto-fetch lyrics: LRCLib exacta → LRCLib búsqueda → YTMusic nativa."""
     cache_key = f"lyrics:{video_id}"

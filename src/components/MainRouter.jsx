@@ -1,16 +1,18 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { api } from "../utils/api";
-import { SettingsPanel } from "./SettingsPanel";
-import { AlbumView } from "./AlbumView";
-import { ArtistView } from "./ArtistView";
-import { HomeView } from "./HomeView";
-import { SearchView } from "./SearchView";
-import { LikedView } from "./LikedView";
-import { HistoryView } from "./HistoryView";
-import { DownloadsView } from "./DownloadsView";
-import { PlaylistView } from "./PlaylistView";
 
-export function MainRouter({
+// Lazy imports para code splitting
+const HomeView = React.lazy(() => import("./HomeView"));
+const SearchView = React.lazy(() => import("./SearchView"));
+const LikedView = React.lazy(() => import("./LikedView"));
+const HistoryView = React.lazy(() => import("./HistoryView"));
+const DownloadsView = React.lazy(() => import("./DownloadsView"));
+const PlaylistView = React.lazy(() => import("./PlaylistView"));
+const AlbumView = React.lazy(() => import("./AlbumView"));
+const ArtistView = React.lazy(() => import("./ArtistView"));
+const SettingsPanel = React.lazy(() => import("./SettingsPanel"));
+
+export const MainRouter = React.memo(function MainRouter({
   showSettingsPanel,
   onCloseSettings,
   neonColor,
@@ -96,20 +98,22 @@ export function MainRouter({
       }
     };
     return (
-      <AlbumView
-        browseId={albumBrowseId}
-        accentColor={neonColor}
-        currentSong={currentSong}
-        playSong={playSong}
-        toggleLike={toggleLike}
-        liked={liked}
-        openOptions={openOptions}
-        onGoToArtist={handleGoToArtist}
-        onBack={goBackFromDetail}
-        toast={toast}
-        playlists={playlists}
-        refreshPlaylists={refreshPlaylists}
-      />
+      <Suspense fallback={<div>Cargando álbum...</div>}>
+        <AlbumView
+          browseId={albumBrowseId}
+          accentColor={neonColor}
+          currentSong={currentSong}
+          playSong={playSong}
+          toggleLike={toggleLike}
+          liked={liked}
+          openOptions={openOptions}
+          onGoToArtist={handleGoToArtist}
+          onBack={goBackFromDetail}
+          toast={toast}
+          playlists={playlists}
+          refreshPlaylists={refreshPlaylists}
+        />
+      </Suspense>
     );
   }
 
@@ -118,122 +122,136 @@ export function MainRouter({
       if (album?.browseId) goToAlbum(album.browseId);
     };
     return (
-      <ArtistView
-        browseId={artistBrowseId}
-        accentColor={neonColor}
-        currentSong={currentSong}
-        playSong={playSong}
-        toggleLike={toggleLike}
-        liked={liked}
-        openOptions={openOptions}
-        onGoToAlbum={handleGoToAlbum}
-        onGoToRelatedArtist={goToArtist}
-        onBack={goBackFromDetail}
-      />
+      <Suspense fallback={<div>Cargando artista...</div>}>
+        <ArtistView
+          browseId={artistBrowseId}
+          accentColor={neonColor}
+          currentSong={currentSong}
+          playSong={playSong}
+          toggleLike={toggleLike}
+          liked={liked}
+          openOptions={openOptions}
+          onGoToAlbum={handleGoToAlbum}
+          onGoToRelatedArtist={goToArtist}
+          onBack={goBackFromDetail}
+        />
+      </Suspense>
     );
   }
 
   switch (tab) {
     case "home":
       return (
-        <HomeView
-          currentSong={currentSong}
-          isPlaying={isPlaying}
-          playSong={playSong}
-          history={historyItems}
-          accentColor={neonColor}
-          onSearch={onHomeSearch}
-          openOptions={(song) => song && openOptions(song)}
-        />
+        <Suspense fallback={<div>Cargando home...</div>}>
+          <HomeView
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            playSong={playSong}
+            history={historyItems}
+            accentColor={neonColor}
+            onSearch={onHomeSearch}
+            openOptions={(song) => song && openOptions(song)}
+          />
+        </Suspense>
       );
 
     case "search":
       return (
-        <SearchView
-          query={query}
-          onQueryChange={onQueryChange}
-          searchTab={searchTab}
-          onSearchTabChange={onSearchTabChange}
-          results={results}
-          searchArtists={searchArtists}
-          searchAlbums={searchAlbums}
-          songsVisible={songsVisible}
-          onShowMore={onShowMore}
-          searchLoading={searchLoading}
-          videoResults={videoResults}
-          videoLoading={videoLoading}
-          videoError={videoError}
-          currentSong={currentSong}
-          accentColor={neonColor}
-          playSong={playSong}
-          toggleLike={toggleLike}
-          liked={liked}
-          openOptions={openOptions}
-          searchInputRef={searchInputRef}
-          onSelectArtist={(a) => {
-            if (a?.browseId) goToArtist(a.browseId);
-          }}
-          onSelectAlbum={(a) => {
-            if (a?.browseId) goToAlbum(a.browseId);
-          }}
-        />
+        <Suspense fallback={<div>Cargando búsqueda...</div>}>
+          <SearchView
+            query={query}
+            onQueryChange={onQueryChange}
+            searchTab={searchTab}
+            onSearchTabChange={onSearchTabChange}
+            results={results}
+            searchArtists={searchArtists}
+            searchAlbums={searchAlbums}
+            songsVisible={songsVisible}
+            onShowMore={onShowMore}
+            searchLoading={searchLoading}
+            videoResults={videoResults}
+            videoLoading={videoLoading}
+            videoError={videoError}
+            currentSong={currentSong}
+            accentColor={neonColor}
+            playSong={playSong}
+            toggleLike={toggleLike}
+            liked={liked}
+            openOptions={openOptions}
+            searchInputRef={searchInputRef}
+            onSelectArtist={(a) => {
+              if (a?.browseId) goToArtist(a.browseId);
+            }}
+            onSelectAlbum={(a) => {
+              if (a?.browseId) goToAlbum(a.browseId);
+            }}
+          />
+        </Suspense>
       );
 
     case "liked":
       return (
-        <LikedView
-          likedSongs={likedSongs}
-          currentSong={currentSong}
-          accentColor={neonColor}
-          playSong={playSong}
-          toggleLike={toggleLike}
-          openOptions={openOptions}
-        />
+        <Suspense fallback={<div>Cargando lista de canciones guardadas...</div>}>
+          <LikedView
+            likedSongs={likedSongs}
+            currentSong={currentSong}
+            accentColor={neonColor}
+            playSong={playSong}
+            toggleLike={toggleLike}
+            openOptions={openOptions}
+          />
+        </Suspense>
       );
 
     case "history":
       return (
-        <HistoryView
-          history={history}
-          currentSong={currentSong}
-          accentColor={neonColor}
-          playSong={playSong}
-          openOptions={openOptions}
-          toast={toast}
-          onHistoryCleared={onHistoryCleared}
-        />
+        <Suspense fallback={<div>Cargando historial...</div>}>
+          <HistoryView
+            history={history}
+            currentSong={currentSong}
+            accentColor={neonColor}
+            playSong={playSong}
+            openOptions={openOptions}
+            toast={toast}
+            onHistoryCleared={onHistoryCleared}
+          />
+        </Suspense>
       );
 
     case "downloads":
       return (
-        <DownloadsView
-          downloads={downloads}
-          currentSong={currentSong}
-          accentColor={neonColor}
-          playSong={playSong}
-          openOptions={openOptions}
-          toast={toast}
-          onDownloadsCleared={onDownloadsCleared}
-        />
+        <Suspense fallback={<div>Cargando descargas...</div>}>
+          <DownloadsView
+            downloads={downloads}
+            currentSong={currentSong}
+            accentColor={neonColor}
+            playSong={playSong}
+            openOptions={openOptions}
+            toast={toast}
+            onDownloadsCleared={onDownloadsCleared}
+          />
+        </Suspense>
       );
 
     case "playlist":
       return (
-        <PlaylistView
-          playlist={selectedPlaylist}
-          currentSong={currentSong}
-          accentColor={neonColor}
-          playSong={playSong}
-          openOptions={openOptions}
-          toast={toast}
-          onBack={onPlaylistBack}
-          onPlaylistUpdated={onPlaylistUpdated}
-          playlists={playlists}
-          refreshPlaylists={refreshPlaylists}
-        />
+        <Suspense fallback={<div>Cargando playlist...</div>}>
+          <PlaylistView
+            playlist={selectedPlaylist}
+            currentSong={currentSong}
+            accentColor={neonColor}
+            playSong={playSong}
+            openOptions={openOptions}
+            toast={toast}
+            onBack={onPlaylistBack}
+            onPlaylistUpdated={onPlaylistUpdated}
+            playlists={playlists}
+            refreshPlaylists={refreshPlaylists}
+          />
+        </Suspense>
       );
 
     default:
       return null;
   }
-}
+});

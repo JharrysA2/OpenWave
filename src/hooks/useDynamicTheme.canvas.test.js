@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { useDynamicTheme } from "./useDynamicTheme";
-import { api } from "../utils/api";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  Extracción de colores: vía canvas (con Image + canvas mockeados)
@@ -10,7 +9,7 @@ import { api } from "../utils/api";
 const SETTINGS = {
   dynamicTheme: true,
   pureBlack: false,
-  colorTransitionSpeed: 0, // sin animación rAF → el color se aplica de inmediato
+  colorTransitionSpeed: 0, // sin transición CSS → el color se aplica de inmediato
   cornerRadius: 12,
 };
 
@@ -120,8 +119,8 @@ async function fireLastImageLoad() {
 
 beforeEach(() => {
   createdImages = [];
-  // El rojo es mayoritario por conteo y bastante saturado; azul y ámbar
-  // existen para que haya ≥3 buckets (si no, el algoritmo cae al fallback).
+  // El rojo es mayoritario y muy saturado (peso OKLCH C²×ventanaL); azul y
+  // ámbar existen para que el histograma de tono no sea de un solo bin.
   pixelPattern = [
     [200, 40, 40],
     [200, 40, 40],
@@ -131,14 +130,11 @@ beforeEach(() => {
   ];
   vi.stubGlobal("Image", FakeImage);
   installCanvasMock();
-  // Por defecto la API no aporta colores → decide el canvas
-  vi.spyOn(api, "get").mockResolvedValue({ colors: [] });
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  document.getElementById("sw-slider-style")?.remove();
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -207,38 +203,6 @@ describe("useDynamicTheme — extracción por canvas", () => {
     expect(hueDistance(hue, 226)).toBeLessThan(30);
   });
 
-  it("acepta el color de la API cuando es válido y evita cargar el canvas", async () => {
-    api.get.mockResolvedValue({ colors: ["#1e90ff", "#ff0000"] });
-
-    const { result } = renderHook(() =>
-      useDynamicTheme({ settings: SETTINGS, currentSong: songA }),
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(result.current.neonColor).toBe("#1e90ff");
-  });
-
-  it("descarta colores grisáceos de la API y espera al canvas", async () => {
-    api.get.mockResolvedValue({ colors: ["#888888"] });
-
-    const { result } = renderHook(() =>
-      useDynamicTheme({ settings: SETTINGS, currentSong: songA }),
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-    // El gris de la API no se aplica: sigue el default hasta que responda el canvas
-    expect(result.current.neonColor).toBe("#a78bfa");
-
-    await fireLastImageLoad();
-    expect(result.current.neonColor).not.toBe("#a78bfa");
-    expect(hueDistance(hueOf(result.current.neonColor), 0)).toBeLessThan(25);
-  });
-
   it("reintenta vía proxy del backend si la carga directa falla", async () => {
     const { result } = renderHook(() =>
       useDynamicTheme({ settings: SETTINGS, currentSong: songA }),
@@ -298,8 +262,8 @@ describe("useDynamicTheme — extracción por canvas", () => {
     expect(result.current.neonColor).not.toBe("#a78bfa");
   });
 
-  it("cae a blanco + gris cuando la imagen no tiene 3 buckets de color", async () => {
-    // Imagen prácticamente en blanco: todo se filtra y no hay buckets suficientes
+  it("cae al tema acromático (blanco) cuando la imagen no tiene croma suficiente", async () => {
+    // Imagen prácticamente en blanco: todos los píxeles son acromáticos (C < 0.04)
     pixelPattern = [
       [255, 255, 255],
       [250, 250, 250],
@@ -311,7 +275,8 @@ describe("useDynamicTheme — extracción por canvas", () => {
     );
     await fireLastImageLoad();
 
-    // ["#ffffff", "#cccccc"] → el primero es grisáceo (sat < 15) → se usa blanco
+    // extractOklchAccent → null → ACHROMATIC_THEME: acento blanco puro
     expect(result.current.neonColor).toBe("#ffffff");
+    expect(result.current.hasAccent).toBe(true);
   });
 });

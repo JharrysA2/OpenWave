@@ -4,14 +4,12 @@ Entry point delgado que importa y monta todos los módulos.
 """
 
 import asyncio
-import io
 import json
 import os
 import re
 import sys
 import threading
 import time
-import urllib.request
 
 import httpx
 from cache import api_cache_get, api_cache_set
@@ -23,14 +21,11 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from logging_config import get_logger
-from PIL import Image
 from rate_limit import limiter
 from routes import api_router
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-
-from utils import require_valid_video_id
 
 logger = get_logger(__name__)
 
@@ -150,78 +145,6 @@ async def thumbnail_proxy(request: Request, url: str):
                 "X-Content-Type-Options": "nosniff",
             },
         )
-
-
-@app.get("/extract-colors/{video_id}")
-@limiter.limit("60/minute")
-async def extract_colors(request: Request, video_id: str):
-    """Extraer colores dominantes de la portada de una canción. 60 req/min.
-    Usa el thumbnail del videoDetails directamente.
-    Si no se pueden extraer colores (error, sin thumbnail, imagen sin
-    colores útiles), devuelve la paleta por defecto de la app.
-    """
-    require_valid_video_id(video_id)
-    default_colors = ["#a78bfa", "#7c3aed"]
-    try:
-        from ytmusic_client import get_ytm
-
-        loop = asyncio.get_running_loop()
-
-        def _get_thumbnail():
-            ytm = get_ytm()
-            data = ytm.get_song(video_id)
-            vd = data.get("videoDetails") or {}
-            thumbs = vd.get("thumbnail", {}).get("thumbnails", [])
-            if thumbs:
-                return max(
-                    thumbs, key=lambda t: t.get("width", 0) * t.get("height", 0)
-                ).get("url", "")
-            return ""
-
-        thumb_url = await loop.run_in_executor(None, _get_thumbnail)
-        if not thumb_url:
-            logger.warning("extract-colors %s: no thumbnail found", video_id)
-            return {"colors": default_colors}
-
-        req = urllib.request.Request(
-            thumb_url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            img = Image.open(io.BytesIO(resp.read())).convert("RGB")
-            img = img.resize((64, 64), Image.LANCZOS)
-
-        pixels = list(img.getdata())
-        buckets = {}
-        for r, g, b in pixels:
-            brightness = (r + g + b) / 3
-            if brightness < 15 or brightness > 240:
-                continue
-            key = (r // 24 * 24, g // 24 * 24, b // 24 * 24)
-            buckets[key] = buckets.get(key, 0) + 1
-
-        sorted_colors = sorted(buckets.items(), key=lambda x: -x[1])
-        result = []
-        for (r, g, b), _ in sorted_colors[:5]:
-            distinct = all(
-                abs(r - er) + abs(g - eg) + abs(b - eb) > 60 for (er, eg, eb) in result
-            )
-            if distinct:
-                result.append((r, g, b))
-            if len(result) >= 3:
-                break
-
-        hex_colors = [f"#{r:02x}{g:02x}{b:02x}" for (r, g, b) in result]
-        return {"colors": hex_colors or default_colors}
-    except Exception as e:
-        logger.error("extract-colors %s: %s", video_id, e)
-        return {"colors": default_colors}
-
-
-# ── Warmup en background ──────────────────────────────────────────────────────
 
 
 def _startup_warmup():

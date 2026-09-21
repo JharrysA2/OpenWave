@@ -3,7 +3,7 @@ import { FONT } from "../constants";
 import { RADIUS, TRANSITIONS, GLASS, sidebarBgGradient } from "../utils/theme";
 import { Ic } from "../icons/Icons";
 
-export function Sidebar({
+export const Sidebar = React.memo(function Sidebar({
   tab,
   accentColor,
   likedCount,
@@ -356,4 +356,4 @@ export function Sidebar({
       </div>
     </div>
   );
-}
+});

@@ -16,7 +16,6 @@ import { BarStyleModal } from "./BarStyleModal";
 
 export function PageApariencia({ neonColor }) {
   const { settings, updateSetting, t } = useSettings();
-  const [localRadius, setLocalRadius] = useState(settings.cornerRadius ?? 12);
   const [showBtnModal, setShowBtnModal] = useState(false);
   const [showBarModal, setShowBarModal] = useState(false);
   const accent = neonColor || "#a78bfa";
@@ -126,35 +125,6 @@ export function PageApariencia({ neonColor }) {
       </SettingsSection>
 
       <SettingsSection title="Reproductor">
-        <SettingRow
-          icon={Svg.maximize}
-          label={t.cornerRadius}
-          desc={`${localRadius}px`}
-          border={false}
-        />
-        <div
-          style={{ padding: "4px 18px 14px", display: "flex", flexDirection: "column", gap: "8px" }}
-        >
-          <input
-            type="range"
-            min="0"
-            max="24"
-            step="2"
-            value={localRadius}
-            onChange={(e) => setLocalRadius(Number(e.target.value))}
-            onMouseUp={(e) => updateSetting("cornerRadius", Number(e.target.value))}
-            onTouchEnd={(e) => updateSetting("cornerRadius", Number(e.target.value))}
-            style={{ width: "100%", accentColor: accent, cursor: "pointer" }}
-          />
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
-              Cuadrado
-            </span>
-            <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
-              Redondo
-            </span>
-          </div>
-        </div>
         <SettingRow
           icon={Svg.circle2}
           label="Forma del botón de play"

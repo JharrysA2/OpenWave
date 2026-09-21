@@ -2,7 +2,7 @@ import React from "react";
 import { screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { renderWithSettings } from "../test-utils";
-import { SettingsPanel } from "./SettingsPanel";
+import SettingsPanel from "./SettingsPanel";
 
 const defaultProps = {
   open: true,

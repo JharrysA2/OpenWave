@@ -229,7 +229,6 @@ vi.mock("./constants", () => ({
   DEFAULT_SETTINGS: {
     language: "es",
     pureBlack: false,
-    cornerRadius: 12,
     defaultTab: "home",
     crossfade: 0,
     dynamicTheme: true,
@@ -426,10 +425,9 @@ describe("App — Componente principal", () => {
 
   // ── CSS variables ──────────────────────────────────────────────────────────────
 
-  it("should set CSS variables for neon and corner radius on mount", () => {
+  it("should set the neon CSS variable on mount", () => {
     render(<App />);
     const root = document.documentElement;
-    expect(root.style.getPropertyValue("--corner-radius")).toBe("12px");
     expect(root.style.getPropertyValue("--neon")).toBe("#a78bfa");
   });
 

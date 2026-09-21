@@ -169,11 +169,9 @@ describe("PageApariencia", () => {
     expect(screen.getByText("Descargas")).toBeInTheDocument();
   });
 
-  it("should render player section with corner radius slider", () => {
+  it("should render player section with play button shape and bar style", () => {
     renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
     expect(screen.getByText("Reproductor")).toBeInTheDocument();
-    expect(screen.getByText("Radio de esquina")).toBeInTheDocument();
-    expect(screen.getByText("12px")).toBeInTheDocument(); // default cornerRadius
     expect(screen.getByText("Forma del botón de play")).toBeInTheDocument();
     expect(screen.getByText("Estilo de la barra de progreso")).toBeInTheDocument();
   });

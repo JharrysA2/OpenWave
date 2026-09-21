@@ -54,7 +54,7 @@ describe("useSettings", () => {
 
     expect(result.current.settings.pureBlack).toBe(true);
     expect(result.current.settings.language).toBe("es");
-    expect(result.current.settings.cornerRadius).toBe(12);
+    expect(result.current.settings.crossfade).toBe(5);
   });
 
   it("should persist settings to localStorage", () => {
@@ -76,7 +76,7 @@ describe("useSettings", () => {
     expect(result.current.settings.language).toBe("en");
     expect(result.current.settings.pureBlack).toBe(true);
     // Other defaults should still be present
-    expect(result.current.settings.cornerRadius).toBe(12);
+    expect(result.current.settings.crossfade).toBe(5);
   });
 
   it("should switch translations when language is changed", () => {
@@ -97,11 +97,11 @@ describe("useSettings", () => {
 
     expect(() => {
       act(() => {
-        result.current.updateSetting("cornerRadius", 20);
+        result.current.updateSetting("crossfade", 10);
       });
     }).not.toThrow();
 
-    expect(result.current.settings.cornerRadius).toBe(20);
+    expect(result.current.settings.crossfade).toBe(10);
   });
 
   it("should throw when used outside SettingsProvider", () => {

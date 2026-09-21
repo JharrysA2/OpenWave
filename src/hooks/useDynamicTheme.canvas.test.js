@@ -10,7 +10,6 @@ const SETTINGS = {
   dynamicTheme: true,
   pureBlack: false,
   colorTransitionSpeed: 0, // sin transición CSS → el color se aplica de inmediato
-  cornerRadius: 12,
 };
 
 const songA = {

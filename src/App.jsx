@@ -121,11 +121,17 @@ function AppInner() {
     (pl) => {
       setSelectedPlaylist(pl);
       setTab("playlist");
+      setShowSettingsPanel(false);
     },
     [setSelectedPlaylist, setTab],
   );
 
-  const onOpenSettings = useCallback(() => setShowSettingsPanel(true), [setShowSettingsPanel]);
+  const onOpenSettings = useCallback(() => setShowSettingsPanel(v => !v), [setShowSettingsPanel]);
+
+  const handleTabChange = useCallback((t) => {
+    setTab(t);
+    setShowSettingsPanel(false);
+  }, [setTab]);
 
   const onCreatePlaylist = useCallback(
     () => setShowCreatePlaylistModal(true),
@@ -172,7 +178,7 @@ function AppInner() {
     [refreshPlaylists, toast, t],
   );
 
-  // ── Dynamic theme: color de portada + CSS vars (--neon, aurora, overlay) ──
+  // ── Dynamic theme: color de portada + CSS vars (--neon, overlay) ──
   const { neonColor, cfTransitionSpeed, bgStyle, overlayOpacity, hasAccent } = useDynamicTheme({
     settings,
     currentSong,
@@ -374,7 +380,7 @@ function AppInner() {
         overflow: "hidden",
       }}
     >
-      {/* ── Aurora + vignette ───────────────────────────────────────── */}
+      {/* ── Vignette del fondo ───────────────────────────────────────── */}
       <DynamicBackground
         enabled={settings.dynamicTheme}
         hasAccent={hasAccent}
@@ -397,7 +403,7 @@ function AppInner() {
           likedCount={liked.size}
           playlists={playlists}
           selectedPlaylist={selectedPlaylist}
-          onTabChange={setTab}
+          onTabChange={handleTabChange}
           onSelectPlaylist={onSelectPlaylist}
           onOpenSettings={onOpenSettings}
           onCreatePlaylist={onCreatePlaylist}
@@ -569,8 +575,7 @@ function AppInner() {
         onClose={() => setShowCreatePlaylistModal(false)}
         onCreated={async (newPlaylist) => {
           // Refrescar desde el servidor — la fuente de verdad
-          const fresh = await refreshPlaylists();
-          if (fresh) setPlaylists(fresh);
+          await refreshPlaylists();
           setSelectedPlaylist(newPlaylist);
           setTab("playlist");
         }}

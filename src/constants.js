@@ -12,7 +12,6 @@ export const DEFAULT_SETTINGS = {
   lrcLib: true,
   kuGou: true,
   pauseHistory: false,
-  cornerRadius: 12,
   playerBtnShape: "circle",
   playerBarStyle: "line",
   lyricsTextPos: "left",
@@ -27,5 +26,5 @@ export const DEFAULT_SETTINGS = {
   perfBlur: true,
   perfAnim: true,
   perfShadow: true,
-  perfAurora: true,
+  perfSolid: false,
 };

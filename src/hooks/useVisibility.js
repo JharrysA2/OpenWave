@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
  * (no minimizada, no cubierta, no en segundo plano, no en otra pestana).
  *
  * La MUSICA SIGUE SONANDO en todos los casos: esto solo pausa los EFECTOS
- * VISUALES pesados (blur, animaciones, sombras, aurora) y los reanuda
+ * VISUALES pesados (blur, animaciones, sombras) y los reanuda
  * exactamente donde quedaron al volver a ser visible.
  *
  * visible = (document.visibilityState !== "hidden") && document.hasFocus()

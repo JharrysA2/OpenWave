@@ -44,34 +44,6 @@
       }
 
       /* ═══════════════════════════════════════════════════════════════════════
-         AURORA MESH GRADIENT — Animated background effect
-         ═══════════════════════════════════════════════════════════════════════ */
-      @keyframes aurora-drift {
-        0% { transform: translate(0%, 0%) rotate(0deg) scale(1); }
-        25% { transform: translate(10%, -5%) rotate(15deg) scale(1.1); }
-        50% { transform: translate(-5%, 10%) rotate(-10deg) scale(0.95); }
-        75% { transform: translate(-10%, -8%) rotate(5deg) scale(1.05); }
-        100% { transform: translate(0%, 0%) rotate(0deg) scale(1); }
-      }
-      .aurora-layer {
-        position: absolute;
-        inset: -50%;
-        width: 200%;
-        height: 200%;
-        border-radius: 50%;
-        filter: blur(4px) saturate(120%);
-        will-change: transform;
-        pointer-events: none;
-      }
-      .aurora-1 {
-        background: radial-gradient(ellipse at center, var(--aurora-1) 0%, transparent 70%);
-        animation: aurora-drift 25s ease-in-out infinite;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .aurora-layer { animation: none !important; }
-      }
-
-      /* ═══════════════════════════════════════════════════════════════════════
          SKELETON SHIMMER — Loading placeholder animation
          ═══════════════════════════════════════════════════════════════════════ */
       @keyframes skeleton-shimmer {
@@ -151,8 +123,15 @@
       html.perf-shadow-off *, html.perf-shadow-off *::before, html.perf-shadow-off *::after {
         box-shadow: none !important;
       }
-      html.perf-aurora-off .aurora-layer {
-        display: none !important;
+      html.perf-solid [style*="backdrop-filter"] {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        background: color-mix(in srgb, var(--neon) 18%, var(--bg-base, #0a0a0f)) !important;
+      }
+      /* SOLID ? buttons keep a visible accent border so they stand out
+         against the solid background (GLASS.btn / close buttons use blur(6px)) */
+      html.perf-solid [style*="blur(6px)"] {
+        border: 1px solid color-mix(in srgb, var(--neon) 45%, rgba(255,255,255,.35)) !important;
       }
 
       /* ═══════════════════════════════════════════════════════════════════════
@@ -167,9 +146,6 @@
         filter: none !important;
         box-shadow: none !important;
         will-change: auto !important;
-      }
-      html.app-hidden .aurora-layer {
-        display: none !important;
       }
 
       * { box-sizing: border-box; margin: 0; padding: 0; }

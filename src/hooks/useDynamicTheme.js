@@ -4,8 +4,8 @@ import { deriveTheme, extractOklchAccent, getLuminance, BASE } from "../utils/co
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  useDynamicTheme — extracción de color de la portada (OKLCH) + CSS vars
-//  (--neon, --neon-fg, --neon-transition, --bg-base, --corner-radius).
-//  El resto de variables derivadas (--neon-border, --neon-btn, aurora…)
+//  (--neon, --neon-fg, --neon-transition, --bg-base).
+//  El resto de variables derivadas (--neon-border, --neon-btn…)
 //  se escriben SOLO una vez en src/dynamic-theme.css usando color-mix().
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -23,7 +23,7 @@ const ACHROMATIC_THEME = Object.freeze({
 });
 
 // ── Opacidad del overlay en función de la luminancia del acento ─────────────
-//    El overlay dibuja la aurora sobre el fondo. Un acento oscuro aguanta
+//    El overlay (viñeta) se dibuja sobre el fondo. Un acento oscuro aguanta
 //    opacidad plena, pero uno casi blanco (crema, amarillo pastel…) lavaría
 //    el fondo y rompería el contraste del texto blanco.
 //
@@ -206,11 +206,10 @@ export function useDynamicTheme({ settings, currentSong }) {
     root.style.setProperty("--neon", neonColor);
     root.style.setProperty("--neon-fg", neonForeground);
     root.style.setProperty("--neon-transition", cfTransitionSpeed);
-    root.style.setProperty("--corner-radius", `${settings.cornerRadius || 12}px`);
     // ── Fondo tintado dinámico: usa var(--neon) como referencia para que
     //    el fondo herede la transición CSS de --neon.
     root.style.setProperty("--bg-base", `color-mix(in srgb, var(--neon) 6%, ${bgBase})`);
-  }, [neonColor, neonForeground, cfTransitionSpeed, settings.cornerRadius, bgBase]);
+  }, [neonColor, neonForeground, cfTransitionSpeed, bgBase]);
 
   return {
     neonColor,

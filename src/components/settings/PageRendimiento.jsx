@@ -86,7 +86,7 @@ export function PageRendimiento({ neonColor }) {
           {toggleRow(t.perfBlur, t.perfBlurDesc, "perfBlur")}
           {toggleRow(t.perfAnim, t.perfAnimDesc, "perfAnim")}
           {toggleRow(t.perfShadow, t.perfShadowDesc, "perfShadow")}
-          {toggleRow(t.perfAurora, t.perfAuroraDesc, "perfAurora")}
+          {toggleRow(t.perfSolid, t.perfSolidDesc, "perfSolid")}
         </SettingsSection>
       )}
 
@@ -113,14 +113,21 @@ export function PageRendimiento({ neonColor }) {
                 color: accent,
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
               </svg>
             </span>
             <div style={{ fontSize: "12px", color: "rgba(255,255,255,.5)", fontWeight: "600" }}>
-              {mode === "performance"
-                ? t.perfModePerformanceDesc
-                : t.perfModeBalancedDesc}
+              {mode === "performance" ? t.perfModePerformanceDesc : t.perfModeBalancedDesc}
             </div>
           </div>
         </SettingsSection>

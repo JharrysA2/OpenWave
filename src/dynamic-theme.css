@@ -2,12 +2,12 @@
    dynamic-theme.css — Variables derivadas de --neon Y la transición del color.
 
    El hook useDynamicTheme escribe SOLO estas variables inline (dependen de la
-   canción): --neon, --neon-fg, --neon-transition, --bg-base, --corner-radius.
+   canción): --neon, --neon-fg, --neon-transition, --bg-base.
 
    Aquí viven las que son FÓRMULAS ESTÁTICAS de var(--neon) vía color-mix().
    Como --neon está registrada con @property <color> (index.html), la regla
    `transition: --neon` la interpola suavemente y todo lo que usa var(--neon)
-   (color-mix, bordes, botones, aurora, fondo) se actualiza en sincronía, sin
+   (color-mix, bordes, botones, fondo) se actualiza en sincronía, sin
    animación JS. Acentos de portada acromática → var(--neon)=#ffffff también.
    ═════════════════════════════════════════════════════════════════════════════ */
 
@@ -18,17 +18,21 @@
   /* Botones derivados (antes: fórmulas HSL de getContrastColors) */
   --neon-btn: color-mix(in srgb, var(--neon) 53%, transparent);
   --neon-btn-hover: color-mix(in srgb, var(--neon) 67%, transparent);
-  /* Aurora mesh (antes: `${neonColor}`, `${neonColor}aa`, `${neonColor}66`) */
-  --aurora-1: color-mix(in srgb, var(--neon) 100%, transparent);
-  --aurora-2: color-mix(in srgb, var(--neon) 67%, transparent);
-  --aurora-3: color-mix(in srgb, var(--neon) 40%, transparent);
 }
 
 /* ═══ Transición del color de acento ═════════════════════════════════════════
    Sustituye la animación rAF del hook. La duración la controla el hook vía
    --neon-transition ("0s" o "Ns"). 0.2s es el fallback pre-React. */
 
-* {
+/* SOLO en :root. Antes era `*`, y como --neon es una custom property
+   HEREDADA, cada elemento del documento arrancaba su propia transición de un
+   valor que en realidad hereda: recálculo de estilo por frame en miles de
+   nodos durante toda la duración (el slider llega a 2s). Peor aún: --bg-base
+   deriva de var(--neon), así que el FONDO también se animaba y cada
+   backdrop-filter (panel de ajustes, sidebar, barra de título) re-difuminaba
+   un fondo en movimiento en cada frame. Con la transición en :root los
+   descendientes heredan el valor ya interpolado: mismo resultado, coste ínfimo. */
+:root {
   transition: --neon var(--neon-transition, 0.2s);
 }
 

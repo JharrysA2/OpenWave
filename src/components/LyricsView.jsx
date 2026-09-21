@@ -1360,7 +1360,7 @@ export function LyricsView({
   streamCacheRef,
 }) {
   const { settings, updateSetting } = useSettings();
-  const { visible } = usePerformance();
+  const { visible, solidOn } = usePerformance();
   const [lyrics, setLyrics] = useState(null);
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState(null);
@@ -1877,7 +1877,7 @@ export function LyricsView({
         />
 
         {/* Capa 1: Fondo con CSS filter blur — se superpone sobre la base */}
-        {bgThumb && (
+        {!solidOn && bgThumb && (
           <div
             style={{
               position: "absolute",

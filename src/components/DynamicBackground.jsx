@@ -5,7 +5,7 @@ export function DynamicBackground({ enabled, hasAccent, overlayOpacity, cfTransi
   if (!enabled) return null;
   return (
     <>
-      {/* ── Vignette sutil para profundidad ──────────────────── */}
+      {/* Vignette: subtle depth overlay */}
       <div
         style={{
           position: "absolute",

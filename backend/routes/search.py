@@ -225,7 +225,10 @@ async def home_quick_picks(request: Request):
         for r in rows:
             norm = (
                 re.sub(
-                    r"\s*(\(feat\..*?\)|\(with.*?\)|\[.*?\])\s*", "", r["title"], flags=re.I
+                    r"\s*(\(feat\..*?\)|\(with.*?\)|\[.*?\])\s*",
+                    "",
+                    r["title"],
+                    flags=re.I,
                 )
                 .strip()
                 .lower()

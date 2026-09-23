@@ -215,7 +215,10 @@ async def search_lyrics_multi(
         if data.get("results"):
             all_results.extend(data["results"])
             break  # Encontró en esta fuente → no intentar las siguientes
-    return {"results": all_results, "source": source_list[0] if source_list else "lrclib"}
+    return {
+        "results": all_results,
+        "source": source_list[0] if source_list else "lrclib",
+    }
 
 
 async def get_lyrics(video_id: str, title: str = "", artist: str = ""):

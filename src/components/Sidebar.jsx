@@ -344,7 +344,7 @@ export const Sidebar = React.memo(function Sidebar({
                       marginTop: "1px",
                     }}
                   >
-                    {pl.song_count || 0} canción{(pl.song_count || 0) !== 1 ? "es" : ""}
+                    {pl.song_count || 0} {(pl.song_count || 0) === 1 ? "canción" : "canciones"}
                   </div>
                 </div>
               </button>

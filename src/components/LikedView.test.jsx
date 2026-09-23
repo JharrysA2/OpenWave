@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
-import { LikedView } from "./LikedView";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import LikedView from "./LikedView";
 
 // Mock MusicCover
 vi.mock("./MusicCover", () => ({
@@ -18,29 +18,61 @@ const song = (id, overrides = {}) => ({
   ...overrides,
 });
 
+const album = {
+  browseId: "MPREb_album1",
+  title: "Álbum de Prueba",
+  artist: "Artista Álbum",
+  type: "Álbum",
+  thumbnail: "https://example.com/album.jpg",
+};
+
+const followedArtist = {
+  browseId: "UC_artist1",
+  name: "Artista Seguida",
+  thumbnail: "https://example.com/artist.jpg",
+};
+
 const defaultProps = {
   likedSongs: [],
   currentSong: null,
   accentColor: "#a78bfa",
-  playSong: () => {},
-  toggleLike: () => {},
-  openOptions: () => {},
+  playSong: vi.fn(),
+  toggleLike: vi.fn(),
+  openOptions: vi.fn(),
+  liked: new Set(),
+  likedAlbums: [],
+  followedArtists: [],
+  openEntityOptions: vi.fn(),
+  playAlbum: vi.fn(),
+  goToAlbum: vi.fn(),
+  goToArtist: vi.fn(),
 };
 
 function renderLiked(props = {}) {
   return render(<LikedView {...defaultProps} {...props} />);
 }
 
-describe("LikedView", () => {
-  // ── Empty state ──────────────────────────────────────────────────
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
-  it("should show empty state when no liked songs", () => {
+describe("LikedView", () => {
+  // ── Hero + estado vacío ─────────────────────────────────────────
+
+  it("should show hero and empty state when no liked songs", () => {
     renderLiked();
-    expect(screen.getByText("Canciones que te gustan")).toBeInTheDocument();
+    expect(screen.getByText("Me gusta")).toBeInTheDocument();
     expect(screen.getByText("Dale me gusta a canciones para verlas aquí")).toBeInTheDocument();
   });
 
-  // ── Liked songs list ─────────────────────────────────────────────
+  it("should render the 3 library tabs", () => {
+    renderLiked();
+    expect(screen.getByText("Canciones")).toBeInTheDocument();
+    expect(screen.getByText("Álbumes")).toBeInTheDocument();
+    expect(screen.getByText("Artistas")).toBeInTheDocument();
+  });
+
+  // ── Pestaña Canciones (estilo playlist) ─────────────────────────
 
   it("should render list of liked songs", () => {
     const likedSongs = [song("1"), song("2")];
@@ -51,76 +83,94 @@ describe("LikedView", () => {
     expect(screen.getByText("Artist 2")).toBeInTheDocument();
   });
 
-  it("should call playSong when a song row is clicked", () => {
+  it("should call playSong with the full list as queue", () => {
     const playSong = vi.fn();
     const likedSongs = [song("1")];
     renderLiked({ likedSongs, playSong });
     fireEvent.click(screen.getByText("Liked Song 1"));
-    expect(playSong).toHaveBeenCalledWith(
-      expect.objectContaining({ videoId: "1", title: "Liked Song 1" }),
-    );
+    expect(playSong.mock.calls[0][0]).toMatchObject({ videoId: "1" });
+    expect(playSong.mock.calls[0][3]).toEqual(likedSongs);
   });
 
-  // ── Like/unlike button ──────────────────────────────────────────
-
-  it("should call toggleLike when heart button is clicked", () => {
+  it("should call toggleLike when heart is clicked", () => {
     const toggleLike = vi.fn();
     const likedSongs = [song("1")];
-    renderLiked({ likedSongs, toggleLike });
-    // The heart button has filled heart SVG
-    const btns = screen.getAllByRole("button");
-    const heartBtn = btns.find((b) => b.innerHTML.includes("M20.84 4.61"));
-    if (heartBtn) {
-      fireEvent.click(heartBtn);
-      expect(toggleLike).toHaveBeenCalledWith("1", expect.objectContaining({ videoId: "1" }));
-    }
+    renderLiked({ likedSongs, toggleLike, liked: new Set(["1"]) });
+    fireEvent.click(screen.getByTitle("Quitar de Me gusta"));
+    expect(toggleLike).toHaveBeenCalledWith("1", expect.objectContaining({ videoId: "1" }));
   });
-
-  it("should show filled heart for liked songs", () => {
-    const likedSongs = [song("1")];
-    renderLiked({ likedSongs });
-    // Phosphor Heart icon renders an SVG with viewBox 0 0 256 256
-    const heartSvg = document.querySelector('svg[viewBox="0 0 256 256"]');
-    expect(heartSvg).toBeTruthy();
-  });
-
-  // ── Options button ──────────────────────────────────────────────
 
   it("should call openOptions when dots button is clicked", () => {
     const openOptions = vi.fn();
     const likedSongs = [song("1")];
     renderLiked({ likedSongs, openOptions });
-    const btns = screen.getAllByRole("button");
-    const dotsBtn = btns.find((b) => b.innerHTML.includes("M12 5"));
-    if (dotsBtn) {
-      fireEvent.click(dotsBtn);
-      expect(openOptions).toHaveBeenCalledWith(expect.objectContaining({ videoId: "1" }));
-    }
+    fireEvent.click(screen.getByTitle("Más opciones"));
+    expect(openOptions).toHaveBeenCalledWith(expect.objectContaining({ videoId: "1" }));
   });
 
-  // ── Current song highlighting ──────────────────────────────────
+  // ── Pestaña Álbumes ─────────────────────────────────────────────
 
-  it("should highlight the currently playing song", () => {
-    const likedSongs = [song("1"), song("2")];
-    renderLiked({ likedSongs, currentSong: song("1") });
-    expect(screen.getByText("Liked Song 1")).toBeInTheDocument();
-    expect(screen.getByText("Liked Song 2")).toBeInTheDocument();
+  it("should show empty state in Álbumes tab when none liked", () => {
+    renderLiked();
+    fireEvent.click(screen.getByText("Álbumes"));
+    expect(screen.getByText(/Dale me gusta a álbumes/)).toBeInTheDocument();
   });
 
-  // ── Edge cases ──────────────────────────────────────────────────
+  it("should render liked album cards with play and options", () => {
+    const playAlbum = vi.fn();
+    const openEntityOptions = vi.fn();
+    const goToAlbum = vi.fn();
+    renderLiked({ likedAlbums: [album], playAlbum, openEntityOptions, goToAlbum });
 
-  it("should prevent event propagation on heart click", () => {
-    const playSong = vi.fn();
-    const toggleLike = vi.fn();
-    const likedSongs = [song("1")];
-    renderLiked({ likedSongs, playSong, toggleLike });
-    const btns = screen.getAllByRole("button");
-    const heartBtn = btns.find((b) => b.innerHTML.includes("M20.84 4.61"));
-    if (heartBtn) {
-      fireEvent.click(heartBtn);
-      // playSong should NOT have been called (stopPropagation prevented it)
-      expect(playSong).not.toHaveBeenCalled();
-      expect(toggleLike).toHaveBeenCalled();
-    }
+    fireEvent.click(screen.getByText("Álbumes"));
+    expect(screen.getByText("Álbum de Prueba")).toBeInTheDocument();
+
+    // Click en la tarjeta → navega al álbum
+    fireEvent.click(screen.getByText("Álbum de Prueba"));
+    expect(goToAlbum).toHaveBeenCalledWith("MPREb_album1");
+
+    // ▶ de la tarjeta → reproduce el álbum
+    fireEvent.click(screen.getByTitle("Reproducir"));
+    expect(playAlbum).toHaveBeenCalledWith(album, false);
+
+    // ⋮ de la tarjeta → hoja de opciones del álbum
+    fireEvent.click(screen.getByTitle("Más opciones"));
+    expect(openEntityOptions).toHaveBeenCalledWith("album", album);
+  });
+
+  // ── Pestaña Artistas ────────────────────────────────────────────
+
+  it("should show empty state in Artistas tab when none followed", () => {
+    renderLiked();
+    fireEvent.click(screen.getByText("Artistas"));
+    expect(screen.getByText(/Sigue artistas/)).toBeInTheDocument();
+  });
+
+  it("should render followed artist cards", () => {
+    const goToArtist = vi.fn();
+    const openEntityOptions = vi.fn();
+    renderLiked({ followedArtists: [followedArtist], goToArtist, openEntityOptions });
+
+    fireEvent.click(screen.getByText("Artistas"));
+    expect(screen.getByText("Artista Seguida")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Artista Seguida"));
+    expect(goToArtist).toHaveBeenCalledWith("UC_artist1");
+
+    fireEvent.click(screen.getByTitle("Más opciones"));
+    expect(openEntityOptions).toHaveBeenCalledWith("artist", followedArtist);
+  });
+
+  // ── Contadores ──────────────────────────────────────────────────
+
+  it("should show totals in the hero subtitle", () => {
+    renderLiked({
+      likedSongs: [song("1"), song("2")],
+      likedAlbums: [album],
+      followedArtists: [followedArtist],
+    });
+    expect(screen.getByTestId("library-summary")).toHaveTextContent("2 canciones");
+    expect(screen.getByTestId("library-summary")).toHaveTextContent("1 álbum");
+    expect(screen.getByTestId("library-summary")).toHaveTextContent("1 artista");
   });
 });

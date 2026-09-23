@@ -171,15 +171,20 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
 
       // Obtener stream URL
       let streamUrl = null;
-      const cached = streamCacheRef.current[nextSong.videoId];
-      if (cached?.url) {
-        streamUrl = cached.url;
-        delete streamCacheRef.current[nextSong.videoId]; // consumir cache
+      if (nextSong.downloaded) {
+        // Descargada: usar el MP3 local del backend (funciona offline)
+        streamUrl = `${api.base}/stream/${nextSong.videoId}`;
       } else {
-        try {
-          const d = await api.get(`/stream-url/${nextSong.videoId}`);
-          streamUrl = d?.url;
-        } catch {}
+        const cached = streamCacheRef.current[nextSong.videoId];
+        if (cached?.url) {
+          streamUrl = cached.url;
+          delete streamCacheRef.current[nextSong.videoId]; // consumir cache
+        } else {
+          try {
+            const d = await api.get(`/stream-url/${nextSong.videoId}`);
+            streamUrl = d?.url;
+          } catch {}
+        }
       }
       // ⭐ Red de seguridad (failSafely): si el crossfade falla por sí solo —
       //    sin abort del usuario — y la canción actual ya terminó mientras
@@ -457,15 +462,23 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
       //    (crossfadeEnabledRef). Así el fade-in solo ocurre al final
       //    natural de la canción y NO en saltos manuales (handleNext/Prev).
       let usedProxy = false;
+      // Canción descargada: primer intento con el MP3 local del backend
+      // (GET /stream/{id}, disponible sin internet). Si el archivo no existe,
+      // play() rechaza y el bucle reintenta con streaming online.
+      const tryLocalFirst = !!song.downloaded;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          let d = streamCacheRef.current[song.videoId];
-          if (d) {
-            delete streamCacheRef.current[song.videoId]; // consumir cache
-          } else if (attempt === 0) {
-            d = await api.get(`/stream-url/${song.videoId}`);
+          const useLocal = tryLocalFirst && attempt === 0;
+          let d = null;
+          if (!useLocal) {
+            d = streamCacheRef.current[song.videoId];
+            if (d) {
+              delete streamCacheRef.current[song.videoId]; // consumir cache
+            } else if (attempt === 0) {
+              d = await api.get(`/stream-url/${song.videoId}`);
+            }
+            if (!d?.url && attempt === 0) throw new Error("No stream URL");
           }
-          if (!d?.url && attempt === 0) throw new Error("No stream URL");
 
           // Si intento 1 y estamos en modo retry, limpiar flag
           if (attempt === 1 && proxyRetryRef.current) {
@@ -480,8 +493,11 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
             crossfadePendingRef.current = false;
             return;
           }
-          const srcUrl =
-            attempt === 0 && !usedProxy ? d.url : `${api.base}/stream/play/${song.videoId}`;
+          const srcUrl = useLocal
+            ? `${api.base}/stream/${song.videoId}`
+            : attempt === 0 && !usedProxy
+              ? d.url
+              : `${api.base}/stream/play/${song.videoId}`;
           currentAudio.src = srcUrl;
           currentAudio.currentTime = startFrom;
           currentAudio.volume = volume;
@@ -900,7 +916,7 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
       const doPreCache = () => {
         if (!nextSong?.videoId) return;
 
-        if (!streamCacheRef.current[nextSong.videoId]) {
+        if (!streamCacheRef.current[nextSong.videoId] && !nextSong.downloaded) {
           api.get(`/stream-url/${nextSong.videoId}`)
             .then((d) => { if (d?.url) streamCacheRef.current[nextSong.videoId] = d; })
             .catch(() => {});

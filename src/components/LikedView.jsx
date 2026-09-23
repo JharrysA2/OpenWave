@@ -1,8 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
-import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, ANIMATIONS } from "../utils/theme";
-import SongRow from "./SongRow";
+import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, LAYOUTS, ANIMATIONS } from "../utils/theme";
+import LibraryTabs from "./LibraryTabs";
+import TrackList from "./TrackList";
+import { AlbumGridCard, ArtistGridCard } from "./LibraryCard";
+
+const EMPTY_STYLE = {
+  padding: "60px 20px",
+  textAlign: "center",
+  color: "rgba(255,255,255,.3)",
+  fontSize: "14px",
+  fontWeight: "600",
+};
 
 export default function LikedView({
   likedSongs,
@@ -11,12 +21,38 @@ export default function LikedView({
   playSong,
   toggleLike,
   openOptions,
+  liked = null,
+  likedAlbums = [],
+  followedArtists = [],
+  openEntityOptions,
+  playAlbum,
+  goToAlbum,
+  goToArtist,
 }) {
+  const [tab, setTab] = useState("songs");
+
   const playAll = (shuffle = false) => {
     if (likedSongs.length === 0) return;
     const list = shuffle ? [...likedSongs].sort(() => Math.random() - 0.5) : likedSongs;
-    playSong(list[0], 0, false);
+    playSong(list[0], 0, false, list);
   };
+
+  const heroButton = (primary = false) => ({
+    background: primary ? accentColor : undefined,
+    border: primary ? "none" : undefined,
+    ...(!primary ? GLASS.btn : {}),
+    borderRadius: RADIUS.pill,
+    padding: primary ? "9px 20px" : "9px 18px",
+    fontSize: "12.5px",
+    fontWeight: "700",
+    color: primary ? "#fff" : COLORS.textPrimary,
+    cursor: likedSongs.length === 0 ? "not-allowed" : "pointer",
+    opacity: likedSongs.length === 0 ? 0.4 : 1,
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    transition: TRANSITIONS.fast,
+  });
 
   return (
     <div
@@ -81,9 +117,10 @@ export default function LikedView({
               letterSpacing: "-.5px",
             }}
           >
-            Canciones que te gustan
+            Me gusta
           </h1>
           <div
+            data-testid="library-summary"
             style={{
               fontSize: "13px",
               color: COLORS.textTertiary,
@@ -91,7 +128,9 @@ export default function LikedView({
               marginTop: "4px",
             }}
           >
-            {likedSongs.length} canción{likedSongs.length !== 1 ? "es" : ""}
+            {likedSongs.length} {likedSongs.length === 1 ? "canción" : "canciones"} ·{" "}
+            {likedAlbums.length} álbum{likedAlbums.length !== 1 ? "es" : ""} ·{" "}
+            {followedArtists.length} artista{followedArtists.length !== 1 ? "s" : ""}
           </div>
 
           {/* Botones */}
@@ -103,61 +142,12 @@ export default function LikedView({
               flexWrap: "wrap",
             }}
           >
-            <button
-              onClick={() => playAll(true)}
-              disabled={likedSongs.length === 0}
-              style={{
-                ...GLASS.btn,
-                borderRadius: RADIUS.pill,
-                padding: "9px 18px",
-                fontSize: "12.5px",
-                fontWeight: "700",
-                color: COLORS.textPrimary,
-                cursor: likedSongs.length === 0 ? "not-allowed" : "pointer",
-                opacity: likedSongs.length === 0 ? 0.4 : 1,
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                transition: TRANSITIONS.fast,
-              }}
-              onMouseEnter={(e) => {
-                if (likedSongs.length > 0) {
-                  e.currentTarget.style.background = "rgba(255,255,255,.14)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "";
-              }}
-            >
+            <button onClick={() => playAll(true)} disabled={likedSongs.length === 0} style={heroButton(false)}>
               {Ic.shuffle(16)}
               Aleatorio
             </button>
 
-            <button
-              onClick={() => playAll(false)}
-              disabled={likedSongs.length === 0}
-              style={{
-                background: accentColor,
-                border: "none",
-                borderRadius: RADIUS.pill,
-                padding: "9px 20px",
-                fontSize: "12.5px",
-                fontWeight: "700",
-                color: "#fff",
-                cursor: likedSongs.length === 0 ? "not-allowed" : "pointer",
-                opacity: likedSongs.length === 0 ? 0.4 : 1,
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                transition: TRANSITIONS.fast,
-              }}
-              onMouseEnter={(e) => {
-                if (likedSongs.length > 0) e.currentTarget.style.opacity = "0.85";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = likedSongs.length === 0 ? "0.4" : "1";
-              }}
-            >
+            <button onClick={() => playAll(false)} disabled={likedSongs.length === 0} style={heroButton(true)}>
               {Ic.play(16)}
               Reproducir
             </button>
@@ -165,39 +155,75 @@ export default function LikedView({
         </div>
       </div>
 
-      {/* ── Lista de canciones ────────────────────── */}
-      {likedSongs.length === 0 ? (
-        <div
-          style={{
-            padding: "60px 20px",
-            textAlign: "center",
-            color: "rgba(255,255,255,.3)",
-            fontSize: "14px",
-            fontWeight: "600",
-          }}
-        >
-          Dale me gusta a canciones para verlas aquí
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          {likedSongs.map((song, i) => {
-            const isActive = currentSong?.videoId === song.videoId;
-            return (
-              <SongRow
-                key={song.videoId || i}
-                song={song}
-                isActive={isActive}
+      {/* ── Pestañas: Canciones / Álbumes / Artistas ────────── */}
+      <LibraryTabs
+        accentColor={accentColor}
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { key: "songs", label: "Canciones", count: likedSongs.length },
+          { key: "albums", label: "Álbumes", count: likedAlbums.length },
+          { key: "artists", label: "Artistas", count: followedArtists.length },
+        ]}
+      />
+
+      {/* ── Contenido por pestaña ────────────────── */}
+      {tab === "songs" &&
+        (likedSongs.length === 0 ? (
+          <div style={EMPTY_STYLE}>Dale me gusta a canciones para verlas aquí</div>
+        ) : (
+          <TrackList
+            songs={likedSongs}
+            currentSong={currentSong}
+            accentColor={accentColor}
+            onPlay={(song) => playSong(song, 0, false, likedSongs)}
+            openOptions={openOptions}
+            liked={liked}
+            onToggleLike={toggleLike}
+          />
+        ))}
+
+      {tab === "albums" &&
+        (likedAlbums.length === 0 ? (
+          <div style={EMPTY_STYLE}>
+            Dale me gusta a álbumes con el botón ♥ de su menú ⋮ para verlos aquí
+          </div>
+        ) : (
+          <div style={LAYOUTS.cardGrid}>
+            {likedAlbums.map((album, i) => (
+              <AlbumGridCard
+                key={album.browseId || i}
+                album={album}
                 accentColor={accentColor}
-                index={i}
-                onClick={() => playSong(song)}
-                onToggleLike={(id, s) => toggleLike(id, s)}
-                liked
-                onOpenOptions={openOptions}
+                subtitle={[album.artist, album.type].filter(Boolean).join(" · ")}
+                animationDelay={i * 40}
+                onClick={() => goToAlbum?.(album.browseId)}
+                onPlay={() => playAlbum?.(album, false)}
+                onOptions={() => openEntityOptions?.("album", album)}
               />
-            );
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        ))}
+
+      {tab === "artists" &&
+        (followedArtists.length === 0 ? (
+          <div style={EMPTY_STYLE}>
+            Sigue artistas desde su página con el botón "Seguir" para verlos aquí
+          </div>
+        ) : (
+          <div style={LAYOUTS.cardGrid}>
+            {followedArtists.map((artist, i) => (
+              <ArtistGridCard
+                key={artist.browseId || artist.name || i}
+                artist={artist}
+                subtitle="Artista"
+                animationDelay={i * 40}
+                onClick={() => goToArtist?.(artist.browseId || artist.name)}
+                onOptions={() => openEntityOptions?.("artist", artist)}
+              />
+            ))}
+          </div>
+        ))}
     </div>
   );
 }

@@ -1,10 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
 import { ConfirmModal } from "./ConfirmModal";
-import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, withAlpha, ANIMATIONS } from "../utils/theme";
-import SongRow from "./SongRow";
+import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, LAYOUTS, withAlpha, ANIMATIONS } from "../utils/theme";
+import LibraryTabs from "./LibraryTabs";
+import TrackList from "./TrackList";
+import { AlbumGridCard } from "./LibraryCard";
+import { useLibraryGroups } from "../hooks/useLibraryGroups";
+
+const EMPTY_STYLE = {
+  padding: "60px 20px",
+  textAlign: "center",
+  color: "rgba(255,255,255,.3)",
+  fontSize: "14px",
+  fontWeight: "600",
+};
+
+const SUCCESS = COLORS.successColor || "#22c55e";
+
+function fmtSize(bytes) {
+  if (!bytes || bytes <= 0) return "";
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
 
 export default function DownloadsView({
   downloads,
@@ -14,8 +33,33 @@ export default function DownloadsView({
   openOptions,
   onDownloadsCleared,
   toast,
+  openEntityOptions,
+  goToAlbum,
 }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [tab, setTab] = useState("songs");
+
+  // Canciones normalizadas (mismo shape que cualquier lista de la app)
+  const songs = useMemo(
+    () =>
+      (downloads || []).map((d) => ({
+        videoId: d.videoId || d.video_id,
+        title: d.title,
+        artist: d.artist,
+        thumbnail: d.thumbnail,
+        thumbnails: d.thumbnails,
+        duration: d.duration,
+        album: d.albumTitle || d.album || "",
+        albumType: d.albumType || "",
+        albumBrowseId: d.albumBrowseId || "",
+        artistBrowseId: d.artistBrowseId || "",
+        size: d.size || 0,
+        downloaded: true,
+      })),
+    [downloads],
+  );
+
+  const { albums } = useLibraryGroups(songs);
 
   const handleClearDownloads = async () => {
     await api.deleteDownloads(toast);
@@ -24,19 +68,27 @@ export default function DownloadsView({
   };
 
   const playAll = (shuffle = false) => {
-    if (downloads.length === 0) return;
-    const list = shuffle ? [...downloads].sort(() => Math.random() - 0.5) : downloads;
-    const songData = {
-      videoId: list[0].videoId || list[0].video_id,
-      title: list[0].title,
-      artist: list[0].artist,
-      thumbnail: list[0].thumbnail,
-      thumbnails: list[0].thumbnails,
-      duration: list[0].duration,
-      downloaded: true,
-    };
-    playSong(songData, 0, false);
+    if (songs.length === 0) return;
+    const list = shuffle ? [...songs].sort(() => Math.random() - 0.5) : songs;
+    playSong(list[0], 0, false, list);
   };
+
+  const heroButton = (primary = false) => ({
+    background: primary ? accentColor : undefined,
+    border: primary ? "none" : undefined,
+    ...(!primary ? GLASS.btn : {}),
+    borderRadius: RADIUS.pill,
+    padding: primary ? "9px 20px" : "9px 18px",
+    fontSize: "12.5px",
+    fontWeight: "700",
+    color: primary ? "#fff" : COLORS.textPrimary,
+    cursor: songs.length === 0 ? "not-allowed" : "pointer",
+    opacity: songs.length === 0 ? 0.4 : 1,
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    transition: TRANSITIONS.fast,
+  });
 
   return (
     <div
@@ -65,7 +117,7 @@ export default function DownloadsView({
             borderRadius: RADIUS.card,
             overflow: "hidden",
             flexShrink: 0,
-            background: `linear-gradient(135deg, ${COLORS.successColor || "#22c55e"}55, ${COLORS.successColor || "#22c55e"}11)`,
+            background: `linear-gradient(135deg, ${SUCCESS}55, ${SUCCESS}11)`,
             boxShadow: "0 8px 30px rgba(0,0,0,.4)",
             display: "flex",
             alignItems: "center",
@@ -77,7 +129,7 @@ export default function DownloadsView({
             height="48"
             viewBox="0 0 24 24"
             fill="none"
-            stroke={COLORS.successColor || "#22c55e"}
+            stroke={SUCCESS}
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -120,8 +172,9 @@ export default function DownloadsView({
               marginTop: "4px",
             }}
           >
-            {downloads.length} canción{downloads.length !== 1 ? "es" : ""} descargada
-            {downloads.length !== 1 ? "s" : ""}
+            {songs.length} {songs.length === 1 ? "canción" : "canciones"} descargada
+            {songs.length !== 1 ? "s" : ""} · {albums.length} álbum
+            {albums.length !== 1 ? "es" : ""}
           </div>
 
           <div
@@ -132,91 +185,22 @@ export default function DownloadsView({
               flexWrap: "wrap",
             }}
           >
-            <button
-              onClick={() => playAll(true)}
-              disabled={downloads.length === 0}
-              style={{
-                ...GLASS.btn,
-                borderRadius: RADIUS.pill,
-                padding: "9px 18px",
-                fontSize: "12.5px",
-                fontWeight: "700",
-                color: COLORS.textPrimary,
-                cursor: downloads.length === 0 ? "not-allowed" : "pointer",
-                opacity: downloads.length === 0 ? 0.4 : 1,
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                transition: TRANSITIONS.fast,
-              }}
-              onMouseEnter={(e) => {
-                if (downloads.length > 0) {
-                  e.currentTarget.style.background = "rgba(255,255,255,.14)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "";
-              }}
-            >
+            <button onClick={() => playAll(true)} disabled={songs.length === 0} style={heroButton(false)}>
               {Ic.shuffle(16)}
               Aleatorio
             </button>
 
-            <button
-              onClick={() => playAll(false)}
-              disabled={downloads.length === 0}
-              style={{
-                background: accentColor,
-                border: "none",
-                borderRadius: RADIUS.pill,
-                padding: "9px 20px",
-                fontSize: "12.5px",
-                fontWeight: "700",
-                color: "#fff",
-                cursor: downloads.length === 0 ? "not-allowed" : "pointer",
-                opacity: downloads.length === 0 ? 0.4 : 1,
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                transition: TRANSITIONS.fast,
-              }}
-              onMouseEnter={(e) => {
-                if (downloads.length > 0) e.currentTarget.style.opacity = "0.85";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = downloads.length === 0 ? "0.4" : "1";
-              }}
-            >
+            <button onClick={() => playAll(false)} disabled={songs.length === 0} style={heroButton(true)}>
               {Ic.play(16)}
               Reproducir
             </button>
 
             <button
-              onClick={() => downloads.length > 0 && setShowConfirmModal(true)}
-              disabled={downloads.length === 0}
+              onClick={() => songs.length > 0 && setShowConfirmModal(true)}
+              disabled={songs.length === 0}
               style={{
-                ...GLASS.btn,
-                borderRadius: RADIUS.pill,
-                padding: "9px 16px",
-                fontSize: "12.5px",
-                fontWeight: "700",
+                ...heroButton(false),
                 color: "rgba(255,255,255,.4)",
-                cursor: downloads.length === 0 ? "not-allowed" : "pointer",
-                opacity: downloads.length === 0 ? 0.4 : 1,
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                transition: TRANSITIONS.fast,
-              }}
-              onMouseEnter={(e) => {
-                if (downloads.length > 0) {
-                  e.currentTarget.style.background = "rgba(239,68,68,.15)";
-                  e.currentTarget.style.color = "#ef4444";
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "";
-                e.currentTarget.style.color = "rgba(255,255,255,.4)";
               }}
             >
               {Ic.trash}
@@ -226,63 +210,100 @@ export default function DownloadsView({
         </div>
       </div>
 
-      {/* ── Lista ─────────────────────────────────── */}
-      {downloads.length === 0 ? (
-        <div
-          style={{
-            padding: "60px 20px",
-            textAlign: "center",
-            color: "rgba(255,255,255,.3)",
-            fontSize: "14px",
-            fontWeight: "600",
-          }}
-        >
-          Descarga canciones para escucharlas sin conexión
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          {downloads.map((song, i) => {
-            const vid = song.videoId || song.video_id;
-            const isActive = currentSong?.videoId === vid;
-            const songData = {
-              videoId: vid,
-              title: song.title,
-              artist: song.artist,
-              thumbnail: song.thumbnail,
-              thumbnails: song.thumbnails,
-              duration: song.duration,
-              downloaded: true,
-            };
-            return (
-              <SongRow
-                key={vid || i}
-                song={songData}
-                isActive={isActive}
-                accentColor={accentColor}
-                index={i}
-                onClick={() => playSong(songData)}
-                badge={
+      {/* ── Pestañas: Canciones / Álbumes ────────── */}
+      <LibraryTabs
+        accentColor={accentColor}
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { key: "songs", label: "Canciones", count: songs.length },
+          { key: "albums", label: "Álbumes", count: albums.length },
+        ]}
+      />
+
+      {/* ── Contenido por pestaña ────────────────── */}
+      {tab === "songs" &&
+        (songs.length === 0 ? (
+          <div style={EMPTY_STYLE}>Descarga canciones para escucharlas sin conexión</div>
+        ) : (
+          <TrackList
+            songs={songs}
+            currentSong={currentSong}
+            accentColor={accentColor}
+            onPlay={(song) => playSong(song, 0, false, songs)}
+            openOptions={openOptions}
+            badgeFor={(song) => (
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  flexShrink: 0,
+                  marginRight: "6px",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "9px",
+                    color: SUCCESS,
+                    fontWeight: "800",
+                    background: withAlpha(SUCCESS, "1a"),
+                    borderRadius: RADIUS.pill,
+                    padding: "2px 8px",
+                    letterSpacing: ".2px",
+                  }}
+                >
+                  OFFLINE
+                </span>
+                {song.size > 0 && (
                   <span
                     style={{
-                      fontSize: "9px",
-                      color: COLORS.successColor || "#22c55e",
-                      fontWeight: "800",
-                      background: withAlpha(COLORS.successColor || "#22c55e", "1a"),
-                      borderRadius: RADIUS.pill,
-                      padding: "2px 8px",
-                      flexShrink: 0,
-                      letterSpacing: ".2px",
+                      fontSize: "10px",
+                      color: "rgba(255,255,255,.35)",
+                      fontWeight: "700",
                     }}
                   >
-                    OFFLINE
+                    {fmtSize(song.size)}
                   </span>
-                }
-                onOpenOptions={() => openOptions(songData)}
-              />
-            );
-          })}
-        </div>
-      )}
+                )}
+              </span>
+            )}
+          />
+        ))}
+
+      {tab === "albums" &&
+        (albums.length === 0 ? (
+          <div style={EMPTY_STYLE}>
+            Los álbumes de tus descargas aparecerán aquí
+          </div>
+        ) : (
+          <div style={LAYOUTS.cardGrid}>
+            {albums.map((group, i) => {
+              const entity = {
+                browseId: group.browseId,
+                title: group.title,
+                artist: group.artist,
+                type: group.type || "Álbum",
+                thumbnail: group.thumbnail,
+                thumbnails: group.thumbnails,
+              };
+              return (
+                <AlbumGridCard
+                  key={group.key}
+                  album={entity}
+                  accentColor={accentColor}
+                  subtitle={`${group.count} ${group.count === 1 ? "canción" : "canciones"}${
+                    group.size > 0 ? ` · ${fmtSize(group.size)}` : ""
+                  }`}
+                  animationDelay={i * 40}
+                  onClick={group.browseId ? () => goToAlbum?.(group.browseId) : undefined}
+                  onPlay={() => playSong(group.songs[0], 0, false, group.songs)}
+                  onOptions={() => openEntityOptions?.("album", entity, group.songs)}
+                />
+              );
+            })}
+          </div>
+        ))}
 
       <ConfirmModal
         open={showConfirmModal}

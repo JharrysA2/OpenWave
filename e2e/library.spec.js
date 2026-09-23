@@ -10,10 +10,25 @@ test.describe("Biblioteca (Likes, Historial, Descargas)", () => {
   });
 
   test.describe("Me gusta", () => {
-    test("debe mostrar la vista vacía inicialmente", async ({ page }) => {
+    test("debe mostrar la vista vacía con sus 3 pestañas", async ({ page }) => {
       await page.getByRole("button", { name: "Me gusta" }).click();
-      await expect(page.getByRole("heading", { name: "Canciones que te gustan" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Me gusta" })).toBeVisible();
       await expect(page.getByText(/Dale me gusta/)).toBeVisible();
+      await expect(page.getByRole("tab", { name: /Canciones/ })).toBeVisible();
+      await expect(page.getByRole("tab", { name: /Álbumes/ })).toBeVisible();
+      await expect(page.getByRole("tab", { name: /Artistas/ })).toBeVisible();
+    });
+
+    test("la pestaña Álbumes debe mostrar su estado vacío", async ({ page }) => {
+      await page.getByRole("button", { name: "Me gusta" }).click();
+      await page.getByRole("tab", { name: /Álbumes/ }).click();
+      await expect(page.getByText(/Dale me gusta a álbumes/)).toBeVisible();
+    });
+
+    test("la pestaña Artistas debe mostrar su estado vacío", async ({ page }) => {
+      await page.getByRole("button", { name: "Me gusta" }).click();
+      await page.getByRole("tab", { name: /Artistas/ }).click();
+      await expect(page.getByText(/Sigue artistas/)).toBeVisible();
     });
 
     test("el botón Me gusta debe estar en la sidebar", async ({ page }) => {
@@ -34,10 +49,20 @@ test.describe("Biblioteca (Likes, Historial, Descargas)", () => {
   });
 
   test.describe("Descargas", () => {
-    test("debe mostrar la vista vacía inicialmente", async ({ page }) => {
+    test("debe mostrar la vista vacía con sus 2 pestañas", async ({ page }) => {
       await page.getByRole("button", { name: "Descargas" }).click();
       await expect(page.getByRole("heading", { name: "Descargas" })).toBeVisible();
       await expect(page.getByText(/Descarga canciones/)).toBeVisible();
+      await expect(page.getByRole("tab", { name: /Canciones/ })).toBeVisible();
+      await expect(page.getByRole("tab", { name: /Álbumes/ })).toBeVisible();
+      // Descargas NO tiene pestaña de Artistas
+      await expect(page.getByRole("tab", { name: /Artistas/ })).toHaveCount(0);
+    });
+
+    test("la pestaña Álbumes debe mostrar su estado vacío", async ({ page }) => {
+      await page.getByRole("button", { name: "Descargas" }).click();
+      await page.getByRole("tab", { name: /Álbumes/ }).click();
+      await expect(page.getByText(/Los álbumes de tus descargas/)).toBeVisible();
     });
 
     test("el botón Descargas debe estar en la sidebar", async ({ page }) => {
@@ -53,7 +78,7 @@ test.describe("Biblioteca (Likes, Historial, Descargas)", () => {
 
     test("debe mostrar el mensaje de ayuda", async ({ page }) => {
       await page.goto("/");
-      await expect(page.getByText(/Usa la barra de búsqueda/)).toBeVisible();
+      await expect(page.getByText(/Encuentra cualquier canción/)).toBeVisible();
     });
   });
 });

@@ -4,6 +4,7 @@ import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
 import { MusicCover } from "./MusicCover";
 import { ConfirmModal } from "./ConfirmModal";
+import TrackList from "./TrackList";
 import { useMultiSelect } from "../hooks/useMultiSelect";
 import { TransferModal } from "./TransferModal";
 import {
@@ -11,10 +12,8 @@ import {
   RADIUS,
   SPACING,
   TRANSITIONS,
-  LAYOUTS,
   GLASS,
   ANIMATIONS,
-  safeAccentText,
 } from "../utils/theme";
 
 export default function PlaylistView({
@@ -109,7 +108,7 @@ export default function PlaylistView({
     const songsToTransfer = songs.filter((s) => selected.has(s.videoId));
     await api.addToPlaylist(targetPlaylistId, songsToTransfer, toast);
     toast(
-      `${songsToTransfer.length} canción${songsToTransfer.length !== 1 ? "es" : ""} transferida${songsToTransfer.length !== 1 ? "s" : ""}`,
+      `${songsToTransfer.length} ${songsToTransfer.length === 1 ? "canción" : "canciones"} transferida${songsToTransfer.length !== 1 ? "s" : ""}`,
       "success",
     );
     setShowTransferModal(false);
@@ -359,7 +358,7 @@ export default function PlaylistView({
               marginTop: "4px",
             }}
           >
-            {songs.length} canción{songs.length !== 1 ? "es" : ""}
+            {songs.length} {songs.length === 1 ? "canción" : "canciones"}
           </div>
 
           {/* Action buttons */}
@@ -630,213 +629,24 @@ export default function PlaylistView({
           Esta playlist está vacía. Agrega canciones desde el menú de opciones.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-          {songs.map((song, i) => {
-            if (!song || !song.videoId) return null;
-            const isActive = currentSong?.videoId === song.videoId;
-            const isDragging = dragIdx === i;
-            const isDragOver = dragOverIdx === i;
-            const isSelected = selected.has(song.videoId);
-
-            return (
-              <div
-                key={`${song.videoId}-${i}`}
-                draggable={!selectMode}
-                onDragStart={(e) => handleDragStart(e, i)}
-                onDragOver={(e) => handleDragOver(e, i)}
-                onDrop={(e) => handleDrop(e, i)}
-                onDragEnd={handleDragEnd}
-                style={{
-                  ...ANIMATIONS.staggerFast(i),
-                  ...LAYOUTS.songRow(isActive, accentColor),
-                  opacity: isDragging ? 0.4 : 1,
-                  cursor: selectMode ? "pointer" : "grab",
-                  borderLeft: isDragOver
-                    ? `2px solid ${accentColor}`
-                    : LAYOUTS.songRow(isActive, accentColor).borderLeft || "2px solid transparent",
-                  background: isSelected
-                    ? `rgba(255,255,255,.08)`
-                    : isDragging
-                      ? "rgba(255,255,255,.03)"
-                      : undefined,
-                  transition: "background .1s, opacity .1s",
-                }}
-                onClick={() => {
-                  if (selectMode) {
-                    toggleSelect(song.videoId);
-                  } else {
-                    playSong(song, 0, false, songs);
-                  }
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive && !selectMode && !isSelected) {
-                    e.currentTarget.style.background = LAYOUTS.songRowHover.background;
-                    e.currentTarget.style.borderColor = LAYOUTS.songRowHover.borderColor;
-                    e.currentTarget.style.boxShadow = LAYOUTS.songRowHover.boxShadow;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive && !selectMode && !isSelected) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.borderColor = "transparent";
-                    e.currentTarget.style.boxShadow = "none";
-                  }
-                }}
-              >
-                {/* Select checkbox or order number */}
-                {selectMode ? (
-                  <div
-                    style={{
-                      width: "24px",
-                      height: "24px",
-                      borderRadius: "6px",
-                      border: `2px solid ${isSelected ? accentColor : "rgba(255,255,255,.2)"}`,
-                      background: isSelected ? accentColor : "transparent",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      transition: "all .15s",
-                    }}
-                  >
-                    {isSelected && (
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#fff"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      width: "24px",
-                      textAlign: "center",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                      color: isActive ? safeAccentText(accentColor) : "rgba(255,255,255,.3)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {i + 1}
-                  </div>
-                )}
-
-                {/* Cover */}
-                <div style={LAYOUTS.listCover}>
-                  <MusicCover
-                    thumbnails={song.thumbnails}
-                    src={song.thumbnail}
-                    displaySize={50}
-                    alt=""
-                    style={{ width: "40px", height: "40px" }}
-                  />
-                </div>
-
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: "13.5px",
-                      fontWeight: "700",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      color: isActive ? safeAccentText(accentColor) : COLORS.textPlayerTitle,
-                    }}
-                  >
-                    {song.title || "Sin título"}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11.5px",
-                      color: COLORS.textTertiary,
-                      fontWeight: "600",
-                      marginTop: "1px",
-                    }}
-                  >
-                    {song.artist || "Desconocido"}
-                  </div>
-                </div>
-
-                {/* Duration */}
-                {song.duration > 0 && (
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      color: "rgba(255,255,255,.35)",
-                      fontWeight: "600",
-                      marginRight: "8px",
-                    }}
-                  >
-                    {Math.floor(song.duration / 60)}:
-                    {String(Math.floor(song.duration % 60)).padStart(2, "0")}
-                  </span>
-                )}
-
-                {/* Remove from playlist */}
-                {!selectMode && (
-                  <button
-                    onClick={(e) => handleRemoveSong(song.videoId, e)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "rgba(255,255,255,.25)",
-                      display: "flex",
-                      padding: "4px",
-                      transition: TRANSITIONS.fast,
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,.25)")}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                )}
-
-                {/* 3-dot menu */}
-                {!selectMode && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openOptions(song);
-                    }}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: COLORS.iconDefault,
-                      display: "flex",
-                      padding: "4px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {Ic.dots}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <TrackList
+          songs={songs}
+          currentSong={currentSong}
+          accentColor={accentColor}
+          onPlay={(song) => playSong(song, 0, false, songs)}
+          openOptions={openOptions}
+          onRemove={handleRemoveSong}
+          selectMode={selectMode}
+          selected={selected}
+          toggleSelect={toggleSelect}
+          dragEnabled
+          dragIdx={dragIdx ?? -1}
+          dragOverIdx={dragOverIdx ?? -1}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onDragEnd={handleDragEnd}
+        />
       )}
 
       {/* ── Transfer Modal ─────────────────────────── */}

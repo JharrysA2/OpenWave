@@ -69,6 +69,114 @@ describe("useLibrary", () => {
     expect(result.current.liked.size).toBe(2);
   });
 
+  // ── likedMeta (sw_liked_meta_v1) ──────────────────────────────────────────
+
+  it("should start with empty likedMeta", () => {
+    const { result } = renderHook(() => useLibrary());
+    expect(result.current.likedMeta).toEqual({});
+  });
+
+  it("should store song metadata when liking with a song", () => {
+    const { result } = renderHook(() => useLibrary());
+    act(() =>
+      result.current.toggleLike("v1", {
+        title: "My Song",
+        artist: "My Artist",
+        album: "My Album",
+        albumBrowseId: "MPREb_1",
+        duration: 120,
+      }),
+    );
+    expect(result.current.liked.has("v1")).toBe(true);
+    expect(result.current.likedMeta.v1).toMatchObject({
+      title: "My Song",
+      artist: "My Artist",
+      album: "My Album",
+      albumBrowseId: "MPREb_1",
+      duration: 120,
+    });
+    expect(result.current.likedMeta.v1.likedAt).toBeTruthy();
+
+    const stored = JSON.parse(localStorage.getItem("sw_liked_meta_v1"));
+    expect(stored.v1).toMatchObject({ title: "My Song" });
+  });
+
+  it("should remove metadata when unliking", () => {
+    const { result } = renderHook(() => useLibrary());
+    act(() => result.current.toggleLike("v1", { title: "T", artist: "A" }));
+    expect(result.current.likedMeta.v1).toBeTruthy();
+    act(() => result.current.toggleLike("v1", { title: "T", artist: "A" }));
+    expect(result.current.liked.has("v1")).toBe(false);
+    expect(result.current.likedMeta.v1).toBeUndefined();
+
+    const stored = JSON.parse(localStorage.getItem("sw_liked_meta_v1"));
+    expect(stored.v1).toBeUndefined();
+  });
+
+  it("should not store metadata when liking without a song (compat)", () => {
+    const { result } = renderHook(() => useLibrary());
+    act(() => result.current.toggleLike("legacy"));
+    expect(result.current.liked.has("legacy")).toBe(true);
+    expect(result.current.likedMeta.legacy).toBeUndefined();
+  });
+
+  it("should load likedMeta from localStorage on mount", () => {
+    localStorage.setItem(
+      "sw_liked_meta_v1",
+      JSON.stringify({ old1: { title: "Old Song", artist: "Old Artist" } }),
+    );
+    const { result } = renderHook(() => useLibrary());
+    expect(result.current.likedMeta.old1).toMatchObject({ title: "Old Song" });
+  });
+
+  it("should hydrate missing likedMeta from downloads on load", async () => {
+    localStorage.setItem("sw_liked_v2", JSON.stringify(["dl1"]));
+    const mockDownloads = [{ videoId: "dl1", title: "Downloaded", artist: "Someone" }];
+
+    let callCount = 0;
+    const mockFetch = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      callCount++;
+      const data = callCount === 1 ? [] : callCount === 2 ? mockDownloads : [];
+      return mockApiResponse(data);
+    });
+
+    const { result } = renderHook(() => useLibrary());
+
+    await waitFor(() => expect(result.current.likedMeta.dl1).toBeTruthy());
+    expect(result.current.likedMeta.dl1).toMatchObject({
+      title: "Downloaded",
+      artist: "Someone",
+    });
+
+    const stored = JSON.parse(localStorage.getItem("sw_liked_meta_v1"));
+    expect(stored.dl1).toMatchObject({ title: "Downloaded" });
+
+    mockFetch.mockRestore();
+  });
+
+  it("should not overwrite existing likedMeta during hydration", async () => {
+    localStorage.setItem("sw_liked_v2", JSON.stringify(["dl1"]));
+    localStorage.setItem(
+      "sw_liked_meta_v1",
+      JSON.stringify({ dl1: { title: "Custom Title" } }),
+    );
+    const mockDownloads = [{ videoId: "dl1", title: "From Downloads" }];
+
+    let callCount = 0;
+    const mockFetch = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      callCount++;
+      const data = callCount === 1 ? [] : callCount === 2 ? mockDownloads : [];
+      return mockApiResponse(data);
+    });
+
+    const { result } = renderHook(() => useLibrary());
+
+    await waitFor(() => expect(result.current.playlists).toEqual([]));
+    expect(result.current.likedMeta.dl1.title).toBe("Custom Title");
+
+    mockFetch.mockRestore();
+  });
+
   // ── mostPlayed ────────────────────────────────────────────────────────────
 
   it("mostPlayed should return empty array when history is empty", () => {

@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
-import { DownloadsView } from "./DownloadsView";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import DownloadsView from "./DownloadsView";
 
 // Mock MusicCover
 vi.mock("./MusicCover", () => ({
@@ -22,16 +22,22 @@ const defaultProps = {
   downloads: [],
   currentSong: null,
   accentColor: "#a78bfa",
-  playSong: () => {},
-  openOptions: () => {},
+  playSong: vi.fn(),
+  openOptions: vi.fn(),
+  openEntityOptions: vi.fn(),
+  goToAlbum: vi.fn(),
 };
 
 function renderDownloads(props = {}) {
   return render(<DownloadsView {...defaultProps} {...props} />);
 }
 
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 describe("DownloadsView", () => {
-  // ── Empty state ──────────────────────────────────────────────────────
+  // ── Estado vacío ────────────────────────────────────────────────
 
   it("should show empty state when no downloads", () => {
     renderDownloads();
@@ -41,7 +47,14 @@ describe("DownloadsView", () => {
     ).toBeInTheDocument();
   });
 
-  // ── Downloaded songs list ──────────────────────────────────────────
+  it("should render the 2 library tabs (sin Artistas)", () => {
+    renderDownloads();
+    expect(screen.getByText("Canciones")).toBeInTheDocument();
+    expect(screen.getByText("Álbumes")).toBeInTheDocument();
+    expect(screen.queryByText("Artistas")).toBeNull();
+  });
+
+  // ── Pestaña Canciones ───────────────────────────────────────────
 
   it("should render list of downloaded songs", () => {
     const downloads = [song("1"), song("2")];
@@ -53,70 +66,94 @@ describe("DownloadsView", () => {
   });
 
   it("should show OFFLINE badge for each downloaded song", () => {
-    const downloads = [song("1")];
-    renderDownloads({ downloads });
-    const offlineBadges = screen.getAllByText("OFFLINE");
-    expect(offlineBadges).toHaveLength(1);
+    renderDownloads({ downloads: [song("1")] });
+    expect(screen.getAllByText("OFFLINE")).toHaveLength(1);
   });
 
-  it("should call playSong when a downloaded song is clicked", () => {
+  it("should show file size when available", () => {
+    renderDownloads({ downloads: [song("1", { size: 3 * 1024 * 1024 })] });
+    expect(screen.getByText("3.0 MB")).toBeInTheDocument();
+  });
+
+  it("should call playSong with downloaded:true and list as queue", () => {
     const playSong = vi.fn();
-    const downloads = [song("1")];
-    renderDownloads({ downloads, playSong });
+    renderDownloads({ downloads: [song("1")], playSong });
     fireEvent.click(screen.getByText("Downloaded Song 1"));
-    expect(playSong).toHaveBeenCalledWith(
-      expect.objectContaining({
-        videoId: "1",
-        title: "Downloaded Song 1",
-        downloaded: true,
-      }),
-    );
+    expect(playSong.mock.calls[0][0]).toMatchObject({
+      videoId: "1",
+      title: "Downloaded Song 1",
+      downloaded: true,
+    });
+    expect(playSong.mock.calls[0][3]).toHaveLength(1);
   });
 
-  it("should call openOptions when options button is clicked", () => {
+  it("should call openOptions with the normalized songData", () => {
     const openOptions = vi.fn();
-    const downloads = [song("1")];
-    renderDownloads({ downloads, openOptions });
-    // Find the dots/options button
-    const btns = screen.getAllByRole("button");
-    const optionsBtn = btns.find((b) => b.innerHTML.includes("M12 5"));
-    if (optionsBtn) {
-      fireEvent.click(optionsBtn);
-      expect(openOptions).toHaveBeenCalledWith(
-        expect.objectContaining({ videoId: "1", downloaded: true }),
-      );
-    }
+    renderDownloads({ downloads: [song("1")], openOptions });
+    fireEvent.click(screen.getByTitle("Más opciones"));
+    expect(openOptions.mock.calls[0][0]).toMatchObject({
+      videoId: "1",
+      downloaded: true,
+    });
   });
-
-  // ── Current song highlighting ──────────────────────────────────────
-
-  it("should highlight the currently playing song", () => {
-    const downloads = [song("1"), song("2")];
-    renderDownloads({ downloads, currentSong: song("1") });
-    expect(screen.getByText("Downloaded Song 1")).toBeInTheDocument();
-    expect(screen.getByText("Downloaded Song 2")).toBeInTheDocument();
-  });
-
-  // ── Edge cases ──────────────────────────────────────────────────────
 
   it("should handle songs with video_id instead of videoId", () => {
-    const downloads = [{ video_id: "legacy1", title: "Legacy Song", artist: "Legacy Artist" }];
-    renderDownloads({ downloads });
+    renderDownloads({
+      downloads: [{ video_id: "legacy1", title: "Legacy Song", artist: "Legacy Artist" }],
+    });
     expect(screen.getByText("Legacy Song")).toBeInTheDocument();
   });
 
-  it("should pass downloaded:true in songData", () => {
-    const playSong = vi.fn();
-    const downloads = [song("1")];
-    renderDownloads({ downloads, playSong });
-    fireEvent.click(screen.getByText("Downloaded Song 1"));
-    expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ downloaded: true }));
+  it("should render multiple OFFLINE badges", () => {
+    renderDownloads({ downloads: [song("1"), song("2"), song("3")] });
+    expect(screen.getAllByText("OFFLINE")).toHaveLength(3);
   });
 
-  it("should render multiple downloads with correct OFFLINE badges count", () => {
-    const downloads = [song("1"), song("2"), song("3")];
+  // ── Pestaña Álbumes (agrupación de descargas) ───────────────────
+
+  it("should group downloads into album cards", () => {
+    const downloads = [
+      song("1", { album: "Álbum X", albumBrowseId: "MPREb_x", size: 1024 }),
+      song("2", { album: "Álbum X", albumBrowseId: "MPREb_x", size: 2048 }),
+    ];
     renderDownloads({ downloads });
-    const badges = screen.getAllByText("OFFLINE");
-    expect(badges).toHaveLength(3);
+    fireEvent.click(screen.getByText("Álbumes"));
+    expect(screen.getByText("Álbum X")).toBeInTheDocument();
+    expect(screen.getByText("2 canciones · 3 KB")).toBeInTheDocument();
+  });
+
+  it("should play all album tracks from the card ▶", () => {
+    const playSong = vi.fn();
+    const downloads = [
+      song("1", { album: "Álbum X", albumBrowseId: "MPREb_x" }),
+      song("2", { album: "Álbum X", albumBrowseId: "MPREb_x" }),
+    ];
+    renderDownloads({ downloads, playSong });
+    fireEvent.click(screen.getByText("Álbumes"));
+    fireEvent.click(screen.getByTitle("Reproducir"));
+    expect(playSong.mock.calls[0][0]).toMatchObject({ videoId: "1" });
+    expect(playSong.mock.calls[0][3]).toHaveLength(2);
+  });
+
+  it("should open entity options with the album tracks from ⋮", () => {
+    const openEntityOptions = vi.fn();
+    const downloads = [
+      song("1", { album: "Álbum X", albumBrowseId: "MPREb_x" }),
+      song("2", { album: "Álbum X", albumBrowseId: "MPREb_x" }),
+    ];
+    renderDownloads({ downloads, openEntityOptions });
+    fireEvent.click(screen.getByText("Álbumes"));
+    fireEvent.click(screen.getByTitle("Más opciones"));
+    expect(openEntityOptions).toHaveBeenCalledTimes(1);
+    const [type, entity, tracks] = openEntityOptions.mock.calls[0];
+    expect(type).toBe("album");
+    expect(entity).toMatchObject({ browseId: "MPREb_x", title: "Álbum X" });
+    expect(tracks).toHaveLength(2);
+  });
+
+  it("should show empty state in Álbumes tab when no downloads", () => {
+    renderDownloads();
+    fireEvent.click(screen.getByText("Álbumes"));
+    expect(screen.getByText(/Los álbumes de tus descargas/)).toBeInTheDocument();
   });
 });

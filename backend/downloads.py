@@ -25,6 +25,8 @@ def do_download(
     duration: int,
     album_title: str = "",
     album_type: str = "",
+    album_browse_id: str = "",
+    artist_browse_id: str = "",
     thumbnails: list = None,
 ):
     """Descargar canción: audio MP3 + cover + letras."""
@@ -57,7 +59,10 @@ def do_download(
 
         # ── 2. Descargar audio ────────────────────────────────────────
         _ydl_opts = {
-            "format": "bestaudio/best",
+            # client "android" (itag 18): único que sirve el archivo completo;
+            # el default restringe rangos a ~512KB y devuelve HTTP 403.
+            "format": "18/bestaudio/best",
+            "extractor_args": {"youtube": {"player_client": ["android"]}},
             "outtmpl": str(MUSIC_DIR / f"{video_id}.%(ext)s"),
             "postprocessors": [
                 {
@@ -73,16 +78,22 @@ def do_download(
         if _ffmpeg_dir:
             _ydl_opts["ffmpeg_location"] = _ffmpeg_dir
 
-        with yt_dlp.YoutubeDL(_ydl_opts) as ydl:
-            ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
-
+        # Idempotente: si el MP3 ya está (descarga individual previa o
+        # descarga de álbum reintentada), no volver a bajar el audio.
         mp3_path = get_mp3_path(video_id)
-        if not mp3_path.exists():
-            for ext in ("m4a", "webm", "ogg", "opus", "mp4"):
-                alt = MUSIC_DIR / f"{video_id}.{ext}"
-                if alt.exists():
-                    alt.rename(mp3_path)
-                    break
+        if mp3_path.exists():
+            logger.info("skip yt-dlp %s: MP3 ya descargado", video_id)
+            download_progress[video_id] = {"status": "converting", "progress": 100}
+        else:
+            with yt_dlp.YoutubeDL(_ydl_opts) as ydl:
+                ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+
+            if not mp3_path.exists():
+                for ext in ("m4a", "webm", "ogg", "opus", "mp4"):
+                    alt = MUSIC_DIR / f"{video_id}.{ext}"
+                    if alt.exists():
+                        alt.rename(mp3_path)
+                        break
 
         download_progress[video_id] = {"status": "saving", "progress": 100}
 
@@ -139,12 +150,14 @@ def do_download(
         with _db_lock, get_db() as conn:
             conn.execute(
                 """INSERT INTO downloads(video_id,title,artist,thumbnail,duration,file_path,
-                   album_title,album_type,thumbnails)
-                   VALUES(?,?,?,?,?,?,?,?,?)
+                   album_title,album_type,thumbnails,album_browse_id,artist_browse_id)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(video_id) DO UPDATE SET
                        downloaded_at=strftime('%Y-%m-%dT%H:%M:%S','now'),
-                       album_title=excluded.album_title,
-                       album_type=excluded.album_type,
+                       album_title=CASE WHEN excluded.album_title != '' THEN excluded.album_title ELSE downloads.album_title END,
+                       album_type=CASE WHEN excluded.album_type != '' THEN excluded.album_type ELSE downloads.album_type END,
+                       album_browse_id=CASE WHEN excluded.album_browse_id != '' THEN excluded.album_browse_id ELSE downloads.album_browse_id END,
+                       artist_browse_id=CASE WHEN excluded.artist_browse_id != '' THEN excluded.artist_browse_id ELSE downloads.artist_browse_id END,
                        thumbnails=excluded.thumbnails""",
                 (
                     video_id,
@@ -156,6 +169,8 @@ def do_download(
                     album_title,
                     album_type,
                     thumbnails_json,
+                    album_browse_id,
+                    artist_browse_id,
                 ),
             )
 

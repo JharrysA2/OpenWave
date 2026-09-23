@@ -55,7 +55,7 @@ class TestDoDownload:
         mock_ydl_cls.return_value.__enter__.return_value = mock_ydl
 
         mp3_mock = MagicMock(spec=Path)
-        mp3_mock.exists.return_value = True
+        mp3_mock.exists.return_value = False
         mock_path.return_value = mp3_mock
 
         mock_exists.return_value = False
@@ -90,6 +90,61 @@ class TestDoDownload:
         sql = mock_conn.execute.call_args[0][0]
         assert "INSERT INTO downloads" in sql
         assert download_progress["test_vid"]["status"] == "done"
+
+    @patch("downloads.COVERS_DIR")
+    @patch("downloads.LYRICS_DIR")
+    @patch("downloads.get_db")
+    @patch("downloads.urllib.request.urlopen")
+    @patch("downloads.Path.exists")
+    @patch("downloads.get_mp3_path")
+    @patch("yt_dlp.YoutubeDL")
+    def test_skips_download_when_mp3_exists(
+        self,
+        mock_ydl_cls,
+        mock_path,
+        mock_exists,
+        mock_urlopen,
+        mock_get_db,
+        mock_lyrics_dir,
+        mock_covers_dir,
+    ):
+        """MP3 ya presente: no debe volver a descargar (idempotencia de álbum)."""
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__.return_value = mock_ydl
+
+        mp3_mock = MagicMock(spec=Path)
+        mp3_mock.exists.return_value = True
+        mock_path.return_value = mp3_mock
+        mock_exists.return_value = False
+
+        mock_conn = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_conn
+
+        mock_cover_path = MagicMock(spec=Path)
+        mock_cover_path.exists.return_value = True
+        mock_covers_dir.__truediv__.return_value = mock_cover_path
+
+        mock_lyric_path = MagicMock(spec=Path)
+        mock_lyric_path.exists.return_value = True
+        mock_lyrics_dir.__truediv__.return_value = mock_lyric_path
+
+        from downloads import download_progress
+
+        do_download(
+            video_id="existing_vid",
+            title="Already There",
+            artist="Test Artist",
+            thumbnail="",
+            duration=100,
+            album_browse_id="MPREb_album",
+            artist_browse_id="UC_artist",
+        )
+
+        mock_ydl.download.assert_not_called()
+        assert download_progress["existing_vid"]["status"] == "done"
+        mock_conn.execute.assert_called()
+        args = mock_conn.execute.call_args[0][1]
+        assert "MPREb_album" in args and "UC_artist" in args
 
     @patch("downloads.COVERS_DIR")
     @patch("downloads.LYRICS_DIR")

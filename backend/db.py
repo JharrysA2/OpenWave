@@ -152,7 +152,8 @@ def init_db():
                 video_id TEXT PRIMARY KEY, title TEXT, artist TEXT,
                 thumbnail TEXT, duration INTEGER DEFAULT 0, file_path TEXT,
                 downloaded_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now')),
-                album_title TEXT DEFAULT '', album_type TEXT DEFAULT ''
+                album_title TEXT DEFAULT '', album_type TEXT DEFAULT '',
+                album_browse_id TEXT DEFAULT '', artist_browse_id TEXT DEFAULT ''
             );
         """)
 
@@ -180,7 +181,7 @@ def init_db():
             conn.commit()
         except Exception:
             pass
-        for col in ["album_title", "album_type"]:
+        for col in ["album_title", "album_type", "album_browse_id", "artist_browse_id"]:
             try:
                 conn.execute(f"ALTER TABLE downloads ADD COLUMN {col} TEXT DEFAULT ''")
                 conn.commit()

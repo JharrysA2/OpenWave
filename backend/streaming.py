@@ -25,18 +25,22 @@ def _ydl_get_url(video_id: str, client: str = "") -> tuple:
     Args:
         video_id: ID del video de YouTube.
         client: Client específico ("tv_embedded", "ios", etc.)
-                o "" para usar el default (android VR API, funciona sin cookies).
+                o "" para usar el default (client "android", funciona sin
+                cookies y sin PO token; sus URLs aceptan rangos completos).
+
+    Nota: el client "android" con itag 18 (mp4 progresivo) es el único que
+    sirve el archivo completo; los clients default/web restringen los rangos
+    a los primeros ~512KB y devuelven HTTP 403 para el resto.
     """
     opts = {
-        "format": "bestaudio",
+        "format": "18/bestaudio",
         "quiet": True,
         "no_warnings": True,
         "socket_timeout": 8,
         "retries": 0,
         "extractor_retries": 0,
+        "extractor_args": {"youtube": {"player_client": [client or "android"]}},
     }
-    if client:
-        opts["extractor_args"] = {"youtube": {"player_client": [client]}}
 
     with (
         contextlib.redirect_stderr(io.StringIO()),
@@ -145,7 +149,7 @@ def _extract_audio_url_sync(video_id: str) -> tuple:
 
     Estrategia (de más anónimo a menos):
     1. Caché en memoria/disco
-    2. Default (android VR API, funciona sin cookies ni JS runtime)
+    2. Default (client "android", itag 18, sin cookies ni JS runtime)
     3. tv_embedded (rápido, funciona con advertencia)
     4. Cookies del navegador (Chrome, Firefox, Edge, Brave) — solo si el usuario
        tiene una sesión activa de YouTube en su navegador
@@ -177,8 +181,9 @@ def _extract_audio_url_sync(video_id: str) -> tuple:
     try:
         errors = []
 
-        # ═══ 1. Default (sin extractor_args) — android VR API ═══
-        #    Funciona anónimamente, no requiere cookies ni JS runtime.
+        # ═══ 1. Default — client "android" (itag 18) ═══
+        #    Funciona anónimamente, no requiere cookies ni JS runtime, y sus
+        #    URLs aceptan rangos completos (los demás clients dan 403).
         try:
             url, headers = _ydl_get_url(video_id)  # client="" → default
             cache_url(video_id, url, headers)
@@ -234,7 +239,9 @@ async def stream_audio_generator(video_id: str):
         proc = await asyncio.create_subprocess_exec(
             "yt-dlp",
             "-f",
-            "bestaudio",
+            "18/bestaudio",
+            "--extractor-args",
+            "youtube:player_client=android",
             "-o",
             "-",
             "--quiet",

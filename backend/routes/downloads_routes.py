@@ -8,13 +8,24 @@ from cache import download_progress
 from config import BASE_DIR, COVERS_DIR, LYRICS_DIR, MUSIC_DIR
 from db import _parse_thumbs_json, get_db
 from downloads import do_download, get_mp3_path
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from logging_config import get_logger
 from rate_limit import limiter
 
 from utils import require_valid_video_id
 
+logger = get_logger(__name__)
+
 router = APIRouter()
+
+
+def _row_get(row, key: str, default: str = "") -> str:
+    """Leer una columna tolerando tablas antiguas sin ella."""
+    try:
+        return row[key] or default
+    except (IndexError, KeyError):
+        return default
 
 
 @router.post("/download/{video_id}")
@@ -32,14 +43,121 @@ async def start_download(video_id: str, request: Request):
             body.get("artist", ""),
             body.get("thumbnail", ""),
             int(body.get("duration", 0) or 0),
-            body.get("album_title", ""),
-            body.get("album_type", ""),
+            body.get("album_title", "") or body.get("albumTitle", ""),
+            body.get("album_type", "") or body.get("albumType", ""),
+            body.get("album_browse_id", "") or body.get("albumBrowseId", ""),
+            body.get("artist_browse_id", "") or body.get("artistBrowseId", ""),
         ),
         kwargs={"thumbnails": body.get("thumbnails", [])},
         daemon=True,
     )
     thread.start()
     return {"ok": True}
+
+
+def _album_key(browse_id: str) -> str:
+    return f"album:{browse_id}"
+
+
+def _download_album_thread(key: str, body: dict, tracks: list):
+    """Descargar un álbum completo de forma secuencial (thread aparte).
+
+    Reutiliza do_download por pista (que ya es idempotente) y expone un
+    progreso agregado en download_progress[key].
+    """
+    total = len(tracks)
+    errors = 0
+    download_progress[key] = {
+        "status": "downloading",
+        "progress": 0,
+        "done": 0,
+        "total": total,
+        "current": "",
+    }
+    try:
+        for i, t in enumerate(tracks):
+            vid = t.get("videoId") or t.get("video_id") or ""
+            if not vid:
+                continue
+            download_progress[key] = {
+                "status": "downloading",
+                "progress": round(i / total * 100, 1),
+                "done": i,
+                "total": total,
+                "current": t.get("title", ""),
+            }
+            do_download(
+                vid,
+                t.get("title", ""),
+                t.get("artist", ""),
+                t.get("thumbnail", "") or body.get("thumbnail", ""),
+                int(t.get("duration", 0) or 0),
+                album_title=t.get("albumTitle", "")
+                or t.get("album_title", "")
+                or body.get("title", ""),
+                album_type=t.get("albumType", "")
+                or t.get("album_type", "")
+                or body.get("type", ""),
+                album_browse_id=body.get("browseId", ""),
+                artist_browse_id=body.get("artistBrowseId", ""),
+                thumbnails=t.get("thumbnails") or body.get("thumbnails") or [],
+            )
+            if download_progress.get(vid, {}).get("status") == "error":
+                errors += 1
+        status = "error" if errors == total else "done"
+        download_progress[key] = {
+            "status": status,
+            "progress": 100,
+            "done": total,
+            "total": total,
+            "errors": errors,
+            "current": "",
+        }
+    except Exception as e:  # noqa: BLE001
+        logger.exception("album download failed: %s", e)
+        download_progress[key] = {"status": "error", "progress": 0, "error": str(e)}
+
+
+@router.post("/downloads/album")
+@limiter.limit("5/minute")
+async def download_album(request: Request):
+    """Descargar todas las canciones de un álbum (progreso agregado)."""
+    body = await request.json()
+    tracks = [t for t in (body.get("tracks") or []) if t.get("videoId")]
+    if not tracks:
+        raise HTTPException(status_code=400, detail="No hay canciones en el álbum")
+    key = _album_key(body.get("browseId") or body.get("title") or "")
+    current = download_progress.get(key, {})
+    if current.get("status") == "downloading":
+        return {"ok": True, "already": True}
+    thread = threading.Thread(
+        target=_download_album_thread, args=(key, body, tracks), daemon=True
+    )
+    thread.start()
+    return {"ok": True, "total": len(tracks)}
+
+
+@router.get("/download/progress/album/{browse_id}")
+async def download_album_progress(browse_id: str):
+    """SSE con el progreso agregado de una descarga de álbum."""
+    key = _album_key(browse_id)
+
+    async def event_stream():
+        while True:
+            progress = download_progress.get(key)
+            if progress is None:
+                progress = {
+                    "status": "downloading",
+                    "progress": 0,
+                    "done": 0,
+                    "total": 0,
+                }
+            yield f"data: {json.dumps(progress)}\n\n"
+            if progress.get("status") in ("done", "error"):
+                break
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.get("/download/progress/{video_id}")
@@ -89,6 +207,8 @@ async def list_downloads():
                     "size": size,
                     "albumTitle": r["album_title"] or "",
                     "albumType": r["album_type"] or "",
+                    "albumBrowseId": _row_get(r, "album_browse_id"),
+                    "artistBrowseId": _row_get(r, "artist_browse_id"),
                 }
             )
         return songs

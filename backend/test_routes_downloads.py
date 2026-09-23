@@ -441,3 +441,96 @@ class TestDeleteSelectedDownloads:
         """Eliminar seleccionados sin body lanza JSONDecodeError."""
         with pytest.raises(json.decoder.JSONDecodeError):
             client.post("/downloads/delete")
+
+
+class TestDownloadAlbum:
+    """Tests para POST /downloads/album y su progreso SSE."""
+
+    def test_download_album_success(self, client, mocker):
+        """Descargar álbum debe responder ok y lanzar do_download por pista."""
+        mock_do_download = mocker.patch("routes.downloads_routes.do_download")
+        mocker.patch.dict("routes.downloads_routes.download_progress", {}, clear=True)
+
+        resp = client.post(
+            "/downloads/album",
+            json={
+                "browseId": "MPREb_test_album_1",
+                "title": "Álbum de Prueba",
+                "type": "Album",
+                "artist": "Artista Prueba",
+                "artistBrowseId": "UC_test_artist",
+                "thumbnail": "https://example.com/cover.jpg",
+                "tracks": [
+                    {"videoId": "aaaaaaaaaaa", "title": "Track 1", "duration": 100},
+                    {"videoId": "bbbbbbbbbbb", "title": "Track 2", "duration": 120},
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["total"] == 2
+
+        import time
+
+        for _ in range(50):
+            if mock_do_download.call_count >= 2:
+                break
+            time.sleep(0.05)
+        assert mock_do_download.call_count == 2
+        # La pista lleva los ids de álbum/artista del body
+        kwargs = mock_do_download.call_args[1]
+        assert kwargs["album_browse_id"] == "MPREb_test_album_1"
+        assert kwargs["artist_browse_id"] == "UC_test_artist"
+
+    def test_download_album_empty_tracks(self, client):
+        """Sin canciones debe responder 400."""
+        resp = client.post("/downloads/album", json={"browseId": "MPREb_empty"})
+        assert resp.status_code == 400
+
+    def test_download_album_progress_done(self, client, mocker):
+        """El progreso del álbum debe emitir 'done' y cerrar."""
+        mocker.patch.dict(
+            "routes.downloads_routes.download_progress",
+            {
+                "album:MPREb_prog": {
+                    "status": "done",
+                    "progress": 100,
+                    "done": 3,
+                    "total": 3,
+                }
+            },
+            clear=True,
+        )
+        resp = client.get("/download/progress/album/MPREb_prog")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/event-stream")
+        assert resp.text.count("data:") == 1
+        assert "done" in resp.text
+
+    def test_list_downloads_exposes_browse_ids(self, client):
+        """GET /downloads debe incluir albumBrowseId y artistBrowseId."""
+        from db import get_db
+
+        with get_db() as conn:
+            conn.execute(
+                """INSERT INTO downloads
+                   (video_id, title, artist, thumbnail, duration,
+                    album_title, album_browse_id, artist_browse_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    "brws_ids_vid",
+                    "Song",
+                    "Artist",
+                    "t.jpg",
+                    180,
+                    "Album X",
+                    "MPREb_x",
+                    "UC_y",
+                ),
+            )
+
+        resp = client.get("/downloads")
+        found = [s for s in resp.json() if s["videoId"] == "brws_ids_vid"]
+        assert found and found[0]["albumBrowseId"] == "MPREb_x"
+        assert found[0]["artistBrowseId"] == "UC_y"

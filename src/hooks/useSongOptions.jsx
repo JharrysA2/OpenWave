@@ -60,7 +60,7 @@ export function useSongOptions({
       liked={optionsLiked}
       onLike={() => {
         const wasLiked = optionsLiked;
-        toggleLike(optionsSong?.videoId);
+        toggleLike(optionsSong?.videoId, optionsSong);
         setOptionsLiked((v) => !v);
         if (optionsSong && sendFeedback) {
           sendFeedback(wasLiked ? "unlike" : "like", optionsSong);

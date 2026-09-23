@@ -59,6 +59,15 @@ export const MainRouter = React.memo(function MainRouter({
   onPlaylistBack,
   onPlaylistUpdated,
   refreshPlaylists,
+  likedAlbums,
+  followedArtists,
+  isAlbumLiked,
+  toggleAlbumLike,
+  isArtistFollowed,
+  toggleFollow,
+  openEntityOptions,
+  playAlbum,
+  downloadAlbum,
 }) {
   if (showSettingsPanel) {
     return (
@@ -114,6 +123,10 @@ export const MainRouter = React.memo(function MainRouter({
           toast={toast}
           playlists={playlists}
           refreshPlaylists={refreshPlaylists}
+          isAlbumLiked={isAlbumLiked}
+          toggleAlbumLike={toggleAlbumLike}
+          openEntityOptions={openEntityOptions}
+          downloadAlbum={downloadAlbum}
         />
       </Suspense>
     );
@@ -136,6 +149,9 @@ export const MainRouter = React.memo(function MainRouter({
           onGoToAlbum={handleGoToAlbum}
           onGoToRelatedArtist={goToArtist}
           onBack={goBackFromDetail}
+          isArtistFollowed={isArtistFollowed}
+          toggleFollow={toggleFollow}
+          openEntityOptions={openEntityOptions}
         />
       </Suspense>
     );
@@ -187,6 +203,7 @@ export const MainRouter = React.memo(function MainRouter({
             onSelectAlbum={(a) => {
               if (a?.browseId) goToAlbum(a.browseId);
             }}
+            openEntityOptions={openEntityOptions}
           />
         </Suspense>
       );
@@ -201,6 +218,13 @@ export const MainRouter = React.memo(function MainRouter({
             playSong={playSong}
             toggleLike={toggleLike}
             openOptions={openOptions}
+            liked={liked}
+            likedAlbums={likedAlbums}
+            followedArtists={followedArtists}
+            openEntityOptions={openEntityOptions}
+            playAlbum={playAlbum}
+            goToAlbum={goToAlbum}
+            goToArtist={goToArtist}
           />
         </Suspense>
       );
@@ -231,6 +255,8 @@ export const MainRouter = React.memo(function MainRouter({
             openOptions={openOptions}
             toast={toast}
             onDownloadsCleared={onDownloadsCleared}
+            openEntityOptions={openEntityOptions}
+            goToAlbum={goToAlbum}
           />
         </Suspense>
       );

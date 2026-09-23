@@ -55,7 +55,11 @@ export function SongOptionsSheet({
       title: song.title,
       artist: song.artist,
       thumbnail: song.thumbnail,
+      thumbnails: song.thumbnails || [],
       duration: song.duration,
+      album_title: song.album || song.albumTitle || "",
+      album_browse_id: song.albumBrowseId || "",
+      artist_browse_id: song.artistBrowseId || "",
     });
     const es = new EventSource(`${api.base}/download/progress/${song.videoId}`);
     es.onmessage = (e) => {

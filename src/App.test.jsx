@@ -99,6 +99,7 @@ vi.mock("./hooks/useLibrary", () => ({
   useLibrary: () => ({
     liked: new Set(),
     setLiked: mockSetLiked,
+    likedMeta: {},
     history: [],
     setHistory: mockSetHistory,
     downloads: [],

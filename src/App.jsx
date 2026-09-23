@@ -13,6 +13,8 @@ import { useSearch } from "./hooks/useSearch";
 import { useLibrary } from "./hooks/useLibrary";
 import { useToast } from "./hooks/useToast";
 import { useSongOptions } from "./hooks/useSongOptions";
+import { useSavedEntities } from "./hooks/useSavedEntities";
+import { useEntityOptions } from "./hooks/useEntityOptions";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LyricsView } from "./components/LyricsView";
 import { TrackPickerModal } from "./components/TrackPickerModal";
@@ -60,6 +62,7 @@ function AppInner() {
   const {
     liked,
     setLiked,
+    likedMeta,
     history,
     setHistory,
     downloads,
@@ -110,6 +113,19 @@ function AppInner() {
     moveInQueue,
   } = player;
 
+  // ── Navegación a detalle: Álbum / Artista ─────────────────────────────
+  const [albumBrowseId, setAlbumBrowseId] = useState(null);
+  const [artistBrowseId, setArtistBrowseId] = useState(null);
+  const [prevTab, setPrevTab] = useState(null); // para volver atrás
+
+  // Cierra las vistas de detalle (álbum/artista) al cambiar de pestaña/lista:
+  // MainRouter las muestra con early-return, así que sin limpiar los ids la
+  // vista de detalle "ganaría" sobre cualquier tab seleccionado en la sidebar.
+  const closeDetailViews = useCallback(() => {
+    setAlbumBrowseId(null);
+    setArtistBrowseId(null);
+  }, []);
+
   // ── Estado de UI ────────────────────────────────────────────────────────────
   const [tab, setTab] = useState(() => settings.defaultTab || "home");
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
@@ -121,17 +137,19 @@ function AppInner() {
     (pl) => {
       setSelectedPlaylist(pl);
       setTab("playlist");
+      closeDetailViews();
       setShowSettingsPanel(false);
     },
-    [setSelectedPlaylist, setTab],
+    [setSelectedPlaylist, setTab, closeDetailViews],
   );
 
   const onOpenSettings = useCallback(() => setShowSettingsPanel(v => !v), [setShowSettingsPanel]);
 
   const handleTabChange = useCallback((t) => {
     setTab(t);
+    closeDetailViews();
     setShowSettingsPanel(false);
-  }, [setTab]);
+  }, [setTab, closeDetailViews]);
 
   const onCreatePlaylist = useCallback(
     () => setShowCreatePlaylistModal(true),
@@ -141,6 +159,8 @@ function AppInner() {
   // ── Playlist picker (desde el botón "Agregar a") ───────────────────────
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [playlistPickerSong, setPlaylistPickerSong] = useState(null);
+  // Selección múltiple (pistas de un álbum desde EntityOptionsSheet)
+  const [playlistPickerSongs, setPlaylistPickerSongs] = useState(null);
 
   // ── Track Picker ────────────────────────────────────────────────────────────
   const [trackPickerOpen, setTrackPickerOpen] = useState(false);
@@ -152,11 +172,6 @@ function AppInner() {
   const [selectionModalOpen, setSelectionModalOpen] = useState(false);
   const [selectionModalSongs, _setSelectionModalSongs] = useState([]);
   const [selectionModalMode, setSelectionModalMode] = useState(null);
-
-  // ── Navegación a detalle: Álbum / Artista ─────────────────────────────
-  const [albumBrowseId, setAlbumBrowseId] = useState(null);
-  const [artistBrowseId, setArtistBrowseId] = useState(null);
-  const [prevTab, setPrevTab] = useState(null); // para volver atrás
 
   // ── Conexión con el backend ────────────────────────────────────────────────
   //    El heartbeat vive en utils/backendHealth (external store). Aquí solo lo
@@ -212,7 +227,7 @@ function AppInner() {
   const handleToggleLike = useCallback(
     (videoId, song) => {
       const wasLiked = liked.has(videoId);
-      toggleLike(videoId);
+      toggleLike(videoId, song);
       if (sendFeedback) {
         sendFeedback(wasLiked ? "unlike" : "like", song || { videoId });
       }
@@ -221,13 +236,27 @@ function AppInner() {
   );
 
   // ── Canciones que te gustan (de todas las fuentes) ──────────────────────────
+  //    Ya no depende solo de la cola: incluye historial, descargas y los
+  //    metadatos guardados al dar like (sw_liked_meta_v1) — así las canciones
+  //    gustadas no desaparecen al cambiar de cola.
 
   const likedSongs = useMemo(() => {
-    const all = [...queue, currentSong].filter(Boolean);
-    return [...new Map(all.map((s) => [s.videoId, s])).values()].filter((s) =>
-      liked.has(s.videoId),
-    );
-  }, [liked, queue, currentSong]);
+    const byId = new Map();
+    const add = (s) => {
+      if (!s?.videoId || !liked.has(s.videoId)) return;
+      const prev = byId.get(s.videoId);
+      // El primero en entrar manda; los siguientes solo completan huecos
+      byId.set(s.videoId, prev ? { ...s, ...prev } : s);
+    };
+    // Orden: metadatos de "me gusta" (orden en que se dieron) primero
+    for (const [id, meta] of Object.entries(likedMeta || {})) add({ videoId: id, ...meta });
+    for (const s of queue) add(s);
+    for (const s of downloads) add(s);
+    for (const s of history) add(s);
+    if (currentSong) add(currentSong);
+    for (const id of liked) if (!byId.has(id)) byId.set(id, { videoId: id });
+    return [...byId.values()];
+  }, [liked, likedMeta, queue, currentSong, history, downloads]);
 
   // ── Handlers de navegación a detalle ──────────────────────────────────────
 
@@ -332,11 +361,42 @@ function AppInner() {
     toast,
   });
 
+  // ── Entidades guardadas (álbumes con ♥ y artistas que sigues) ──────────────
+
+  const {
+    likedAlbums,
+    followedArtists,
+    isAlbumLiked,
+    isArtistFollowed,
+    toggleAlbumLike,
+    toggleFollow,
+  } = useSavedEntities();
+
+  // ── Opciones de álbum/artista (hoja compartida + descarga de álbum) ────────
+
+  const { openEntityOptions, entityOptionsSheet, downloadAlbum, playAlbum } =
+    useEntityOptions({
+      toast,
+      isAlbumLiked,
+      toggleAlbumLike,
+      isArtistFollowed,
+      toggleFollow,
+      goToAlbum,
+      goToArtist,
+      playSong,
+      setShuffleActive,
+      setDownloads,
+      playlists,
+      setPlaylistPickerOpen,
+      setPlaylistPickerSongs,
+    });
+
   // ── Navegación ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
     setTab(settings.defaultTab || "home");
-  }, [settings.defaultTab]);
+    closeDetailViews();
+  }, [settings.defaultTab, closeDetailViews]);
 
   // ── Búsqueda desde HomeView ────────────────────────────────────────────────
   //    Cuando el usuario presiona Enter en la barra de búsqueda de HomeView,
@@ -469,6 +529,15 @@ function AppInner() {
               }}
               onPlaylistUpdated={() => refreshPlaylists()}
               refreshPlaylists={refreshPlaylists}
+              likedAlbums={likedAlbums}
+              followedArtists={followedArtists}
+              isAlbumLiked={isAlbumLiked}
+              toggleAlbumLike={toggleAlbumLike}
+              isArtistFollowed={isArtistFollowed}
+              toggleFollow={toggleFollow}
+              openEntityOptions={openEntityOptions}
+              playAlbum={playAlbum}
+              downloadAlbum={downloadAlbum}
             />
           </div>
         </div>
@@ -492,6 +561,9 @@ function AppInner() {
 
       {/* Song Options Sheet */}
       {songOptionsSheet}
+
+      {/* Entity Options Sheet (álbum / artista) */}
+      {entityOptionsSheet}
 
       {/* Track Picker Modal */}
       <TrackPickerModal
@@ -533,11 +605,13 @@ function AppInner() {
         open={playlistPickerOpen}
         playlists={playlists}
         song={playlistPickerSong}
+        songs={playlistPickerSongs}
         toast={toast}
         refreshPlaylists={refreshPlaylists}
         onClose={() => {
           setPlaylistPickerOpen(false);
           setPlaylistPickerSong(null);
+          setPlaylistPickerSongs(null);
         }}
       />
 
@@ -577,6 +651,7 @@ function AppInner() {
           // Refrescar desde el servidor — la fuente de verdad
           await refreshPlaylists();
           setSelectedPlaylist(newPlaylist);
+          closeDetailViews();
           setTab("playlist");
         }}
         toast={toast}

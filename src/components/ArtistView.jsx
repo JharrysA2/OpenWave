@@ -31,8 +31,28 @@ export default function ArtistView({
   onGoToAlbum,
   onGoToRelatedArtist,
   onBack,
+  isArtistFollowed,
+  toggleFollow,
+  openEntityOptions,
 }) {
   const [artist, setArtist] = useState(null);
+
+  // ── Seguir / Dejar de seguir ────────────────────────────────────
+  const following = !!isArtistFollowed?.({ browseId, name: artist?.name });
+
+  const artistEntity = artist
+    ? {
+        browseId,
+        name: artist.name || "",
+        thumbnail: artist.thumbnail || "",
+        thumbnails: artist.thumbnails || [],
+      }
+    : null;
+
+  const handleFollow = () => {
+    if (!artistEntity) return;
+    toggleFollow?.(artistEntity);
+  };
   const [relatedArtists, setRelatedArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAllSongs, setShowAllSongs] = useState(false);
@@ -253,6 +273,55 @@ export default function ArtistView({
                 </span>
               )}
             </div>
+
+            {/* Seguir + opciones del artista */}
+            <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
+              <button
+                onClick={handleFollow}
+                style={{
+                  ...GLASS.btn,
+                  borderRadius: RADIUS.pill,
+                  padding: "7px 22px",
+                  fontSize: "12.5px",
+                  fontWeight: "700",
+                  fontFamily: FONT,
+                  cursor: "pointer",
+                  background: following ? undefined : accentColor,
+                  color: following ? COLORS.textPrimary : COLORS.black,
+                  border: following ? "1px solid rgba(255,255,255,.2)" : "none",
+                  boxShadow: following ? "none" : `0 2px 10px ${withAlpha(accentColor, "44")}`,
+                  transition: TRANSITIONS.fast,
+                }}
+                onMouseEnter={(e) => {
+                  if (following) e.currentTarget.style.background = GLASS.btnHover.background;
+                  else e.currentTarget.style.opacity = "0.88";
+                }}
+                onMouseLeave={(e) => {
+                  if (following) e.currentTarget.style.background = "";
+                  else e.currentTarget.style.opacity = "1";
+                }}
+              >
+                {following ? "Siguiendo" : "Seguir"}
+              </button>
+              <button
+                title="Más opciones"
+                onClick={() => openEntityOptions?.("artist", artistEntity)}
+                style={{
+                  ...GLASS.btn,
+                  borderRadius: RADIUS.full,
+                  width: "34px",
+                  height: "34px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: "rgba(255,255,255,.7)",
+                  padding: 0,
+                }}
+              >
+                {Ic.dots}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -465,6 +534,7 @@ export default function ArtistView({
                   animationDelay={200 + i * 40}
                   subtitle={`${a.type}${a.year ? ` · ${a.year}` : ""}`}
                   onClick={() => onGoToAlbum && onGoToAlbum(a)}
+                  onOptions={(al) => openEntityOptions?.("album", al)}
                 />
               ))}
             </div>

@@ -42,6 +42,7 @@ export default function SearchView({
   searchInputRef,
   onSelectArtist,
   onSelectAlbum,
+  openEntityOptions,
 }) {
   // ── Estado local del input (solo se busca en Enter/click lupa) ─────────
   const [localQuery, setLocalQuery] = React.useState(query || "");
@@ -326,6 +327,7 @@ export default function SearchView({
                     animationDelay={i * 60 + 200}
                     subtitle={`${a.type} · ${a.year || a.artist}`}
                     onClick={() => onSelectAlbum && onSelectAlbum(a)}
+                    onOptions={(al) => openEntityOptions?.("album", al)}
                   />
                 ))}
               </div>

@@ -1,4 +1,5 @@
 import React from "react";
+import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, GLASS, LAYOUTS, TRANSITIONS, ANIMATIONS } from "../utils/theme";
 
@@ -6,7 +7,7 @@ import { COLORS, GLASS, LAYOUTS, TRANSITIONS, ANIMATIONS } from "../utils/theme"
  * Tarjeta de álbum horizontal (SearchView/ArtistView).
  * `subtitle` es texto ya formateado por el caller; `animationDelay` en ms.
  */
-export default React.memo(function AlbumCardRow({ album, minWidth = 130, animationDelay = 200, subtitle, onClick }) {
+export default React.memo(function AlbumCardRow({ album, minWidth = 130, animationDelay = 200, subtitle, onClick, onOptions }) {
   return (
     <div
       onClick={onClick}
@@ -29,13 +30,52 @@ export default React.memo(function AlbumCardRow({ album, minWidth = 130, animati
         e.currentTarget.style.transform = "translateY(0)";
       }}
     >
-      <MusicCover
-        thumbnails={album.thumbnails}
-        src={album.thumbnail}
-        displaySize={160}
-        alt={album.title}
-        style={{ width: "100%", aspectRatio: "1" }}
-      />
+      <div style={{ position: "relative" }}>
+        <MusicCover
+          thumbnails={album.thumbnails}
+          src={album.thumbnail}
+          displaySize={160}
+          alt={album.title}
+          style={{ width: "100%", aspectRatio: "1" }}
+        />
+        {onOptions && (
+          <button
+            title="Más opciones"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOptions(album);
+            }}
+            style={{
+              position: "absolute",
+              right: "6px",
+              top: "6px",
+              background: "rgba(0,0,0,.55)",
+              border: "1px solid rgba(255,255,255,.18)",
+              borderRadius: "999px",
+              width: "30px",
+              height: "30px",
+              cursor: "pointer",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              backdropFilter: "blur(6px)",
+              transition: "all .15s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(0,0,0,.75)";
+              e.currentTarget.style.transform = "scale(1.08)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(0,0,0,.55)";
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          >
+            {Ic.dots}
+          </button>
+        )}
+      </div>
       <div style={{ padding: "8px 10px 10px" }}>
         <div
           style={{

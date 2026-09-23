@@ -4,28 +4,33 @@ import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS } from "../utils/theme";
 import { api } from "../utils/api";
 import { Ic } from "../icons/Icons";
 
-export function PlaylistPickerModal({ open, playlists, song, toast, refreshPlaylists, onClose }) {
+export function PlaylistPickerModal({ open, playlists, song, songs, toast, refreshPlaylists, onClose }) {
   if (!open) return null;
 
+  // Una canción (song) o varias (songs, p.ej. las pistas de un álbum)
+  const list = Array.isArray(songs) && songs.length > 0 ? songs : song ? [song] : [];
+
   const addToPlaylist = (pl) => {
+    if (list.length === 0) return;
     api
       .post(`/playlists/${pl.id}/songs`, {
-        videoIds: [song?.videoId],
-        songs: [
-          song
-            ? {
-                videoId: song.videoId,
-                title: song.title || "",
-                artist: song.artist || "",
-                thumbnail: song.thumbnail || "",
-                thumbnails: song.thumbnails || [],
-                duration: song.duration || 0,
-              }
-            : null,
-        ],
+        videoIds: list.map((s) => s.videoId),
+        songs: list.map((s) => ({
+          videoId: s.videoId,
+          title: s.title || "",
+          artist: s.artist || "",
+          thumbnail: s.thumbnail || "",
+          thumbnails: s.thumbnails || [],
+          duration: s.duration || 0,
+        })),
       })
       .then(async () => {
-        toast(`Agregada a "${pl.name}"`, "success");
+        toast(
+          list.length > 1
+            ? `${list.length} canciones agregadas a "${pl.name}"`
+            : `Agregada a "${pl.name}"`,
+          "success",
+        );
         onClose();
         // Refresh playlists to update song count in sidebar
         await refreshPlaylists();

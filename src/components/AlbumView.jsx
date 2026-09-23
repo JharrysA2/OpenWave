@@ -31,8 +31,34 @@ export default function AlbumView({
   toast,
   playlists,
   refreshPlaylists,
+  isAlbumLiked,
+  toggleAlbumLike,
+  openEntityOptions,
+  downloadAlbum,
 }) {
   const [album, setAlbum] = useState(null);
+
+  // ── Entidad "álbum" para Me gusta / hoja de opciones ───────────────
+  const albumEntity = album
+    ? {
+        browseId,
+        title: album.title || "",
+        artist: album.artist || "",
+        type: album.type || "",
+        year: album.year || "",
+        artistBrowseId: album.artistBrowseId || "",
+        thumbnail: album.thumbnail || "",
+        thumbnails: album.thumbnails || [],
+      }
+    : null;
+
+  const albumLiked = !!isAlbumLiked?.(browseId);
+
+  const handleAlbumLike = () => {
+    if (!albumEntity) return;
+    const added = toggleAlbumLike?.(albumEntity);
+    toast?.(added ? "Añadido a Me gusta" : "Quitado de Me gusta", added ? "success" : "info");
+  };
   const [loading, setLoading] = useState(true);
 
   // ── Multi-select mode ──
@@ -68,7 +94,7 @@ export default function AlbumView({
     const songsToTransfer = album.tracks.filter((t) => selected.has(t.videoId));
     await api.addToPlaylist(targetPlaylistId, songsToTransfer, toast);
     toast(
-      `${songsToTransfer.length} canción${songsToTransfer.length !== 1 ? "es" : ""} transferida${songsToTransfer.length !== 1 ? "s" : ""}`,
+      `${songsToTransfer.length} ${songsToTransfer.length === 1 ? "canción" : "canciones"} transferida${songsToTransfer.length !== 1 ? "s" : ""}`,
       "success",
     );
     setShowTransferModal(false);
@@ -82,7 +108,7 @@ export default function AlbumView({
     const count = selected.size;
     resetSelect();
     toast(
-      `${count} canción${count !== 1 ? "es" : ""} eliminada${count !== 1 ? "s" : ""} de la selección`,
+      `${count} ${count === 1 ? "canción" : "canciones"} eliminada${count !== 1 ? "s" : ""} de la selección`,
       "success",
     );
   };
@@ -374,6 +400,98 @@ export default function AlbumView({
               <path d="M8 5v14l11-7z" />
             </svg>
             Reproducir
+          </button>
+
+          {/* Me gusta (album) */}
+          <button
+            onClick={handleAlbumLike}
+            title="Me gusta"
+            style={{
+              ...GLASS.btn,
+              borderRadius: RADIUS.pill,
+              padding: "9px 16px",
+              fontSize: "12.5px",
+              fontWeight: "700",
+              fontFamily: FONT,
+              cursor: "pointer",
+              color: albumLiked ? COLORS.likeColor : "rgba(255,255,255,.6)",
+              background: albumLiked ? withAlpha(COLORS.likeColor, "14") : undefined,
+              border: albumLiked
+                ? `1px solid ${withAlpha(COLORS.likeColor, "40")}`
+                : undefined,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              transition: TRANSITIONS.fast,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = albumLiked
+                ? withAlpha(COLORS.likeColor, "20")
+                : GLASS.btnHover.background;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = albumLiked
+                ? withAlpha(COLORS.likeColor, "14")
+                : "";
+            }}
+          >
+            {Ic.heart(albumLiked, 16)}
+            {albumLiked ? "Guardado" : "Me gusta"}
+          </button>
+
+          {/* Descargar álbum completo */}
+          <button
+            onClick={() => albumEntity && downloadAlbum?.(albumEntity)}
+            title="Descargar álbum completo"
+            style={{
+              ...GLASS.btn,
+              borderRadius: RADIUS.pill,
+              padding: "9px 16px",
+              fontSize: "12.5px",
+              fontWeight: "700",
+              fontFamily: FONT,
+              cursor: "pointer",
+              color: "rgba(255,255,255,.6)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              transition: TRANSITIONS.fast,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = GLASS.btnHover.background;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "";
+            }}
+          >
+            {Ic.download(16)}
+            Descargar
+          </button>
+
+          {/* Opciones del álbum (⋮) */}
+          <button
+            onClick={() => albumEntity && openEntityOptions?.("album", albumEntity)}
+            title="Más opciones del álbum"
+            style={{
+              ...GLASS.btn,
+              borderRadius: RADIUS.full,
+              width: "36px",
+              height: "36px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "rgba(255,255,255,.6)",
+              padding: 0,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = GLASS.btnHover.background;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "";
+            }}
+          >
+            {Ic.dots}
           </button>
 
           {/* Select mode toggle */}

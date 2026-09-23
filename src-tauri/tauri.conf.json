@@ -27,18 +27,17 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:8765 https://*.ytimg.com https://*.googleusercontent.com; img-src 'self' https: data: blob:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; script-src 'self'; frame-src 'none'; object-src 'none'"
+      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:8765 https://*.ytimg.com https://*.googleusercontent.com; img-src 'self' https: data: blob:; media-src 'self' https: http://127.0.0.1:8765; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; script-src 'self'; frame-src 'none'; object-src 'none'"
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["msi", "nsis"],
     "icon": [
       "icons/16x16.png",
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
-      "icons/icon.icns",
       "icons/icon.ico"
     ],
     "resources": ["../backend/**/*"]

@@ -72,6 +72,13 @@ function AppInner() {
     mostPlayed,
     refreshPlaylists,
   } = useLibrary();
+
+  // Ids de canciones descargadas — PlaylistView los usa para marcar
+  // `downloaded: true` y reproducir desde el archivo local (sin conexión).
+  const downloadedIds = useMemo(
+    () => new Set((downloads || []).map((d) => d.videoId || d.video_id)),
+    [downloads],
+  );
   const player = usePlayer(toast, results, settings.crossfade || 0);
   const {
     currentSong,
@@ -501,6 +508,7 @@ function AppInner() {
                   (prev || []).filter((d) => !videoIds.includes(d.videoId || d.video_id)),
                 )
               }
+              downloadedIds={downloadedIds}
               onHistoryCleared={() => setHistory([])}
               liked={liked}
               history={history}

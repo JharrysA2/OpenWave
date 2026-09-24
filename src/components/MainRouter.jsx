@@ -24,6 +24,7 @@ export const MainRouter = React.memo(function MainRouter({
   onHistoryCleared,
   onDownloadsCleared,
   onDownloadsRemoved,
+  downloadedIds,
   liked,
   history,
   playlists,
@@ -284,6 +285,7 @@ export const MainRouter = React.memo(function MainRouter({
             onPlaylistUpdated={onPlaylistUpdated}
             playlists={playlists}
             refreshPlaylists={refreshPlaylists}
+            downloadedIds={downloadedIds}
           />
         </Suspense>
       );

@@ -91,6 +91,25 @@ describe("PlaylistView", () => {
     );
   });
 
+  it("marks downloaded songs to play them from the local file (offline)", async () => {
+    render(<PlaylistView {...defaultProps} downloadedIds={new Set(["v1"])} />);
+    await waitFor(() => {
+      expect(screen.getByText("Song A")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Song A"));
+    expect(defaultProps.playSong).toHaveBeenCalledWith(
+      expect.objectContaining({ videoId: "v1", downloaded: true }),
+      0,
+      false,
+      expect.any(Array),
+    );
+    // La cola conserva el flag: la descargada sale `downloaded:true`
+    // y la que no está descargada queda sin marcar.
+    expect(defaultProps.playSong.mock.calls[0][3][0].downloaded).toBe(true);
+    expect(defaultProps.playSong.mock.calls[0][3][1].downloaded).toBeUndefined();
+  });
+
   it("should rename the playlist", async () => {
     api.renamePlaylist.mockResolvedValue(true);
     render(<PlaylistView {...defaultProps} />);

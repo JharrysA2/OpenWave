@@ -27,6 +27,7 @@ export default function PlaylistView({
   onPlaylistUpdated,
   playlists,
   refreshPlaylists,
+  downloadedIds = null,
 }) {
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +35,11 @@ export default function PlaylistView({
   const [editName, setEditName] = useState(playlist?.name || "");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
+
+  // Ref siempre fresco de los ids descargados — se usa al cargar las canciones
+  // y se re-sincroniza si la lista de descargas cambia con la vista abierta.
+  const downloadedIdsRef = useRef(downloadedIds);
+  downloadedIdsRef.current = downloadedIds;
 
   // ── Multi-select mode ──
   const {
@@ -55,7 +61,13 @@ export default function PlaylistView({
     setLoading(true);
     api.fetchPlaylistSongs(playlist.id, toast).then((data) => {
       if (!cancelled) {
-        setSongs(data || []);
+        // Marcar las canciones descargadas para que usePlayer reproduzca el
+        // archivo local (offline) en vez de pedir stream al backend.
+        setSongs(
+          (data || []).map((s) =>
+            downloadedIdsRef.current?.has(s.videoId) ? { ...s, downloaded: true } : s,
+          ),
+        );
         setLoading(false);
       }
     });
@@ -63,6 +75,21 @@ export default function PlaylistView({
       cancelled = true;
     };
   }, [playlist?.id, toast]);
+
+  // Mantener `downloaded` al día si cambia la lista de descargas con la
+  // playlist abierta (nueva descarga o borrado desde otra vista).
+  useEffect(() => {
+    setSongs((prev) => {
+      let changed = false;
+      const next = prev.map((s) => {
+        const should = !!downloadedIds?.has(s.videoId);
+        if (!!s.downloaded === should) return s;
+        changed = true;
+        return should ? { ...s, downloaded: true } : { ...s, downloaded: false };
+      });
+      return changed ? next : prev;
+    });
+  }, [downloadedIds]);
 
   // ── Save edited name ──
   const saveName = async () => {

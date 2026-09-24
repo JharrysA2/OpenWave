@@ -145,11 +145,18 @@ function AppInner() {
 
   const onOpenSettings = useCallback(() => setShowSettingsPanel(v => !v), [setShowSettingsPanel]);
 
-  const handleTabChange = useCallback((t) => {
-    setTab(t);
-    closeDetailViews();
-    setShowSettingsPanel(false);
-  }, [setTab, closeDetailViews]);
+  const handleTabChange = useCallback(
+    (t) => {
+      // Click en la sección ya activa → volver a Inicio (así se "sale" de
+      // Me gusta/Descargas pulsando su propia entrada en la sidebar). Desde
+      // una vista de detalle, en cambio, se cierra y muestra su sección.
+      const inDetail = !!albumBrowseId || !!artistBrowseId;
+      setTab((prev) => (t !== "home" && !inDetail && prev === t ? "home" : t));
+      closeDetailViews();
+      setShowSettingsPanel(false);
+    },
+    [albumBrowseId, artistBrowseId, closeDetailViews],
+  );
 
   const onCreatePlaylist = useCallback(
     () => setShowCreatePlaylistModal(true),

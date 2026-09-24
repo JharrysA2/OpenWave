@@ -81,4 +81,40 @@ test.describe("Biblioteca (Likes, Historial, Descargas)", () => {
       await expect(page.getByText(/Encuentra cualquier canción/)).toBeVisible();
     });
   });
+
+  test.describe("Salir de las vistas de biblioteca", () => {
+    test("pulsar la sección activa (Descargas) vuelve a Inicio", async ({ page }) => {
+      await page.getByRole("navigation").getByRole("button", { name: "Descargas" }).click();
+      await expect(page.getByRole("heading", { name: "Descargas" })).toBeVisible();
+
+      // Segundo click en la MISMA sección → debe salir a Inicio
+      await page.getByRole("navigation").getByRole("button", { name: "Descargas" }).click();
+      await expect(page.getByRole("heading", { name: "Descargas" })).toHaveCount(0);
+      await expect(page.getByText(/Busca tu primera canción/)).toBeVisible();
+    });
+
+    test("pulsar la sección activa (Me gusta) vuelve a Inicio", async ({ page }) => {
+      await page.getByRole("navigation").getByRole("button", { name: "Me gusta" }).click();
+      await expect(page.getByRole("heading", { name: "Me gusta" })).toBeVisible();
+
+      await page.getByRole("navigation").getByRole("button", { name: "Me gusta" }).click();
+      await expect(page.getByRole("heading", { name: "Me gusta" })).toHaveCount(0);
+      await expect(page.getByText(/Busca tu primera canción/)).toBeVisible();
+    });
+
+    test("cambiar a otra sección distinta sale de la vista actual", async ({ page }) => {
+      await page.getByRole("navigation").getByRole("button", { name: "Descargas" }).click();
+      await expect(page.getByRole("heading", { name: "Descargas" })).toBeVisible();
+
+      await page.getByRole("navigation").getByRole("button", { name: "Historial" }).click();
+      await expect(page.getByRole("heading", { name: "Descargas" })).toHaveCount(0);
+      await expect(page.getByText(/No hay historial/)).toBeVisible();
+    });
+
+    test("de Inicio, un solo click en una sección la abre (sin toggle inverso)", async ({ page }) => {
+      await expect(page.getByText(/Busca tu primera canción/)).toBeVisible();
+      await page.getByRole("navigation").getByRole("button", { name: "Me gusta" }).click();
+      await expect(page.getByRole("heading", { name: "Me gusta" })).toBeVisible();
+    });
+  });
 });

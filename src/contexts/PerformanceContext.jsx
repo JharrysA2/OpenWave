@@ -3,8 +3,6 @@ import { useVisibility } from "../hooks/useVisibility";
 import { useSettings } from "./useSettings";
 import { isSoftwareRenderer } from "../utils/softwareRenderer";
 
-// TEMP-DIAG: eliminar — sonda de medición de rendimiento ya completada.
-
 // Default «balanced» (todo activo): si un componente se usa fuera del provider
 // (tests unitarios, aislado) recibe un objeto válido en vez de null, para no
 // reventar al desestructurar ({ visible, ... }).

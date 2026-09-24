@@ -23,7 +23,8 @@ test.describe("Navegación", () => {
 
   test("debe navegar a la vista Me gusta", async ({ page }) => {
     await page.getByRole("button", { name: "Me gusta" }).click();
-    await expect(page.getByRole("heading", { name: "Canciones que te gustan" })).toBeVisible();
+    // Tras el rediseño, el h1 de LikedView es "Me gusta" (antes: "Canciones que te gustan")
+    await expect(page.getByRole("heading", { name: "Me gusta" })).toBeVisible();
   });
 
   test("debe navegar a Historial", async ({ page }) => {
@@ -39,7 +40,8 @@ test.describe("Navegación", () => {
   test("debe navegar de vuelta a Inicio desde otra vista", async ({ page }) => {
     await page.getByRole("button", { name: "Buscar" }).click();
     await page.getByRole("button", { name: "Inicio" }).click();
-    await expect(page.getByRole("heading", { name: "Inicio" })).toBeVisible();
+    // HomeView no tiene heading literal "Inicio": su bienvenida vacía es el texto
+    await expect(page.getByText(/Busca tu primera canción/)).toBeVisible();
   });
 
   test("el botón de ajustes debe abrir el panel de configuración", async ({ page }) => {

@@ -12,7 +12,6 @@ const PerformanceContext = createContext({
   solidOn: false,
   visible: true,
 });
-export { PerformanceContext };
 
 /**
  * PerformanceProvider — sin humo, solo 3 cosas:

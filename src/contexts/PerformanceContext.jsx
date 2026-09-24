@@ -2,7 +2,16 @@ import React, { createContext, useContext, useMemo, useEffect } from "react";
 import { useVisibility } from "../hooks/useVisibility";
 import { useSettings } from "./useSettings";
 
-const PerformanceContext = createContext(null);
+// Default «balanced» (todo activo): si un componente se usa fuera del provider
+// (tests unitarios, aislado) recibe un objeto válido en vez de null, para no
+// reventar al desestructurar ({ visible, ... }).
+const PerformanceContext = createContext({
+  blurOn: true,
+  animOn: true,
+  shadowOn: true,
+  solidOn: false,
+  visible: true,
+});
 export { PerformanceContext };
 
 /**

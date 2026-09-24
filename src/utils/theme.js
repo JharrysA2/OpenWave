@@ -608,7 +608,9 @@ export const GLASS = {
     WebkitBackdropFilter: "blur(6px)",
   },
 
-  /** Botón glass hover */
+  /** Hover de botón glass sobre superficies NO glass (fondo opaco).
+   *  Sobre superficies ya glass usar btnHoverSoft: este salta a "blanco
+   *  plano" y se ve doblado. */
   btnHover: {
     background: "linear-gradient(135deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,.08) 100%)",
     border: `1px solid rgba(255,255,255,.25)`,
@@ -622,7 +624,9 @@ export const GLASS = {
     border: `1px solid rgba(255,255,255,.18)`,
   },
 
-  /** Botón play — glass con glow sutil del acento */
+  /** Botón play — degradado del acento + glow del acento. Sin blur: es el
+   *  botón principal del reproductor y su glow es box-shadow puro, así que no
+   *  re-difumina fondo en cada repintado. */
   playBtn: (accentColor) => ({
     background: `linear-gradient(135deg, ${accentColor}, color-mix(in srgb, ${accentColor} 80%, white))`,
     border: "none",

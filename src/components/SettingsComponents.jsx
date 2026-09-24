@@ -15,7 +15,7 @@ export function SettingRow({ icon, label, desc, right, onClick, border = true })
         gap: "14px",
         padding: "13px 18px",
         cursor: onClick ? "pointer" : "default",
-        background: hov && onClick ? GLASS.btnHover.background : "transparent",
+        background: hov && onClick ? GLASS.btnHoverSoft.background : "transparent",
         borderBottom: border ? "1px solid rgba(255,255,255,.05)" : "none",
         transition: TRANSITIONS.fast,
       }}

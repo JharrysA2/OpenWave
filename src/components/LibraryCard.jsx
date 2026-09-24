@@ -24,6 +24,8 @@ function CardButton({ children, onClick, title, style, hover }) {
     // Sin backdropFilter: un blur anidado aplica el cristal dos veces, se ve
     // turbio y en render por software multiplica el coste (además las
     // tarjetas ya no difuminan de pie — ver AlbumGridCard/ArtistGridCard).
+    // Es además la excepción documentada al liquid glass: sobre portada el
+    // opaco rgba(0,0,0,.55) garantiza legibilidad sin depender del blur.
     transition: "all .15s ease",
     ...style,
   };

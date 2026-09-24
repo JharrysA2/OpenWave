@@ -455,7 +455,7 @@ export const PlayerBar = memo(function PlayerBar({
                   transition: "all .15s cubic-bezier(.16,1,.3,1)",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = GLASS.btnHover.background;
+                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                   e.currentTarget.style.color = accentColor;
                   e.currentTarget.style.transform = "scale(1.08)";
                 }}
@@ -564,7 +564,7 @@ export const PlayerBar = memo(function PlayerBar({
                   transition: "all .15s cubic-bezier(.16,1,.3,1)",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = GLASS.btnHover.background;
+                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                   e.currentTarget.style.color = accentColor;
                   e.currentTarget.style.transform = "scale(1.08)";
                 }}
@@ -613,7 +613,7 @@ export const PlayerBar = memo(function PlayerBar({
                 transition: "all .15s cubic-bezier(.16,1,.3,1)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = GLASS.btnHover.background;
+                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                 e.currentTarget.style.color = accentColor;
                 e.currentTarget.style.transform = "scale(1.08)";
               }}
@@ -663,7 +663,7 @@ export const PlayerBar = memo(function PlayerBar({
                 transition: "all .15s cubic-bezier(.16,1,.3,1)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = GLASS.btnHover.background;
+                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                 e.currentTarget.style.color = accentColor;
                 e.currentTarget.style.transform = "scale(1.08)";
               }}
@@ -784,7 +784,7 @@ export const PlayerBar = memo(function PlayerBar({
                 transition: "all .15s cubic-bezier(.16,1,.3,1)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = GLASS.btnHover.background;
+                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                 e.currentTarget.style.color = accentColor;
                 e.currentTarget.style.transform = "scale(1.08)";
               }}
@@ -817,7 +817,7 @@ export const PlayerBar = memo(function PlayerBar({
             }}
             onMouseEnter={(e) => {
               if (song) {
-                e.currentTarget.style.background = GLASS.btnHover.background;
+                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                 e.currentTarget.style.color = accentColor;
                 e.currentTarget.style.transform = "scale(1.08)";
               }

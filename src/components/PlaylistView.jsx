@@ -7,14 +7,7 @@ import { ConfirmModal } from "./ConfirmModal";
 import TrackList from "./TrackList";
 import { useMultiSelect } from "../hooks/useMultiSelect";
 import { TransferModal } from "./TransferModal";
-import {
-  COLORS,
-  RADIUS,
-  SPACING,
-  TRANSITIONS,
-  GLASS,
-  ANIMATIONS,
-} from "../utils/theme";
+import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, ANIMATIONS } from "../utils/theme";
 
 export default function PlaylistView({
   playlist,
@@ -250,7 +243,7 @@ export default function PlaylistView({
             transition: TRANSITIONS.fast,
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = GLASS.btnHover.background;
+            e.currentTarget.style.background = GLASS.btnHoverSoft.background;
             e.currentTarget.style.color = "rgba(255,255,255,.9)";
           }}
           onMouseLeave={(e) => {

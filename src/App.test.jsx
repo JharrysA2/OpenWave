@@ -150,42 +150,48 @@ vi.mock("./components/PlayerBar", () => ({
   ),
 }));
 
-vi.mock("./components/HomeView", () => ({
-  HomeView: ({ currentSong, playSong, history, accentColor }) => (
+vi.mock("./components/HomeView", () => {
+  const HomeView = ({ currentSong, playSong, history, accentColor }) => (
     <div data-testid="home-view">
       HomeView - {currentSong?.title || "No Song"} - {accentColor || "no-color"}
     </div>
-  ),
-}));
+  );
+  // MainRouter usa React.lazy(() => import(...)) → requiere el export default
+  return { default: HomeView, HomeView };
+});
 
-vi.mock("./components/SearchView", () => ({
-  SearchView: ({ query, results }) => (
+vi.mock("./components/SearchView", () => {
+  const SearchView = ({ query, results }) => (
     <div data-testid="search-view">
       SearchView - {query} - {results?.length} results
     </div>
-  ),
-}));
+  );
+  return { default: SearchView, SearchView };
+});
 
-vi.mock("./components/LikedView", () => ({
-  LikedView: ({ likedSongs }) => (
+vi.mock("./components/LikedView", () => {
+  const LikedView = ({ likedSongs }) => (
     <div data-testid="liked-view">LikedView - {likedSongs?.length} songs</div>
-  ),
-}));
+  );
+  return { default: LikedView, LikedView };
+});
 
-vi.mock("./components/HistoryView", () => ({
-  HistoryView: ({ history }) => (
+vi.mock("./components/HistoryView", () => {
+  const HistoryView = ({ history }) => (
     <div data-testid="history-view">HistoryView - {history?.length} items</div>
-  ),
-}));
+  );
+  return { default: HistoryView, HistoryView };
+});
 
-vi.mock("./components/DownloadsView", () => ({
-  DownloadsView: ({ downloads }) => (
+vi.mock("./components/DownloadsView", () => {
+  const DownloadsView = ({ downloads }) => (
     <div data-testid="downloads-view">DownloadsView - {downloads?.length} items</div>
-  ),
-}));
+  );
+  return { default: DownloadsView, DownloadsView };
+});
 
-vi.mock("./components/SettingsPanel", () => ({
-  SettingsPanel: ({ open, onClose, downloads, history }) =>
+vi.mock("./components/SettingsPanel", () => {
+  const SettingsPanel = ({ open, onClose, downloads, history }) =>
     open ? (
       <div data-testid="settings-panel">
         SettingsPanel - {downloads?.length} downloads - {history?.length} history
@@ -193,8 +199,9 @@ vi.mock("./components/SettingsPanel", () => ({
           Close
         </button>
       </div>
-    ) : null,
-}));
+    ) : null;
+  return { default: SettingsPanel, SettingsPanel };
+});
 
 vi.mock("./components/Toast", () => ({
   Toasts: ({ toasts }) => <div data-testid="toasts">Toasts - {toasts?.length}</div>,
@@ -284,28 +291,29 @@ describe("App — Componente principal", () => {
     expect(screen.getByTestId("home-view")).toBeInTheDocument();
   });
 
-  it("should navigate to SearchView when clicking Buscar", () => {
+  it("should navigate to SearchView when clicking Buscar", async () => {
     render(<App />);
     fireEvent.click(screen.getByText("Buscar"));
-    expect(screen.getByTestId("search-view")).toBeInTheDocument();
+    // React.lazy + Suspense: la vista se resuelve de forma asíncrona
+    expect(await screen.findByTestId("search-view")).toBeInTheDocument();
   });
 
-  it("should navigate to LikedView when clicking Me gusta", () => {
+  it("should navigate to LikedView when clicking Me gusta", async () => {
     render(<App />);
     fireEvent.click(screen.getByText("Me gusta"));
-    expect(screen.getByTestId("liked-view")).toBeInTheDocument();
+    expect(await screen.findByTestId("liked-view")).toBeInTheDocument();
   });
 
-  it("should navigate to HistoryView when clicking Historial", () => {
+  it("should navigate to HistoryView when clicking Historial", async () => {
     render(<App />);
     fireEvent.click(screen.getByText("Historial"));
-    expect(screen.getByTestId("history-view")).toBeInTheDocument();
+    expect(await screen.findByTestId("history-view")).toBeInTheDocument();
   });
 
-  it("should navigate to DownloadsView when clicking Descargas", () => {
+  it("should navigate to DownloadsView when clicking Descargas", async () => {
     render(<App />);
     fireEvent.click(screen.getByText("Descargas"));
-    expect(screen.getByTestId("downloads-view")).toBeInTheDocument();
+    expect(await screen.findByTestId("downloads-view")).toBeInTheDocument();
   });
 
   // ── Settings Panel ──────────────────────────────────────────────────────────
@@ -317,17 +325,18 @@ describe("App — Componente principal", () => {
     expect(btn).toHaveAttribute("title", "Ajustes");
   });
 
-  it("should open SettingsPanel when settings button is clicked", () => {
+  it("should open SettingsPanel when settings button is clicked", async () => {
     render(<App />);
     expect(screen.queryByTestId("settings-panel")).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId("settings-btn"));
-    expect(screen.getByTestId("settings-panel")).toBeInTheDocument();
+    // SettingsPanel también se carga con React.lazy → resolución asíncrona
+    expect(await screen.findByTestId("settings-panel")).toBeInTheDocument();
   });
 
-  it("should close SettingsPanel when close button inside panel is clicked", () => {
+  it("should close SettingsPanel when close button inside panel is clicked", async () => {
     render(<App />);
     fireEvent.click(screen.getByTestId("settings-btn"));
-    expect(screen.getByTestId("settings-panel")).toBeInTheDocument();
+    expect(await screen.findByTestId("settings-panel")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("close-settings"));
     expect(screen.queryByTestId("settings-panel")).not.toBeInTheDocument();
   });

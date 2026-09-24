@@ -138,26 +138,40 @@ describe("useSearch - doSearchVideos", () => {
   });
 });
 
-// ── Tests de búsqueda inmediata (sin debounce) ────────────────────────────
+// ── Tests del handleSearchChange (debounce de 300 ms) ─────────────────────
+//    La búsqueda NO es inmediata: handleSearchChange aplica un debounce de
+//    300 ms que cancela la ventana anterior, así que solo corre la última.
 
-describe("useSearch - handleSearchChange (inmediato)", () => {
+describe("useSearch - handleSearchChange (debounce 300ms)", () => {
   it("should update query immediately", () => {
     const { result } = renderHook(() => useSearch());
     act(() => result.current.handleSearchChange("new query"));
     expect(result.current.query).toBe("new query");
   });
 
-  it("should call doSearch and doSearchVideos immediately", () => {
-    const mockFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue({
-      json: () => Promise.resolve({ results: [] }),
-    });
+  it("should call doSearch and doSearchVideos once the debounce expires", async () => {
+    vi.useFakeTimers();
+    try {
+      const mockFetch = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(mockApiResponse({ results: [] }));
 
-    const { result } = renderHook(() => useSearch());
-    act(() => result.current.handleSearchChange("test"));
+      const { result } = renderHook(() => useSearch());
+      act(() => result.current.handleSearchChange("test"));
 
-    // Sin debounce: fetch debe llamarse inmediatamente
-    expect(mockFetch).toHaveBeenCalled();
-    mockFetch.mockRestore();
+      // Dentro de la ventana del debounce todavía no se dispara nada
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+
+      // doSearch + doSearchVideos = 2 llamadas (una por API)
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      mockFetch.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("should clear results for empty input", () => {
@@ -172,19 +186,33 @@ describe("useSearch - handleSearchChange (inmediato)", () => {
     expect(result.current.videoResults).toEqual([]);
   });
 
-  it("should handle multiple rapid calls correctly (no debounce overlap)", () => {
-    const mockFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue({
-      json: () => Promise.resolve({ results: [] }),
-    });
+  it("should debounce rapid calls: only the last query runs", async () => {
+    vi.useFakeTimers();
+    try {
+      const mockFetch = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(mockApiResponse({ results: [] }));
 
-    const { result } = renderHook(() => useSearch());
-    act(() => result.current.handleSearchChange("first"));
-    act(() => result.current.handleSearchChange("second"));
+      const { result } = renderHook(() => useSearch());
+      act(() => result.current.handleSearchChange("first"));
+      act(() => result.current.handleSearchChange("second"));
 
-    // Cada llamada dispara su propia búsqueda inmediata
-    expect(result.current.query).toBe("second");
-    // Dos búsquedas × 2 APIs (doSearch + doSearchVideos) = 4 calls
-    expect(mockFetch).toHaveBeenCalledTimes(4);
-    mockFetch.mockRestore();
+      expect(result.current.query).toBe("second");
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+
+      // El debounce cancela "first": solo la última búsqueda corre
+      // → 2 calls (doSearch + doSearchVideos), no 4
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/search?q=second"),
+        expect.anything(),
+      );
+      mockFetch.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

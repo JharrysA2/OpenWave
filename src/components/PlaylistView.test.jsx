@@ -24,7 +24,7 @@ vi.mock("./ConfirmModal", () => ({
     ) : null,
 }));
 
-import { PlaylistView } from "./PlaylistView";
+import PlaylistView from "./PlaylistView";
 import { api } from "../utils/api";
 
 const playlist = { id: 1, name: "Mi Playlist" };

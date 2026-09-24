@@ -12,7 +12,7 @@ vi.mock("./MusicCover", () => ({
   MusicCover: () => <div data-testid="mock-music-cover" />,
 }));
 
-import { ArtistView } from "./ArtistView";
+import ArtistView from "./ArtistView";
 import { api } from "../utils/api";
 
 const artistData = {

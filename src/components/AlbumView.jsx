@@ -38,6 +38,14 @@ export default function AlbumView({
 }) {
   const [album, setAlbum] = useState(null);
 
+  // Hover declarativo de los botones de acción: los estilos se recalculan en
+  // render (nunca quedan "pegados") y respetan el estado (♥/Seleccionar).
+  const [hoverKey, setHoverKey] = useState(null);
+  const hov = (key) => ({
+    onMouseEnter: () => setHoverKey(key),
+    onMouseLeave: () => setHoverKey((k) => (k === key ? null : k)),
+  });
+
   // ── Entidad "álbum" para Me gusta / hoja de opciones ───────────────
   const albumEntity = album
     ? {
@@ -219,6 +227,13 @@ export default function AlbumView({
             height: "34px",
             borderRadius: RADIUS.full,
             ...GLASS.btn,
+            ...(hoverKey === "back"
+              ? {
+                  background: GLASS.btnHoverSoft.background,
+                  border: GLASS.btnHoverSoft.border,
+                  transform: "scale(1.05)",
+                }
+              : {}),
             color: "#fff",
             cursor: "pointer",
             display: "flex",
@@ -226,16 +241,7 @@ export default function AlbumView({
             justifyContent: "center",
             transition: "all .15s cubic-bezier(.16,1,.3,1)",
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = GLASS.btnHover.background;
-            e.currentTarget.style.borderColor = GLASS.btnHover.borderColor;
-            e.currentTarget.style.transform = "scale(1.05)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = GLASS.btn.background;
-            e.currentTarget.style.borderColor = GLASS.btn.borderColor;
-            e.currentTarget.style.transform = "scale(1)";
-          }}
+          {...hov("back")}
         >
           <svg
             width="18"
@@ -386,15 +392,14 @@ export default function AlbumView({
               cursor: "pointer",
               transition: "all .2s cubic-bezier(.16,1,.3,1)",
               boxShadow: `0 4px 20px ${withAlpha(accentColor, "55")}, 0 0 0 1px ${withAlpha(accentColor, "20")}`,
+              ...(hoverKey === "play"
+                ? {
+                    transform: "scale(1.04)",
+                    boxShadow: `0 6px 28px ${withAlpha(accentColor, "66")}, 0 0 0 1px ${withAlpha(accentColor, "30")}`,
+                  }
+                : {}),
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "scale(1.04)";
-              e.currentTarget.style.boxShadow = `0 6px 28px ${withAlpha(accentColor, "66")}, 0 0 0 1px ${withAlpha(accentColor, "30")}`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "scale(1)";
-              e.currentTarget.style.boxShadow = `0 4px 20px ${withAlpha(accentColor, "55")}, 0 0 0 1px ${withAlpha(accentColor, "20")}`;
-            }}
+            {...hov("play")}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z" />
@@ -408,32 +413,31 @@ export default function AlbumView({
             title="Me gusta"
             style={{
               ...GLASS.btn,
+              ...(albumLiked
+                ? {
+                    background: withAlpha(COLORS.likeColor, hoverKey === "like" ? "20" : "14"),
+                    border: `1px solid ${withAlpha(COLORS.likeColor, "40")}`,
+                  }
+                : hoverKey === "like"
+                  ? GLASS.btnHoverSoft
+                  : {}),
               borderRadius: RADIUS.pill,
               padding: "9px 16px",
               fontSize: "12.5px",
               fontWeight: "700",
               fontFamily: FONT,
               cursor: "pointer",
-              color: albumLiked ? COLORS.likeColor : "rgba(255,255,255,.6)",
-              background: albumLiked ? withAlpha(COLORS.likeColor, "14") : undefined,
-              border: albumLiked
-                ? `1px solid ${withAlpha(COLORS.likeColor, "40")}`
-                : undefined,
+              color: albumLiked
+                ? COLORS.likeColor
+                : hoverKey === "like"
+                  ? COLORS.textPrimary
+                  : "rgba(255,255,255,.6)",
               display: "flex",
               alignItems: "center",
               gap: "8px",
               transition: TRANSITIONS.fast,
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = albumLiked
-                ? withAlpha(COLORS.likeColor, "20")
-                : GLASS.btnHover.background;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = albumLiked
-                ? withAlpha(COLORS.likeColor, "14")
-                : "";
-            }}
+            {...hov("like")}
           >
             {Ic.heart(albumLiked, 16)}
             {albumLiked ? "Guardado" : "Me gusta"}
@@ -445,24 +449,20 @@ export default function AlbumView({
             title="Descargar álbum completo"
             style={{
               ...GLASS.btn,
+              ...(hoverKey === "download" ? GLASS.btnHoverSoft : {}),
               borderRadius: RADIUS.pill,
               padding: "9px 16px",
               fontSize: "12.5px",
               fontWeight: "700",
               fontFamily: FONT,
               cursor: "pointer",
-              color: "rgba(255,255,255,.6)",
+              color: hoverKey === "download" ? COLORS.textPrimary : "rgba(255,255,255,.6)",
               display: "flex",
               alignItems: "center",
               gap: "8px",
               transition: TRANSITIONS.fast,
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = GLASS.btnHover.background;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "";
-            }}
+            {...hov("download")}
           >
             {Ic.download(16)}
             Descargar
@@ -474,6 +474,7 @@ export default function AlbumView({
             title="Más opciones del álbum"
             style={{
               ...GLASS.btn,
+              ...(hoverKey === "opts" ? GLASS.btnHoverSoft : {}),
               borderRadius: RADIUS.full,
               width: "36px",
               height: "36px",
@@ -481,15 +482,10 @@ export default function AlbumView({
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              color: "rgba(255,255,255,.6)",
+              color: hoverKey === "opts" ? COLORS.textPrimary : "rgba(255,255,255,.6)",
               padding: 0,
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = GLASS.btnHover.background;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "";
-            }}
+            {...hov("opts")}
           >
             {Ic.dots}
           </button>
@@ -499,31 +495,25 @@ export default function AlbumView({
             onClick={toggleSelectMode}
             style={{
               ...GLASS.btn,
+              ...(selectMode ? { border: `1px solid ${accentColor}55` } : {}),
+              ...(hoverKey === "select" && !selectMode ? GLASS.btnHoverSoft : {}),
               borderRadius: RADIUS.pill,
               padding: "9px 16px",
               fontSize: "12.5px",
               fontWeight: "700",
               fontFamily: FONT,
-              color: selectMode ? accentColor : "rgba(255,255,255,.5)",
+              color: selectMode
+                ? accentColor
+                : hoverKey === "select"
+                  ? COLORS.textPrimary
+                  : "rgba(255,255,255,.5)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               gap: "8px",
               transition: TRANSITIONS.fast,
-              border: selectMode ? `1px solid ${accentColor}55` : undefined,
             }}
-            onMouseEnter={(e) => {
-              if (!selectMode) {
-                e.currentTarget.style.background = GLASS.btnHover.background;
-                e.currentTarget.style.borderColor = GLASS.btnHover.borderColor;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!selectMode) {
-                e.currentTarget.style.background = "";
-                e.currentTarget.style.borderColor = "";
-              }
-            }}
+            {...hov("select")}
           >
             <svg
               width="15"
@@ -547,6 +537,9 @@ export default function AlbumView({
               onClick={handleRemoveSelected}
               style={{
                 ...GLASS.btn,
+                ...(hoverKey === "delete"
+                  ? { background: "rgba(239,68,68,.2)", border: "1px solid rgba(239,68,68,.4)" }
+                  : { background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.25)" }),
                 borderRadius: RADIUS.pill,
                 padding: "9px 16px",
                 fontSize: "12.5px",
@@ -558,17 +551,8 @@ export default function AlbumView({
                 alignItems: "center",
                 gap: "8px",
                 transition: TRANSITIONS.fast,
-                background: "rgba(239,68,68,.12)",
-                border: "1px solid rgba(239,68,68,.25)",
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(239,68,68,.2)";
-                e.currentTarget.style.borderColor = "rgba(239,68,68,.4)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(239,68,68,.12)";
-                e.currentTarget.style.borderColor = "rgba(239,68,68,.25)";
-              }}
+              {...hov("delete")}
             >
               {Ic.trash}
               Eliminar ({selectedCount})
@@ -581,6 +565,9 @@ export default function AlbumView({
               onClick={() => setShowTransferModal(true)}
               style={{
                 ...GLASS.btn,
+                ...(hoverKey === "transfer"
+                  ? { background: "rgba(255,255,255,.1)", border: `1px solid ${accentColor}55` }
+                  : { background: "rgba(255,255,255,.06)", border: `1px solid ${accentColor}33` }),
                 borderRadius: RADIUS.pill,
                 padding: "9px 16px",
                 fontSize: "12.5px",
@@ -592,17 +579,8 @@ export default function AlbumView({
                 alignItems: "center",
                 gap: "8px",
                 transition: TRANSITIONS.fast,
-                background: `rgba(255,255,255,.06)`,
-                border: `1px solid ${accentColor}33`,
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = `rgba(255,255,255,.1)`;
-                e.currentTarget.style.borderColor = `${accentColor}55`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,.06)";
-                e.currentTarget.style.borderColor = `${accentColor}33`;
-              }}
+              {...hov("transfer")}
             >
               <svg
                 width="15"

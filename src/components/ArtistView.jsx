@@ -57,6 +57,14 @@ export default function ArtistView({
   const [loading, setLoading] = useState(true);
   const [showAllSongs, setShowAllSongs] = useState(false);
 
+  // Hover declarativo de los botones de acción (estilos recalculados en
+  // render; nunca quedan "pegados" ni pisan el estado Siguiendo).
+  const [hoverKey, setHoverKey] = useState(null);
+  const hov = (key) => ({
+    onMouseEnter: () => setHoverKey(key),
+    onMouseLeave: () => setHoverKey((k) => (k === key ? null : k)),
+  });
+
   useEffect(() => {
     if (!browseId) return;
     setLoading(true);
@@ -184,6 +192,13 @@ export default function ArtistView({
             height: "34px",
             borderRadius: RADIUS.full,
             ...GLASS.btn,
+            ...(hoverKey === "back"
+              ? {
+                  background: GLASS.btnHoverSoft.background,
+                  border: GLASS.btnHoverSoft.border,
+                  transform: "scale(1.05)",
+                }
+              : {}),
             color: "#fff",
             cursor: "pointer",
             display: "flex",
@@ -191,14 +206,7 @@ export default function ArtistView({
             justifyContent: "center",
             transition: "all .15s cubic-bezier(.16,1,.3,1)",
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = GLASS.btnHover.background;
-            e.currentTarget.style.transform = "scale(1.05)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = GLASS.btn.background;
-            e.currentTarget.style.transform = "scale(1)";
-          }}
+          {...hov("back")}
         >
           <svg
             width="18"
@@ -278,28 +286,38 @@ export default function ArtistView({
             <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
               <button
                 onClick={handleFollow}
-                style={{
-                  ...GLASS.btn,
-                  borderRadius: RADIUS.pill,
-                  padding: "7px 22px",
-                  fontSize: "12.5px",
-                  fontWeight: "700",
-                  fontFamily: FONT,
-                  cursor: "pointer",
-                  background: following ? undefined : accentColor,
-                  color: following ? COLORS.textPrimary : COLORS.black,
-                  border: following ? "1px solid rgba(255,255,255,.2)" : "none",
-                  boxShadow: following ? "none" : `0 2px 10px ${withAlpha(accentColor, "44")}`,
-                  transition: TRANSITIONS.fast,
-                }}
-                onMouseEnter={(e) => {
-                  if (following) e.currentTarget.style.background = GLASS.btnHover.background;
-                  else e.currentTarget.style.opacity = "0.88";
-                }}
-                onMouseLeave={(e) => {
-                  if (following) e.currentTarget.style.background = "";
-                  else e.currentTarget.style.opacity = "1";
-                }}
+                style={
+                  following
+                    ? {
+                        ...GLASS.btn,
+                        border: "1px solid rgba(255,255,255,.2)",
+                        boxShadow: "none",
+                        ...(hoverKey === "follow" ? GLASS.btnHoverSoft : {}),
+                        borderRadius: RADIUS.pill,
+                        padding: "7px 22px",
+                        fontSize: "12.5px",
+                        fontWeight: "700",
+                        fontFamily: FONT,
+                        cursor: "pointer",
+                        color: COLORS.textPrimary,
+                        transition: TRANSITIONS.fast,
+                      }
+                    : {
+                        background: accentColor,
+                        border: "none",
+                        borderRadius: RADIUS.pill,
+                        padding: "7px 22px",
+                        fontSize: "12.5px",
+                        fontWeight: "700",
+                        fontFamily: FONT,
+                        cursor: "pointer",
+                        color: COLORS.black,
+                        boxShadow: `0 2px 10px ${withAlpha(accentColor, "44")}`,
+                        ...(hoverKey === "follow" ? { filter: "brightness(1.1)" } : {}),
+                        transition: TRANSITIONS.fast,
+                      }
+                }
+                {...hov("follow")}
               >
                 {following ? "Siguiendo" : "Seguir"}
               </button>
@@ -308,6 +326,7 @@ export default function ArtistView({
                 onClick={() => openEntityOptions?.("artist", artistEntity)}
                 style={{
                   ...GLASS.btn,
+                  ...(hoverKey === "opts" ? GLASS.btnHoverSoft : {}),
                   borderRadius: RADIUS.full,
                   width: "34px",
                   height: "34px",
@@ -315,9 +334,10 @@ export default function ArtistView({
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
-                  color: "rgba(255,255,255,.7)",
+                  color: hoverKey === "opts" ? "#fff" : "rgba(255,255,255,.7)",
                   padding: 0,
                 }}
+                {...hov("opts")}
               >
                 {Ic.dots}
               </button>

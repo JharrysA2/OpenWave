@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useMemo, useEffect } from "react";
 import { useVisibility } from "../hooks/useVisibility";
 import { useSettings } from "./useSettings";
+import { isSoftwareRenderer } from "../utils/softwareRenderer";
+
+// TEMP-DIAG: eliminar — sonda de medición de rendimiento ya completada.
 
 // Default «balanced» (todo activo): si un componente se usa fuera del provider
 // (tests unitarios, aislado) recibe un objeto válido en vez de null, para no
@@ -25,10 +28,13 @@ const PerformanceContext = createContext({
  *     animaciones quedan pausadas con animation-play-state, no reiniciadas).
  *
  *  2) Lee el MODO de rendimiento de los ajustes:
- *        perfMode = "balanced"  → todo activo (por defecto)
+ *        perfMode = "auto"        → detecta la GPU (utils/softwareRenderer):
+ *                                    sin GPU usable → bajo consumo,
+ *                                    con GPU → equilibrado. (por defecto)
+ *        perfMode = "balanced"    → todo activo
  *        perfMode = "performance" → todo desactivado (bajo consumo)
- *        perfMode = "custom"    → solo lo que el usuario marque en
- *                                 perfBlur / perfAnim / perfShadow
+ *        perfMode = "custom"      → solo lo que el usuario marque en
+ *                                   perfBlur / perfAnim / perfShadow
  *
  *  3) Expone vía contexto los toggles RESUELTOS (blurOn, animOn, shadowOn,
  *     visible) para que la página de rendimiento y los componentes
@@ -38,13 +44,18 @@ export function PerformanceProvider({ children }) {
   const { settings } = useSettings();
   const visible = useVisibility();
 
-  const mode = settings.perfMode || "balanced";
+  const mode = settings.perfMode || "auto";
   const customBlur = settings.perfBlur !== false;
   const customAnim = settings.perfAnim !== false;
   const customShadow = settings.perfShadow !== false;
   const customSolid = settings.perfSolid !== false;
 
   const flags = useMemo(() => {
+    if (mode === "auto") {
+      return isSoftwareRenderer()
+        ? { blurOn: false, animOn: false, shadowOn: false, solidOn: true }
+        : { blurOn: true, animOn: true, shadowOn: true, solidOn: false };
+    }
     if (mode === "performance")
       return { blurOn: false, animOn: false, shadowOn: false, solidOn: true };
     if (mode === "custom")

@@ -22,7 +22,11 @@ export const DEFAULT_SETTINGS = {
   lyricsScrollResume: 3,
   showProgressTime: true,
   colorTransitionSpeed: 0.5,
-  perfMode: "balanced",
+  // "auto" = bajo consumo solo si no hay GPU (ver utils/softwareRenderer).
+  // "balanced"/"performance"/"custom" = elección explícita del usuario.
+  perfMode: "auto",
+  // Marcador de migración: los settings antiguos no lo traen (ver SettingsContext).
+  perfModeMigrated: true,
   perfBlur: true,
   perfAnim: true,
   perfShadow: true,

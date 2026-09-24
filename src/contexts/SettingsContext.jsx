@@ -5,7 +5,18 @@ import { TRANSLATIONS } from "../i18n/translations";
 function loadSettings() {
   try {
     const raw = localStorage.getItem(SW_SETTINGS_KEY);
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Migración de modos: antes el default era "balanced" y se persistía
+      // junto a cualquier otro ajuste aunque el usuario nunca lo eligiera.
+      // Ahora el default es "auto" (bajo consumo solo sin GPU); ese
+      // "balanced" incidental se migra una sola vez. Una elección explícita
+      // posterior ya guarda perfModeMigrated y no se toca.
+      const legacy = parsed && typeof parsed === "object" && !("perfModeMigrated" in parsed);
+      const merged = { ...DEFAULT_SETTINGS, ...parsed };
+      if (legacy && merged.perfMode === "balanced") merged.perfMode = "auto";
+      return merged;
+    }
   } catch {}
   return { ...DEFAULT_SETTINGS };
 }

@@ -1,12 +1,16 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { useSettings } from "../../contexts/useSettings";
+import { isSoftwareRenderer } from "../../utils/softwareRenderer";
 import { SettingRow, SettingsSection, SettingsToggle } from "../SettingsComponents";
 
 export function PageRendimiento({ neonColor }) {
   const { settings, updateSetting, t } = useSettings();
   const accent = neonColor || "#a78bfa";
-  const mode = settings.perfMode || "balanced";
+  const mode = settings.perfMode || "auto";
+  // Modo efectivo para mostrar el resumen: "auto" resuelve según la GPU.
+  const effective =
+    mode === "auto" ? (isSoftwareRenderer() ? "performance" : "balanced") : mode;
 
   const toggleRow = (label, desc, key) => (
     <SettingRow
@@ -49,6 +53,7 @@ export function PageRendimiento({ neonColor }) {
 
       <SettingsSection title={t.perfMode}>
         {[
+          ["auto", t.perfModeAuto, t.perfModeAutoDesc],
           ["balanced", t.perfModeBalanced, t.perfModeBalancedDesc],
           ["performance", t.perfModePerformance, t.perfModePerformanceDesc],
           ["custom", t.perfModeCustom, t.perfModeCustomDesc],
@@ -127,7 +132,9 @@ export function PageRendimiento({ neonColor }) {
               </svg>
             </span>
             <div style={{ fontSize: "12px", color: "rgba(255,255,255,.5)", fontWeight: "600" }}>
-              {mode === "performance" ? t.perfModePerformanceDesc : t.perfModeBalancedDesc}
+              {effective === "performance"
+                ? t.perfModePerformanceDesc
+                : t.perfModeBalancedDesc}
             </div>
           </div>
         </SettingsSection>

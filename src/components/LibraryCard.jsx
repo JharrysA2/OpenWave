@@ -21,8 +21,9 @@ function CardButton({ children, onClick, title, style, hover }) {
     alignItems: "center",
     justifyContent: "center",
     padding: 0,
-    // Sin backdropFilter: la tarjeta padre ya difumina; un blur anidado
-    // aplica el cristal dos veces y se ve turbio.
+    // Sin backdropFilter: un blur anidado aplica el cristal dos veces, se ve
+    // turbio y en render por software multiplica el coste (además las
+    // tarjetas ya no difuminan de pie — ver AlbumGridCard/ArtistGridCard).
     transition: "all .15s ease",
     ...style,
   };
@@ -66,6 +67,12 @@ export const AlbumGridCard = React.memo(function AlbumGridCard({
         containIntrinsicSize: "auto 220px",
         ...ANIMATIONS.fadeSlideUp(animationDelay),
         ...LAYOUTS.albumCard,
+        // Sin backdrop-filter de pie (regresión de rendimiento): en render
+        // por software (sin GPU) cada tarjeta re-difumina todo su fondo en
+        // cada repintado y la cuadrícula congela la app. Sobre rejilla plana
+        // el blur era imperceptible; gradiente, borde y sombra se conservan.
+        backdropFilter: undefined,
+        WebkitBackdropFilter: undefined,
         ...(hovered ? GLASS.cardHover : {}),
         transform: hovered ? "translateY(-2px)" : "translateY(0)",
         minWidth: 0,
@@ -168,6 +175,9 @@ export const ArtistGridCard = React.memo(function ArtistGridCard({
         containIntrinsicSize: "auto 200px",
         ...ANIMATIONS.fadeSlideUp(animationDelay),
         ...GLASS.card,
+        // Sin backdrop-filter de pie — ver comentario en AlbumGridCard.
+        backdropFilter: undefined,
+        WebkitBackdropFilter: undefined,
         ...(hovered ? GLASS.cardHover : {}),
         transform: hovered ? "translateY(-2px)" : "translateY(0)",
         borderRadius: RADIUS.card,

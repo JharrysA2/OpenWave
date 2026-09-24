@@ -59,11 +59,35 @@ describe("LibraryCard — hover declarativo (regresión del botón 'pegado')", (
     expect(play.style.filter).toBe("");
   });
 
-  it("el ▶ no aplica backdrop-filter anidado (la tarjeta ya difumina)", () => {
+  it("el ▶ no aplica backdrop-filter (ninguna capa de la tarjeta difumina)", () => {
     renderAlbum();
     const play = screen.getByTitle("Reproducir");
     expect(play.style.backdropFilter ?? "").toBe("");
     expect(play.style.webkitBackdropFilter ?? play.style.WebkitBackdropFilter ?? "").toBe("");
+  });
+
+  it("las tarjetas no llevan backdrop-filter de pie (regresión de rendimiento)", () => {
+    // Con GPU el blur por tarjeta es barato; en render por software (sin GPU
+    // dedicada) cada tarjeta re-difumina su fondo en cada repintado y la
+    // cuadrícula entera congela la app. Gradiente/borde/sombra sí se quedan.
+    renderAlbum();
+    const albumCard = screen.getByText("Álbum Hover").parentElement.parentElement;
+    expect(albumCard.style.backdropFilter ?? "").toBe("");
+    expect(albumCard.style.webkitBackdropFilter ?? albumCard.style.WebkitBackdropFilter ?? "").toBe("");
+    expect(albumCard.style.boxShadow).not.toBe("");
+
+    render(
+      <ArtistGridCard
+        artist={artist}
+        subtitle="Artista"
+        onClick={() => {}}
+        onOptions={() => {}}
+      />,
+    );
+    const artistCard = screen.getByText("Artista Hover").parentElement.parentElement;
+    expect(artistCard.style.backdropFilter ?? "").toBe("");
+    expect(artistCard.style.webkitBackdropFilter ?? artistCard.style.WebkitBackdropFilter ?? "").toBe("");
+    expect(artistCard.style.boxShadow).not.toBe("");
   });
 
   it("el ⋮ responde al hover y restaura su superficie al salir", () => {

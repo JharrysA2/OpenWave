@@ -1,3 +1,4 @@
+use std::io::{Read, Write};
 use std::process::Command;
 use std::sync::Mutex;
 use std::path::PathBuf;
@@ -6,21 +7,57 @@ use tauri::Manager;
 
 struct BackendProcess(Mutex<Option<std::process::Child>>);
 
+const BACKEND_ADDR: &str = "127.0.0.1:8765";
+
+/// true si algo en BACKEND_ADDR responde a GET /health identificándose como
+/// SoundWave. Un simple TCP connect no basta: cualquier proceso puede aceptar
+/// la conexión y hacernos creer que nuestro backend está sano.
+fn backend_responds_as_soundwave() -> bool {
+    let Ok(addr) = BACKEND_ADDR.parse::<std::net::SocketAddr>() else {
+        return false;
+    };
+    let Ok(mut stream) = std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(500))
+    else {
+        return false;
+    };
+    if stream
+        .set_read_timeout(Some(Duration::from_millis(800)))
+        .is_err()
+    {
+        return false;
+    }
+    if stream
+        .write_all(b"GET /health HTTP/1.0\r\nHost: 127.0.0.1:8765\r\n\r\n")
+        .is_err()
+    {
+        return false;
+    }
+    let mut buf = [0u8; 512];
+    let n = stream.read(&mut buf).unwrap_or(0);
+    if n == 0 {
+        return false;
+    }
+    let head = String::from_utf8_lossy(&buf[..n]);
+    (head.starts_with("HTTP/1.0 200") || head.starts_with("HTTP/1.1 200"))
+        && head.contains("\"service\":\"SoundWave\"")
+}
+
+/// true si algo (cualquiera) está escuchando en BACKEND_ADDR.
+fn port_in_use() -> bool {
+    let Ok(addr) = BACKEND_ADDR.parse::<std::net::SocketAddr>() else {
+        return false;
+    };
+    std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(500)).is_ok()
+}
+
 /// Poll the backend health endpoint until it responds or timeout.
 fn wait_for_backend(timeout_secs: u64) -> bool {
     let start = std::time::Instant::now();
-    let addr: std::net::SocketAddr = match "127.0.0.1:8765".parse() {
-        Ok(a) => a,
-        Err(e) => {
-            eprintln!("[soundwave] Invalid backend address: {e}");
-            return false;
-        }
-    };
     while start.elapsed().as_secs() < timeout_secs {
-        match std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(500)) {
-            Ok(_) => return true,
-            Err(_) => std::thread::sleep(Duration::from_millis(200)),
+        if backend_responds_as_soundwave() {
+            return true;
         }
+        std::thread::sleep(Duration::from_millis(200));
     }
     false
 }
@@ -32,6 +69,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .manage(BackendProcess(Mutex::new(None)))
         .setup(|app| {
+            #[cfg_attr(not(target_os = "windows"), allow(unused_variables))]
             let window = match app.get_webview_window("main") {
                 Some(w) => w,
                 None => {
@@ -46,6 +84,24 @@ pub fn run() {
                 if apply_tabbed(&window, Some(true)).is_err() {
                     let _ = apply_mica(&window, Some(true));
                 }
+            }
+
+            // ── Una sola instancia en BACKEND_ADDR ─────────────────────────
+            // Si ya responde SoundWave: reutilizarla (nada de dos backends).
+            // Si el puerto lo ocupa OTRO proceso: avisar claro — lanzar el
+            // nuestro solo moriría con «Errno 98 address already in use».
+            if port_in_use() {
+                if backend_responds_as_soundwave() {
+                    eprintln!(
+                        "[soundwave] Ya hay una instancia de SoundWave en {BACKEND_ADDR}; se reutiliza (no se lanza otra)."
+                    );
+                } else {
+                    eprintln!(
+                        "[soundwave] ERROR: {BACKEND_ADDR} está ocupado por OTRO proceso y no responde a /health. \
+                         Ciérralo y vuelve a abrir SoundWave."
+                    );
+                }
+                return Ok(());
             }
 
             let backend_path: PathBuf = if cfg!(debug_assertions) {
@@ -138,9 +194,37 @@ pub fn run() {
                 }
             }
 
-            // Esperar hasta que el backend responda (health check) o 8s timeout
+            // Vigila si el backend propio muere y deja rastro en el log. El
+            // frontend se entera por su sondeo de /health (banner de conexión).
+            let handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(Duration::from_secs(1));
+                let state = handle.state::<BackendProcess>();
+                let Ok(mut guard) = state.0.lock() else {
+                    break;
+                };
+                match guard.as_mut() {
+                    Some(child) => match child.try_wait() {
+                        Ok(Some(status)) => {
+                            eprintln!("[soundwave] El backend terminó ({status}).");
+                            *guard = None;
+                            break;
+                        }
+                        Ok(None) => {}
+                        Err(e) => {
+                            eprintln!("[soundwave] Error vigilando al backend: {e}");
+                            break;
+                        }
+                    },
+                    None => break,
+                }
+            });
+
+            // Esperar hasta que el backend pase el health check real o 8s
             if !wait_for_backend(8) {
-                eprintln!("[soundwave] Backend no respondió después de 8s, continuando de todas formas");
+                eprintln!(
+                    "[soundwave] El backend no respondió en 8s: la app abrirá igual y mostrará «sin conexión»."
+                );
             }
 
             Ok(())

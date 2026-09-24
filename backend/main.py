@@ -7,6 +7,7 @@ import asyncio
 import json
 import os
 import re
+import socket
 import sys
 import threading
 import time
@@ -177,6 +178,20 @@ if __name__ == "__main__":
     import uvicorn
 
     logger.info("🎵 SoundWave Backend — http://%s:%s", API_HOST, API_PORT)
+
+    # Una sola instancia: si el puerto ya está ocupado, avisar claro y salir
+    # (de otro modo uvicorn muere con un Errno crudo y sin contexto).
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind((API_HOST, API_PORT))
+        except OSError:
+            logger.error(
+                "El puerto %s:%s ya está en uso — cierra la otra instancia de SoundWave e inténtalo de nuevo.",
+                API_HOST,
+                API_PORT,
+            )
+            sys.exit(1)
+
     uvicorn.run(
         "main:app",
         host=API_HOST,

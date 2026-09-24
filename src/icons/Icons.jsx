@@ -35,6 +35,8 @@ import {
   Sun,
   PaintBrush,
   Cloud,
+  BookOpen,
+  HardDrive,
 } from "@phosphor-icons/react";
 
 // Phosphor Icons — professional, round, consistent

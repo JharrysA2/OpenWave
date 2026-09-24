@@ -45,6 +45,7 @@ test.describe("Player Bar", () => {
     await page.getByRole("button", { name: "Buscar" }).click();
     await page.waitForSelector('input[placeholder*="Busca"]');
     await page.getByPlaceholder(/Busca canciones/).fill("prueba");
+    await page.getByPlaceholder(/Busca canciones/).press("Enter"); // búsqueda explícita
     await page.waitForTimeout(600);
 
     // Click on the first search result row
@@ -60,6 +61,7 @@ test.describe("Player Bar", () => {
     await page.getByRole("button", { name: "Buscar" }).click();
     await page.waitForSelector('input[placeholder*="Busca"]');
     await page.getByPlaceholder(/Busca canciones/).fill("prueba");
+    await page.getByPlaceholder(/Busca canciones/).press("Enter"); // búsqueda explícita
     await page.waitForTimeout(600);
 
     await page.getByText("Canción de Prueba").first().click();

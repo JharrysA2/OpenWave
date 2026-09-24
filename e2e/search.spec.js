@@ -64,12 +64,14 @@ test.describe("Búsqueda", () => {
 
   test("debe mostrar resultados de canciones al buscar", async ({ page }) => {
     await page.getByPlaceholder(/Busca canciones/).fill("prueba");
+    await page.getByPlaceholder(/Busca canciones/).press("Enter"); // búsqueda explícita
     await page.waitForTimeout(600);
     await expect(page.getByText("Canción de Prueba")).toBeVisible({ timeout: 5000 });
   });
 
   test("debe mostrar la sección de artistas", async ({ page }) => {
     await page.getByPlaceholder(/Busca canciones/).fill("prueba");
+    await page.getByPlaceholder(/Busca canciones/).press("Enter"); // búsqueda explícita
     await page.waitForTimeout(600);
     const artistSection = page.getByText("Artistas").first();
     await expect(artistSection).toBeVisible();
@@ -77,12 +79,14 @@ test.describe("Búsqueda", () => {
 
   test("debe mostrar la sección de álbumes", async ({ page }) => {
     await page.getByPlaceholder(/Busca canciones/).fill("prueba");
+    await page.getByPlaceholder(/Busca canciones/).press("Enter"); // búsqueda explícita
     await page.waitForTimeout(600);
     await expect(page.getByText("Álbum de Prueba")).toBeVisible({ timeout: 5000 });
   });
 
   test("debe mostrar mensaje cuando no hay resultados", async ({ page }) => {
     await page.getByPlaceholder(/Busca canciones/).fill("zzzzresultadoinexistente");
+    await page.getByPlaceholder(/Busca canciones/).press("Enter"); // búsqueda explícita
     await page.waitForTimeout(600);
     await expect(page.getByText(/Sin resultados/)).toBeVisible();
   });

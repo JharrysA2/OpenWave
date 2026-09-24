@@ -191,8 +191,8 @@ export default function TrackList({
               </span>
             )}
 
-            {/* Heart (quitar de "Me gusta") */}
-            {onToggleLike && (
+            {/* Heart (quitar de "Me gusta") — oculto en modo selección, igual que ⋮/✕ */}
+            {onToggleLike && !selectMode && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();

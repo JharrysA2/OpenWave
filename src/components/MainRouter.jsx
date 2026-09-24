@@ -23,6 +23,7 @@ export const MainRouter = React.memo(function MainRouter({
   onClearHistory,
   onHistoryCleared,
   onDownloadsCleared,
+  onDownloadsRemoved,
   liked,
   history,
   playlists,
@@ -68,6 +69,7 @@ export const MainRouter = React.memo(function MainRouter({
   openEntityOptions,
   playAlbum,
   downloadAlbum,
+  fetchAlbumTracks,
 }) {
   if (showSettingsPanel) {
     return (
@@ -225,6 +227,10 @@ export const MainRouter = React.memo(function MainRouter({
             playAlbum={playAlbum}
             goToAlbum={goToAlbum}
             goToArtist={goToArtist}
+            playlists={playlists}
+            refreshPlaylists={refreshPlaylists}
+            toast={toast}
+            fetchAlbumTracks={fetchAlbumTracks}
           />
         </Suspense>
       );
@@ -255,8 +261,11 @@ export const MainRouter = React.memo(function MainRouter({
             openOptions={openOptions}
             toast={toast}
             onDownloadsCleared={onDownloadsCleared}
+            onDownloadsRemoved={onDownloadsRemoved}
             openEntityOptions={openEntityOptions}
             goToAlbum={goToAlbum}
+            playlists={playlists}
+            refreshPlaylists={refreshPlaylists}
           />
         </Suspense>
       );

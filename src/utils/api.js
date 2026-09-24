@@ -352,6 +352,22 @@ export const api = {
     }
   },
 
+  /**
+   * Eliminar descargas seleccionadas (POST /downloads/delete — 1 petición,
+   * sin el límite de 10/min del borrado individual). Devuelve true si se
+   * borraron para que la vista actualice su estado de forma segura.
+   */
+  deleteSelectedDownloads: async (videoIds, toast) => {
+    try {
+      await api.post("/downloads/delete", { videoIds });
+      invalidatePrefix("/downloads");
+      return true;
+    } catch (err) {
+      _handleError(err, toast);
+      return false;
+    }
+  },
+
   fetchDownloads: (toast) =>
     api
       .get("/downloads")

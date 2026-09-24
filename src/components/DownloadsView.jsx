@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
@@ -8,6 +8,9 @@ import LibraryTabs from "./LibraryTabs";
 import TrackList from "./TrackList";
 import { AlbumGridCard } from "./LibraryCard";
 import { useLibraryGroups } from "../hooks/useLibraryGroups";
+import { useMultiSelect } from "../hooks/useMultiSelect";
+import { TransferModal } from "./TransferModal";
+import { LibrarySelectActions } from "./LibrarySelectActions";
 
 const EMPTY_STYLE = {
   padding: "60px 20px",
@@ -32,14 +35,34 @@ export default function DownloadsView({
   playSong,
   openOptions,
   onDownloadsCleared,
+  onDownloadsRemoved,
   toast,
   openEntityOptions,
   goToAlbum,
+  playlists = [],
+  refreshPlaylists,
 }) {
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  // null | "all" | "selected" — un solo ConfirmModal para ambas acciones
+  const [confirmAction, setConfirmAction] = useState(null);
   const [tab, setTab] = useState("songs");
+  const [showTransferModal, setShowTransferModal] = useState(false);
   // Hover declarativo del hero: "shuffle" | "play" | "clear" (null = ninguno).
   const [heroHover, setHeroHover] = useState(null);
+
+  // ── Selección múltiple (solo pestaña Canciones, estilo PlaylistView) ──
+  const {
+    selectMode,
+    selected,
+    count: selectedCount,
+    toggleSelect,
+    toggleSelectMode,
+    resetSelect,
+  } = useMultiSelect();
+
+  // La selección no atraviesa pestañas: se descarta al cambiar.
+  useEffect(() => {
+    resetSelect();
+  }, [tab, resetSelect]);
 
   // Canciones normalizadas (mismo shape que cualquier lista de la app)
   const songs = useMemo(
@@ -63,19 +86,88 @@ export default function DownloadsView({
 
   const { albums } = useLibraryGroups(songs);
 
-  const handleClearDownloads = async () => {
-    await api.deleteDownloads(toast);
-    setShowConfirmModal(false);
-    if (onDownloadsCleared) onDownloadsCleared();
+  // ── Confirmaciones: "Eliminar todo" o solo la selección ──
+  const handleConfirm = async () => {
+    if (confirmAction === "all") {
+      await api.deleteDownloads(toast);
+      setConfirmAction(null);
+      if (onDownloadsCleared) onDownloadsCleared();
+      return;
+    }
+    if (confirmAction === "selected") {
+      const ids = [...selected];
+      setConfirmAction(null);
+      if (ids.length === 0) return;
+      // 1 sola petición al backend (POST /downloads/delete) — evita el
+      // rate limit de 10/min del borrado individual.
+      const ok = await api.deleteSelectedDownloads(ids, toast);
+      if (ok) {
+        onDownloadsRemoved?.(ids);
+        resetSelect();
+        toast?.(
+          `${ids.length} ${ids.length === 1 ? "canción" : "canciones"} eliminada${
+            ids.length !== 1 ? "s" : ""
+          }`,
+          "success",
+        );
+      }
+    }
   };
 
+  const handleTransferSelected = async (targetPlaylistId) => {
+    const songsToMove = songs.filter((s) => selected.has(s.videoId));
+    if (songsToMove.length === 0) return;
+    await api.addToPlaylist(targetPlaylistId, songsToMove, toast);
+    toast?.(
+      `${songsToMove.length} ${songsToMove.length === 1 ? "canción" : "canciones"} transferida${
+        songsToMove.length !== 1 ? "s" : ""
+      }`,
+      "success",
+    );
+    setShowTransferModal(false);
+    resetSelect();
+    if (refreshPlaylists) await refreshPlaylists();
+  };
+
+  // ── Reproducción por pestaña ─────────────────────────────────────
+  // Canciones: primera descarga + cola completa. Álbumes: pistas del
+  // PRIMER álbum agrupado; Aleatorio = mezcla de TODOS los álbumes.
   const playAll = (shuffle = false) => {
     if (songs.length === 0) return;
     const list = shuffle ? [...songs].sort(() => Math.random() - 0.5) : songs;
     playSong(list[0], 0, false, list);
   };
 
-  const heroButton = (primary = false, hovered = false) => ({
+  const playFirstAlbum = () => {
+    const group = albums[0];
+    const first = group?.songs.find((s) => s?.videoId);
+    if (!first) return;
+    playSong(first, 0, false, group.songs);
+  };
+
+  const shuffleAllAlbums = () => {
+    const all = albums.flatMap((g) => g.songs).filter((s) => s?.videoId);
+    if (all.length === 0) return;
+    const list = [...all].sort(() => Math.random() - 0.5);
+    playSong(list[0], 0, false, list);
+  };
+
+  // Deshabilitar según la lista de la pestaña ACTIVA
+  const playEmpty = tab === "albums" ? albums.length === 0 : songs.length === 0;
+
+  const handlePlay = () => {
+    if (playEmpty) return;
+    if (tab === "albums") playFirstAlbum();
+    else playAll(false);
+  };
+
+  const handleShuffle = () => {
+    if (playEmpty) return;
+    if (tab === "albums") shuffleAllAlbums();
+    else playAll(true);
+  };
+
+  const heroButton = (primary = false, hovered = false, disabled = false) => ({
     ...(primary
       ? { background: accentColor, border: "none", ...(hovered ? { filter: "brightness(1.1)" } : {}) }
       : { ...GLASS.btn, ...(hovered ? GLASS.btnHoverSoft : {}) }),
@@ -84,8 +176,8 @@ export default function DownloadsView({
     fontSize: "12.5px",
     fontWeight: "700",
     color: primary ? "#fff" : COLORS.textPrimary,
-    cursor: songs.length === 0 ? "not-allowed" : "pointer",
-    opacity: songs.length === 0 ? 0.4 : 1,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.4 : 1,
     display: "flex",
     alignItems: "center",
     gap: "8px",
@@ -184,18 +276,21 @@ export default function DownloadsView({
             {albums.length !== 1 ? "es" : ""}
           </div>
 
+          {/* Botones — play/aleatorio según la pestaña activa */}
           <div
             style={{
               display: "flex",
               gap: "10px",
               marginTop: "14px",
               flexWrap: "wrap",
+              alignItems: "center",
             }}
           >
             <button
-              onClick={() => playAll(true)}
-              disabled={songs.length === 0}
-              style={heroButton(false, heroHover === "shuffle")}
+              data-testid="hero-shuffle"
+              onClick={handleShuffle}
+              disabled={playEmpty}
+              style={heroButton(false, heroHover === "shuffle", playEmpty)}
               {...heroHoverProps("shuffle")}
             >
               {Ic.shuffle(16)}
@@ -203,20 +298,33 @@ export default function DownloadsView({
             </button>
 
             <button
-              onClick={() => playAll(false)}
-              disabled={songs.length === 0}
-              style={heroButton(true, heroHover === "play")}
+              data-testid="hero-play"
+              onClick={handlePlay}
+              disabled={playEmpty}
+              style={heroButton(true, heroHover === "play", playEmpty)}
               {...heroHoverProps("play")}
             >
               {Ic.play(16)}
               Reproducir
             </button>
 
+            {tab === "songs" && (
+              <LibrarySelectActions
+                accentColor={accentColor}
+                enabled={songs.length > 0}
+                selectMode={selectMode}
+                count={selectedCount}
+                onToggleSelectMode={toggleSelectMode}
+                onDelete={() => setConfirmAction("selected")}
+                onMove={() => setShowTransferModal(true)}
+              />
+            )}
+
             <button
-              onClick={() => songs.length > 0 && setShowConfirmModal(true)}
+              onClick={() => songs.length > 0 && setConfirmAction("all")}
               disabled={songs.length === 0}
               style={{
-                ...heroButton(false, false),
+                ...heroButton(false, false, songs.length === 0),
                 ...(heroHover === "clear"
                   ? {
                       background: "rgba(239,68,68,.14)",
@@ -256,6 +364,9 @@ export default function DownloadsView({
             accentColor={accentColor}
             onPlay={(song) => playSong(song, 0, false, songs)}
             openOptions={openOptions}
+            selectMode={selectMode}
+            selected={selected}
+            toggleSelect={toggleSelect}
             badgeFor={(song) => (
               <span
                 style={{
@@ -329,13 +440,32 @@ export default function DownloadsView({
           </div>
         ))}
 
+      <TransferModal
+        open={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        title="Mover a playlist"
+        emptyMessage="No hay playlists disponibles"
+        playlists={playlists}
+        onSelect={handleTransferSelected}
+      />
+
       <ConfirmModal
-        open={showConfirmModal}
-        title="Eliminar descargas"
-        message="¿Estás seguro de que quieres eliminar todas las canciones descargadas? Las canciones no estarán disponibles sin conexión."
-        confirmLabel="Eliminar todo"
-        onConfirm={handleClearDownloads}
-        onCancel={() => setShowConfirmModal(false)}
+        open={!!confirmAction}
+        title={confirmAction === "selected" ? "Eliminar canciones" : "Eliminar descargas"}
+        message={
+          confirmAction === "selected"
+            ? `¿Eliminar ${selectedCount} ${
+                selectedCount === 1 ? "canción" : "canciones"
+              } descargada${selectedCount !== 1 ? "s" : ""}? Se ${
+                selectedCount === 1 ? "borrará" : "borrarán"
+              } del disco y no estará${selectedCount !== 1 ? "n" : ""} disponible${
+                selectedCount !== 1 ? "s" : ""
+              } sin conexión.`
+            : "¿Estás seguro de que quieres eliminar todas las canciones descargadas? Las canciones no estarán disponibles sin conexión."
+        }
+        confirmLabel={confirmAction === "selected" ? "Eliminar" : "Eliminar todo"}
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmAction(null)}
         danger
       />
     </div>

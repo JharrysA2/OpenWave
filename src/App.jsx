@@ -381,7 +381,7 @@ function AppInner() {
 
   // ── Opciones de álbum/artista (hoja compartida + descarga de álbum) ────────
 
-  const { openEntityOptions, entityOptionsSheet, downloadAlbum, playAlbum } =
+  const { openEntityOptions, entityOptionsSheet, downloadAlbum, playAlbum, fetchAlbumTracks } =
     useEntityOptions({
       toast,
       isAlbumLiked,
@@ -496,6 +496,11 @@ function AppInner() {
                 setHistory([]);
               }}
               onDownloadsCleared={() => setDownloads([])}
+              onDownloadsRemoved={(videoIds) =>
+                setDownloads((prev) =>
+                  (prev || []).filter((d) => !videoIds.includes(d.videoId || d.video_id)),
+                )
+              }
               onHistoryCleared={() => setHistory([])}
               liked={liked}
               history={history}
@@ -545,6 +550,7 @@ function AppInner() {
               openEntityOptions={openEntityOptions}
               playAlbum={playAlbum}
               downloadAlbum={downloadAlbum}
+              fetchAlbumTracks={fetchAlbumTracks}
             />
           </div>
         </div>

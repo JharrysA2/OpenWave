@@ -1,7 +1,15 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("../utils/api", () => ({
+  api: {
+    addToPlaylist: vi.fn(),
+  },
+}));
+
 import LikedView from "./LikedView";
+import { api } from "../utils/api";
 
 // Mock MusicCover
 vi.mock("./MusicCover", () => ({
@@ -46,6 +54,10 @@ const defaultProps = {
   playAlbum: vi.fn(),
   goToAlbum: vi.fn(),
   goToArtist: vi.fn(),
+  playlists: [],
+  refreshPlaylists: vi.fn(),
+  toast: vi.fn(),
+  fetchAlbumTracks: vi.fn(async () => []),
 };
 
 function renderLiked(props = {}) {
@@ -198,5 +210,142 @@ describe("LikedView", () => {
     fireEvent.mouseLeave(play);
     expect(play.style.filter).toBe("");
     expect(play.style.background).toBe(baseBg);
+  });
+
+  // ── Reproducción por pestaña ───────────────────────────────────
+
+  it("Reproducir in Canciones plays the first song with the full queue", () => {
+    const playSong = vi.fn();
+    renderLiked({ likedSongs: [song("1"), song("2")], playSong });
+    fireEvent.click(screen.getByTestId("hero-play"));
+    expect(playSong.mock.calls[0][0]).toMatchObject({ videoId: "1" });
+    expect(playSong.mock.calls[0][3]).toHaveLength(2);
+  });
+
+  it("Aleatorio in Canciones shuffles the liked queue", () => {
+    const playSong = vi.fn();
+    const likedSongs = [song("1"), song("2"), song("3")];
+    renderLiked({ likedSongs, playSong });
+    fireEvent.click(screen.getByTestId("hero-shuffle"));
+    expect(playSong).toHaveBeenCalledTimes(1);
+    // La cola es una permutación de los «me gusta», no la lista original
+    expect(playSong.mock.calls[0][3].map((s) => s.videoId).sort()).toEqual(["1", "2", "3"]);
+    expect(playSong.mock.calls[0][0]).toBe(playSong.mock.calls[0][3][0]);
+  });
+
+  it("Reproducir in Álbumes plays the FIRST album only", () => {
+    const playAlbum = vi.fn();
+    const second = { ...album, browseId: "MPREb_album2", title: "Segundo Álbum" };
+    renderLiked({ likedAlbums: [album, second], playAlbum });
+    fireEvent.click(screen.getByText("Álbumes"));
+    fireEvent.click(screen.getByTestId("hero-play"));
+    expect(playAlbum).toHaveBeenCalledTimes(1);
+    expect(playAlbum).toHaveBeenCalledWith(album, false);
+  });
+
+  it("Aleatorio in Álbumes shuffles the tracks of ALL albums", async () => {
+    const playSong = vi.fn();
+    const fetchAlbumTracks = vi.fn(async (a) => [
+      { videoId: `${a.browseId}-t1` },
+      { videoId: `${a.browseId}-t2` },
+    ]);
+    const second = { ...album, browseId: "MPREb_album2", title: "Segundo Álbum" };
+    renderLiked({ likedAlbums: [album, second], playSong, fetchAlbumTracks });
+    fireEvent.click(screen.getByText("Álbumes"));
+    fireEvent.click(screen.getByTestId("hero-shuffle"));
+    await waitFor(() => expect(playSong).toHaveBeenCalledTimes(1));
+    expect(fetchAlbumTracks).toHaveBeenCalledTimes(2);
+    const queueIds = playSong.mock.calls[0][3].map((s) => s.videoId).sort();
+    expect(queueIds).toEqual([
+      "MPREb_album1-t1",
+      "MPREb_album1-t2",
+      "MPREb_album2-t1",
+      "MPREb_album2-t2",
+    ]);
+    expect(playSong.mock.calls[0][0]).toBe(playSong.mock.calls[0][3][0]);
+  });
+
+  it("hides the play/shuffle buttons in the Artistas tab", () => {
+    renderLiked({ likedSongs: [song("1")], followedArtists: [followedArtist] });
+    expect(screen.getByTestId("hero-play")).toBeInTheDocument();
+    expect(screen.getByTestId("hero-shuffle")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Artistas"));
+    expect(screen.queryByTestId("hero-play")).toBeNull();
+    expect(screen.queryByTestId("hero-shuffle")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Seleccionar/ })).toBeNull();
+  });
+
+  it("disables play when the ACTIVE tab's list is empty", () => {
+    renderLiked({ likedSongs: [], likedAlbums: [album] });
+    // Canciones (activa) vacía → deshabilitado aunque sí haya álbumes
+    expect(screen.getByTestId("hero-play")).toBeDisabled();
+    fireEvent.click(screen.getByText("Álbumes"));
+    expect(screen.getByTestId("hero-play")).toBeEnabled();
+    fireEvent.click(screen.getByText("Canciones"));
+    expect(screen.getByTestId("hero-play")).toBeDisabled();
+  });
+
+  // ── Selección múltiple (solo pestaña Canciones) ────────────────
+
+  it("shows the selection actions only in the Canciones tab", () => {
+    renderLiked({ likedSongs: [song("1")] });
+    expect(screen.getByRole("button", { name: "Seleccionar" })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Álbumes"));
+    expect(screen.queryByRole("button", { name: /Seleccionar/ })).toBeNull();
+  });
+
+  it("hides the heart and the options menu while in select mode", () => {
+    renderLiked({ likedSongs: [song("1")], liked: new Set(["1"]) });
+    expect(screen.getByTitle("Quitar de Me gusta")).toBeInTheDocument();
+    expect(screen.getByTitle("Más opciones")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Seleccionar" }));
+    expect(screen.queryByTitle("Quitar de Me gusta")).toBeNull();
+    expect(screen.queryByTitle("Más opciones")).toBeNull();
+  });
+
+  it("removes the selected songs from Me gusta (unlike, sin confirmar)", () => {
+    const toggleLike = vi.fn();
+    renderLiked({ likedSongs: [song("1"), song("2")], toggleLike });
+    fireEvent.click(screen.getByRole("button", { name: "Seleccionar" }));
+    fireEvent.click(screen.getByText("Liked Song 1"));
+    expect(screen.getByRole("button", { name: "Eliminar (1)" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar (1)" }));
+    expect(toggleLike).toHaveBeenCalledWith("1");
+    expect(toggleLike).toHaveBeenCalledTimes(1);
+    // La selección queda limpia tras eliminar
+    expect(screen.queryByRole("button", { name: /Eliminar \(1\)/ })).toBeNull();
+  });
+
+  it("moves the selected songs to a playlist", async () => {
+    const refreshPlaylists = vi.fn();
+    renderLiked({
+      likedSongs: [song("1"), song("2")],
+      playlists: [{ id: 7, name: "Favoritas" }],
+      refreshPlaylists,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Seleccionar" }));
+    fireEvent.click(screen.getByText("Liked Song 1"));
+    fireEvent.click(screen.getByRole("button", { name: "Mover (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: /Favoritas/ }));
+    await waitFor(() =>
+      expect(api.addToPlaylist).toHaveBeenCalledWith(
+        7,
+        [expect.objectContaining({ videoId: "1" })],
+        expect.any(Function),
+      ),
+    );
+    expect(refreshPlaylists).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /Mover \(1\)/ })).toBeNull();
+  });
+
+  it("clears the selection when switching tabs", () => {
+    renderLiked({ likedSongs: [song("1")] });
+    fireEvent.click(screen.getByRole("button", { name: "Seleccionar" }));
+    fireEvent.click(screen.getByText("Liked Song 1"));
+    expect(screen.getByRole("button", { name: "Eliminar (1)" })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Álbumes"));
+    fireEvent.click(screen.getByText("Canciones"));
+    expect(screen.queryByRole("button", { name: /Eliminar \(1\)/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Seleccionar" })).toBeInTheDocument();
   });
 });

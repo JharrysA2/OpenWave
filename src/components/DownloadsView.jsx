@@ -38,6 +38,8 @@ export default function DownloadsView({
 }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [tab, setTab] = useState("songs");
+  // Hover declarativo del hero: "shuffle" | "play" | "clear" (null = ninguno).
+  const [heroHover, setHeroHover] = useState(null);
 
   // Canciones normalizadas (mismo shape que cualquier lista de la app)
   const songs = useMemo(
@@ -73,10 +75,10 @@ export default function DownloadsView({
     playSong(list[0], 0, false, list);
   };
 
-  const heroButton = (primary = false) => ({
-    background: primary ? accentColor : undefined,
-    border: primary ? "none" : undefined,
-    ...(!primary ? GLASS.btn : {}),
+  const heroButton = (primary = false, hovered = false) => ({
+    ...(primary
+      ? { background: accentColor, border: "none", ...(hovered ? { filter: "brightness(1.1)" } : {}) }
+      : { ...GLASS.btn, ...(hovered ? GLASS.btnHoverSoft : {}) }),
     borderRadius: RADIUS.pill,
     padding: primary ? "9px 20px" : "9px 18px",
     fontSize: "12.5px",
@@ -88,6 +90,11 @@ export default function DownloadsView({
     alignItems: "center",
     gap: "8px",
     transition: TRANSITIONS.fast,
+  });
+
+  const heroHoverProps = (key) => ({
+    onMouseEnter: () => setHeroHover(key),
+    onMouseLeave: () => setHeroHover((k) => (k === key ? null : k)),
   });
 
   return (
@@ -185,12 +192,22 @@ export default function DownloadsView({
               flexWrap: "wrap",
             }}
           >
-            <button onClick={() => playAll(true)} disabled={songs.length === 0} style={heroButton(false)}>
+            <button
+              onClick={() => playAll(true)}
+              disabled={songs.length === 0}
+              style={heroButton(false, heroHover === "shuffle")}
+              {...heroHoverProps("shuffle")}
+            >
               {Ic.shuffle(16)}
               Aleatorio
             </button>
 
-            <button onClick={() => playAll(false)} disabled={songs.length === 0} style={heroButton(true)}>
+            <button
+              onClick={() => playAll(false)}
+              disabled={songs.length === 0}
+              style={heroButton(true, heroHover === "play")}
+              {...heroHoverProps("play")}
+            >
               {Ic.play(16)}
               Reproducir
             </button>
@@ -199,9 +216,16 @@ export default function DownloadsView({
               onClick={() => songs.length > 0 && setShowConfirmModal(true)}
               disabled={songs.length === 0}
               style={{
-                ...heroButton(false),
-                color: "rgba(255,255,255,.4)",
+                ...heroButton(false, false),
+                ...(heroHover === "clear"
+                  ? {
+                      background: "rgba(239,68,68,.14)",
+                      border: "1px solid rgba(239,68,68,.35)",
+                      color: "#ef4444",
+                    }
+                  : { color: "rgba(255,255,255,.4)" }),
               }}
+              {...heroHoverProps("clear")}
             >
               {Ic.trash}
               Eliminar todo

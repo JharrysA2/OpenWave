@@ -2,7 +2,7 @@ import React from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
-import { COLORS, RADIUS, SHADOWS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
+import { COLORS, RADIUS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
 
 /**
  * Hoja de opciones generalizada para álbum y artista — misma estética que
@@ -24,6 +24,9 @@ export function EntityOptionsSheet({
   onAddToPlaylist = null,
   onShare = null,
 }) {
+  // Hover declarativo por índice de acción (+ "close" para el botón X).
+  const [hoverIdx, setHoverIdx] = React.useState(null);
+
   if (!entity) return null;
 
   const isAlbum = type === "album";
@@ -293,21 +296,23 @@ export function EntityOptionsSheet({
           </div>
           <button
             onClick={onClose}
+            onMouseEnter={() => setHoverIdx("close")}
+            onMouseLeave={() => setHoverIdx((k) => (k === "close" ? null : k))}
             style={{
-              background:
-                "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-              border: "1px solid rgba(255,255,255,.14)",
+              // Superficie opaca plana: la hoja YA es cristal — otro glass
+              // encima se veía como un doble efecto blanquecino.
+              background: hoverIdx === "close" ? "rgba(0,0,0,.45)" : "rgba(0,0,0,.28)",
+              border: "1px solid rgba(255,255,255,.10)",
               borderRadius: RADIUS.full,
               width: "34px",
               height: "34px",
               cursor: "pointer",
-              color: COLORS.winCtrlDefault,
+              color: hoverIdx === "close" ? "#fff" : COLORS.winCtrlDefault,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              boxShadow: SHADOWS.settingsClose,
-              transition: TRANSITIONS.normal,
+              transition: TRANSITIONS.fast,
             }}
           >
             {Ic.close}
@@ -326,6 +331,8 @@ export function EntityOptionsSheet({
             <button
               key={i}
               onClick={btn.action}
+              onMouseEnter={() => setHoverIdx(i)}
+              onMouseLeave={() => setHoverIdx((k) => (k === i ? null : k))}
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -336,23 +343,27 @@ export function EntityOptionsSheet({
                 borderRadius: "16px",
                 border: "none",
                 cursor: "pointer",
-                background: "transparent",
+                // Realce tenue (antes: blanco .08 sobre el cristal de la hoja,
+                // que se veía como cristal doblado y muy blanco).
+                background: hoverIdx === i ? "rgba(255,255,255,.05)" : "transparent",
                 color: btn.color || COLORS.textPlayerTitle,
                 fontFamily: FONT,
                 fontSize: "12.5px",
                 fontWeight: "700",
                 textAlign: "center",
+                transition: "background .15s ease",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceCardHover)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <div
                 style={{
                   width: "50px",
                   height: "50px",
                   borderRadius: RADIUS.full,
-                  background: btn.bg || COLORS.surfaceNav,
-                  border: `1.5px solid ${btn.border || "rgba(255,255,255,.08)"}`,
+                  // Opaco y plano: el color de fondo solo lo aporta el estado
+                  // (♥ activo, descargando); si no, otra capa translúcida
+                  // encima del cristal acumulaba blanco.
+                  background: btn.bg || "rgba(0,0,0,.28)",
+                  border: `1.5px solid ${btn.border || "rgba(255,255,255,.10)"}`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",

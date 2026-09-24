@@ -26,6 +26,7 @@ describe("theme — materiales translúcidos", () => {
       "navItem",
       "btn",
       "btnHover",
+      "btnHoverSoft",
       "searchbar",
       "card",
       "cardHover",

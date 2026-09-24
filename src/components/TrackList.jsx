@@ -2,7 +2,7 @@ import React from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
-import { COLORS, LAYOUTS, TRANSITIONS, ANIMATIONS, safeAccentText } from "../utils/theme";
+import { COLORS, LAYOUTS, RADIUS, TRANSITIONS, ANIMATIONS, safeAccentText, withAlpha } from "../utils/theme";
 
 /**
  * Lista de filas tipo PlaylistView (índice/checkbox, cover, info, duración,
@@ -31,7 +31,16 @@ export default function TrackList({
   onDrop = null,
   onDragEnd = null,
 }) {
+  // Hover declarativo por clave ("3" = fila, "like-3", "opt-3", "del-3"):
+  // los estilos se recalculan en render y nunca quedan "pegados" en el DOM.
+  const [hoverKey, setHoverKey] = React.useState(null);
+
   if (!songs || songs.length === 0) return null;
+
+  const hov = (key) => ({
+    onMouseEnter: () => setHoverKey(key),
+    onMouseLeave: () => setHoverKey((k) => (k === key ? null : k)),
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2px", fontFamily: FONT }}>
@@ -41,6 +50,7 @@ export default function TrackList({
         const isSelected = !!selected?.has(song.videoId);
         const isDragging = dragIdx === i;
         const isDragOver = dragOverIdx === i;
+        const isRowHovered = hoverKey === i && !isActive && !selectMode && !isSelected;
 
         return (
           <div
@@ -50,6 +60,7 @@ export default function TrackList({
             onDragOver={dragEnabled && onDragOver ? (e) => onDragOver(e, i) : undefined}
             onDrop={dragEnabled && onDrop ? (e) => onDrop(e, i) : undefined}
             onDragEnd={dragEnabled && onDragEnd ? onDragEnd : undefined}
+            {...hov(i)}
             style={{
               ...ANIMATIONS.staggerFast(i),
               ...LAYOUTS.songRow(isActive, accentColor),
@@ -63,6 +74,8 @@ export default function TrackList({
                 : isDragging
                   ? "rgba(255,255,255,.03)"
                   : undefined,
+              // El hover va DESPUÉS de la clave `background`: si no, la pisaría.
+              ...(isRowHovered ? LAYOUTS.songRowHover : {}),
               transition: "background .1s, opacity .1s",
             }}
             onClick={() => {
@@ -70,20 +83,6 @@ export default function TrackList({
                 toggleSelect?.(song.videoId);
               } else {
                 onPlay?.(song, i);
-              }
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive && !selectMode && !isSelected) {
-                e.currentTarget.style.background = LAYOUTS.songRowHover.background;
-                e.currentTarget.style.borderColor = LAYOUTS.songRowHover.borderColor;
-                e.currentTarget.style.boxShadow = LAYOUTS.songRowHover.boxShadow;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive && !selectMode && !isSelected) {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.borderColor = "transparent";
-                e.currentTarget.style.boxShadow = "none";
               }
             }}
           >
@@ -200,13 +199,19 @@ export default function TrackList({
                   onToggleLike(song.videoId, song);
                 }}
                 title="Quitar de Me gusta"
+                {...hov(`like-${i}`)}
                 style={{
-                  background: "none",
+                  background:
+                    hoverKey === `like-${i}` ? withAlpha(COLORS.likeColor, "1f") : "transparent",
                   border: "none",
+                  borderRadius: RADIUS.full,
                   cursor: "pointer",
-                  color: liked?.has?.(song.videoId) ? COLORS.likeColor : COLORS.iconDimmer,
+                  color:
+                    liked?.has?.(song.videoId) || hoverKey === `like-${i}`
+                      ? COLORS.likeColor
+                      : COLORS.iconDimmer,
                   display: "flex",
-                  padding: "4px",
+                  padding: "5px",
                   transition: TRANSITIONS.fast,
                   flexShrink: 0,
                 }}
@@ -219,18 +224,18 @@ export default function TrackList({
             {onRemove && !selectMode && (
               <button
                 onClick={(e) => onRemove(song.videoId, e)}
+                {...hov(`del-${i}`)}
                 style={{
-                  background: "none",
+                  background: hoverKey === `del-${i}` ? "rgba(239,68,68,.15)" : "transparent",
                   border: "none",
+                  borderRadius: RADIUS.full,
                   cursor: "pointer",
-                  color: "rgba(255,255,255,.25)",
+                  color: hoverKey === `del-${i}` ? "#ef4444" : "rgba(255,255,255,.25)",
                   display: "flex",
                   padding: "4px",
                   transition: TRANSITIONS.fast,
                   flexShrink: 0,
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,.25)")}
               >
                 <svg
                   width="14"
@@ -255,13 +260,16 @@ export default function TrackList({
                   e.stopPropagation();
                   openOptions(song);
                 }}
+                {...hov(`opt-${i}`)}
                 style={{
-                  background: "none",
+                  background: hoverKey === `opt-${i}` ? "rgba(255,255,255,.08)" : "transparent",
                   border: "none",
+                  borderRadius: RADIUS.full,
                   cursor: "pointer",
-                  color: COLORS.iconDefault,
+                  color: hoverKey === `opt-${i}` ? COLORS.textPrimary : COLORS.iconDefault,
                   display: "flex",
-                  padding: "4px",
+                  padding: "5px",
+                  transition: TRANSITIONS.fast,
                   flexShrink: 0,
                 }}
               >

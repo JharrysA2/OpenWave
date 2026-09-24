@@ -4,7 +4,31 @@ import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, GLASS, LAYOUTS, RADIUS, TRANSITIONS, ANIMATIONS } from "../utils/theme";
 
-function CardButton({ children, onClick, title, style }) {
+function CardButton({ children, onClick, title, style, hover }) {
+  // Hover declarativo: los estilos se recalculan en render, así que al salir
+  // se restaura el color real del caller (el acento del ▶) en vez de un valor
+  // hardcodeado — antes el mouseleave pisaba el acento con negro fijo.
+  const [hovered, setHovered] = React.useState(false);
+  const base = {
+    background: "rgba(0,0,0,.55)",
+    border: "1px solid rgba(255,255,255,.18)",
+    borderRadius: RADIUS.full,
+    width: "34px",
+    height: "34px",
+    cursor: "pointer",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+    // Sin backdropFilter: la tarjeta padre ya difumina; un blur anidado
+    // aplica el cristal dos veces y se ve turbio.
+    transition: "all .15s ease",
+    ...style,
+  };
+  const style_ = hovered
+    ? { ...base, ...(hover || { background: "rgba(0,0,0,.78)", transform: "scale(1.08)" }) }
+    : base;
   return (
     <button
       title={title}
@@ -12,30 +36,9 @@ function CardButton({ children, onClick, title, style }) {
         e.stopPropagation();
         onClick?.(e);
       }}
-      style={{
-        background: "rgba(0,0,0,.55)",
-        border: "1px solid rgba(255,255,255,.18)",
-        borderRadius: RADIUS.full,
-        width: "34px",
-        height: "34px",
-        cursor: "pointer",
-        color: "#fff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 0,
-        backdropFilter: "blur(6px)",
-        transition: "all .15s ease",
-        ...style,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(0,0,0,.75)";
-        e.currentTarget.style.transform = "scale(1.08)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "rgba(0,0,0,.55)";
-        e.currentTarget.style.transform = "scale(1)";
-      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={style_}
     >
       {children}
     </button>
@@ -52,26 +55,21 @@ export const AlbumGridCard = React.memo(function AlbumGridCard({
   onOptions,
   animationDelay = 0,
 }) {
+  const [hovered, setHovered] = React.useState(false);
   return (
     <div
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         contentVisibility: "auto",
         containIntrinsicSize: "auto 220px",
         ...ANIMATIONS.fadeSlideUp(animationDelay),
         ...LAYOUTS.albumCard,
+        ...(hovered ? GLASS.cardHover : {}),
+        transform: hovered ? "translateY(-2px)" : "translateY(0)",
         minWidth: 0,
         transition: `${TRANSITIONS.fast}, transform .12s ease`,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = GLASS.cardHover.background;
-        e.currentTarget.style.borderColor = GLASS.cardHover.borderColor;
-        e.currentTarget.style.transform = "translateY(-2px)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = GLASS.card.background;
-        e.currentTarget.style.borderColor = GLASS.card.borderColor;
-        e.currentTarget.style.transform = "translateY(0)";
       }}
     >
       <div style={{ position: "relative" }}>
@@ -100,6 +98,12 @@ export const AlbumGridCard = React.memo(function AlbumGridCard({
                 width: "40px",
                 height: "40px",
                 boxShadow: `0 4px 16px ${accentColor}66`,
+              }}
+              hover={{
+                // Conserva el acento: solo escala y brillo, nunca otra capa blanca
+                transform: "scale(1.08)",
+                filter: "brightness(1.12)",
+                boxShadow: `0 6px 20px ${accentColor}80`,
               }}
             >
               {Ic.play(18)}
@@ -153,14 +157,19 @@ export const ArtistGridCard = React.memo(function ArtistGridCard({
   onOptions,
   animationDelay = 0,
 }) {
+  const [hovered, setHovered] = React.useState(false);
   return (
     <div
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         contentVisibility: "auto",
         containIntrinsicSize: "auto 200px",
         ...ANIMATIONS.fadeSlideUp(animationDelay),
         ...GLASS.card,
+        ...(hovered ? GLASS.cardHover : {}),
+        transform: hovered ? "translateY(-2px)" : "translateY(0)",
         borderRadius: RADIUS.card,
         display: "flex",
         flexDirection: "column",
@@ -171,16 +180,6 @@ export const ArtistGridCard = React.memo(function ArtistGridCard({
         position: "relative",
         minWidth: 0,
         transition: `${TRANSITIONS.fast}, transform .12s ease`,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = GLASS.cardHover.background;
-        e.currentTarget.style.borderColor = GLASS.cardHover.borderColor;
-        e.currentTarget.style.transform = "translateY(-2px)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = GLASS.card.background;
-        e.currentTarget.style.borderColor = GLASS.card.borderColor;
-        e.currentTarget.style.transform = "translateY(0)";
       }}
     >
       <div style={{ position: "relative" }}>

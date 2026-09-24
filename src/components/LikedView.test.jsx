@@ -173,4 +173,30 @@ describe("LikedView", () => {
     expect(screen.getByTestId("library-summary")).toHaveTextContent("1 álbum");
     expect(screen.getByTestId("library-summary")).toHaveTextContent("1 artista");
   });
+
+  // ── Hover del hero (glass sutil, sin estados "pegados") ─────────
+
+  it("should apply soft glass hover on Aleatorio and restore it on leave", () => {
+    renderLiked({ likedSongs: [song("1")] });
+    const shuffle = screen.getByRole("button", { name: /Aleatorio/ });
+    const baseBg = shuffle.style.background;
+    fireEvent.mouseEnter(shuffle);
+    expect(shuffle.style.background).toContain("linear-gradient");
+    expect(shuffle.style.background).not.toBe(baseBg);
+    fireEvent.mouseLeave(shuffle);
+    expect(shuffle.style.background).toBe(baseBg);
+  });
+
+  it("should brighten the primary Reproducir button on hover without a white layer", () => {
+    renderLiked({ likedSongs: [song("1")] });
+    const play = screen.getByRole("button", { name: /Reproducir/ });
+    const baseBg = play.style.background;
+    fireEvent.mouseEnter(play);
+    // El acento no se pisa con blanco: solo brillo + feedback
+    expect(play.style.background).toBe(baseBg);
+    expect(play.style.filter).toBe("brightness(1.1)");
+    fireEvent.mouseLeave(play);
+    expect(play.style.filter).toBe("");
+    expect(play.style.background).toBe(baseBg);
+  });
 });

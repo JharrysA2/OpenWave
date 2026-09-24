@@ -614,6 +614,14 @@ export const GLASS = {
     border: `1px solid rgba(255,255,255,.25)`,
   },
 
+  /** Botón glass hover sutil — realza el material manteniendo el gradiente.
+   *  Usar en botones encima de superficies ya glass (tarjetas, hojas,
+   *  vistas de biblioteca): btnHover salta a "blanco plano" y se ve doblado. */
+  btnHoverSoft: {
+    background: "linear-gradient(135deg, rgba(255,255,255,.17) 0%, rgba(255,255,255,.05) 100%)",
+    border: `1px solid rgba(255,255,255,.18)`,
+  },
+
   /** Botón play — glass con glow sutil del acento */
   playBtn: (accentColor) => ({
     background: `linear-gradient(135deg, ${accentColor}, color-mix(in srgb, ${accentColor} 80%, white))`,

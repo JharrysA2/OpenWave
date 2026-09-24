@@ -30,6 +30,8 @@ export default function LikedView({
   goToArtist,
 }) {
   const [tab, setTab] = useState("songs");
+  // Hover declarativo del hero: "shuffle" | "play" (null = ninguno).
+  const [heroHover, setHeroHover] = useState(null);
 
   const playAll = (shuffle = false) => {
     if (likedSongs.length === 0) return;
@@ -37,10 +39,10 @@ export default function LikedView({
     playSong(list[0], 0, false, list);
   };
 
-  const heroButton = (primary = false) => ({
-    background: primary ? accentColor : undefined,
-    border: primary ? "none" : undefined,
-    ...(!primary ? GLASS.btn : {}),
+  const heroButton = (primary = false, hovered = false) => ({
+    ...(primary
+      ? { background: accentColor, border: "none", ...(hovered ? { filter: "brightness(1.1)" } : {}) }
+      : { ...GLASS.btn, ...(hovered ? GLASS.btnHoverSoft : {}) }),
     borderRadius: RADIUS.pill,
     padding: primary ? "9px 20px" : "9px 18px",
     fontSize: "12.5px",
@@ -52,6 +54,11 @@ export default function LikedView({
     alignItems: "center",
     gap: "8px",
     transition: TRANSITIONS.fast,
+  });
+
+  const heroHoverProps = (key) => ({
+    onMouseEnter: () => setHeroHover(key),
+    onMouseLeave: () => setHeroHover((k) => (k === key ? null : k)),
   });
 
   return (
@@ -142,12 +149,22 @@ export default function LikedView({
               flexWrap: "wrap",
             }}
           >
-            <button onClick={() => playAll(true)} disabled={likedSongs.length === 0} style={heroButton(false)}>
+            <button
+              onClick={() => playAll(true)}
+              disabled={likedSongs.length === 0}
+              style={heroButton(false, heroHover === "shuffle")}
+              {...heroHoverProps("shuffle")}
+            >
               {Ic.shuffle(16)}
               Aleatorio
             </button>
 
-            <button onClick={() => playAll(false)} disabled={likedSongs.length === 0} style={heroButton(true)}>
+            <button
+              onClick={() => playAll(false)}
+              disabled={likedSongs.length === 0}
+              style={heroButton(true, heroHover === "play")}
+              {...heroHoverProps("play")}
+            >
               {Ic.play(16)}
               Reproducir
             </button>

@@ -7,6 +7,9 @@ import { COLORS, RADIUS, withAlpha } from "../utils/theme";
  * tabs: [{ key, label, count? }]
  */
 export default React.memo(function LibraryTabs({ tabs, value, onChange, accentColor }) {
+  // Hover declarativo de las píldoras inactivas (la activa es el acento).
+  const [hoverKey, setHoverKey] = React.useState(null);
+
   if (!tabs || tabs.length < 2) return null;
   return (
     <div
@@ -24,18 +27,29 @@ export default React.memo(function LibraryTabs({ tabs, value, onChange, accentCo
     >
       {tabs.map((t) => {
         const active = t.key === value;
+        const hovered = !active && hoverKey === t.key;
         return (
           <button
             key={t.key}
             role="tab"
             aria-selected={active}
             onClick={() => onChange(t.key)}
+            onMouseEnter={() => setHoverKey(t.key)}
+            onMouseLeave={() => setHoverKey((k) => (k === t.key ? null : k))}
             style={{
               padding: "7px 18px",
               borderRadius: RADIUS.pill,
               border: "none",
-              background: active ? accentColor : "transparent",
-              color: active ? COLORS.black : COLORS.textSecondary,
+              background: active
+                ? accentColor
+                : hovered
+                  ? "rgba(255,255,255,.07)"
+                  : "transparent",
+              color: active
+                ? COLORS.black
+                : hovered
+                  ? COLORS.textPrimary
+                  : COLORS.textSecondary,
               fontWeight: active ? "700" : "600",
               fontSize: "12.5px",
               cursor: "pointer",

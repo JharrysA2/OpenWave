@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { overlayOpacityForLuminance, smoothstep } from "./useDynamicTheme";
+import {
+  overlayOpacityForLuminance,
+  smoothstep,
+  DEFAULT_ACCENT,
+  DEFAULT_ACCENT_FG,
+} from "./useDynamicTheme";
+import { contrastRatio, deriveTheme, ON_ACCENT_MIN_CONTRAST } from "../utils/colorTheme";
 
 describe("smoothstep", () => {
   it("vale 0 por debajo del borde inferior y 1 por encima del superior", () => {
@@ -75,5 +81,17 @@ describe("overlayOpacityForLuminance", () => {
     expect(overlayOpacityForLuminance(NaN)).toBe(1);
     expect(overlayOpacityForLuminance(undefined)).toBe(1);
     expect(overlayOpacityForLuminance(Infinity)).toBe(1);
+  });
+
+  // ── Par por defecto (--neon, --neon-fg) ──────────────────────────────────
+
+  it("DEFAULT_ACCENT_FG cumple ≥4.5:1 contra DEFAULT_ACCENT (no blanco fijo)", () => {
+    expect(contrastRatio(DEFAULT_ACCENT_FG, DEFAULT_ACCENT)).toBeGreaterThanOrEqual(
+      ON_ACCENT_MIN_CONTRAST,
+    );
+  });
+
+  it("el par por defecto coincide con deriveTheme (única fuente de verdad)", () => {
+    expect(DEFAULT_ACCENT_FG).toBe(deriveTheme(DEFAULT_ACCENT).onAccent);
   });
 });

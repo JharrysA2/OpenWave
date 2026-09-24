@@ -129,19 +129,31 @@ export default function LikedView({
 
   const heroButton = (primary = false, hovered = false, disabled = false) => ({
     ...(primary
-      ? { background: accentColor, border: "none", ...(hovered ? { filter: "brightness(1.1)" } : {}) }
+      ? {
+          background: accentColor,
+          border: "none",
+          // Anillo adaptativo en vez de brightness(1.1): sobre acentos casi
+          // blancos (portada acromática) el brillo no se ve. El tono sale de
+          // --neon-fg → anillo oscuro sobre botón claro y viceversa.
+          ...(hovered
+            ? { boxShadow: "0 0 0 2px color-mix(in srgb, var(--neon-fg) 30%, transparent)" }
+            : {}),
+        }
       : { ...GLASS.btn, ...(hovered ? GLASS.btnHoverSoft : {}) }),
     borderRadius: RADIUS.pill,
     padding: primary ? "9px 20px" : "9px 18px",
     fontSize: "12.5px",
     fontWeight: "700",
-    color: primary ? "#fff" : COLORS.textPrimary,
+    // Contraste dinámico sobre el acento (regla de theme.js): el primer plano
+    // de toda superficie con el acento de fondo es --neon-fg, nunca blanco
+    // fijo — con acento #ffffff el texto desaparecía.
+    color: primary ? "var(--neon-fg)" : COLORS.textPrimary,
     cursor: disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.4 : 1,
     display: "flex",
     alignItems: "center",
     gap: "8px",
-    transition: TRANSITIONS.fast,
+    transition: `${TRANSITIONS.fast}, box-shadow .12s cubic-bezier(.16,1,.3,1)`,
   });
 
   const heroHoverProps = (key) => ({

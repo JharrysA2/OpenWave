@@ -40,13 +40,10 @@ export default React.memo(function LibraryTabs({ tabs, value, onChange, accentCo
               padding: "7px 18px",
               borderRadius: RADIUS.pill,
               border: "none",
-              background: active
-                ? accentColor
-                : hovered
-                  ? "rgba(255,255,255,.07)"
-                  : "transparent",
+              background: active ? accentColor : hovered ? "rgba(255,255,255,.07)" : "transparent",
+              // Píldora activa = fondo acento → primer plano dinámico
               color: active
-                ? COLORS.black
+                ? "var(--neon-fg)"
                 : hovered
                   ? COLORS.textPrimary
                   : COLORS.textSecondary,

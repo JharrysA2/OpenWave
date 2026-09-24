@@ -116,6 +116,12 @@ describe("PlayerBar", () => {
     expect(btns[2].innerHTML).toContain("svg");
   });
 
+  it("el botón play usa --neon-fg sobre su degradado de acento", () => {
+    renderBar({ song, accentColor: "#ffffff" });
+    const btns = screen.getAllByRole("button");
+    expect(btns[2].style.color).toContain("var(--neon-fg)");
+  });
+
   // ── Progress bar ──────────────────────────────────────────────────
 
   it("should render current and total time", async () => {

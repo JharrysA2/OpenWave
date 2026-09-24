@@ -11,8 +11,13 @@ import { deriveTheme, extractOklchAccent, getLuminance, BASE } from "../utils/co
 
 // ── Acentos por defecto (sin extracción / tema apagado) ─────────────────────
 
-const DEFAULT_ACCENT = "#a78bfa";
-const DEFAULT_ACCENT_FG = "#ffffff";
+export const DEFAULT_ACCENT = "#a78bfa";
+// on-accent del acento por defecto, derivado con la misma garantía ≥4.5:1 que
+// cualquier portada (colorTheme.deriveTheme). NO puede ser #ffffff: sobre el
+// lavanda #a78bfa el blanco solo da ~2.6:1 (el casi-negro da ~8:1) y los
+// botones con el acento de fondo se quedarían con texto ilegible.
+// Mantener sincronizado con el fallback --neon-fg de dynamic-theme.css.
+export const DEFAULT_ACCENT_FG = deriveTheme(DEFAULT_ACCENT).onAccent;
 
 // Tema acromático (portada en B/N o casi blanca). El acento es blanco puro y
 // el on-accent negro puro; la derivación OKLCH no aplica (no hay tono).

@@ -605,7 +605,9 @@ describe("App — Contraste y overlayOpacity", () => {
     render(<App />);
     const root = document.documentElement;
     expect(root.style.getPropertyValue("--neon")).toBe("#a78bfa");
-    expect(root.style.getPropertyValue("--neon-fg")).toBe("#ffffff");
+    // on-accent derivado (≥4.5:1 sobre #a78bfa) — antes #ffffff, que solo
+    // daba ~2.6:1 y dejaba invisible el texto sobre botones con acento
+    expect(root.style.getPropertyValue("--neon-fg")).toBe("#000001");
   });
 
   it("portada acromática → acento blanco y --neon-fg negro", async () => {

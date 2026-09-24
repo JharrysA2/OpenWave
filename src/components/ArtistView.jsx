@@ -111,7 +111,8 @@ export default function ArtistView({
             borderRadius: RADIUS.pill,
             border: "none",
             background: accentColor,
-            color: COLORS.black,
+            // Acento de fondo → primer plano dinámico (nunca negro fijo)
+            color: "var(--neon-fg)",
             fontWeight: "800",
             fontSize: "12px",
             cursor: "pointer",
@@ -311,10 +312,15 @@ export default function ArtistView({
                         fontWeight: "700",
                         fontFamily: FONT,
                         cursor: "pointer",
-                        color: COLORS.black,
-                        boxShadow: `0 2px 10px ${withAlpha(accentColor, "44")}`,
-                        ...(hoverKey === "follow" ? { filter: "brightness(1.1)" } : {}),
-                        transition: TRANSITIONS.fast,
+                        // Acento de fondo → primer plano dinámico (nunca negro fijo)
+                        color: "var(--neon-fg)",
+                        boxShadow:
+                          hoverKey === "follow"
+                            ? `0 2px 10px ${withAlpha(accentColor, "44")}, 0 0 0 2px color-mix(in srgb, var(--neon-fg) 30%, transparent)`
+                            : `0 2px 10px ${withAlpha(accentColor, "44")}`,
+                        // Anillo adaptativo en vez de brightness(1.1): el brillo
+                        // no se ve sobre acentos casi blancos.
+                        transition: `${TRANSITIONS.fast}, box-shadow .12s cubic-bezier(.16,1,.3,1)`,
                       }
                 }
                 {...hov("follow")}

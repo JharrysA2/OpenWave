@@ -116,7 +116,7 @@ export default function SearchView({
               borderRadius: RADIUS.pill,
               border: "none",
               background: searchTab === k ? accentColor : "transparent",
-              color: searchTab === k ? COLORS.black : COLORS.textSecondary,
+              color: searchTab === k ? "var(--neon-fg)" : COLORS.textSecondary,
               fontWeight: searchTab === k ? "700" : "600",
               fontSize: "12.5px",
               cursor: "pointer",

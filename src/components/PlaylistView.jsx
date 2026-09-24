@@ -446,7 +446,8 @@ export default function PlaylistView({
                 padding: "9px 20px",
                 fontSize: "12.5px",
                 fontWeight: "700",
-                color: "#fff",
+                // Acento de fondo → primer plano dinámico (nunca blanco fijo)
+                color: "var(--neon-fg)",
                 fontFamily: FONT,
                 cursor: songs.length === 0 ? "not-allowed" : "pointer",
                 opacity: songs.length === 0 ? 0.4 : 1,

@@ -2,7 +2,9 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Biblioteca (Likes, Historial, Descargas)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.route("http://127.0.0.1:8765/**", (route) => route.fulfill({ status: 200, json: [] }));
+    await page.route("http://127.0.0.1:8765/**", (route) =>
+      route.fulfill({ status: 200, json: [] }),
+    );
     await page.addInitScript(() => {
       localStorage.setItem("sw_liked_v2", JSON.stringify([]));
     });
@@ -201,10 +203,39 @@ test.describe("Biblioteca (Likes, Historial, Descargas)", () => {
       await expect(page.getByText(/No hay historial/)).toBeVisible();
     });
 
-    test("de Inicio, un solo click en una sección la abre (sin toggle inverso)", async ({ page }) => {
+    test("de Inicio, un solo click en una sección la abre (sin toggle inverso)", async ({
+      page,
+    }) => {
       await expect(page.getByText(/Busca tu primera canción/)).toBeVisible();
       await page.getByRole("navigation").getByRole("button", { name: "Me gusta" }).click();
       await expect(page.getByRole("heading", { name: "Me gusta" })).toBeVisible();
+    });
+  });
+
+  test.describe("Contraste del tema dinámico (regresión portada blanca)", () => {
+    test("el texto del botón primario sigue a --neon-fg", async ({ page }) => {
+      await page.getByRole("navigation").getByRole("button", { name: "Me gusta" }).click();
+      const play = page.getByTestId("hero-play");
+
+      // Resolución real de la variable (fallback del hook) vs. el color usado
+      const expected = await page.evaluate(() => {
+        const probe = document.createElement("span");
+        probe.style.color = "var(--neon-fg)";
+        document.body.appendChild(probe);
+        const value = getComputedStyle(probe).color;
+        probe.remove();
+        return value;
+      });
+      await expect(play).toHaveCSS("color", expected);
+
+      // Portada acromática simulada: el par que escribe el hook (--neon
+      // #ffffff / --neon-fg #111111) → texto oscuro visible, no blanco fijo
+      await page.evaluate(() => {
+        const root = document.documentElement.style;
+        root.setProperty("--neon", "#ffffff");
+        root.setProperty("--neon-fg", "#111111");
+      });
+      await expect(play).toHaveCSS("color", "rgb(17, 17, 17)");
     });
   });
 });

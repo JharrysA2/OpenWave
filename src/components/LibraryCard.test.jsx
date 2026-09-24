@@ -59,6 +59,19 @@ describe("LibraryCard — hover declarativo (regresión del botón 'pegado')", (
     expect(play.style.filter).toBe("");
   });
 
+  it("el ▶ usa --neon-fg y anillo adaptativo en hover (sin negro/brillo fijo)", () => {
+    renderAlbum();
+    const play = screen.getByTitle("Reproducir");
+    // Icono sobre el acento → primer plano dinámico, nunca COLORS.black
+    expect(play.style.color).toContain("var(--neon-fg)");
+    const baseShadow = play.style.boxShadow;
+    fireEvent.mouseEnter(play);
+    // Anillo vía --neon-fg en lugar de brightness(1.12), invisible sobre blanco
+    expect(play.style.boxShadow).toContain("var(--neon-fg)");
+    fireEvent.mouseLeave(play);
+    expect(play.style.boxShadow).toBe(baseShadow);
+  });
+
   it("el ▶ no aplica backdrop-filter (ninguna capa de la tarjeta difumina)", () => {
     renderAlbum();
     const play = screen.getByTitle("Reproducir");
@@ -73,20 +86,19 @@ describe("LibraryCard — hover declarativo (regresión del botón 'pegado')", (
     renderAlbum();
     const albumCard = screen.getByText("Álbum Hover").parentElement.parentElement;
     expect(albumCard.style.backdropFilter ?? "").toBe("");
-    expect(albumCard.style.webkitBackdropFilter ?? albumCard.style.WebkitBackdropFilter ?? "").toBe("");
+    expect(albumCard.style.webkitBackdropFilter ?? albumCard.style.WebkitBackdropFilter ?? "").toBe(
+      "",
+    );
     expect(albumCard.style.boxShadow).not.toBe("");
 
     render(
-      <ArtistGridCard
-        artist={artist}
-        subtitle="Artista"
-        onClick={() => {}}
-        onOptions={() => {}}
-      />,
+      <ArtistGridCard artist={artist} subtitle="Artista" onClick={() => {}} onOptions={() => {}} />,
     );
     const artistCard = screen.getByText("Artista Hover").parentElement.parentElement;
     expect(artistCard.style.backdropFilter ?? "").toBe("");
-    expect(artistCard.style.webkitBackdropFilter ?? artistCard.style.WebkitBackdropFilter ?? "").toBe("");
+    expect(
+      artistCard.style.webkitBackdropFilter ?? artistCard.style.WebkitBackdropFilter ?? "",
+    ).toBe("");
     expect(artistCard.style.boxShadow).not.toBe("");
   });
 
@@ -111,12 +123,7 @@ describe("LibraryCard — hover declarativo (regresión del botón 'pegado')", (
 
   it("ArtistGridCard también restaura su hover", () => {
     render(
-      <ArtistGridCard
-        artist={artist}
-        subtitle="Artista"
-        onClick={() => {}}
-        onOptions={() => {}}
-      />,
+      <ArtistGridCard artist={artist} subtitle="Artista" onClick={() => {}} onOptions={() => {}} />,
     );
     const card = screen.getByText("Artista Hover").parentElement.parentElement;
     fireEvent.mouseEnter(card);

@@ -101,16 +101,17 @@ export const AlbumGridCard = React.memo(function AlbumGridCard({
               style={{
                 background: accentColor,
                 borderColor: accentColor,
-                color: COLORS.black,
+                // Acento de fondo → primer plano dinámico (nunca negro fijo)
+                color: "var(--neon-fg)",
                 width: "40px",
                 height: "40px",
                 boxShadow: `0 4px 16px ${accentColor}66`,
               }}
               hover={{
-                // Conserva el acento: solo escala y brillo, nunca otra capa blanca
+                // Conserva el acento: escala + anillo adaptativo (--neon-fg),
+                // nunca otra capa blanca ni brightness invisible sobre blanco
                 transform: "scale(1.08)",
-                filter: "brightness(1.12)",
-                boxShadow: `0 6px 20px ${accentColor}80`,
+                boxShadow: `0 6px 20px ${accentColor}80, 0 0 0 2px color-mix(in srgb, var(--neon-fg) 30%, transparent)`,
               }}
             >
               {Ic.play(18)}

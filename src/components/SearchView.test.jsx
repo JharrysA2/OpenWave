@@ -131,6 +131,13 @@ describe("SearchView", () => {
     expect(screen.getByText("Videos")).toBeInTheDocument();
   });
 
+  it("la pestaña activa (fondo acento) usa --neon-fg, nunca negro fijo", () => {
+    renderSearch({ searchTab: "music" });
+    const activeTab = screen.getByText("Música").closest("button");
+    expect(activeTab.style.background).not.toBe("transparent");
+    expect(activeTab.style.color).toContain("var(--neon-fg)");
+  });
+
   it("should call onSearchTabChange when a tab is clicked", () => {
     const onSearchTabChange = vi.fn();
     renderSearch({ onSearchTabChange });

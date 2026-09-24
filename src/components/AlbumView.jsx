@@ -149,7 +149,8 @@ export default function AlbumView({
             borderRadius: RADIUS.pill,
             border: "none",
             background: accentColor,
-            color: COLORS.black,
+            // Acento de fondo → primer plano dinámico (nunca negro fijo)
+            color: "var(--neon-fg)",
             fontWeight: "800",
             fontSize: "12px",
             cursor: "pointer",
@@ -385,7 +386,8 @@ export default function AlbumView({
               borderRadius: RADIUS.pill,
               border: "none",
               background: accentColor,
-              color: COLORS.black,
+              // Acento de fondo → primer plano dinámico (nunca negro fijo)
+              color: "var(--neon-fg)",
               fontWeight: "700",
               fontSize: "14px",
               fontFamily: FONT,

@@ -190,6 +190,8 @@ export function TrackPickerModal({ open, playlist, tracks, loadingTracks, onClos
                       flexShrink: 0,
                       background: checked ? "var(--neon)" : COLORS.surfaceSearchbar,
                       border: `2px solid ${checked ? "var(--neon)" : COLORS.borderLight}`,
+                      // Marca sobre el acento: primer plano dinámico (nunca fijo)
+                      color: checked ? "var(--neon-fg)" : "transparent",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -202,7 +204,7 @@ export function TrackPickerModal({ open, playlist, tracks, loadingTracks, onClos
                         height="12"
                         viewBox="0 0 24 24"
                         fill="none"
-                        stroke={COLORS.black}
+                        stroke="currentColor"
                         strokeWidth="3"
                         strokeLinecap="round"
                       >
@@ -284,7 +286,9 @@ export function TrackPickerModal({ open, playlist, tracks, loadingTracks, onClos
                 selected.size > 0
                   ? `color-mix(in srgb, var(--neon) 90%, ${COLORS.black})`
                   : COLORS.surfaceCard,
-              color: selected.size > 0 ? COLORS.white : COLORS.iconDimmer,
+              // Fondo derivado del acento → primer plano dinámico (con acento
+              // #ffffff el fondo sale casi blanco y el texto blanco se perdía)
+              color: selected.size > 0 ? "var(--neon-fg)" : COLORS.iconDimmer,
               fontWeight: "800",
               fontSize: "14px",
               cursor: selected.size > 0 ? "pointer" : "default",

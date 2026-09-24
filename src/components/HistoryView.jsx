@@ -161,7 +161,8 @@ export default function HistoryView({
                 padding: "9px 20px",
                 fontSize: "12.5px",
                 fontWeight: "700",
-                color: "#fff",
+                // Acento de fondo → primer plano dinámico (nunca blanco fijo)
+                color: "var(--neon-fg)",
                 cursor: history.length === 0 ? "not-allowed" : "pointer",
                 opacity: history.length === 0 ? 0.4 : 1,
                 display: "flex",

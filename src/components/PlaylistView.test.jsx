@@ -160,4 +160,17 @@ describe("PlaylistView", () => {
     fireEvent.click(backBtn);
     expect(defaultProps.onBack).toHaveBeenCalled();
   });
+
+  // ── Contraste: superficies con el acento de fondo (regresión portada blanca)
+  it("el botón Reproducir usa --neon-fg, nunca texto blanco fijo", async () => {
+    render(<PlaylistView {...defaultProps} accentColor="#ffffff" />);
+    await waitFor(() => {
+      expect(screen.getByText("Song A")).toBeInTheDocument();
+    });
+    const play = screen
+      .getAllByRole("button", { name: "Reproducir" })
+      .find((b) => b.style.background === "rgb(255, 255, 255)");
+    expect(play).toBeTruthy();
+    expect(play.style.color).toContain("var(--neon-fg)");
+  });
 });

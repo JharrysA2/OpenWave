@@ -479,7 +479,8 @@ export const PlayerBar = memo(function PlayerBar({
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: streamLoading ? "default" : "pointer",
-                color: COLORS.black,
+                // Degradado del acento de fondo → primer plano dinámico
+                color: "var(--neon-fg)",
                 borderRadius: "10px",
                 transition: "transform .15s cubic-bezier(.16,1,.3,1), box-shadow .15s",
                 ...GLASS.playBtn(accentColor),

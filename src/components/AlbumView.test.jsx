@@ -121,4 +121,18 @@ describe("AlbumView", () => {
     const { container } = render(<AlbumView {...defaultProps} browseId={null} />);
     expect(container.querySelector(".skeleton") || container.firstChild).toBeTruthy();
   });
+
+  // ── Contraste: superficies con el acento de fondo (regresión portada blanca)
+  it("el botón Reproducir usa --neon-fg, nunca texto negro fijo", async () => {
+    api.get.mockResolvedValue(albumData);
+    const { container } = render(<AlbumView {...defaultProps} accentColor="#ffffff" />);
+    await waitFor(() => {
+      expect(screen.getByText("Test Album")).toBeInTheDocument();
+    });
+    const play = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent.trim() === "Reproducir" && b.style.background === "rgb(255, 255, 255)",
+    );
+    expect(play).toBeTruthy();
+    expect(play.style.color).toContain("var(--neon-fg)");
+  });
 });

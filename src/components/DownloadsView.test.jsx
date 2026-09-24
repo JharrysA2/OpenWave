@@ -259,10 +259,7 @@ describe("DownloadsView", () => {
     api.deleteSelectedDownloads.mockResolvedValue(true);
     const onDownloadsRemoved = vi.fn();
     render(
-      <DownloadsHarness
-        initialDownloads={[song("1"), song("2")]}
-        onRemoved={onDownloadsRemoved}
-      />,
+      <DownloadsHarness initialDownloads={[song("1"), song("2")]} onRemoved={onDownloadsRemoved} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Seleccionar" }));
@@ -273,10 +270,7 @@ describe("DownloadsView", () => {
     fireEvent.click(screen.getByTestId("confirm-action"));
 
     await waitFor(() =>
-      expect(api.deleteSelectedDownloads).toHaveBeenCalledWith(
-        ["1"],
-        expect.any(Function),
-      ),
+      expect(api.deleteSelectedDownloads).toHaveBeenCalledWith(["1"], expect.any(Function)),
     );
     expect(onDownloadsRemoved).toHaveBeenCalledWith(["1"]);
     expect(screen.queryByText("Downloaded Song 1")).toBeNull();
@@ -302,10 +296,7 @@ describe("DownloadsView", () => {
     api.deleteDownloads.mockResolvedValue(undefined);
     const onDownloadsCleared = vi.fn();
     render(
-      <DownloadsHarness
-        initialDownloads={[song("1"), song("2")]}
-        onCleared={onDownloadsCleared}
-      />,
+      <DownloadsHarness initialDownloads={[song("1"), song("2")]} onCleared={onDownloadsCleared} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Eliminar todo/ }));
@@ -349,5 +340,13 @@ describe("DownloadsView", () => {
     fireEvent.click(screen.getByText("Canciones"));
     expect(screen.queryByRole("button", { name: /Eliminar \(1\)/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Seleccionar" })).toBeInTheDocument();
+  });
+
+  // ── Contraste: superficies con el acento de fondo (regresión portada blanca)
+  it("el botón primario usa --neon-fg, nunca texto blanco fijo", () => {
+    renderDownloads({ downloads: [song("1")], accentColor: "#ffffff" });
+    const play = screen.getByTestId("hero-play");
+    expect(play.style.background).toBe("rgb(255, 255, 255)");
+    expect(play.style.color).toContain("var(--neon-fg)");
   });
 });

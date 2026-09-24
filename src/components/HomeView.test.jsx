@@ -116,6 +116,17 @@ describe("HomeView", () => {
     expect(screen.getAllByText("Song 0")).toHaveLength(2);
   });
 
+  // ── Contraste: pulso con el acento de fondo (regresión portada blanca) ──
+  it("el pulso 'suena ahora' usa --neon-fg y currentColor, nunca #000 fijo", () => {
+    const history = Array.from({ length: 8 }, (_, i) => song(`${i}`));
+    renderHome({ history, currentSong: song("0"), isPlaying: true, accentColor: "#ffffff" });
+    const pulse = screen.getByTestId("now-playing-pulse");
+    expect(pulse.style.color).toContain("var(--neon-fg)");
+    const icon = pulse.querySelector("svg");
+    expect(icon).toBeTruthy();
+    expect(icon.getAttribute("fill")).toBe("currentColor");
+  });
+
   // ── Duration display ────────────────────────────────────────────────
 
   it("should show duration when available", () => {

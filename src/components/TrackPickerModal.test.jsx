@@ -272,4 +272,22 @@ describe("TrackPickerModal", () => {
     fireEvent.click(screen.getByText("Canción 3"));
     expect(await screen.findByText("Agregar 1 canción")).toBeInTheDocument();
   });
+
+  // ── Contraste: fondos derivados del acento (regresión portada blanca) ─────
+
+  it("el botón Agregar usa --neon-fg sobre su fondo de acento", async () => {
+    renderModal();
+    // Estado inicial: las 3 canciones vienen seleccionadas
+    const label = await screen.findByText("Agregar 3 canciones");
+    expect(label.closest("button").style.color).toContain("var(--neon-fg)");
+  });
+
+  it("la marca del checkbox sobre el acento usa currentColor + --neon-fg", async () => {
+    renderModal();
+    await screen.findByText("Agregar 3 canciones");
+    const mark = document.querySelector('polyline[points="20 6 9 17 4 12"]');
+    expect(mark).toBeTruthy();
+    expect(mark.closest("svg").getAttribute("stroke")).toBe("currentColor");
+    expect(mark.closest("div").style.color).toContain("var(--neon-fg)");
+  });
 });

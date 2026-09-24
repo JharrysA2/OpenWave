@@ -145,4 +145,14 @@ describe("HistoryView", () => {
     renderHistory({ history });
     expect(screen.getByText("History Song 1")).toBeInTheDocument();
   });
+
+  // ── Contraste: superficies con el acento de fondo (regresión portada blanca)
+  it("el botón Reproducir usa --neon-fg, nunca texto blanco fijo", () => {
+    renderHistory({ history: [song("1")], accentColor: "#ffffff" });
+    const play = screen
+      .getAllByRole("button", { name: "Reproducir" })
+      .find((b) => b.style.background === "rgb(255, 255, 255)");
+    expect(play).toBeTruthy();
+    expect(play.style.color).toContain("var(--neon-fg)");
+  });
 });

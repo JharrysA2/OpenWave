@@ -99,4 +99,17 @@ describe("ArtistView", () => {
     const { container } = render(<ArtistView {...defaultProps} browseId={null} />);
     expect(container.firstChild).toBeTruthy();
   });
+
+  // ── Contraste: superficies con el acento de fondo (regresión portada blanca)
+  it("el botón Seguir usa --neon-fg, nunca texto negro fijo", async () => {
+    const { container } = render(<ArtistView {...defaultProps} accentColor="#ffffff" />);
+    await waitFor(() => {
+      expect(screen.getByText("Test Artist")).toBeInTheDocument();
+    });
+    const follow = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent.trim() === "Seguir" && b.style.background === "rgb(255, 255, 255)",
+    );
+    expect(follow).toBeTruthy();
+    expect(follow.style.color).toContain("var(--neon-fg)");
+  });
 });

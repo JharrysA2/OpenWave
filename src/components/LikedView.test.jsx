@@ -199,16 +199,17 @@ describe("LikedView", () => {
     expect(shuffle.style.background).toBe(baseBg);
   });
 
-  it("should brighten the primary Reproducir button on hover without a white layer", () => {
+  it("should ring the primary Reproducir button on hover without a white layer", () => {
     renderLiked({ likedSongs: [song("1")] });
     const play = screen.getByRole("button", { name: /Reproducir/ });
     const baseBg = play.style.background;
     fireEvent.mouseEnter(play);
-    // El acento no se pisa con blanco: solo brillo + feedback
+    // El acento no se pisa con blanco: anillo adaptativo vía --neon-fg, que sí
+    // se ve con acentos casi blancos (brightness(1.1) no lo era)
     expect(play.style.background).toBe(baseBg);
-    expect(play.style.filter).toBe("brightness(1.1)");
+    expect(play.style.boxShadow).toContain("var(--neon-fg)");
     fireEvent.mouseLeave(play);
-    expect(play.style.filter).toBe("");
+    expect(play.style.boxShadow).toBe("");
     expect(play.style.background).toBe(baseBg);
   });
 
@@ -347,5 +348,20 @@ describe("LikedView", () => {
     fireEvent.click(screen.getByText("Canciones"));
     expect(screen.queryByRole("button", { name: /Eliminar \(1\)/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Seleccionar" })).toBeInTheDocument();
+  });
+
+  // ── Contraste: superficies con el acento de fondo (regresión portada blanca)
+  it("el botón primario usa --neon-fg, nunca texto blanco fijo", () => {
+    renderLiked({ likedSongs: [song("1")], accentColor: "#ffffff" });
+    const play = screen.getByTestId("hero-play");
+    expect(play.style.background).toBe("rgb(255, 255, 255)");
+    expect(play.style.color).toContain("var(--neon-fg)");
+  });
+
+  it("la pestaña activa (fondo acento) usa --neon-fg, nunca negro fijo", () => {
+    renderLiked();
+    const activeTab = screen.getAllByRole("tab")[0];
+    expect(activeTab.getAttribute("aria-selected")).toBe("true");
+    expect(activeTab.style.color).toContain("var(--neon-fg)");
   });
 });

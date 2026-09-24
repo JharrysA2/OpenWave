@@ -250,20 +250,23 @@ export default function HomeView({
                           height: "28px",
                           borderRadius: "50%",
                           background: accentColor,
+                          // Icono del pulso: primer plano dinámico sobre el acento
+                          color: "var(--neon-fg)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           boxShadow: `0 0 12px ${accentColor}88`,
                           animation: "pulse 1.5s ease infinite",
                         }}
+                        data-testid="now-playing-pulse"
                       >
                         {isActuallyPlaying ? (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#000">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                             <rect x="6" y="4" width="4" height="16" rx="1" />
                             <rect x="14" y="4" width="4" height="16" rx="1" />
                           </svg>
                         ) : (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#000">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M8 5v14l11-7z" />
                           </svg>
                         )}

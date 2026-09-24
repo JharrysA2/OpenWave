@@ -12,6 +12,10 @@
    ═════════════════════════════════════════════════════════════════════════════ */
 
 :root {
+  /* Fallback de contraste para los botones con el acento de fondo: pinta
+     antes de que useDynamicTheme monte y lo pise. Equivale a
+     deriveTheme(#a78bfa).onAccent — ver DEFAULT_ACCENT_FG en el hook. */
+  --neon-fg: #000001;
   /* Borde/estados del acento (antes: `${neonColor}aa` …) */
   --neon-border: color-mix(in srgb, var(--neon) 67%, transparent);
   --neon-18: color-mix(in srgb, var(--neon) 18%, transparent);

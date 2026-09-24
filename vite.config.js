@@ -9,6 +9,12 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    // En Windows, observar estas carpetas provoca EBUSY: cargo compila
+    // .exe/.dll bloqueados y el antivirus los mantiene abiertos -> el
+    // watcher de vite revienta y tumba beforeDevCommand.
+    watch: {
+      ignored: ["**/src-tauri/target/**", "**/venv/**", "**/dist/**", "**/node_modules/**"],
+    },
   },
   envPrefix: ["VITE_", "TAURI_"],
   build: {

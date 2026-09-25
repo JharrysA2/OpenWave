@@ -57,4 +57,17 @@ describe("ConfirmModal", () => {
     fireEvent.click(screen.getByText("Borrar todo"));
     expect(onConfirm).toHaveBeenCalledOnce();
   });
+
+  // ── Contraste: pista de acento → fg derivado (regresión portada blanca) ───
+  it("el botón confirmar (pista de acento) usa --neon-fg, nunca blanco fijo", () => {
+    render(<ConfirmModal {...defaultProps} danger={false} confirmLabel="Aceptar" />);
+    const btn = screen.getByText("Aceptar").closest("button");
+    expect(btn.style.color).toBe("var(--neon-fg)");
+  });
+
+  it("el botón de peligro conserva el blanco sobre el rojo fijo", () => {
+    render(<ConfirmModal {...defaultProps} danger confirmLabel="Eliminar" />);
+    const btn = screen.getByText("Eliminar").closest("button");
+    expect(btn.style.color).toBe("rgb(255, 255, 255)");
+  });
 });

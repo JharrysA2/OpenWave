@@ -543,3 +543,70 @@ describe("LyricsView auto-scroll latch", () => {
     expect(calls()).toBe(3);
   });
 });
+
+// ── Contraste: superficies con el acento de fondo (regresión portada blanca) ─
+
+describe("LyricsView — contraste dinámico sobre acento", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) {
+        return Promise.resolve({ lyrics: null, source: "test" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+  });
+
+  function openSettingsPanel(rowText) {
+    fireEvent.click(screen.getByTitle("Configuración de letras"));
+    fireEvent.click(screen.getByText(rowText));
+  }
+
+  it("el botón Buscar usa --neon-fg, nunca blanco fijo sobre el degradado", () => {
+    renderLyrics();
+    openSettingsPanel("Buscar letras");
+    const btn = screen.getByText("Buscar").closest("button");
+    expect(btn).toBeTruthy();
+    expect(btn.style.color).toBe("var(--neon-fg)");
+  });
+
+  it("el check de fuente seleccionada usa --neon-fg sobre el acento", () => {
+    renderLyrics();
+    openSettingsPanel("Fuente de letras");
+    const checks = screen.getAllByText("✓");
+    expect(checks.length).toBeGreaterThan(0);
+    for (const check of checks) {
+      expect(check.style.color).toBe("var(--neon-fg)");
+    }
+  });
+
+  it("el knob del toggle Fallback encendido usa --neon-fg sobre el acento", () => {
+    renderLyrics();
+    openSettingsPanel("Fuente de letras");
+    const label = screen.getByText("Fallback automático");
+    const toggleBtn = label.parentElement.parentElement.querySelector("button");
+    expect(toggleBtn).toBeTruthy();
+    expect(toggleBtn.firstElementChild.style.background).toBe("var(--neon-fg)");
+  });
+
+  it("el botón Guardar cambios usa --neon-fg, nunca blanco fijo", () => {
+    renderLyrics();
+    openSettingsPanel("Editar letras");
+    const btn = screen.getByText("Guardar cambios").closest("button");
+    expect(btn).toBeTruthy();
+    expect(btn.style.color).toBe("var(--neon-fg)");
+  });
+
+  it("el knob del toggle Karaoke (sección Apariencia) usa --neon-fg", () => {
+    renderLyrics();
+    fireEvent.click(screen.getByTitle("Configuración de letras"));
+    fireEvent.click(screen.getByText("Apariencia"));
+    const label = screen.getByText("Karaoke");
+    const toggleBtn = label.parentElement.parentElement.querySelector("button");
+    expect(toggleBtn).toBeTruthy();
+    expect(toggleBtn.firstElementChild.style.background).toBe("var(--neon-fg)");
+  });
+});

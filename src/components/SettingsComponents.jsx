@@ -122,7 +122,8 @@ export function SettingsToggle({ value, onChange, accent }) {
           width: "20px",
           height: "20px",
           borderRadius: "50%",
-          background: COLORS.white,
+          // Pista encendida = acento: el knob toma el fg derivado del acento
+          background: value ? "var(--neon-fg)" : COLORS.white,
           boxShadow: "0 1px 4px rgba(0,0,0,.4)",
           transition: "left .2s cubic-bezier(.4,0,.2,1)",
         }}

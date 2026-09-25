@@ -483,7 +483,8 @@ function SearchLyricsModal({
           background: hasSources
             ? `linear-gradient(135deg, ${accentColor}, color-mix(in srgb, ${accentColor} 80%, white))`
             : "rgba(255,255,255,.1)",
-          color: hasSources ? "#fff" : "rgba(255,255,255,.35)",
+          // Degradado del acento → primer plano dinámico (nunca blanco fijo)
+          color: hasSources ? "var(--neon-fg)" : "rgba(255,255,255,.35)",
           fontWeight: "800",
           fontSize: "14px",
           fontFamily: FONT,
@@ -690,7 +691,9 @@ function SourceModal({ accentColor, settings, updateSetting, onClose }) {
             }}
           >
             {selected.includes(s.key) && (
-              <span style={{ color: "#fff", fontSize: "12px", fontWeight: "900" }}>✓</span>
+              <span style={{ color: "var(--neon-fg)", fontSize: "12px", fontWeight: "900" }}>
+                ✓
+              </span>
             )}
           </div>
           <div style={{ flex: 1 }}>
@@ -756,7 +759,8 @@ function SourceModal({ accentColor, settings, updateSetting, onClose }) {
               width: "18px",
               height: "18px",
               borderRadius: "50%",
-              background: "#fff",
+              // Pista encendida = acento: knob con fg derivado (nunca blanco fijo)
+              background: fallback ? "var(--neon-fg)" : "#fff",
               position: "absolute",
               top: "3px",
               left: fallback ? "24px" : "3px",
@@ -859,7 +863,8 @@ function EditLyricsModal({ accentColor, lyrics, onEditLyrics, onClose }) {
             borderRadius: "12px",
             border: "none",
             background: `linear-gradient(135deg, ${accentColor}, color-mix(in srgb, ${accentColor} 80%, white))`,
-            color: "#fff",
+            // Degradado del acento → primer plano dinámico (nunca blanco fijo)
+            color: "var(--neon-fg)",
             fontWeight: "800",
             fontSize: "14px",
             fontFamily: FONT,
@@ -970,7 +975,8 @@ function LyricsSettingsModal({
     width: "16px",
     height: "16px",
     borderRadius: "50%",
-    background: "#fff",
+    // Pista encendida = acento: knob con fg derivado (nunca blanco fijo)
+    background: on ? "var(--neon-fg)" : "#fff",
     position: "absolute",
     top: "3px",
     left: on ? "20px" : "3px",

@@ -113,6 +113,19 @@ describe("SettingsToggle", () => {
     fireEvent.click(container.firstChild);
     expect(onChange).toHaveBeenCalledWith(false);
   });
+
+  // ── Contraste: pista de acento → knob con fg derivado (regresión portada blanca)
+  it("el knob encendido usa --neon-fg, nunca blanco fijo sobre el acento", () => {
+    const { container } = render(<SettingsToggle value accent="#ffffff" />);
+    const knob = container.firstChild.firstChild;
+    expect(knob.style.background).toBe("var(--neon-fg)");
+  });
+
+  it("el knob apagado mantiene el blanco sobre la pista translúcida oscura", () => {
+    const { container } = render(<SettingsToggle value={false} onChange={() => {}} />);
+    const knob = container.firstChild.firstChild;
+    expect(knob.style.background).toBe("rgb(255, 255, 255)");
+  });
 });
 
 // ── SettingsChevron ────────────────────────────────────────────────────────

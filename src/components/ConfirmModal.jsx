@@ -186,7 +186,8 @@ export function ConfirmModal({
               padding: "8px 20px",
               fontSize: "13px",
               fontWeight: "700",
-              color: "#fff",
+              // Peligro (rojo fijo) → blanco; acento dinámico → fg derivado
+              color: danger ? "#fff" : "var(--neon-fg)",
               cursor: "pointer",
               transition: TRANSITIONS.fast,
               display: "flex",

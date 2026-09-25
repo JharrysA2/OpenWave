@@ -135,4 +135,18 @@ describe("AlbumView", () => {
     expect(play).toBeTruthy();
     expect(play.style.color).toContain("var(--neon-fg)");
   });
+
+  it("el check de selección usa currentColor sobre --neon-fg, nunca blanco fijo", async () => {
+    api.get.mockResolvedValue(albumData);
+    render(<AlbumView {...defaultProps} accentColor="#ffffff" />);
+    await waitFor(() => {
+      expect(screen.getByText("Track 1")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("Seleccionar"));
+    fireEvent.click(screen.getByText("Track 1"));
+    const check = document.querySelector('polyline[points="20 6 9 17 4 12"]');
+    expect(check).toBeTruthy();
+    expect(check.closest("svg").getAttribute("stroke")).toBe("currentColor");
+    expect(check.closest("svg").parentElement.style.color).toBe("var(--neon-fg)");
+  });
 });

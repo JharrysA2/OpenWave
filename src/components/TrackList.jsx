@@ -2,7 +2,15 @@ import React from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
-import { COLORS, LAYOUTS, RADIUS, TRANSITIONS, ANIMATIONS, safeAccentText, withAlpha } from "../utils/theme";
+import {
+  COLORS,
+  LAYOUTS,
+  RADIUS,
+  TRANSITIONS,
+  ANIMATIONS,
+  safeAccentText,
+  withAlpha,
+} from "../utils/theme";
 
 /**
  * Lista de filas tipo PlaylistView (índice/checkbox, cover, info, duración,
@@ -95,6 +103,8 @@ export default function TrackList({
                   borderRadius: "6px",
                   border: `2px solid ${isSelected ? accentColor : "rgba(255,255,255,.2)"}`,
                   background: isSelected ? accentColor : "transparent",
+                  // Acento de fondo → primer plano dinámico (nunca blanco fijo)
+                  color: "var(--neon-fg)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -108,7 +118,7 @@ export default function TrackList({
                     height="12"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#fff"
+                    stroke="currentColor"
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeLinejoin="round"

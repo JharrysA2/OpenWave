@@ -664,6 +664,8 @@ export default function AlbumView({
                     borderRadius: "6px",
                     border: `2px solid ${isSelected ? accentColor : "rgba(255,255,255,.2)"}`,
                     background: isSelected ? accentColor : "transparent",
+                    // Acento de fondo → primer plano dinámico (nunca blanco fijo)
+                    color: "var(--neon-fg)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -677,7 +679,7 @@ export default function AlbumView({
                       height="12"
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke="#fff"
+                      stroke="currentColor"
                       strokeWidth="3"
                       strokeLinecap="round"
                       strokeLinejoin="round"

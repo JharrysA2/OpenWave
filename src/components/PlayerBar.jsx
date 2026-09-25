@@ -16,10 +16,9 @@ import {
   safeAccentText,
 } from "../utils/theme";
 
-/* Botones del player — mismo material que GLASS.btn pero SIN backdrop-filter:
-   el propio bar ya difumina el fondo (GLASS.player), así que un blur por botón
-   no aporta nada visible y añade 6 regiones que se re-rasterizan en cada hover
-   (y con --disable-gpu todas se pagan en CPU). */
+/* Botones del player — GLASS.btn SIN backdrop-filter (lock de regresión):
+   ni el bar (GLASS.player) ni los botones difuminan ya (medición GPU); un
+   blur por botón creaba6 regiones que se re-rasterizaban en cada hover. */
 const BAR_BTN = {
   ...GLASS.btn,
   backdropFilter: "none",

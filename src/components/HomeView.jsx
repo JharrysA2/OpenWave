@@ -183,6 +183,11 @@ export default function HomeView({
                   style={{
                     ...ANIMATIONS.fadeSlideUp(160 + i * 50),
                     ...GLASS.card,
+                    // Sin backdrop-filter por tarjeta (regresión de
+                    // rendimiento, mismo criterio que LibraryCard): sobre la
+                    // rejilla plana el blur era imperceptible.
+                    backdropFilter: undefined,
+                    WebkitBackdropFilter: undefined,
                     background: isPlaying
                       ? `linear-gradient(135deg, ${withAlpha(accentColor, "18")}, ${withAlpha(accentColor, "08")})`
                       : GLASS.card.background,

@@ -561,26 +561,25 @@ export const TRANSITIONS = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const GLASS = {
-  /** Player bar — Liquid Glass: translucent + light blur
-   *  Sin `saturate`: superficie permanente a ancho completo (ver GLASS.sidebar). */
+  /** Player bar — Liquid Glass SIN backdrop-filter.
+   *  Medición (scripts/measure-perf.ps1): los backdrop-filter costaban
+   *  1.80% GPU en Letras y este flotante a ancho completo era la mayor
+   *  superficie activa (el contenido scrollea por debajo). Fondo algo más
+   *  opaco para mantener la legibilidad sobre contenido en movimiento. */
   player: {
-    background: "rgba(10,10,18,.18)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
+    background: "rgba(10,10,18,.85)",
     border: "none",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), " + "0 4px 20px rgba(0,0,0,.25)",
   },
 
-  /** Sidebar — Liquid Glass estructural
+  /** Sidebar — Liquid Glass estructural SIN backdrop-filter.
+   *  Detrás solo hay el fondo de la ventana (estático): el blur era
+   *  imperceptible y costaba en todas las pantallas visibles.
    *  Sin `border`: el divisor lo aporta el `borderRight` inline de Sidebar.jsx
    *  (color-mix con el acento). Un border de 4 lados se ve como línea blanca
-   *  sobre el blur.
-   *  Sin `saturate`: es una columna a altura completa presente en TODAS las
-   *  pantallas; la pasada extra de color no compensa su coste fijo. */
+   *  sobre el fondo. */
   sidebar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
   },
 
   /** Nav items — Liquid Glass sutil */
@@ -599,13 +598,14 @@ export const GLASS = {
       `0 0 20px color-mix(in srgb, ${accentColor} 15%, transparent)`,
   }),
 
-  /** Botón glass genérico — estilo Liquid Glass de LyricsView */
+  /** Botón glass genérico — estilo Liquid Glass de LyricsView.
+   *  Sin backdrop-filter: sobre las superficies donde se usa (paneles y
+   *  fondos estáticos) el blur era imperceptible, y al escalar en hover
+   *  re-difuminaba su región en cada frame. */
   btn: {
     background: "linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.04) 100%)",
     border: `1px solid ${COLORS.borderActive}`,
     boxShadow: SHADOWS.closeBtn,
-    backdropFilter: "blur(6px)",
-    WebkitBackdropFilter: "blur(6px)",
   },
 
   /** Hover de botón glass sobre superficies NO glass (fondo opaco).
@@ -646,11 +646,12 @@ export const GLASS = {
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 2px 8px rgba(0,0,0,.15)",
   },
 
-  /** Card / Album card — Liquid Glass */
+  /** Card / Album card — Liquid Glass SIN backdrop-filter: todos los
+   *  consumidores (LibraryCard, AlbumCardRow, quick picks de Home) ya lo
+   *  optaban out por medición — el blur por tarjeta creaba un backdrop root
+   *  por fila sobre fondos estáticos. Gradiente, borde y sombra se conservan. */
   card: {
     background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
-    backdropFilter: "blur(10px) saturate(140%)",
-    WebkitBackdropFilter: "blur(10px) saturate(140%)",
     border: "1px solid rgba(255,255,255,.08)",
     borderColor: "rgba(255,255,255,.08)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 4px 16px rgba(0,0,0,.2)",
@@ -678,8 +679,9 @@ export const GLASS = {
    *  a ancho completo, así que sin `saturate` (ver GLASS.sidebar). */
   titleBar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
+    // Sin backdrop-filter: detrás solo hay el fondo de la ventana (estático)
+    // y la barra está siempre visible (incluso sobre Letras) — medición:
+    // superficie permanente a ancho completo dentro del 1.80% GPU de blur.
     border: "1px solid rgba(255,255,255,.06)",
   },
 

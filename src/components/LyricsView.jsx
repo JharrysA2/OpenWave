@@ -1836,8 +1836,8 @@ export function LyricsView({
     alignItems: "center",
     justifyContent: "center",
     transition: "all .2s cubic-bezier(.16,1,.3,1)",
-    backdropFilter: "blur(6px)",
-    WebkitBackdropFilter: "blur(6px)",
+    // Sin backdrop-filter: el botón flota sobre el fondo de letras (estático)
+    // — medición GPU, dentro del 1.80% de blur que costaban los backdrop.
   };
 
   if (!open || !song) return null;

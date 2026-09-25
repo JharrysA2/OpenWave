@@ -148,4 +148,15 @@ describe("HomeView", () => {
     // Looking at the code: {song.duration > 0 && (<span>{fmtTime(song.duration)}</span>)}
     expect(screen.queryByText("0:00")).not.toBeInTheDocument();
   });
+
+  it("las quick picks no llevan backdrop-filter (regresión de GPU por tarjeta)", () => {
+    renderHome({ history: [song("a")] });
+    const title = screen.getAllByText("Song a")[0];
+    let card = title;
+    while (card && !((card.style && card.style.background) || "").includes("linear-gradient")) {
+      card = card.parentElement;
+    }
+    expect(card).toBeTruthy();
+    expect(card.style.backdropFilter ?? "").toBe("");
+  });
 });

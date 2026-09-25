@@ -43,9 +43,22 @@ describe("theme — materiales translúcidos", () => {
     expect(GLASS.playBtn("#00ff00").background).toContain("#00ff00");
   });
 
-  it("las superficies translúcidas usan backdrop-filter", () => {
-    expect(GLASS.player.backdropFilter).toContain("blur");
-    expect(GLASS.sidebar.WebkitBackdropFilter).toContain("blur");
+  it("las superficies permanentes no usan backdrop-filter (medición GPU)", () => {
+    // scripts/measure-perf.ps1: los backdrop-filter costaban 1.80% GPU en
+    // Letras y player/sidebar/titleBar eran las superficies activas a ancho
+    // completo. Regresión = volver a subir el consumo de GPU.
+    expect(GLASS.player.backdropFilter).toBeUndefined();
+    expect(GLASS.player.WebkitBackdropFilter).toBeUndefined();
+    expect(GLASS.sidebar.backdropFilter).toBeUndefined();
+    expect(GLASS.sidebar.WebkitBackdropFilter).toBeUndefined();
+    expect(GLASS.titleBar.backdropFilter).toBeUndefined();
+    expect(GLASS.btn.backdropFilter).toBeUndefined();
+    expect(GLASS.card.backdropFilter).toBeUndefined();
+    // El bar sin blur necesita fondo opaco para legibilidad sobre contenido
+    expect(GLASS.player.background).toContain(".85");
+  });
+
+  it("los sheets/modales efímeros conservan backdrop-filter", () => {
     expect(GLASS.sheet.backdropFilter).toContain("blur");
   });
 });

@@ -16,6 +16,10 @@
 #     1 nucleo = 100) -> se divide entre los nucleos para % de la maquina.
 #   - GPU: contador "GPU Engine\Utilization Percentage" (queda en ingles en
 #     sistemas en espanol) filtrado por pid al inicio del nombre de instancia.
+#   - GPU por tipo de motor (sufijo engtype_XXX de la instancia): 3D =
+#     raster/composicion de la UI, VideoDecode = decodificacion de video,
+#     Copy/Compute/Overlay = transferencias y calculo. Sirve para atribuir
+#     el consumo a una superficie concreta.
 #   - WebView2: solo procesos descendientes de soundwave.exe (excluye
 #     huérfanos de otras apps de Windows).
 param(
@@ -36,6 +40,11 @@ $series = @{
   sysCpu     = New-Object System.Collections.Generic.List[double]
   appGpu     = New-Object System.Collections.Generic.List[double]
 }
+
+# Desglose GPU por tipo de motor: suma por muestra y maximo; el avg final
+# se calcula sobre TODAS las muestras (ausencia = 0).
+$gpuTypeSum = @{}
+$gpuTypeMax = @{}
 
 # Descendientes msedgewebview2 de soundwave.exe (la app Tauri es la raiz)
 function Get-AppWebviewPids([int[]]$roots) {
@@ -88,12 +97,24 @@ for ($s = 0; $s -lt $Seconds; $s++) {
 
   $gpu = 0.0
   $appPids = $tauriPids + $pyPids + $wvPids
+  $sampleTypes = @{}
   $gs = (Get-Counter "\GPU Engine(*)\Utilization Percentage").CounterSamples
   foreach ($c in $gs) {
     if ($c.CookedValue -le 0) { continue }
     if ($c.InstanceName -match "^pid_(\d+)_") {
-      if ($appPids -contains [int]$Matches[1]) { $gpu += $c.CookedValue }
+      if ($appPids -contains [int]$Matches[1]) {
+        $gpu += $c.CookedValue
+        $eng = "unknown"
+        if ($c.InstanceName -match "engtype_(\w+)$") { $eng = $Matches[1] }
+        if ($sampleTypes.ContainsKey($eng)) { $sampleTypes[$eng] += $c.CookedValue }
+        else { $sampleTypes[$eng] = $c.CookedValue }
+      }
     }
+  }
+  foreach ($k in @($sampleTypes.Keys)) {
+    if (-not $gpuTypeSum.ContainsKey($k)) { $gpuTypeSum[$k] = 0.0; $gpuTypeMax[$k] = 0.0 }
+    $gpuTypeSum[$k] += $sampleTypes[$k]
+    if ($sampleTypes[$k] -gt $gpuTypeMax[$k]) { $gpuTypeMax[$k] = $sampleTypes[$k] }
   }
 
   # PercentProcessorTime de proceso viene en % por nucleo (0..cores*100):
@@ -132,3 +153,12 @@ Write-Output ("  webview2     CPU : " + (Stats $series.webviewCpu))
 Write-Output ("  node (vite)  CPU : " + (Stats $series.nodeCpu))
 Write-Output ("  sistema      CPU : " + (Stats $series.sysCpu))
 Write-Output ("  app          GPU : " + (Stats $series.appGpu))
+if ($gpuTypeSum.Count -gt 0) {
+  $parts = @()
+  foreach ($k in ($gpuTypeSum.Keys | Sort-Object)) {
+    $avgT = [math]::Round($gpuTypeSum[$k] / $Seconds, 2)
+    $maxT = [math]::Round($gpuTypeMax[$k], 2)
+    $parts += "$k avg=$avgT max=$maxT"
+  }
+  Write-Output ("  GPU motor     : " + ($parts -join " | "))
+}

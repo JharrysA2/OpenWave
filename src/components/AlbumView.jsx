@@ -195,7 +195,9 @@ export default function AlbumView({
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              filter: "blur(12px) saturate(1.2) brightness(0.6)",
+              // blur moderado (8px): el banner es estático y el radio alto solo
+              // encarecía el raster al invalidarse (resize/cambio de álbum)
+              filter: "blur(8px) saturate(1.2) brightness(0.6)",
               transform: "scale(1.3)",
             }}
           />

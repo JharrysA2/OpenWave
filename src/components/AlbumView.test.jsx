@@ -149,4 +149,16 @@ describe("AlbumView", () => {
     expect(check.closest("svg").getAttribute("stroke")).toBe("currentColor");
     expect(check.closest("svg").parentElement.style.color).toBe("var(--neon-fg)");
   });
+
+  // ── Rendimiento: blur moderado en el banner (regresión de raster GPU) ──
+  it("el banner del álbum usa blur(8px), no blur(12px)", async () => {
+    const { container } = render(<AlbumView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("Track 1")).toBeInTheDocument();
+    });
+    const banner = container.querySelector('img[aria-hidden="true"]');
+    expect(banner).toBeTruthy();
+    expect(banner.style.filter).toContain("blur(8px)");
+    expect(banner.style.filter).not.toContain("12px");
+  });
 });

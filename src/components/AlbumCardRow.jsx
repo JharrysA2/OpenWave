@@ -7,7 +7,14 @@ import { COLORS, GLASS, LAYOUTS, TRANSITIONS, ANIMATIONS } from "../utils/theme"
  * Tarjeta de álbum horizontal (SearchView/ArtistView).
  * `subtitle` es texto ya formateado por el caller; `animationDelay` en ms.
  */
-export default React.memo(function AlbumCardRow({ album, minWidth = 130, animationDelay = 200, subtitle, onClick, onOptions }) {
+export default React.memo(function AlbumCardRow({
+  album,
+  minWidth = 130,
+  animationDelay = 200,
+  subtitle,
+  onClick,
+  onOptions,
+}) {
   return (
     <div
       onClick={onClick}
@@ -16,6 +23,11 @@ export default React.memo(function AlbumCardRow({ album, minWidth = 130, animati
         containIntrinsicSize: "auto 172px",
         ...ANIMATIONS.fadeSlideUp(animationDelay),
         ...LAYOUTS.albumCard,
+        // Sin backdrop-filter por tarjeta (regresión de rendimiento, mismo
+        // criterio que LibraryCard): cada fila creaba su propio backdrop root
+        // sobre la portada; sobre fondo plano el blur era imperceptible.
+        backdropFilter: undefined,
+        WebkitBackdropFilter: undefined,
         minWidth,
         transition: `${TRANSITIONS.fast}, transform .12s ease`,
       }}
@@ -60,7 +72,8 @@ export default React.memo(function AlbumCardRow({ album, minWidth = 130, animati
               alignItems: "center",
               justifyContent: "center",
               padding: 0,
-              backdropFilter: "blur(6px)",
+              // Sin backdrop-filter por fila (regresión de rendimiento): cada
+              // botón ⋮ creaba su propio backdrop root sobre la portada.
               transition: "all .15s ease",
             }}
             onMouseEnter={(e) => {

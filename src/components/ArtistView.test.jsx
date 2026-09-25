@@ -112,4 +112,16 @@ describe("ArtistView", () => {
     expect(follow).toBeTruthy();
     expect(follow.style.color).toContain("var(--neon-fg)");
   });
+
+  // ── Rendimiento: blur moderado en el banner (regresión de raster GPU) ──
+  it("el banner del artista usa blur(8px), no blur(12px)", async () => {
+    const { container } = render(<ArtistView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("Test Artist")).toBeInTheDocument();
+    });
+    const banner = container.querySelector('img[aria-hidden="true"]');
+    expect(banner).toBeTruthy();
+    expect(banner.style.filter).toContain("blur(8px)");
+    expect(banner.style.filter).not.toContain("12px");
+  });
 });

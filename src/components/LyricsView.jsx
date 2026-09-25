@@ -1896,6 +1896,12 @@ export function LyricsView({
               opacity: bgLoaded ? 1 : 0,
               transition: "opacity .3s cubic-bezier(.16,1,.3,1)",
               contain: "paint",
+              // will-change: la textura filtrada queda cacheada en la GPU. El
+              // repintado de las letras/scroll solapa TODO el viewport y, sin
+              // esta pista, re-ejecutaba el blur entero cada frame — solo debe
+              // re-filtrar al cambiar de canción. Medición (measure-perf.ps1):
+              // la cadena de filtro de esta capa costaba ~1.8% GPU en Letras.
+              willChange: "filter",
             }}
           />
         )}

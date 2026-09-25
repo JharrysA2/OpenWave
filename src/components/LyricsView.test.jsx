@@ -610,3 +610,18 @@ describe("LyricsView — contraste dinámico sobre acento", () => {
     expect(toggleBtn.firstElementChild.style.background).toBe("var(--neon-fg)");
   });
 });
+
+describe("LyricsView — rendimiento del fondo", () => {
+  it("la capa de fondo blur declara will-change: filter (caché de GPU)", () => {
+    // Sin la pista, el repintado de las letras re-ejecutaba el blur de todo
+    // el viewport cada frame (~1.8% GPU medido con measure-perf.ps1).
+    const { container } = render(
+      <SettingsProvider>
+        <LyricsView {...defaultProps} />
+      </SettingsProvider>,
+    );
+    const bg = container.querySelector('div[style*="blur(12px)"]');
+    expect(bg).toBeTruthy();
+    expect(bg.style.willChange).toBe("filter");
+  });
+});

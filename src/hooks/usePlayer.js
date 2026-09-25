@@ -676,7 +676,8 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
 
   //  PROGRESS MONITORING: Disparar crossfade ANTES de que termine la canción
   // ═══════════════════════════════════════════════════════════════════════════
-  //    Cada ~300ms, verifica si faltan menos de crossfadeDuration segundos.
+  //    Verifica periódicamente si faltan menos de crossfadeDuration segundos
+  //    (2s de cadencia grosera lejos del disparo,300ms al acercarse).
   //    Si es así, inicia el crossfade simultáneo (fade-OUT + fade-IN).
   //    Solo se activa si crossfadeDuration > 0, isPlaying, y no hay otro
   //    crossfade activo.
@@ -693,22 +694,34 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
     // ⭐ Protección: si la canción apenas dura más que el crossfade, no mezclar
     if (duration <= crossfadeDuration + 1) return;
 
+    // Auto-reprogramado con setTimeout en vez de setInterval fijo: cadencia
+    // grosera (2s) mientras queda margen y fina (300ms, la clásica) al entrar
+    // en los últimos crossfadeDuration + 2s. Misma ventana de disparo y misma
+    // reactividad (la cadena sigue viva durante el fade y tras cancelCrossfade)
+    // con ~6× menos despertares por canción.
+    let timer = null;
+
     const checkProgress = () => {
-      if (crossfadeActiveRef.current) return;
+      timer = null;
 
       const currentTime = progressRef.current;
-      if (currentTime <= 0 || duration <= 0) return;
+      const timeLeft = currentTime > 0 && duration > 0 ? duration - currentTime : Infinity;
+      const near = timeLeft <= crossfadeDuration + 2;
 
-      const timeLeft = duration - currentTime;
-      // ⭐ Disparar cuando falten crossfadeDuration segundos (con 200ms de margen)
-      if (timeLeft <= crossfadeDuration + 0.2 && timeLeft > 0.5) {
+      if (
+        !crossfadeActiveRef.current &&
+        timeLeft <= crossfadeDuration + 0.2 &&
+        timeLeft > 0.5
+      ) {
         const cfId = ++crossfadeIdRef.current;
         spawnCrossfade(cfId);
       }
+
+      timer = setTimeout(checkProgress, near ? 300 : 2000);
     };
 
-    const interval = setInterval(checkProgress, 300);
-    return () => clearInterval(interval);
+    timer = setTimeout(checkProgress, 300);
+    return () => clearTimeout(timer);
   }, [crossfadeDuration, isPlaying, currentSong?.videoId, duration, repeatMode, spawnCrossfade]);
 
   const handlePrev = useCallback(() => {

@@ -250,13 +250,16 @@ export const PlayerBar = memo(function PlayerBar({
     [duration, progressRef],
   );
 
-  // Loop: 1s interval while playing (was rAF ~60fps, GPU-heavy).
+  // Loop: 200ms interval while playing — a mitad de camino entre el rAF a
+  // 60fps (GPU-heavy en este equipo) y el tick de 1s (el relleno saltaba a
+  // "mini tirones" una vez por segundo). paintProgress escribe al DOM sin
+  // re-render de React, así que los ticks extra son un par de asignaciones.
   // Se pausa cuando la ventana no es visible — no aporta nada leer el reloj
   // si nadie mira la barra, y la música sigue sonando.
   useEffect(() => {
     if (!isPlaying || !visible) return undefined;
 
-    const interval = setInterval(() => paintProgress(), 1000);
+    const interval = setInterval(() => paintProgress(), 200);
 
     return () => clearInterval(interval);
   }, [isPlaying, visible, paintProgress]);

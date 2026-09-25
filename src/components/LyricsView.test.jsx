@@ -496,7 +496,7 @@ describe("LyricsView auto-scroll latch", () => {
     expect(scrollBox).not.toBeNull();
     const calls = () => Element.prototype.scrollIntoView.mock.calls.length;
 
-    // Tick 1000ms: progressSec=3 → línea 0 activa → scroll programático
+    // Avanza 1000ms (≥1 tick de 400ms): progressSec=3 → línea 0 activa → scroll programático
     act(() => {
       vi.advanceTimersByTime(1000);
     });

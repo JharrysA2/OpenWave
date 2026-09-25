@@ -1534,7 +1534,12 @@ export function LyricsView({
     reloadCounter,
   ]);
 
-  // ── Track progress for synced lyrics (cada 1s) ────────────────────────
+  // ── Track progress for synced lyrics (cada 400ms) ─────────────────────
+  //    Cadencia fina: con 1s el karaoke encadenaba palabras en bloques de
+  //    un segundo y el cambio de línea arrastraba ≤1.25s de retraso visible
+  //    ("las letras van lentas"). La fuente progressRef está en sincronía
+  //    (lo comprueba el reloj de la barra); el problema era la cadencia de
+  //    este tick. Coste: solo re-renderiza la línea activa (LyricLine memo).
 
   useEffect(() => {
     if (!open || !isSynced || !visible) return;
@@ -1542,7 +1547,7 @@ export function LyricsView({
       if (progressRef?.current !== undefined) {
         setProgressSec(progressRef.current);
       }
-    }, 1000);
+    }, 400);
     return () => clearInterval(interval);
   }, [open, isSynced, visible, progressRef]);
 

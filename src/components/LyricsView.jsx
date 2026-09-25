@@ -16,6 +16,7 @@ import { MusicCover } from "./MusicCover";
 import { SkeletonLyrics } from "./SkeletonLoader";
 import { fmtTime } from "../utils/formatTime";
 import { parseLrc } from "../utils/lrc";
+import { preblurToDataUrl } from "../utils/imageBlur";
 import { useSettings } from "../contexts/useSettings";
 import { usePerformance } from "../contexts/PerformanceContext";
 
@@ -1377,6 +1378,7 @@ export function LyricsView({
   const lyricsContainerRef = useRef(null);
   const [bgLoaded, setBgLoaded] = useState(false); // HD background loaded
   const [bgSrc, setBgSrc] = useState(""); // fuente real del fondo (directa o proxy)
+  const [bgBlurUrl, setBgBlurUrl] = useState(""); // fondo pre-difuminado en canvas (1x por canción)
   const lineRefs = useRef({});
   const scrollTimerRef = useRef(null);
   const currentLineRef = useRef(-1);
@@ -1636,41 +1638,49 @@ export function LyricsView({
   const sortedThumbs = thumbs.length
     ? [...thumbs].sort((a, b) => (b.width || 0) - (a.width || 0))
     : [];
-  // bgThumb: la MÁS GRANDE para CSS filter:blur() de alta calidad
+  // bgThumb: la MÁS GRANDE — es la fuente del pre-difuminado en canvas
   const bgThumb = sortedThumbs.length > 0 ? sortedThumbs[0]?.url : song?.thumbnail || "";
+  // Fuente de la capa: pre-difuminado del canvas o, si falló (CORS), la
+  // imagen grande con el filtro CSS de siempre (fallback con coste de GPU)
+  const bgLayerSrc = bgBlurUrl || bgSrc;
 
   // ── Pre-cargar la imagen de fondo para evitar latencia ────────────────
   //    Estrategia optimizada: proxy primero (ya pre-cachado en usePlayer),
   //    luego URL directa como fallback. El browser cache hace que sea
   //    instantáneo si la imagen ya fue precargada.
+  //    El proxy manda Access-Control-Allow-Origin: * → con crossOrigin el
+  //    canvas queda limpio y se pre-difumina UNA VEZ por canción; la capa
+  //    CSS se queda sin `filter` (medido: la cadena en CSS costaba ~1.8%
+  //    GPU en Letras re-ejecutándose en cada repintado).
   useEffect(() => {
     setBgLoaded(false);
     setBgSrc("");
+    setBgBlurUrl("");
     if (!open || !bgThumb) return;
     let cancelled = false;
     const proxyUrl = `${api.base}/thumbnail-proxy?url=${encodeURIComponent(bgThumb)}`;
 
+    const succeed = (url, img) => {
+      if (cancelled) return;
+      setBgBlurUrl(preblurToDataUrl(img) || "");
+      setBgSrc(url);
+      setBgLoaded(true);
+    };
+    const fail = () => {
+      if (!cancelled) setBgLoaded(true);
+    };
+
     // Try proxy first (should be pre-cached from usePlayer)
     const imgProxy = new Image();
-    imgProxy.onload = () => {
-      if (!cancelled) {
-        setBgSrc(proxyUrl);
-        setBgLoaded(true);
-      }
-    };
+    imgProxy.crossOrigin = "anonymous";
+    imgProxy.onload = () => succeed(proxyUrl, imgProxy);
     imgProxy.onerror = () => {
       if (cancelled) return;
-      // Fallback: try direct URL
+      // Fallback: try direct URL (sin crossOrigin: si el canvas queda
+      // contaminado, succeed() deja bgBlurUrl vacío y manda el filtro CSS)
       const imgDirect = new Image();
-      imgDirect.onload = () => {
-        if (!cancelled) {
-          setBgSrc(bgThumb);
-          setBgLoaded(true);
-        }
-      };
-      imgDirect.onerror = () => {
-        if (!cancelled) setBgLoaded(true);
-      };
+      imgDirect.onload = () => succeed(bgThumb, imgDirect);
+      imgDirect.onerror = fail;
       imgDirect.src = bgThumb;
     };
     imgProxy.src = proxyUrl;
@@ -1882,26 +1892,28 @@ export function LyricsView({
           }}
         />
 
-        {/* Capa 1: Fondo con CSS filter blur — se superpone sobre la base */}
+        {/* Capa 1: Fondo pre-difuminado en canvas (sin filter en CSS) */}
         {!solidOn && bgThumb && (
           <div
+            data-testid="lyrics-bg"
             style={{
               position: "absolute",
               inset: "-5%",
-              backgroundImage: bgLoaded && bgSrc ? `url(${bgSrc})` : "none",
+              backgroundImage: bgLoaded && bgLayerSrc ? `url(${bgLayerSrc})` : "none",
               backgroundSize: "cover",
               backgroundPosition: "center",
-              filter: "blur(12px) saturate(1.2) brightness(0.7)",
+              // Filtro CSS solo como fallback si el pre-difuminado falló
+              // (canvas contaminado por CORS): en el flujo normal la cadena
+              // blur+saturate+brightness va aplicada una vez en canvas y esta
+              // capa pinta sin `filter` (medido: ~1.8% GPU en Letras).
+              filter:
+                bgLoaded && bgSrc && !bgBlurUrl
+                  ? "blur(12px) saturate(1.2) brightness(0.7)"
+                  : undefined,
               transform: "scale(1.1)",
               opacity: bgLoaded ? 1 : 0,
               transition: "opacity .3s cubic-bezier(.16,1,.3,1)",
               contain: "paint",
-              // will-change: la textura filtrada queda cacheada en la GPU. El
-              // repintado de las letras/scroll solapa TODO el viewport y, sin
-              // esta pista, re-ejecutaba el blur entero cada frame — solo debe
-              // re-filtrar al cambiar de canción. Medición (measure-perf.ps1):
-              // la cadena de filtro de esta capa costaba ~1.8% GPU en Letras.
-              willChange: "filter",
             }}
           />
         )}

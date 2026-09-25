@@ -612,16 +612,17 @@ describe("LyricsView — contraste dinámico sobre acento", () => {
 });
 
 describe("LyricsView — rendimiento del fondo", () => {
-  it("la capa de fondo blur declara will-change: filter (caché de GPU)", () => {
-    // Sin la pista, el repintado de las letras re-ejecutaba el blur de todo
-    // el viewport cada frame (~1.8% GPU medido con measure-perf.ps1).
+  it("la capa de fondo no lleva filter CSS ni will-change (pre-difuminado en canvas)", () => {
+    // La cadena blur+saturate+brightness en CSS costaba ~1.8% GPU en Letras
+    // (y will-change: filter lo duplicaba): va pre-difuminada en canvas.
     const { container } = render(
       <SettingsProvider>
         <LyricsView {...defaultProps} />
       </SettingsProvider>,
     );
-    const bg = container.querySelector('div[style*="blur(12px)"]');
+    const bg = container.querySelector('[data-testid="lyrics-bg"]');
     expect(bg).toBeTruthy();
-    expect(bg.style.willChange).toBe("filter");
+    expect(bg.style.filter).toBe("");
+    expect(bg.style.willChange).toBe("");
   });
 });

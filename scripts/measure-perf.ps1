@@ -105,7 +105,9 @@ for ($s = 0; $s -lt $Seconds; $s++) {
       if ($appPids -contains [int]$Matches[1]) {
         $gpu += $c.CookedValue
         $eng = "unknown"
-        if ($c.InstanceName -match "engtype_(\w+)$") { $eng = $Matches[1] }
+        # Acepta tipos con espacios ("video codec 0") y sufijos "#1" de
+        # instancias duplicadas ((.+?) es perezoso, así que el #n no entra).
+        if ($c.InstanceName -match "engtype_(.+?)(?:#\d+)?$") { $eng = $Matches[1] }
         if ($sampleTypes.ContainsKey($eng)) { $sampleTypes[$eng] += $c.CookedValue }
         else { $sampleTypes[$eng] = $c.CookedValue }
       }

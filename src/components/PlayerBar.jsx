@@ -16,9 +16,10 @@ import {
   safeAccentText,
 } from "../utils/theme";
 
-/* Botones del player — GLASS.btn SIN backdrop-filter (lock de regresión):
-   ni el bar (GLASS.player) ni los botones difuminan ya (medición GPU); un
-   blur por botón creaba6 regiones que se re-rasterizaban en cada hover. */
+/* Botones del player — GLASS.btn SIN backdrop-filter (decisión de diseño):
+   el hover los escala y re-difuminaría su región en cada frame (6 regiones
+   en la barra); su cristal es el gradiente + highlight interior del token.
+   El bar sí difumina de nuevo (GLASS.player restaurado, medición ≈0). */
 const BAR_BTN = {
   ...GLASS.btn,
   backdropFilter: "none",

@@ -561,25 +561,34 @@ export const TRANSITIONS = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const GLASS = {
-  /** Player bar — Liquid Glass SIN backdrop-filter.
-   *  Medición (scripts/measure-perf.ps1): los backdrop-filter costaban
-   *  1.80% GPU en Letras y este flotante a ancho completo era la mayor
-   *  superficie activa (el contenido scrollea por debajo). Fondo algo más
-   *  opaco para mantener la legibilidad sobre contenido en movimiento. */
+  /** Player bar — Liquid Glass: translucent + light blur.
+   *  Restaurado tras la atribución fina (comparación A−C): el 1.80% GPU de
+   *  Letras era la cadena `filter: blur()` de la capa de fondo, no los
+   *  backdrops (medidos ≈0: el compositing cachea los frosted estáticos).
+   *  Sin `saturate`: superficie permanente a ancho completo (ver GLASS.sidebar).
+   *  En modo Rendimiento/software renderer lo desactiva `perf-blur-off`. */
   player: {
-    background: "rgba(10,10,18,.85)",
+    background: "rgba(10,10,18,.18)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
     border: "none",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), " + "0 4px 20px rgba(0,0,0,.25)",
   },
 
-  /** Sidebar — Liquid Glass estructural SIN backdrop-filter.
-   *  Detrás solo hay el fondo de la ventana (estático): el blur era
-   *  imperceptible y costaba en todas las pantallas visibles.
+  /** Sidebar — Liquid Glass estructural con blur ligero.
+   *  Detrás solo hay el fondo de la ventana (estático): el compositing
+   *  cachea el frost → coste medido ≈0. 8px sin `saturate`: una columna
+   *  presente en TODAS las pantallas no justifica la pasada extra de color,
+   *  y el radio queda por debajo del blur(10px) del bar. (8px y no 6px:
+   *  la regla perf-solid de index.html `html.perf-solid [style*="blur(6px)"]`
+   *  está reservada a botones y pintaría un borde de acento aquí.)
    *  Sin `border`: el divisor lo aporta el `borderRight` inline de Sidebar.jsx
    *  (color-mix con el acento). Un border de 4 lados se ve como línea blanca
-   *  sobre el fondo. */
+   *  sobre el blur. */
   sidebar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
   },
 
   /** Nav items — Liquid Glass sutil */
@@ -676,12 +685,12 @@ export const GLASS = {
   },
 
   /** Title bar — Liquid Glass. Igual que el sidebar: superficie permanente
-   *  a ancho completo, así que sin `saturate` (ver GLASS.sidebar). */
+   *  a ancho completo, así que sin `saturate` y con blur ligero (8px);
+   *  detrás, fondo estático (frost cacheado ≈0). */
   titleBar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
-    // Sin backdrop-filter: detrás solo hay el fondo de la ventana (estático)
-    // y la barra está siempre visible (incluso sobre Letras) — medición:
-    // superficie permanente a ancho completo dentro del 1.80% GPU de blur.
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
     border: "1px solid rgba(255,255,255,.06)",
   },
 

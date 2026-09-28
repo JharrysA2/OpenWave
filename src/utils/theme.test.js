@@ -43,19 +43,28 @@ describe("theme — materiales translúcidos", () => {
     expect(GLASS.playBtn("#00ff00").background).toContain("#00ff00");
   });
 
-  it("las superficies permanentes no usan backdrop-filter (medición GPU)", () => {
-    // scripts/measure-perf.ps1: los backdrop-filter costaban 1.80% GPU en
-    // Letras y player/sidebar/titleBar eran las superficies activas a ancho
-    // completo. Regresión = volver a subir el consumo de GPU.
-    expect(GLASS.player.backdropFilter).toBeUndefined();
-    expect(GLASS.player.WebkitBackdropFilter).toBeUndefined();
-    expect(GLASS.sidebar.backdropFilter).toBeUndefined();
-    expect(GLASS.sidebar.WebkitBackdropFilter).toBeUndefined();
-    expect(GLASS.titleBar.backdropFilter).toBeUndefined();
+  it("player con liquid glass completo y sidebar/titleBar con blur ligero", () => {
+    // Atribución fina (comparación A−C con scripts/measure-perf.ps1): el
+    // 1.80% GPU de Letras era la cadena filter:blur() de la capa de fondo,
+    // NO los backdrops (medidos ≈0: el compositing cachea los frosted
+    // estáticos). Regresión = volver a quitar el glass sin necesidad.
+    expect(GLASS.player.backdropFilter).toBe("blur(10px)");
+    expect(GLASS.player.WebkitBackdropFilter).toBe("blur(10px)");
+    expect(GLASS.player.background).toContain(".18"); // translúcido, no sólido
+    expect(GLASS.sidebar.backdropFilter).toBe("blur(8px)");
+    expect(GLASS.sidebar.WebkitBackdropFilter).toBe("blur(8px)");
+    expect(GLASS.titleBar.backdropFilter).toBe("blur(8px)");
+    expect(GLASS.titleBar.WebkitBackdropFilter).toBe("blur(8px)");
+    // Sin saturate en superficies permanentes (pase extra de color)
+    expect(GLASS.player.backdropFilter).not.toContain("saturate");
+    expect(GLASS.sidebar.backdropFilter).not.toContain("saturate");
+  });
+
+  it("btn y card siguen sin backdrop-filter (hover/grid sí costaban GPU)", () => {
+    // El hover de btn escalaba su región (re-blur por frame) y las grids de
+    // card acumulaban área — ahí el backdrop sí costaba.
     expect(GLASS.btn.backdropFilter).toBeUndefined();
     expect(GLASS.card.backdropFilter).toBeUndefined();
-    // El bar sin blur necesita fondo opaco para legibilidad sobre contenido
-    expect(GLASS.player.background).toContain(".85");
   });
 
   it("los sheets/modales efímeros conservan backdrop-filter", () => {

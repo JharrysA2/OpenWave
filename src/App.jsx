@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 
 // ── Importaciones del proyecto refactorizado ──────────────────────────────────
 import { FONT } from "./constants";
@@ -16,7 +16,6 @@ import { useSongOptions } from "./hooks/useSongOptions";
 import { useSavedEntities } from "./hooks/useSavedEntities";
 import { useEntityOptions } from "./hooks/useEntityOptions";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { LyricsView } from "./components/LyricsView";
 import { TrackPickerModal } from "./components/TrackPickerModal";
 import { SelectionModal } from "./components/SelectionModal";
 import { PlayerBar } from "./components/PlayerBar";
@@ -30,6 +29,13 @@ import { PlaylistPickerModal } from "./components/PlaylistPickerModal";
 import { MainRouter } from "./components/MainRouter";
 import { AudioElements } from "./components/AudioElements";
 import { startHeartbeat, stopHeartbeat, subscribeReconnect } from "./utils/backendHealth";
+
+// Letras: el panel + @dnd-kit (~182 kB) solo se cargan la primera vez que se
+// abre (mismo patrón lazy que MainRouter). Memo además: con la ventana de
+// letras abierta, los renders de App por volumen/play-pause no tocan el overlay.
+const LyricsView = React.memo(
+  lazy(() => import("./components/LyricsView").then((m) => ({ default: m.LyricsView }))),
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  AppInner — lógica principal de la aplicación
@@ -427,6 +433,56 @@ function AppInner() {
     [setQuery, setTab, doSearch, doSearchVideos],
   );
 
+  // ── Callbacks estables para MainRouter y PlayerBar ─────────────────────────
+  //    Ambos son React.memo: con lambdas inline, CADA render de App
+  //    (mousemove del slider de volumen, play/pause, toasts, abrir/cerrar
+  //    letras…) re-renderizaba el árbol visible completo. Con identidades
+  //    estables los memos sujetan de verdad y esos eventos solo actualizan
+  //    la barra.
+
+  const handleCloseSettings = useCallback(() => setShowSettingsPanel(false), []);
+
+  const handleClearDownloads = useCallback(() => {
+    api.del("/downloads/all").catch(() => toast("Error al limpiar descargas", "error"));
+    setDownloads([]);
+    toast("Descargas eliminadas", "info");
+  }, [toast, setDownloads]);
+
+  const handleClearHistory = useCallback(() => {
+    api.del("/history/all").catch(() => toast("Error al limpiar historial", "error"));
+    setHistory([]);
+  }, [toast, setHistory]);
+
+  const handleDownloadsCleared = useCallback(() => setDownloads([]), [setDownloads]);
+
+  const handleDownloadsRemoved = useCallback(
+    (videoIds) =>
+      setDownloads((prev) =>
+        (prev || []).filter((d) => !videoIds.includes(d.videoId || d.video_id)),
+      ),
+    [setDownloads],
+  );
+
+  const handleHistoryCleared = useCallback(() => setHistory([]), [setHistory]);
+
+  const handleShowMore = useCallback(() => setSongsVisible((v) => v + 10), [setSongsVisible]);
+
+  const handlePlaylistBack = useCallback(() => {
+    setSelectedPlaylist(null);
+    setTab("home");
+  }, []);
+
+  const handlePlaylistUpdated = useCallback(() => refreshPlaylists(), [refreshPlaylists]);
+
+  const handleToggleLyrics = useCallback(() => setLyricsOpen((v) => !v), [setLyricsOpen]);
+
+  const handleLyricsClose = useCallback(() => setLyricsOpen(false), [setLyricsOpen]);
+
+  const handleOpenCurrentOptions = useCallback(
+    () => currentSong && openOptions(currentSong),
+    [currentSong, openOptions],
+  );
+
   // ── Modo de reproducción ────────────────────────────────────────────────────
 
   const handlePlayModeToggle = useCallback(
@@ -488,28 +544,17 @@ function AppInner() {
           <div key={tab} style={{ height: "100%", ...ANIMATIONS.fadeIn(50) }}>
             <MainRouter
               showSettingsPanel={showSettingsPanel}
-              onCloseSettings={() => setShowSettingsPanel(false)}
+              onCloseSettings={handleCloseSettings}
               neonColor={neonColor}
               crossfadeDuration={crossfadeDuration}
               setCrossfadeDuration={setCrossfadeDuration}
               downloads={downloads}
-              onClearDownloads={() => {
-                api.del("/downloads/all").catch(() => toast("Error al limpiar descargas", "error"));
-                setDownloads([]);
-                toast("Descargas eliminadas", "info");
-              }}
-              onClearHistory={() => {
-                api.del("/history/all").catch(() => toast("Error al limpiar historial", "error"));
-                setHistory([]);
-              }}
-              onDownloadsCleared={() => setDownloads([])}
-              onDownloadsRemoved={(videoIds) =>
-                setDownloads((prev) =>
-                  (prev || []).filter((d) => !videoIds.includes(d.videoId || d.video_id)),
-                )
-              }
+              onClearDownloads={handleClearDownloads}
+              onClearHistory={handleClearHistory}
+              onDownloadsCleared={handleDownloadsCleared}
+              onDownloadsRemoved={handleDownloadsRemoved}
               downloadedIds={downloadedIds}
-              onHistoryCleared={() => setHistory([])}
+              onHistoryCleared={handleHistoryCleared}
               liked={liked}
               history={history}
               playlists={playlists}
@@ -535,7 +580,7 @@ function AppInner() {
               searchArtists={searchArtists}
               searchAlbums={searchAlbums}
               songsVisible={songsVisible}
-              onShowMore={() => setSongsVisible((v) => v + 10)}
+              onShowMore={handleShowMore}
               searchLoading={searchLoading}
               videoResults={videoResults}
               videoLoading={videoLoading}
@@ -543,11 +588,8 @@ function AppInner() {
               searchInputRef={searchInputRef}
               likedSongs={likedSongs}
               selectedPlaylist={selectedPlaylist}
-              onPlaylistBack={() => {
-                setSelectedPlaylist(null);
-                setTab("home");
-              }}
-              onPlaylistUpdated={() => refreshPlaylists()}
+              onPlaylistBack={handlePlaylistBack}
+              onPlaylistUpdated={handlePlaylistUpdated}
               refreshPlaylists={refreshPlaylists}
               likedAlbums={likedAlbums}
               followedArtists={followedArtists}
@@ -678,24 +720,31 @@ function AppInner() {
         toast={toast}
       />
 
-      <LyricsView
-        song={currentSong}
-        open={lyricsOpen}
-        onClose={() => setLyricsOpen(false)}
-        queue={queue}
-        queueIndex={queueIndex}
-        playSong={playSong}
-        onSeek={handleSeek}
-        progressRef={progressRef}
-        audioRef={audioRef}
-        accentColor={neonColor}
-        lyricsCacheRef={lyricsCacheRef}
-        onRemoveFromQueue={removeFromQueue}
-        onMoveUp={moveUp}
-        onMoveDown={moveDown}
-        onMoveInQueue={moveInQueue}
-        streamCacheRef={streamCacheRef}
-      />
+      {/* Montaje condicional: cerrar letras desmonta el overlay (y su chunk
+          dnd-kit) — `open` interno queda siempre true, sin cambio visual
+          (LyricsView ya devolvía null sin animación de salida). */}
+      {lyricsOpen && (
+        <Suspense fallback={null}>
+          <LyricsView
+            song={currentSong}
+            open={lyricsOpen}
+            onClose={handleLyricsClose}
+            queue={queue}
+            queueIndex={queueIndex}
+            playSong={playSong}
+            onSeek={handleSeek}
+            progressRef={progressRef}
+            audioRef={audioRef}
+            accentColor={neonColor}
+            lyricsCacheRef={lyricsCacheRef}
+            onRemoveFromQueue={removeFromQueue}
+            onMoveUp={moveUp}
+            onMoveDown={moveDown}
+            onMoveInQueue={moveInQueue}
+            streamCacheRef={streamCacheRef}
+          />
+        </Suspense>
+      )}
 
       {/* Player bar — absolute overlay at bottom, floating over content */}
       {!showSettingsPanel && (
@@ -725,9 +774,9 @@ function AppInner() {
               onVolume={handleVolume}
               onPlayModeToggle={handlePlayModeToggle}
               accentColor={neonColor}
-              onLyrics={() => setLyricsOpen((v) => !v)}
+              onLyrics={handleToggleLyrics}
               lyricsOpen={lyricsOpen}
-              onOpenOptions={() => currentSong && openOptions(currentSong)}
+              onOpenOptions={handleOpenCurrentOptions}
               shuffleActive={shuffleActive}
               repeatMode={repeatMode}
               crossfadeDuration={crossfadeDuration}

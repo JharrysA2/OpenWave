@@ -9,6 +9,13 @@ import { withHDThumbnails } from "../utils/thumbnails";
 
 const SW_QUEUE_KEY = "sw_queue";
 const SW_VOLUME_KEY = "sw_volume";
+/**
+ * Throttle de la persistencia del volumen: el slider escribe con cada
+ * mousemove (eventos de entrada a caudal) y localStorage es I/O síncrona.
+ * Cabecera + cola: como mucho una escritura cada 300 ms y el último valor
+ * siempre acaba guardado al terminar la ráfaga.
+ */
+const VOLUME_PERSIST_MS = 300;
 
 /** Cache de localStorage — se lee una vez, se reutiliza en todos los renders */
 let _cachedQueue = null;
@@ -114,6 +121,7 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
   const crossfadeStartedAtRef = useRef(0); // timestamp cuando el crossfade empezó (para debug)
   const preloadedImgsRef = useRef([]); // acumula img elements del pre-cache para limpieza (P5)
   const volumeRef = useRef(volume); // volumen actual para el fade loop (evita stale closures)
+  const volumePersistRef = useRef({ last: 0, timer: null }); // throttle de escritura en localStorage
   volumeRef.current = volume;
   const handleNextRef = useRef(null); // red de seguridad: avanzar si el crossfade falla tras "ended"
 
@@ -500,9 +508,12 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
               : `${api.base}/stream/play/${song.videoId}`;
           currentAudio.src = srcUrl;
           currentAudio.currentTime = startFrom;
-          currentAudio.volume = volume;
+          // volumeRef en vez de `volume`: siempre fresca y además deja
+          // playSong fuera del deps → arrastrar el volumen no re-crea esta
+          // función ni revienta los memos de MainRouter/LyricLine.
+          currentAudio.volume = volumeRef.current;
           await currentAudio.play();
-          currentAudio.volume = volume;
+          currentAudio.volume = volumeRef.current;
 
           // Si llegamos aquí, la reproducción fue exitosa
           break;
@@ -532,7 +543,7 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
       //    playSong está configurando el audio (race window B3).
       crossfadePendingRef.current = false;
     },
-    [toast, volume, normalizeThumbnails, isPlaying, currentSong],
+    [toast, normalizeThumbnails, isPlaying, currentSong],
   );
 
   const togglePlay = useCallback(() => {
@@ -763,11 +774,35 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
     volumeRef.current = vol; // reflejar de inmediato (el fade loop lee la ref)
     const audio = audioRef.current;
     if (audio) audio.volume = vol;
-    try {
-      localStorage.setItem(SW_VOLUME_KEY, String(vol));
-      invalidateVolumeCache();
-    } catch {}
+
+    // Persistencia con throttle (cabecera + cola): el audio responde ya y
+    // localStorage solo recibe una escritura por ráfaga de arrastre.
+    const persist = () => {
+      try {
+        localStorage.setItem(SW_VOLUME_KEY, String(vol));
+        invalidateVolumeCache();
+      } catch {}
+    };
+    const st = volumePersistRef.current;
+    const now = Date.now();
+    if (now - st.last >= VOLUME_PERSIST_MS) {
+      st.last = now;
+      persist();
+    } else {
+      clearTimeout(st.timer);
+      st.timer = setTimeout(
+        () => {
+          st.timer = null;
+          st.last = Date.now();
+          persist();
+        },
+        VOLUME_PERSIST_MS - (now - st.last),
+      );
+    }
   }, []);
+
+  // Al desmontar no queda ningún timer de persistencia colgado.
+  useEffect(() => () => clearTimeout(volumePersistRef.current.timer), []);
 
   // ── addToQueue: Añade al FINAL de la cola (previene duplicados) ───
   const addToQueue = useCallback((song) => {

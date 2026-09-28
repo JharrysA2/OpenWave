@@ -23,9 +23,12 @@ export default defineConfig({
     sourcemap: !!process.env.TAURI_DEBUG,
     rollupOptions: {
       output: {
+        // Solo React se agrupa a mano (caché estable). NO agrupar dnd-kit:
+        // coloca helpers compartidos dentro de ese chunk y el entry acaba
+        // importándolo estáticamente, anulando el lazy de LyricsView — con el
+        // splitting natural dnd-kit cae en el chunk de Letras (cargado al abrir).
         manualChunks: {
           react: ["react", "react-dom"],
-          dnd: ["@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
         },
       },
     },

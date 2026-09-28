@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   OFFLINE_INTERVAL_MS,
   ONLINE_INTERVAL_MS,
+  HIDDEN_ONLINE_INTERVAL_MS,
+  HIDDEN_OFFLINE_INTERVAL_MS,
   __resetHealth,
   checkHealth,
   getHealthState,
@@ -303,6 +305,84 @@ describe("backendHealth — heartbeat", () => {
 
     await vi.advanceTimersByTimeAsync(ONLINE_INTERVAL_MS);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── Ventana oculta (minimizada): consumo ~0 ─────────────────────────────────
+
+describe("backendHealth — ventana oculta", () => {
+  /** Simula que la ventana se oculta (minimizada) o vuelve a verse. */
+  const setVisibility = (value) => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => value,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  };
+
+  afterEach(() => {
+    // Restaura el getter original de jsdom para el resto de tests.
+    delete document.visibilityState;
+  });
+
+  it("oculta la ventana → el latido pasa al intervalo largo", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockResolvedValue(okJson());
+
+    setVisibility("hidden");
+    startHeartbeat();
+    expect(getHeartbeatInterval()).toBe(HIDDEN_ONLINE_INTERVAL_MS);
+
+    await vi.advanceTimersByTimeAsync(HIDDEN_ONLINE_INTERVAL_MS - 1);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("oculta y caído → reintenta en el intervalo largo de reconexión", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
+
+    setVisibility("hidden");
+    startHeartbeat();
+
+    await vi.advanceTimersByTimeAsync(HIDDEN_ONLINE_INTERVAL_MS);
+    expect(getHealthState().online).toBe(false);
+    expect(getHeartbeatInterval()).toBe(HIDDEN_OFFLINE_INTERVAL_MS);
+
+    await vi.advanceTimersByTimeAsync(HIDDEN_OFFLINE_INTERVAL_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ocultar en caliente reprograma el latido pendiente al intervalo largo", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockResolvedValue(okJson());
+
+    startHeartbeat(); // visible → 20s
+    setVisibility("hidden"); // reprograma el pendiente a 60s
+    fetchMock.mockClear();
+
+    await vi.advanceTimersByTimeAsync(ONLINE_INTERVAL_MS);
+    expect(fetchMock).not.toHaveBeenCalled(); // ya no dispara a los 20s
+    await vi.advanceTimersByTimeAsync(HIDDEN_ONLINE_INTERVAL_MS - ONLINE_INTERVAL_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("al volver a ser visible: chequeo inmediato y vuelve al intervalo normal", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockResolvedValue(okJson());
+
+    startHeartbeat();
+    setVisibility("hidden");
+    setVisibility("visible");
+
+    // Chequeo inmediato al instante (sin esperar al siguiente latido)…
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getHeartbeatInterval()).toBe(ONLINE_INTERVAL_MS);
+
+    // …y el siguiente latido ya vuelve a ser cada 20s.
+    await vi.advanceTimersByTimeAsync(ONLINE_INTERVAL_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

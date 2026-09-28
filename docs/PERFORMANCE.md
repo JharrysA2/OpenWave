@@ -54,6 +54,14 @@ que se repinta con letras/scroll). Por tanto:
 - La música sigue sonando y al volver (Alt+Tab) el primer frame recalcula el
   estado exacto. No se necesitan hooks en Rust: WebView2 reporta
   `document.hidden` y el `blur` de la ventana llega al JS.
+- **Consumo ~0 con la ventana minimizada**: con la ventana oculta el único
+  latido que queda es el de conexión al backend, reducido a 60 s (10 s si está
+  caído) y con chequeo inmediato al volver a ser visible
+  (`src/utils/backendHealth.js`); el resto de bucles (rAF de letras, progreso
+  de la barra) ya está parado por `visible`, los precache usan
+  `requestIdleCallback` (no corre oculto) y la cadena de crossfade solo vive
+  mientras hay música sonando (2 s de cadencia, 300 ms al acercarse). Lo único
+  irreductible es el propio pipeline de audio si la canción sigue en marcha.
 - El modo Rendimiento (`perf-blur-off/anim-off/solid` + detección de software
   renderer, `src/utils/softwareRenderer.js`) cubre los equipos con GPU débil.
 

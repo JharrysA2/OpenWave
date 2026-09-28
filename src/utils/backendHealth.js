@@ -7,7 +7,9 @@ import { API } from "../constants";
  *
  *   1. **Heartbeat**: poll a `GET /health` para saber si el backend vive.
  *      El intervalo se adapta: lento cuando todo va bien, agresivo mientras
- *      está caído (reconexión automática rápida).
+ *      está caído (reconexión automática rápida) y **muy lento cuando la
+ *      ventana está oculta (minimizada)** para que el consumo en segundo
+ *      plano sea ~0; al volver a ser visible se chequea al instante.
  *   2. **Estado offline**: `api.js` marca offline en cuanto una petición
  *      falla por red (no por HTTP) y online en cuanto alguna responde. Así
  *      la UI reacciona sin esperar al siguiente heartbeat.
@@ -27,6 +29,13 @@ export const HEALTH_PATH = "/health";
 export const ONLINE_INTERVAL_MS = 20_000;
 /** Intervalo de reintento cuando está caído (reconexión rápida). */
 export const OFFLINE_INTERVAL_MS = 3_000;
+/**
+ * Mismos intervalos con la ventana OCULTA (minimizada/cubierta): aquí el
+ * objetivo es consumo ~0 en segundo plano, así que el latido baja al mínimo
+ * viable y el navegador además aplica su propio intensive throttling.
+ */
+export const HIDDEN_ONLINE_INTERVAL_MS = 60_000;
+export const HIDDEN_OFFLINE_INTERVAL_MS = 10_000;
 /** Timeout del propio health-check. */
 export const HEALTH_TIMEOUT_MS = 4_000;
 
@@ -164,8 +173,15 @@ export async function checkHealth({ timeout = HEALTH_TIMEOUT_MS } = {}) {
 
 // ── Heartbeat ────────────────────────────────────────────────────────────────
 
+/** ¿La ventana está oculta (minimizada, cubierta o en otra pestaña)? */
+function isPageHidden() {
+  return typeof document !== "undefined" && document.visibilityState === "hidden";
+}
+
 function nextInterval() {
-  return state.online ? ONLINE_INTERVAL_MS : OFFLINE_INTERVAL_MS;
+  const hidden = isPageHidden();
+  if (state.online) return hidden ? HIDDEN_ONLINE_INTERVAL_MS : ONLINE_INTERVAL_MS;
+  return hidden ? HIDDEN_OFFLINE_INTERVAL_MS : OFFLINE_INTERVAL_MS;
 }
 
 function schedule() {
@@ -193,16 +209,34 @@ function rescheduleIfNeeded() {
   schedule();
 }
 
+/**
+ * Al ocultarse la ventana se reprograma el latido pendiente al intervalo
+ * largo (consumo ~0 en segundo plano); al volver a ser visible se vuelve a
+ * los intervalos normales y se lanza un chequeo inmediato, para que el usuario
+ * vea el estado real sin esperar al siguiente latido.
+ */
+function handleVisibilityChange() {
+  if (!running) return;
+  rescheduleIfNeeded();
+  if (!isPageHidden()) void checkHealth();
+}
+
 /** Arranca el heartbeat (idempotente). */
 export function startHeartbeat() {
   if (running) return;
   running = true;
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+  }
   schedule();
 }
 
 /** Detiene el heartbeat y cancela el timer pendiente. */
 export function stopHeartbeat() {
   running = false;
+  if (typeof document !== "undefined") {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }
   if (heartbeatTimer) {
     clearTimeout(heartbeatTimer);
     heartbeatTimer = null;

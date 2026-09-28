@@ -16,6 +16,11 @@ import { MusicCover } from "./MusicCover";
 import { SkeletonLyrics } from "./SkeletonLoader";
 import { fmtTime } from "../utils/formatTime";
 import { parseLrc } from "../utils/lrc";
+import {
+  getLyricsOverride,
+  setLyricsOverride,
+  clearLyricsOverride,
+} from "../utils/lyricsOverrides";
 import { preblurToDataUrl } from "../utils/imageBlur";
 import { useSettings } from "../contexts/useSettings";
 import { usePerformance } from "../contexts/PerformanceContext";
@@ -1422,47 +1427,60 @@ export function LyricsView({
       .finally(() => setSearchLoading(false));
   }, []);
 
-  const handleApplySearchResult = useCallback((result) => {
-    if (result?.text) {
-      const lines = result.text.split("\n").filter((l) => l.trim());
-      const hasTimeTags = lines.some((l) => /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/.test(l));
-      if (hasTimeTags) {
-        const parsed = parseLrc(lines);
-        if (parsed.length > 0) {
-          setLyrics(parsed);
-          setIsSynced(true);
+  const handleApplySearchResult = useCallback(
+    (result) => {
+      if (result?.text) {
+        const lines = result.text.split("\n").filter((l) => l.trim());
+        // ⭐ Persistir la elección en localStorage: el overlay se DESMONTA al
+        //    cerrar letras, así que sin esto la letra buscada se perdía y al
+        //    reabrir volvía la original (cache/API).
+        setLyricsOverride(song?.videoId, { lines, source: result.source || "unknown" });
+        const hasTimeTags = lines.some((l) => /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/.test(l));
+        if (hasTimeTags) {
+          const parsed = parseLrc(lines);
+          if (parsed.length > 0) {
+            setLyrics(parsed);
+            setIsSynced(true);
+          } else {
+            setLyrics(lines);
+            setIsSynced(false);
+          }
         } else {
           setLyrics(lines);
           setIsSynced(false);
         }
-      } else {
-        setLyrics(lines);
-        setIsSynced(false);
+        setSource(result.source || "unknown");
+        setSearchResults(null);
       }
-      setSource(result.source || "unknown");
-      setSearchResults(null);
-    }
-  }, []);
+    },
+    [song?.videoId],
+  );
 
-  const handleEditLyrics = useCallback((lines) => {
-    if (lines && lines.length > 0) {
-      const hasTimeTags = lines.some((l) => /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/.test(l));
-      if (hasTimeTags) {
-        const parsed = parseLrc(lines);
-        if (parsed.length > 0) {
-          setLyrics(parsed);
-          setIsSynced(true);
+  const handleEditLyrics = useCallback(
+    (lines) => {
+      if (lines && lines.length > 0) {
+        // Igual que la búsqueda: la edición también vive en localStorage,
+        // si no se perdía al cerrar la pantalla de letras.
+        setLyricsOverride(song?.videoId, { lines, source: "editado" });
+        const hasTimeTags = lines.some((l) => /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/.test(l));
+        if (hasTimeTags) {
+          const parsed = parseLrc(lines);
+          if (parsed.length > 0) {
+            setLyrics(parsed);
+            setIsSynced(true);
+          } else {
+            setLyrics(lines);
+            setIsSynced(false);
+          }
         } else {
           setLyrics(lines);
           setIsSynced(false);
         }
-      } else {
-        setLyrics(lines);
-        setIsSynced(false);
+        setSource("editado");
       }
-      setSource("editado");
-    }
-  }, []);
+    },
+    [song?.videoId],
+  );
 
   // ── Helper compartido: procesar datos de letras (usado por cache y API) ─
   const processLyricsData = useCallback((data) => {
@@ -1512,6 +1530,18 @@ export function LyricsView({
     const title = song.title || "";
     const artist = song.artist || "";
 
+    // ⭐ Letra elegida por el usuario (Buscar/Editar letras) — persistida en
+    //    localStorage por videoId, sobrevive al desmontar el overlay. Solo la
+    //    salta una recarga forzada ("Recargar letras" la limpia aparte).
+    if (!skipCacheRef.current) {
+      const override = getLyricsOverride(videoId);
+      if (override) {
+        processLyricsData({ lyrics: override.lines, source: override.source });
+        setLoading(false);
+        return;
+      }
+    }
+
     // Verificar cache primero (pre-cargado por usePlayer) — SOLO si no es reload forzado
     const cached = lyricsCacheRef?.current?.[videoId];
     if (cached?.lyrics && !skipCacheRef.current) {
@@ -1525,7 +1555,15 @@ export function LyricsView({
       .get(
         `/lyrics/${videoId}?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`,
       )
-      .then((data) => processLyricsData(data))
+      .then((data) => {
+        // ⭐ Reflejar en el cache lo que se mostró: sin esto, "Recargar letras"
+        //    dejaba la pantalla con la letra fresca pero al reabrir volvía la
+        //    vieja que seguía cacheada.
+        if (Array.isArray(data?.lyrics) && data.lyrics.length > 0 && lyricsCacheRef?.current) {
+          lyricsCacheRef.current[videoId] = data;
+        }
+        processLyricsData(data);
+      })
       .catch(() => setLyrics([]))
       .finally(() => {
         setLoading(false);
@@ -2068,6 +2106,9 @@ export function LyricsView({
           settings={settings}
           updateSetting={updateSetting}
           onReload={() => {
+            // Recargar = volver a la fuente automática: descarta la letra
+            // elegida/buscada por el usuario para esta canción.
+            clearLyricsOverride(song?.videoId);
             setReloadCounter((c) => c + 1);
             skipCacheRef.current = true;
             setShowLyricsSettings(false);

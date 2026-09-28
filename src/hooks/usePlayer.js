@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { api } from "../utils/api";
 import { withHDThumbnails } from "../utils/thumbnails";
+import { getLyricsOverride } from "../utils/lyricsOverrides";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  Module-level caches — Rule: js-cache-storage
@@ -970,7 +971,10 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
             .catch(() => {});
         }
 
-        if (!lyricsCacheRef.current[nextSong.videoId]) {
+        // Si el usuario ya eligió letras para esta canción (Buscar/Editar),
+        // no pre-cargues la automática: LyricsView la ignora igual (el
+        // override tiene prioridad) y así ahorramos la request.
+        if (!lyricsCacheRef.current[nextSong.videoId] && !getLyricsOverride(nextSong.videoId)) {
           api.get(`/lyrics/${nextSong.videoId}?title=${encodeURIComponent(nextSong.title || "")}&artist=${encodeURIComponent(nextSong.artist || "")}`)
             .then((data) => { if (data?.lyrics) lyricsCacheRef.current[nextSong.videoId] = data; })
             .catch(() => {});

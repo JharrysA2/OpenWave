@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SettingsProvider } from "../contexts/SettingsContext";
 import { LyricsView } from "./LyricsView";
 import { parseLrc } from "../utils/lrc";
+import { setLyricsOverride, getLyricsOverride } from "../utils/lyricsOverrides";
 import { COLORS } from "../utils/theme";
 
 // JSDOM no implementa scrollIntoView; los synced lyrics lo necesitan
@@ -636,5 +637,178 @@ describe("LyricsView — rendimiento del fondo", () => {
     expect(bg).toBeTruthy();
     expect(bg.style.filter).toBe("");
     expect(bg.style.willChange).toBe("");
+  });
+});
+
+// ── Regresión: la letra elegida (Buscar/Editar) debe sobrevivir al cierre ──
+//  El overlay de letras se DESMONTA al cerrarlo, así que el estado local se
+//  pierde: la elección vive en localStorage (sw_lyrics_overrides_v1).
+
+describe("LyricsView — letras elegidas persisten al salir de la pantalla", () => {
+  const OVERRIDES_KEY = "sw_lyrics_overrides_v1";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) {
+        return Promise.resolve({ lyrics: null, source: "test" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it("la letra aplicada desde «Buscar letras» sigue al salir y volver a entrar", async () => {
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/search")) {
+        return Promise.resolve({
+          results: [
+            {
+              title: "Otro nombre",
+              artist: "Otro artista",
+              source: "LRCLib",
+              synced: false,
+              text: "Letra encontrada con otro nombre",
+            },
+          ],
+        });
+      }
+      if (path.startsWith("/lyrics/")) {
+        return Promise.resolve({ lyrics: null, source: "test" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+
+    const lyricsCacheRef = {
+      current: { 1: { lyrics: ["Letra original automática"], source: "auto" } },
+    };
+
+    // 1) Abrir letras: se muestra la letra original
+    const first = renderLyrics({ lyricsCacheRef });
+    await waitFor(() => {
+      expect(screen.getByText("Letra original automática")).toBeInTheDocument();
+    });
+
+    // 2) Buscar con OTRO nombre y elegir un resultado
+    fireEvent.click(screen.getByTitle("Configuración de letras"));
+    fireEvent.click(screen.getByText("Buscar letras"));
+    fireEvent.change(screen.getByPlaceholderText("Título de la canción"), {
+      target: { value: "Otro nombre" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Artista"), {
+      target: { value: "Otro artista" },
+    });
+    fireEvent.click(screen.getByText("Buscar").closest("button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Otro nombre")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("Otro nombre"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Letra encontrada con otro nombre")).toBeInTheDocument();
+    });
+
+    // Quedó persistida en localStorage, lista para el próximo montaje
+    const stored = JSON.parse(localStorage.getItem(OVERRIDES_KEY));
+    expect(stored["1"].source).toBe("LRCLib");
+    expect(getLyricsOverride("1").lines).toEqual(["Letra encontrada con otro nombre"]);
+
+    // 3) Salir de la pantalla de letras (desmonta el overlay)…
+    first.unmount();
+
+    // 4) …y volver a entrar: la letra buscada gana sobre la original
+    renderLyrics({ lyricsCacheRef });
+    await waitFor(() => {
+      expect(screen.getByText("Letra encontrada con otro nombre")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Letra original automática")).not.toBeInTheDocument();
+  });
+
+  it("la letra editada manualmente sigue al salir y volver a entrar", async () => {
+    const lyricsCacheRef = {
+      current: { 1: { lyrics: ["Letra original automática"], source: "auto" } },
+    };
+
+    const first = renderLyrics({ lyricsCacheRef });
+    await waitFor(() => {
+      expect(screen.getByText("Letra original automática")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTitle("Configuración de letras"));
+    fireEvent.click(screen.getByText("Editar letras"));
+    const textarea = first.container.querySelector("textarea");
+    expect(textarea).toBeTruthy();
+    fireEvent.change(textarea, { target: { value: "Letra editada a mano" } });
+    fireEvent.click(screen.getByText("Guardar cambios"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Letra editada a mano")).toBeInTheDocument();
+    });
+    expect(getLyricsOverride("1").source).toBe("editado");
+
+    // Cerrar y reabrir: la edición no se pierde
+    first.unmount();
+    renderLyrics({ lyricsCacheRef });
+    await waitFor(() => {
+      expect(screen.getByText("Letra editada a mano")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Letra original automática")).not.toBeInTheDocument();
+  });
+
+  it("«Recargar letras» descarta la letra elegida y trae la automática fresca", async () => {
+    setLyricsOverride("1", { lines: ["Letra elegida por el usuario"], source: "LRCLib" });
+
+    let lyricFetches = 0;
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) {
+        lyricFetches += 1;
+        return Promise.resolve({ lyrics: ["Letra automática fresca"], source: "lrclib" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+
+    const lyricsCacheRef = {
+      current: { 1: { lyrics: ["Letra original automática"], source: "auto" } },
+    };
+
+    // El override tiene prioridad sobre el cache → sin fetch
+    const first = renderLyrics({ lyricsCacheRef });
+    await waitFor(() => {
+      expect(screen.getByText("Letra elegida por el usuario")).toBeInTheDocument();
+    });
+    expect(lyricFetches).toBe(0);
+
+    // Recargar = volver a la fuente automática
+    fireEvent.click(screen.getByTitle("Configuración de letras"));
+    fireEvent.click(screen.getByText("Recargar letras"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Letra automática fresca")).toBeInTheDocument();
+    });
+    expect(lyricFetches).toBe(1);
+    expect(getLyricsOverride("1")).toBeNull();
+
+    // Reabrir: debe quedar la fresca (no la elegida, no la vieja del cache)
+    first.unmount();
+    renderLyrics({ lyricsCacheRef });
+    await waitFor(() => {
+      expect(screen.getByText("Letra automática fresca")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Letra elegida por el usuario")).not.toBeInTheDocument();
+    expect(lyricFetches).toBe(1);
   });
 });

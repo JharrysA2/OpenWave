@@ -61,8 +61,9 @@ que se repinta con letras/scroll). Por tanto:
 
 - **WebView2 usa la GPU por defecto** (doc. oficial Microsoft: _"By default,
   WebView2 uses the GPU for rendering"_). Nuestra config **no** la desactiva:
-  `additionalBrowserArgs` solo deshabilita `msWebOOUI,msPdfOOUI` (features de
-  Office) y no existe `--disable-gpu` en el repo.
+  no se fijan `additionalBrowserArgs` (se heredan los de wry:
+  `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`) y no existe
+  `--disable-gpu` en el repo.
 - Evidencia empírica propia: las mediciones con `scripts/measure-perf.ps1`
   reportan motores GPU reales (`video codec 0` = decodificación por hardware).
 - **No se fuerzan flags GPU** (`--ignore-gpu-blocklist`,

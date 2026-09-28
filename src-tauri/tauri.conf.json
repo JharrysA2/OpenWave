@@ -22,8 +22,7 @@
         "minHeight": 600,
         "decorations": false,
         "transparent": false,
-        "center": true,
-        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI"
+        "center": true
       }
     ],
     "security": {

@@ -3,6 +3,8 @@ import {
   detectSoftwareRenderer,
   isSoftwareRenderer,
   resetSoftwareRendererCache,
+  getRendererInfo,
+  readRendererString,
 } from "./softwareRenderer";
 
 /** Fábrica de un stub de WebGLRenderingContext con el renderer indicado. */
@@ -90,5 +92,45 @@ describe("isSoftwareRenderer (caché)", () => {
     expect(isSoftwareRenderer()).toBe(true);
     resetSoftwareRendererCache();
     expect(isSoftwareRenderer()).toBe(true);
+  });
+});
+
+describe("getRendererInfo (diagnóstico para Ajustes → Rendimiento)", () => {
+  beforeEach(() => resetSoftwareRendererCache());
+
+  it("GPU real → aceleración por hardware con la cadena del renderer", () => {
+    const info = getRendererInfo(glFactory("NVIDIA GeForce RTX 4090/PCIe/SSE2"));
+    expect(info.software).toBe(false);
+    expect(info.renderer).toBe("NVIDIA GeForce RTX 4090/PCIe/SSE2");
+  });
+
+  it("SwiftShader → software (fallback de bajo consumo)", () => {
+    const info = getRendererInfo(
+      glFactory("ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device), SwiftShader driver)"),
+    );
+    expect(info.software).toBe(true);
+    expect(info.renderer).toContain("SwiftShader");
+  });
+
+  it("sin WebGL → software con renderer vacío", () => {
+    expect(getRendererInfo(() => null)).toEqual({ software: true, renderer: "" });
+  });
+
+  it("sin fábrica se cachea (jsdom: seguro por defecto) y el reset lo libera", () => {
+    const a = getRendererInfo();
+    expect(a.software).toBe(true);
+    expect(getRendererInfo()).toBe(a);
+    resetSoftwareRendererCache();
+    expect(getRendererInfo()).not.toBe(a);
+  });
+});
+
+describe("readRendererString", () => {
+  it("sin extensión debug lee vía RENDERER", () => {
+    expect(readRendererString(glFactory("Mozilla", { withDebugExt: false }))).toBe("Mozilla");
+  });
+
+  it("sin contexto WebGL devuelve null", () => {
+    expect(readRendererString(() => null)).toBeNull();
   });
 });

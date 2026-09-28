@@ -11,6 +11,7 @@ import {
   PageApariencia,
   PageContenido,
   PageCopias,
+  PageRendimiento,
 } from "./SettingsPages";
 
 // ── PageAcercaDe ───────────────────────────────────────────────────────────
@@ -283,5 +284,21 @@ describe("PageCopias", () => {
     fireEvent.click(screen.getByText("Exportar datos"));
     // Export creates a blob and triggers download; verify toast was called
     expect(toast).toHaveBeenCalledWith("Datos exportados", "success");
+  });
+});
+
+// ── PageRendimiento ──────────────────────────────────────────────────────
+
+describe("PageRendimiento", () => {
+  it("should render performance mode section", () => {
+    renderWithSettings(<PageRendimiento neonColor="#a78bfa" />);
+    expect(screen.getByText("Modo de rendimiento")).toBeInTheDocument();
+  });
+
+  it("should show GPU status with the actual acceleration state", () => {
+    renderWithSettings(<PageRendimiento neonColor="#a78bfa" />);
+    expect(screen.getByText("GPU")).toBeInTheDocument();
+    // Sin WebGL en jsdom → software: se muestra el fallback de bajo consumo
+    expect(screen.getByText("Render por software — modo bajo consumo")).toBeInTheDocument();
   });
 });

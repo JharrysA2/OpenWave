@@ -38,11 +38,12 @@ const GPU_VENDORS = [
 ];
 
 /**
- * Detecta si el navegador rasteriza por software.
+ * Lee la cadena del renderer WebGL (ANGLE expone el fabricante real en
+ * Windows: NVIDIA/AMD/Intel…).
  * @param {() => WebGLRenderingContext|null} [createGl] fábrica inyectable (tests)
- * @returns {boolean} true = sin GPU usable (o sin WebGL)
+ * @returns {string|null} null si no hay contexto WebGL usable
  */
-export function detectSoftwareRenderer(createGl) {
+export function readRendererString(createGl) {
   try {
     const makeGl =
       createGl ||
@@ -52,35 +53,56 @@ export function detectSoftwareRenderer(createGl) {
         return canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
       });
     const gl = makeGl();
-    if (!gl) return true; // Sin WebGL no hay aceleración usable
+    if (!gl) return null; // Sin WebGL no hay aceleración usable
 
-    let renderer = "";
     try {
       const dbg = gl.getExtension("WEBGL_debug_renderer_info");
-      renderer = String(
+      return String(
         dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
       );
     } catch {
-      renderer = String(gl.getParameter?.(gl.RENDERER) || "");
+      return String(gl.getParameter?.(gl.RENDERER) || "");
     }
-    const r = renderer.toLowerCase();
+  } catch {
+    return null;
+  }
+}
 
-    // 1) Marcadores clásicos de rasterizador por software.
-    if (SOFTWARE_MARKERS.some((m) => r.includes(m))) return true;
+/**
+ * Clasifica una cadena de renderer como render por software.
+ * @param {string|null} renderer null = sin WebGL (sin aceleración usable)
+ * @returns {boolean}
+ */
+function classify(renderer) {
+  if (renderer === null) return true;
+  const r = renderer.toLowerCase();
 
-    // 2) «Apple GPU» es la cadena POR DEFECTO de WebCore cuando la plataforma no
-    //    informa del hardware real (p. ej. webkit2gtk sin GPU dedicada): la
-    //    reporta aunque no haya Apple ni GPU. Solo es creíble en macOS.
-    const isMac =
-      typeof navigator !== "undefined" &&
-      /mac/i.test(String(navigator.platform || navigator.userAgent || ""));
-    if (r.includes("apple gpu") && !isMac) return true;
+  // 1) Marcadores clásicos de rasterizador por software.
+  if (SOFTWARE_MARKERS.some((m) => r.includes(m))) return true;
 
-    // 3) Si el string no nombra a ningún fabricante de GPU real («WebKit WebGL»
-    //    genérico, enmascarado o vacío): no hay forma de confirmar aceleración,
-    //    así que modo seguro (bajo consumo). Windows con GPU real (WebView2/ANGLE)
-    //    sí expone el fabricante (NVIDIA/AMD/Intel…) y queda en equilibrado.
-    return !GPU_VENDORS.some((v) => r.includes(v));
+  // 2) «Apple GPU» es la cadena POR DEFECTO de WebCore cuando la plataforma no
+  //    informa del hardware real (p. ej. webkit2gtk sin GPU dedicada): la
+  //    reporta aunque no haya Apple ni GPU. Solo es creíble en macOS.
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /mac/i.test(String(navigator.platform || navigator.userAgent || ""));
+  if (r.includes("apple gpu") && !isMac) return true;
+
+  // 3) Si el string no nombra a ningún fabricante de GPU real («WebKit WebGL»
+  //    genérico, enmascarado o vacío): no hay forma de confirmar aceleración,
+  //    así que modo seguro (bajo consumo). Windows con GPU real (WebView2/ANGLE)
+  //    sí expone el fabricante (NVIDIA/AMD/Intel…) y queda en equilibrado.
+  return !GPU_VENDORS.some((v) => r.includes(v));
+}
+
+/**
+ * Detecta si el navegador rasteriza por software.
+ * @param {() => WebGLRenderingContext|null} [createGl] fábrica inyectable (tests)
+ * @returns {boolean} true = sin GPU usable (o sin WebGL)
+ */
+export function detectSoftwareRenderer(createGl) {
+  try {
+    return classify(readRendererString(createGl));
   } catch {
     return true; // ante cualquier duda: modo seguro (bajo consumo)
   }
@@ -94,7 +116,30 @@ export function isSoftwareRenderer() {
   return cached;
 }
 
+let cachedInfo = null;
+
+/**
+ * Diagnóstico para el usuario (Ajustes → Rendimiento): estado de la
+ * aceleración por hardware + cadena cruda del renderer.
+ * @param {() => WebGLRenderingContext|null} [createGl] fábrica inyectable (tests)
+ * @returns {{software: boolean, renderer: string}}
+ */
+export function getRendererInfo(createGl) {
+  if (cachedInfo && !createGl) return cachedInfo;
+  try {
+    const renderer = readRendererString(createGl);
+    const info = { software: classify(renderer), renderer: renderer || "" };
+    if (!createGl) cachedInfo = info;
+    return info;
+  } catch {
+    const info = { software: true, renderer: "" };
+    if (!createGl) cachedInfo = info;
+    return info;
+  }
+}
+
 /** Solo para tests. */
 export function resetSoftwareRendererCache() {
   cached = null;
+  cachedInfo = null;
 }

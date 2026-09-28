@@ -101,6 +101,11 @@ export const TRANSLATIONS = {
     perfSolidDesc: "Solid colors, no dynamic background",
     perfHiddenNote:
       "When the window is minimized, covered or in background, all effects pause automatically while music keeps playing.",
+    gpuStatus: "GPU",
+    gpuHw: "Hardware acceleration active",
+    gpuHwDesc: "Rendering runs on the graphics card",
+    gpuSw: "Software rendering — low-power mode",
+    gpuSwDesc: "No usable GPU detected, effects reduce automatically",
   },
   es: {
     settings: "Ajustes",
@@ -204,5 +209,10 @@ export const TRANSLATIONS = {
     perfSolidDesc: "Colores sólidos, sin fondo de canción",
     perfHiddenNote:
       "Cuando la ventana está minimizada, cubierta o en segundo plano, todos los efectos se pausan automáticamente mientras la música sigue sonando.",
+    gpuStatus: "GPU",
+    gpuHw: "Aceleración por hardware activa",
+    gpuHwDesc: "El renderizado lo hace la tarjeta gráfica",
+    gpuSw: "Render por software — modo bajo consumo",
+    gpuSwDesc: "Sin GPU usable detectada, los efectos se reducen solos",
   },
 };

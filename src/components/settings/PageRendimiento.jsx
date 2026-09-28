@@ -1,7 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { useSettings } from "../../contexts/useSettings";
-import { isSoftwareRenderer } from "../../utils/softwareRenderer";
+import { isSoftwareRenderer, getRendererInfo } from "../../utils/softwareRenderer";
 import { SettingRow, SettingsSection, SettingsToggle } from "../SettingsComponents";
 
 export function PageRendimiento({ neonColor }) {
@@ -11,6 +11,8 @@ export function PageRendimiento({ neonColor }) {
   // Modo efectivo para mostrar el resumen: "auto" resuelve según la GPU.
   const effective =
     mode === "auto" ? (isSoftwareRenderer() ? "performance" : "balanced") : mode;
+  // Diagnóstico de GPU para el usuario: ¿la aceleración por hardware está activa?
+  const gpu = getRendererInfo();
 
   const toggleRow = (label, desc, key) => (
     <SettingRow
@@ -139,6 +141,26 @@ export function PageRendimiento({ neonColor }) {
           </div>
         </SettingsSection>
       )}
+
+      {/* ── Estado de la aceleración por hardware (WebView2 usa la GPU por
+          defecto; aquí se muestra qué renderer está sirviendo de verdad) ── */}
+      <SettingsSection title={t.gpuStatus}>
+        <SettingRow
+          icon={
+            <span
+              style={{
+                width: "7px",
+                height: "7px",
+                borderRadius: "50%",
+                background: gpu.software ? "rgba(255,255,255,.2)" : accent,
+                boxShadow: gpu.software ? "none" : `0 0 8px ${accent}`,
+              }}
+            />
+          }
+          label={gpu.software ? t.gpuSw : t.gpuHw}
+          desc={(gpu.renderer || "").slice(0, 90) || (gpu.software ? t.gpuSwDesc : t.gpuHwDesc)}
+        />
+      </SettingsSection>
     </div>
   );
 }

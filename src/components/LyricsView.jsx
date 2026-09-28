@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { FONT } from "../constants";
 import {
   COLORS,
@@ -1697,10 +1697,18 @@ export function LyricsView({
   );
 
   // ── Thumbnail para fondo — usar la más grande disponible para blur HD ────
-  const thumbs = Array.isArray(song?.thumbnails) ? song.thumbnails : [];
-  const sortedThumbs = thumbs.length
-    ? [...thumbs].sort((a, b) => (b.width || 0) - (a.width || 0))
-    : [];
+  //    Referencia cruda como dep: estable mientras la canción no cambie (un
+  //    `? : []` aquí recrearía el array en cada render y anularía el memo).
+  const thumbs = song?.thumbnails;
+  // useMemo: LyricsView re-renderiza con cada cambio de línea/palabra del
+  // karaoke — el sort no debe repetirse en esas pasadas.
+  const sortedThumbs = useMemo(() => {
+    const list = Array.isArray(thumbs) ? thumbs : [];
+    return list.length ? [...list].sort((a, b) => (b.width || 0) - (a.width || 0)) : [];
+  }, [thumbs]);
+  // Identidad estable para dnd-kit: solo cambia al reordenar la cola, no en
+  // cada re-render del karaoke.
+  const queueIds = useMemo(() => queue.map((s) => s.videoId), [queue]);
   // bgThumb: la MÁS GRANDE — es la fuente del pre-difuminado en canvas
   const bgThumb = sortedThumbs.length > 0 ? sortedThumbs[0]?.url : song?.thumbnail || "";
   // Fuente de la capa: pre-difuminado del canvas o, si falló (CORS), la
@@ -2249,10 +2257,7 @@ export function LyricsView({
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
             >
-              <SortableContext
-                items={queue.map((s) => s.videoId)}
-                strategy={verticalListSortingStrategy}
-              >
+              <SortableContext items={queueIds} strategy={verticalListSortingStrategy}>
                 {queue.map((qSong, i) => {
                   const isCurrent = i === queueIndex;
                   const isPast = i < queueIndex;
@@ -2418,8 +2423,15 @@ export function LyricsView({
                 const isNearActive = currentLine >= 0 ? Math.abs(i - currentLine) <= 2 : i <= 2;
 
                 // ── Distancia al activo (para efecto lente / profundidad) ──
-                const lineDistance =
+                //    Clamp en 10: TODAS las fórmulas de estilo de LyricLine
+                //    (sizeFactor, scaleX, scaleY, opacity) saturan en d≥10,
+                //    así que el valor es pixel-idéntico más allá de ahí y el
+                //    memo puede saltarse las líneas lejanas en cada salto de
+                //    línea (sin clamp, N props cambiaban y se re-renderizaba
+                //    la lista entera 1-6×/s durante la reproducción).
+                const rawDistance =
                   currentLine >= 0 ? Math.abs(i - currentLine) : Math.max(0, 2 - i);
+                const lineDistance = Math.min(rawDistance, 10);
 
                 // ── Palabra iluminada: la escribe el reloj rAF; solo la
                 //    línea activa la recibe (el resto, -1 = apagado) ──

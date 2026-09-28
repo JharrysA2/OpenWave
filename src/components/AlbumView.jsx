@@ -189,6 +189,7 @@ export default function AlbumView({
             src={album.thumbnail}
             alt=""
             aria-hidden
+            decoding="async"
             style={{
               position: "absolute",
               inset: 0,

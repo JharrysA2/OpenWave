@@ -70,6 +70,11 @@ export default function TrackList({
             onDragEnd={dragEnabled && onDragEnd ? onDragEnd : undefined}
             {...hov(i)}
             style={{
+              // Solo se pinta el rango visible (mismo patrón que SongRow):
+              // listas grandes (playlist/liked/descargas) no miden ni pintan
+              // el contenido de las filas fuera de pantalla.
+              contentVisibility: "auto",
+              containIntrinsicSize: "auto 60px",
               ...ANIMATIONS.staggerFast(i),
               ...LAYOUTS.songRow(isActive, accentColor),
               opacity: isDragging ? 0.4 : 1,

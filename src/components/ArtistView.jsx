@@ -154,6 +154,7 @@ export default function ArtistView({
             src={artist.thumbnail}
             alt=""
             aria-hidden
+            decoding="async"
             style={{
               position: "absolute",
               inset: 0,

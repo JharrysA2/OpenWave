@@ -30,6 +30,9 @@ export function SettingsProvider({ children }) {
 
   const updateSetting = useCallback((key, value) => {
     setSettingsRaw((prev) => {
+      // No-op con la misma identidad: evita re-renderizar todo el árbol de
+      // consumidores (App, LyricsView, 11 páginas…) por un valor que no cambia.
+      if (prev[key] === value) return prev;
       const next = { ...prev, [key]: value };
       try {
         localStorage.setItem(SW_SETTINGS_KEY, JSON.stringify(next));
@@ -40,9 +43,9 @@ export function SettingsProvider({ children }) {
 
   const t = useMemo(() => TRANSLATIONS[settings.language] || TRANSLATIONS.es, [settings.language]);
 
-  return (
-    <SettingsContext.Provider value={{ settings, updateSetting, t }}>
-      {children}
-    </SettingsContext.Provider>
-  );
+  // Identidad estable: los consumidores solo se re-renderizan cuando algo
+  // del triple cambia de verdad (no en cada render del provider).
+  const value = useMemo(() => ({ settings, updateSetting, t }), [settings, updateSetting, t]);
+
+  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }

@@ -289,6 +289,8 @@ export const Sidebar = React.memo(function Sidebar({
                     <img
                       src={pl.cover || pl.first_cover}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     />
                   </div>

@@ -2,6 +2,7 @@ import React from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { COLORS, RADIUS, TRANSITIONS, GLASS } from "../utils/theme";
+import { useOverlayLayer } from "../hooks/useOverlayLayer";
 
 export function ConfirmModal({
   open,
@@ -12,6 +13,8 @@ export function ConfirmModal({
   onCancel,
   danger = true,
 }) {
+  useOverlayLayer(open);
+
   if (!open) return null;
 
   return (

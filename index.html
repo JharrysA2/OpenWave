@@ -148,6 +148,19 @@
         will-change: auto !important;
       }
 
+      /* ═══════════════════════════════════════════════════════════════════════
+         OVERLAY OPEN — un modal/sheet/panel a pantalla completa está montado
+         (clase que añade hooks/useOverlayLayer.js).
+         Pausa SOLO las animaciones infinitas que quedan debajo del overlay:
+         están tapadas por el scrim (nadie las ve), pero cada frame suyo
+         invalida el backdrop-filter de las hojas y re-difumina la iGPU.
+         ═══════════════════════════════════════════════════════════════════════ */
+      html.overlay-open .skeleton,
+      html.overlay-open .connection-dot,
+      html.overlay-open .now-playing-pulse {
+        animation-play-state: paused !important;
+      }
+
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body {
         overflow: hidden !important;

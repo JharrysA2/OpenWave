@@ -1,10 +1,13 @@
 import React from "react";
 import { FONT } from "../constants";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS } from "../utils/theme";
+import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { api } from "../utils/api";
 import { Ic } from "../icons/Icons";
 
 export function PlaylistPickerModal({ open, playlists, song, songs, toast, refreshPlaylists, onClose }) {
+  useOverlayLayer(open);
+
   if (!open) return null;
 
   // Una canción (song) o varias (songs, p.ej. las pistas de un álbum)

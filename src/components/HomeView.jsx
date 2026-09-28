@@ -193,7 +193,8 @@ export default function HomeView({
                       : GLASS.card.background,
                     borderRadius: RADIUS.card,
                     cursor: "pointer",
-                    transition: "all .2s cubic-bezier(.16,1,.3,1)",
+                    transition:
+                      "background .2s cubic-bezier(.16,1,.3,1), transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1), border-color .2s cubic-bezier(.16,1,.3,1)",
                     border: isPlaying
                       ? `1.5px solid ${withAlpha(accentColor, "44")}`
                       : GLASS.card.border,
@@ -260,9 +261,12 @@ export default function HomeView({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
+                          // Pausado mientras hay un modal abierto (queda
+                          // tapado por el scrim): html.overlay-open (index.html)
                           boxShadow: `0 0 12px ${accentColor}88`,
                           animation: "pulse 1.5s ease infinite",
                         }}
+                        className="now-playing-pulse"
                         data-testid="now-playing-pulse"
                       >
                         {isActuallyPlaying ? (
@@ -393,7 +397,8 @@ export default function HomeView({
                     background: isPlaying
                       ? `linear-gradient(90deg, ${withAlpha(accentColor, "15")}, transparent)`
                       : "transparent",
-                    transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                    transition:
+                      "background .15s cubic-bezier(.16,1,.3,1), border-color .15s cubic-bezier(.16,1,.3,1)",
                     borderLeft: isPlaying ? `2px solid ${accentColor}` : "2px solid transparent",
                   }}
                   onMouseEnter={(e) => {
@@ -519,7 +524,7 @@ export default function HomeView({
                         display: "flex",
                         padding: "4px",
                         flexShrink: 0,
-                        transition: "all .15s",
+                        transition: "color .15s",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.color = accentColor;

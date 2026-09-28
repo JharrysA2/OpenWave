@@ -67,8 +67,28 @@ describe("theme — materiales translúcidos", () => {
     expect(GLASS.card.backdropFilter).toBeUndefined();
   });
 
-  it("los sheets/modales efímeros conservan backdrop-filter", () => {
-    expect(GLASS.sheet.backdropFilter).toContain("blur");
+  it("sheets y popups difuminan poco y sin saturate (coste por frame)", () => {
+    // Regresión de GPU: con blur(10px) saturate(140%) en TODOS los modales,
+    // abrir uno subía el uso de iGPU del 33 % al 76 % mientras estaba abierto
+    // (el fondo de detrás sigue repintándose → re-blur en cada frame).
+    expect(GLASS.sheet.backdropFilter).toBe("blur(6px)");
+    expect(GLASS.sheet.WebkitBackdropFilter).toBe("blur(6px)");
+    expect(GLASS.sheet.backdropFilter).not.toContain("saturate");
+    expect(GLASS.popup.backdropFilter).toBe("blur(6px)");
+    expect(GLASS.popup.WebkitBackdropFilter).toBe("blur(6px)");
+    expect(GLASS.popup.backdropFilter).not.toContain("saturate");
+  });
+
+  it("presupuesto de overlays: toda superficie de modal/panel difumina 6px", () => {
+    // Regla única de docs/PERFORMANCE.md: overlays (sheet, popup y panel de
+    // Ajustes full-screen con sus secciones expandibles) = blur(6px) exacto.
+    // El panel de Ajustes iba a 10px: re-difuminaba la pantalla entera en
+    // cada repintado de la barra del player detrás.
+    for (const key of ["sheet", "popup", "settings"]) {
+      expect(`${key}: ${GLASS[key].backdropFilter}`).toBe(`${key}: blur(6px)`);
+      expect(`${key} webkit: ${GLASS[key].WebkitBackdropFilter}`).toBe(`${key} webkit: blur(6px)`);
+      expect(GLASS[key].backdropFilter).not.toContain("saturate");
+    }
   });
 });
 

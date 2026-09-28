@@ -208,7 +208,8 @@ export default function ArtistView({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "all .15s cubic-bezier(.16,1,.3,1)",
+            transition:
+              "background .15s cubic-bezier(.16,1,.3,1), border-color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
           }}
           {...hov("back")}
         >

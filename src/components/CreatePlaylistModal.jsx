@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
@@ -28,6 +29,7 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const creatingRef = useRef(false);
+  useOverlayLayer(open);
 
   useEffect(() => {
     if (open) {

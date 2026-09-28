@@ -1,6 +1,7 @@
 import React from "react";
 import { FONT } from "../constants";
 import { COLORS, RADIUS, GLASS, TRANSITIONS } from "../utils/theme";
+import { useOverlayLayer } from "../hooks/useOverlayLayer";
 
 /**
  * Modal "Mover/Transferir a playlist" — extraído de PlaylistView/AlbumView.
@@ -8,6 +9,8 @@ import { COLORS, RADIUS, GLASS, TRANSITIONS } from "../utils/theme";
  * acción de transferencia.
  */
 export function TransferModal({ open, onClose, title, emptyMessage, playlists = [], onSelect }) {
+  useOverlayLayer(open);
+
   if (!open) return null;
 
   return (

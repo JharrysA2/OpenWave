@@ -4,6 +4,7 @@ import { COLORS, RADIUS, SPACING, SHADOWS, TRANSITIONS, GLASS } from "../utils/t
 import { Ic } from "../icons/Icons";
 import { useSettings } from "../contexts/useSettings";
 import { SettingRow, SettingsSection, SettingsChevron } from "./SettingsComponents";
+import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import {
   PageApariencia,
   PageReproductor,
@@ -47,6 +48,8 @@ export default function SettingsPanel({
   useEffect(() => {
     if (open) setPage(null);
   }, [open]);
+
+  useOverlayLayer(open);
 
   if (!open) return null;
 

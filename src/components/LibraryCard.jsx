@@ -26,7 +26,7 @@ function CardButton({ children, onClick, title, style, hover }) {
     // tarjetas ya no difuminan de pie — ver AlbumGridCard/ArtistGridCard).
     // Es además la excepción documentada al liquid glass: sobre portada el
     // opaco rgba(0,0,0,.55) garantiza legibilidad sin depender del blur.
-    transition: "all .15s ease",
+    transition: "background .15s ease, transform .15s ease",
     ...style,
   };
   const style_ = hovered

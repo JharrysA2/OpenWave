@@ -114,7 +114,7 @@ export default function TrackList({
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
-                  transition: "all .15s",
+                  transition: "background .15s, border-color .15s, color .15s",
                 }}
               >
                 {isSelected && (

@@ -4,6 +4,7 @@ import { api } from "../utils/api";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, SPACING, SHADOWS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
+import { useOverlayLayer } from "../hooks/useOverlayLayer";
 
 export function SongOptionsSheet({
   song,
@@ -79,6 +80,8 @@ export function SongOptionsSheet({
       }
     };
   };
+
+  useOverlayLayer(open && !!song);
 
   if (!song) return null;
 

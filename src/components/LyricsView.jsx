@@ -23,6 +23,7 @@ import {
 } from "../utils/lyricsOverrides";
 import { preblurToDataUrl } from "../utils/imageBlur";
 import { useSettings } from "../contexts/useSettings";
+import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { usePerformance } from "../contexts/PerformanceContext";
 
 // ── dnd-kit: Drag & Drop para reordenar cola ─────────────────────────────
@@ -271,6 +272,10 @@ function SortableQueueItem({
 //  Liquid glass + backdrop overlay + cierre con click afuera o ESC.
 // ═══════════════════════════════════════════════════════════════════════════
 function FloatingModal({ title, icon, accentColor, onClose, children, width = "480px" }) {
+  // Overlay a pantalla completa: pausa las animaciones infinitas de detrás
+  // (ver useOverlayLayer y html.overlay-open en index.html).
+  useOverlayLayer(true);
+
   React.useEffect(() => {
     const handler = (e) => {
       if (e.key === "Escape") onClose();
@@ -289,8 +294,6 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
         alignItems: "center",
         justifyContent: "center",
         background: "rgba(0,0,0,.55)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
         animation: "sw-fade-in .2s ease both",
       }}
       onClick={onClose}
@@ -364,7 +367,7 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "all .15s",
+              transition: "background .15s, transform .15s",
               fontSize: "14px",
               fontWeight: "700",
             }}
@@ -496,7 +499,7 @@ function SearchLyricsModal({
           fontFamily: FONT,
           cursor: hasSources ? "pointer" : "not-allowed",
           opacity: searchLoading || (!title && !artist) ? 0.5 : 1,
-          transition: "all .15s",
+          transition: "background .15s, opacity .15s, box-shadow .15s",
           boxShadow: hasSources ? `0 0 16px ${accentColor}44` : "none",
         }}
       >
@@ -538,8 +541,11 @@ function SearchLyricsModal({
                 color: "rgba(255,255,255,.7)",
                 fontSize: "13px",
                 fontFamily: FONT,
-                transition: "all .15s",
-                backdropFilter: "blur(10px)",
+                transition: "background .15s, border-color .15s, transform .15s",
+                // Sin backdrop-filter: cada resultado creaba su propia capa
+                // blur apilada sobre la de la hoja (N blurs encadenados que se
+                // re-ejecutaban con cada repintado de detrás).
+                boxShadow: "0 2px 10px rgba(0,0,0,.25)",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = `linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.05) 100%)`;
@@ -673,7 +679,7 @@ function SourceModal({ accentColor, settings, updateSetting, onClose }) {
             background: selected.includes(s.key)
               ? `linear-gradient(135deg, ${accentColor}18 0%, ${accentColor}08 100%)`
               : "rgba(255,255,255,.03)",
-            transition: "all .2s",
+            transition: "background .2s, border-color .2s",
           }}
         >
           <input
@@ -692,7 +698,7 @@ function SourceModal({ accentColor, settings, updateSetting, onClose }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "all .15s",
+              transition: "background .15s, border-color .15s",
               flexShrink: 0,
             }}
           >
@@ -900,7 +906,7 @@ function EditLyricsModal({ accentColor, lyrics, onEditLyrics, onClose }) {
             fontSize: "14px",
             fontFamily: FONT,
             cursor: "pointer",
-            transition: "all .15s",
+            transition: "background .15s",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "rgba(255,255,255,.1)";
@@ -1181,7 +1187,7 @@ function LyricsSettingsModal({
                       fontSize: "10px",
                       cursor: "pointer",
                       fontFamily: FONT,
-                      transition: "all .15s",
+                      transition: "background .15s, color .15s",
                     }}
                   >
                     {opt.label}
@@ -1208,7 +1214,7 @@ function LyricsSettingsModal({
                       fontSize: "10px",
                       cursor: "pointer",
                       fontFamily: FONT,
-                      transition: "all .15s",
+                      transition: "background .15s, color .15s",
                     }}
                   >
                     {opt.label}
@@ -1954,7 +1960,10 @@ export function LyricsView({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: "all .2s cubic-bezier(.16,1,.3,1)",
+    transition:
+      "background .2s cubic-bezier(.16,1,.3,1), color .2s cubic-bezier(.16,1,.3,1), " +
+      "transform .2s cubic-bezier(.16,1,.3,1), border-color .2s cubic-bezier(.16,1,.3,1), " +
+      "box-shadow .2s cubic-bezier(.16,1,.3,1)",
     // Sin backdrop-filter: el botón flota sobre el fondo de letras (estático)
     // — medición GPU, dentro del 1.80% de blur que costaban los backdrop.
   };
@@ -2263,7 +2272,9 @@ export function LyricsView({
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "16px",
-                transition: "all .2s cubic-bezier(.16,1,.3,1)",
+                transition:
+                  "background .2s cubic-bezier(.16,1,.3,1), color .2s cubic-bezier(.16,1,.3,1), " +
+                  "transform .2s cubic-bezier(.16,1,.3,1)",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = `${mutedAccent(accentColor)}30`;

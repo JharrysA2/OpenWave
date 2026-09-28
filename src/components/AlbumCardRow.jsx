@@ -74,7 +74,7 @@ export default React.memo(function AlbumCardRow({
               padding: 0,
               // Sin backdrop-filter por fila (regresión de rendimiento): cada
               // botón ⋮ creaba su propio backdrop root sobre la portada.
-              transition: "all .15s ease",
+              transition: "background .15s ease, transform .15s ease",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "rgba(0,0,0,.75)";

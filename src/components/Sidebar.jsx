@@ -74,7 +74,8 @@ export const Sidebar = React.memo(function Sidebar({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "all .15s cubic-bezier(.16,1,.3,1)",
+            transition:
+              "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
           }}
           onMouseDown={(e) => {
             e.currentTarget.style.transform = "scale(0.9)";
@@ -128,7 +129,8 @@ export const Sidebar = React.memo(function Sidebar({
               fontSize: "13px",
               marginBottom: "4px",
               fontFamily: FONT,
-              transition: "all .12s cubic-bezier(.16,1,.3,1)",
+              transition:
+                "background .12s cubic-bezier(.16,1,.3,1), color .12s cubic-bezier(.16,1,.3,1), border-color .12s cubic-bezier(.16,1,.3,1), transform .12s cubic-bezier(.16,1,.3,1), font-weight .12s cubic-bezier(.16,1,.3,1)",
             }}
             onMouseDown={(e) => {
               // Apple: instant feedback on pointer-down
@@ -254,7 +256,8 @@ export const Sidebar = React.memo(function Sidebar({
                   fontWeight: isActive ? "700" : "500",
                   fontSize: "12.5px",
                   fontFamily: FONT,
-                  transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                  transition:
+                    "background .15s cubic-bezier(.16,1,.3,1), border-color .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), box-shadow .15s cubic-bezier(.16,1,.3,1), font-weight .15s cubic-bezier(.16,1,.3,1)",
                   textAlign: "left",
                   marginBottom: "3px",
                 }}

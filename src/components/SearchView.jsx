@@ -121,7 +121,8 @@ export default function SearchView({
               fontSize: "12.5px",
               cursor: "pointer",
               fontFamily: FONT,
-              transition: "all .2s cubic-bezier(.16,1,.3,1)",
+              transition:
+                "background .2s cubic-bezier(.16,1,.3,1), color .2s cubic-bezier(.16,1,.3,1), font-weight .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
               boxShadow: searchTab === k ? `0 2px 8px ${withAlpha(accentColor, "44")}` : "none",
             }}
           >
@@ -438,7 +439,8 @@ export default function SearchView({
                     background: isActive
                       ? `linear-gradient(90deg, ${withAlpha(accentColor, "15")}, transparent)`
                       : "transparent",
-                    transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                    transition:
+                      "background .15s cubic-bezier(.16,1,.3,1), border-color .15s cubic-bezier(.16,1,.3,1)",
                     borderLeft: isActive ? `2px solid ${accentColor}` : "2px solid transparent",
                   }}
                   onMouseEnter={(e) => {

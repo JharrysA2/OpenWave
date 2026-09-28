@@ -3,6 +3,7 @@ import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS } from "../utils/theme";
+import { useOverlayLayer } from "../hooks/useOverlayLayer";
 
 export function TrackPickerModal({ open, playlist, tracks, loadingTracks, onClose, onConfirm }) {
   const [selected, setSelected] = useState(new Set());
@@ -17,6 +18,8 @@ export function TrackPickerModal({ open, playlist, tracks, loadingTracks, onClos
       n.has(vid) ? n.delete(vid) : n.add(vid);
       return n;
     });
+
+  useOverlayLayer(open);
 
   if (!open) return null;
 

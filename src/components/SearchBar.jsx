@@ -38,7 +38,8 @@ export function SearchBar({
         padding,
         height,
         marginBottom,
-        transition: "all .2s cubic-bezier(.16,1,.3,1)",
+        transition:
+          "background .2s cubic-bezier(.16,1,.3,1), border-color .2s cubic-bezier(.16,1,.3,1)",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = "rgba(255,255,255,.10)";

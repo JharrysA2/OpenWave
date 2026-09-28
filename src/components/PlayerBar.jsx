@@ -455,7 +455,8 @@ export const PlayerBar = memo(function PlayerBar({
                   alignItems: "center",
                   justifyContent: "center",
                   borderRadius: RADIUS.full,
-                  transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                  transition:
+                    "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = GLASS.btnHoverSoft.background;
@@ -564,7 +565,8 @@ export const PlayerBar = memo(function PlayerBar({
                   alignItems: "center",
                   justifyContent: "center",
                   borderRadius: RADIUS.full,
-                  transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                  transition:
+                    "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = GLASS.btnHoverSoft.background;
@@ -613,7 +615,8 @@ export const PlayerBar = memo(function PlayerBar({
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: RADIUS.full,
-                transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                transition:
+                  "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = GLASS.btnHoverSoft.background;
@@ -663,7 +666,8 @@ export const PlayerBar = memo(function PlayerBar({
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: RADIUS.full,
-                transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                transition:
+                  "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = GLASS.btnHoverSoft.background;
@@ -784,7 +788,8 @@ export const PlayerBar = memo(function PlayerBar({
                 justifyContent: "center",
                 borderRadius: RADIUS.full,
                 flexShrink: 0,
-                transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                transition:
+                  "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = GLASS.btnHoverSoft.background;
@@ -816,7 +821,8 @@ export const PlayerBar = memo(function PlayerBar({
               alignItems: "center",
               justifyContent: "center",
               borderRadius: RADIUS.full,
-              transition: "all .15s cubic-bezier(.16,1,.3,1)",
+              transition:
+                "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
             }}
             onMouseEnter={(e) => {
               if (song) {

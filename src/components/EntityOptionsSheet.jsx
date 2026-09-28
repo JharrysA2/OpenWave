@@ -3,6 +3,7 @@ import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
+import { useOverlayLayer } from "../hooks/useOverlayLayer";
 
 /**
  * Hoja de opciones generalizada para álbum y artista — misma estética que
@@ -26,6 +27,8 @@ export function EntityOptionsSheet({
 }) {
   // Hover declarativo por índice de acción (+ "close" para el botón X).
   const [hoverIdx, setHoverIdx] = React.useState(null);
+
+  useOverlayLayer(open && !!entity);
 
   if (!entity) return null;
 

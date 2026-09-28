@@ -2,8 +2,12 @@ import React from "react";
 import { FONT } from "../../constants";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, TYPOGRAPHY, GLASS } from "../../utils/theme";
 import { BTN_SHAPES, getBtnShapeStyle } from "../../utils/playerStyles";
+import { useOverlayLayer } from "../../hooks/useOverlayLayer";
 
 export function BtnShapeModal({ accent, settings, updateSetting, onClose }) {
+  // Se monta/desmonta con createPortal desde PageApariencia → siempre "abierto"
+  useOverlayLayer(true);
+
   return (
     <div
       onClick={onClose}

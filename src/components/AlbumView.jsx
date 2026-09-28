@@ -243,7 +243,8 @@ export default function AlbumView({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "all .15s cubic-bezier(.16,1,.3,1)",
+            transition:
+              "background .15s cubic-bezier(.16,1,.3,1), border-color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
           }}
           {...hov("back")}
         >
@@ -395,7 +396,8 @@ export default function AlbumView({
               fontSize: "14px",
               fontFamily: FONT,
               cursor: "pointer",
-              transition: "all .2s cubic-bezier(.16,1,.3,1)",
+              transition:
+                "transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
               boxShadow: `0 4px 20px ${withAlpha(accentColor, "55")}, 0 0 0 1px ${withAlpha(accentColor, "20")}`,
               ...(hoverKey === "play"
                 ? {
@@ -647,7 +649,7 @@ export default function AlbumView({
                   : isActive
                     ? `linear-gradient(90deg, ${withAlpha(accentColor, "12")}, transparent)`
                     : "transparent",
-                transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                transition: "background .15s cubic-bezier(.16,1,.3,1)",
                 borderBottom:
                   i < album.tracks.length - 1 ? "1px solid rgba(255,255,255,.03)" : "none",
               }}
@@ -673,7 +675,7 @@ export default function AlbumView({
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
-                    transition: "all .15s",
+                    transition: "background .15s, border-color .15s, color .15s",
                   }}
                 >
                   {isSelected && (
@@ -758,7 +760,7 @@ export default function AlbumView({
                     color: liked?.has(track.videoId) ? COLORS.likeColor : COLORS.iconDimmer,
                     display: "flex",
                     padding: "4px",
-                    transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                    transition: "color .15s cubic-bezier(.16,1,.3,1)",
                   }}
                 >
                   {Ic.heart(liked?.has(track.videoId), 15)}

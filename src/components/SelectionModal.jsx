@@ -3,6 +3,7 @@ import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, TRANSITIONS, SHADOWS, GLASS, withAlpha } from "../utils/theme";
+import { useOverlayLayer } from "../hooks/useOverlayLayer";
 
 export function SelectionModal({ open, onClose, songs, currentSong, onDelete }) {
   const [selected, setSelected] = useState(new Set());
@@ -10,6 +11,8 @@ export function SelectionModal({ open, onClose, songs, currentSong, onDelete }) 
   useEffect(() => {
     if (open) setSelected(new Set());
   }, [open]);
+
+  useOverlayLayer(open && !!songs);
 
   if (!open || !songs) return null;
 

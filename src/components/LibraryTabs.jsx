@@ -51,7 +51,8 @@ export default React.memo(function LibraryTabs({ tabs, value, onChange, accentCo
               fontSize: "12.5px",
               cursor: "pointer",
               fontFamily: FONT,
-              transition: "all .2s cubic-bezier(.16,1,.3,1)",
+              transition:
+                "background .2s cubic-bezier(.16,1,.3,1), color .2s cubic-bezier(.16,1,.3,1), font-weight .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
               boxShadow: active ? `0 2px 8px ${withAlpha(accentColor, "44")}` : "none",
               display: "flex",
               alignItems: "center",

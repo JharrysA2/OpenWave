@@ -674,11 +674,22 @@ export const GLASS = {
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), 0 8px 24px rgba(0,0,0,.3)",
   },
 
-  /** Popup / Sheet / Modal — Liquid Glass */
+  /** Popup / Sheet / Modal — Liquid Glass.
+   *  blur(6px) SIN `saturate`: los modales son el 100 % de los sheets y con
+   *  el modal abierto el fondo de detrás SIGUE repintándose (progreso a 5 Hz,
+   *  shimmer de skeletons, hover con `transition: all`), así que el blur se
+   *  re-ejecuta en cada repintado. `saturate(140%)` añadía un pase extra de
+   *  color por frame y el radio de 10px hacía 4 pases más de Gauss: medido en
+   *  equipo con iGPU, abrir cualquier modal subía el uso de 33 % a 76 % y el
+   *  modo Rendimiento lo bajaba a 11 % (la culpa era la cadena blur+saturate).
+   *  6px sin saturate conserva el "frosted" y corta la mayor parte del coste.
+   *  Ojo: un scrim full-screen NUNCA debe llevar backdrop-filter (carísimo y,
+   *  además, `html.perf-solid [style*="backdrop-filter"]` le pintaría el velo
+   *  entero de color sólido en modo Rendimiento). */
   sheet: {
     background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-    backdropFilter: "blur(10px) saturate(140%)",
-    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
     border: "1px solid rgba(255,255,255,.12)",
     borderColor: "rgba(255,255,255,.12)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), " + "0 24px 80px rgba(0,0,0,.6)",
@@ -694,11 +705,13 @@ export const GLASS = {
     border: "1px solid rgba(255,255,255,.06)",
   },
 
-  /** Volume / Crossfade popup — Liquid Glass */
+  /** Volume / Crossfade popup — Liquid Glass.
+   *  Mismo criterio que `sheet`: popup pequeño sobre la barra, así que 6px de
+   *  blur sin `saturate` (ver comentario de sheet por el coste por frame). */
   popup: {
     background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-    backdropFilter: "blur(10px) saturate(140%)",
-    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
     border: "1px solid rgba(255,255,255,.10)",
     borderColor: "rgba(255,255,255,.10)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.12), " + "0 12px 40px rgba(0,0,0,.5)",
@@ -707,13 +720,17 @@ export const GLASS = {
   /** Settings panel — Liquid Glass. Panel full-screen (inset 0), así que:
    *  - sin `saturate`: sobre una superficie tan grande el coste de GPU hunde
    *    el frame rate. Solo blur.
+   *  - `blur(6px)` y no 10px: el panel tapa la pantalla mientras las filas se
+   *    expanden y el fondo de detrás (barra del player a 5 Hz) sigue repintando
+   *    → con 10px cada repintado re-difuminaba toda la pantalla. Presupuesto de
+   *    overlays = 6px (ver sheet/popup y docs/PERFORMANCE.md).
    *  - sin `border`: dibujaría un marco de 1px en los 4 bordes del viewport.
    *    La jerarquía la dan el `borderBottom` del header y los divisores de
    *    `SettingRow`. */
   settings: {
     background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
   },
 
   /** Window control buttons (minimize, maximize, close) — Liquid Glass */
@@ -759,7 +776,10 @@ export const LAYOUTS = {
     cursor: "pointer",
     background: isActive ? withAlpha(accentColor, "77") : "transparent",
     border: "1px solid transparent",
-    transition: "all .15s cubic-bezier(.16,1,.3,1)",
+    // Solo las propiedades que cambian (fondo activo + hover): `all` hacía que
+    // cualquier repintado de la fila entrase en la maquinaria de transiciones.
+    transition:
+      "background .15s cubic-bezier(.16,1,.3,1), border-color .15s cubic-bezier(.16,1,.3,1)",
   }),
 
   /** Song row hover — glass effect */

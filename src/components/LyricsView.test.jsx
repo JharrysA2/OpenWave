@@ -6,6 +6,7 @@ import { LyricsView } from "./LyricsView";
 import { parseLrc } from "../utils/lrc";
 import { setLyricsOverride, getLyricsOverride } from "../utils/lyricsOverrides";
 import { COLORS } from "../utils/theme";
+import { expectOverlayGlassBudget, inlineBlurred } from "../test-utils";
 
 // JSDOM no implementa scrollIntoView; los synced lyrics lo necesitan
 Element.prototype.scrollIntoView = vi.fn();
@@ -810,5 +811,84 @@ describe("LyricsView — letras elegidas persisten al salir de la pantalla", () 
     });
     expect(screen.queryByText("Letra elegida por el usuario")).not.toBeInTheDocument();
     expect(lyricFetches).toBe(1);
+  });
+});
+
+// ── Regresión: presupuesto de GPU de los overlays de letras ────────────────
+//  Abrir cualquier modal de la pantalla de letras subía el uso de iGPU del
+//  33 % al 76 % mientras estaba montado: scrim full-screen con blur(8px),
+//  cada resultado de búsqueda con su propia capa blur y las hojas a 10px
+//  con saturate, todo repintándose detrás (shimmer, pulse, progreso a 5 Hz).
+//  Reglas completas en docs/PERFORMANCE.md y en expectOverlayGlassBudget.
+
+describe("LyricsView — presupuesto de glass en sus modales", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockApiGet.mockImplementation(() => Promise.resolve({}));
+    document.documentElement.classList.remove("overlay-open");
+  });
+
+  it("«Buscar letras»: scrim sin backdrop-filter, hoja a 6px y overlay-open", () => {
+    const view = renderLyrics();
+
+    fireEvent.click(screen.getByTitle("Configuración de letras"));
+    fireEvent.click(screen.getByText("Buscar letras"));
+
+    // Scrim full-screen sin blur + cualquier backdrop a 6px sin saturate
+    expectOverlayGlassBudget();
+    const blurs = inlineBlurred().map((el) => el.style.backdropFilter);
+    expect(blurs.length).toBeGreaterThan(0); // la hoja sí difumina…
+    expect(blurs).toContain("blur(6px)");
+    expect(blurs).not.toContain("blur(8px)"); // …el del scrim ya no existe
+    expect(blurs).not.toContain("blur(10px)");
+    for (const el of inlineBlurred()) {
+      expect(["blur(6px)", "none"]).toContain(el.style.backdropFilter);
+    }
+
+    // Con el modal montado se pausan las animaciones infinitas de detrás
+    expect(document.documentElement.classList.contains("overlay-open")).toBe(true);
+    view.unmount();
+    expect(document.documentElement.classList.contains("overlay-open")).toBe(false);
+  });
+
+  it("los resultados de búsqueda no crean su propia capa blur", async () => {
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/search")) {
+        return Promise.resolve({
+          results: [
+            {
+              title: "Otro nombre",
+              artist: "Otro artista",
+              source: "LRCLib",
+              synced: false,
+              text: "Letra encontrada",
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ lyrics: null, source: "test" });
+    });
+
+    renderLyrics();
+
+    fireEvent.click(screen.getByTitle("Configuración de letras"));
+    fireEvent.click(screen.getByText("Buscar letras"));
+    fireEvent.change(screen.getByPlaceholderText("Título de la canción"), {
+      target: { value: "Otro nombre" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Artista"), {
+      target: { value: "Otro artista" },
+    });
+    fireEvent.click(screen.getByText("Buscar").closest("button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Otro nombre")).toBeInTheDocument();
+    });
+
+    // Cada resultado apilaba blur(10px) sobre el de la hoja (N blurs encadenados)
+    const result = screen.getByText("Otro nombre").closest("button");
+    expect(result).toBeTruthy();
+    expect(result.style.backdropFilter ?? "").toBe("");
+    expectOverlayGlassBudget();
   });
 });

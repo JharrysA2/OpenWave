@@ -94,7 +94,8 @@ export function TitleBar() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "all .1s cubic-bezier(.16,1,.3,1)",
+              transition:
+                "background .1s cubic-bezier(.16,1,.3,1), color .1s cubic-bezier(.16,1,.3,1)",
               flexShrink: 0,
             }}
             onMouseDown={(e) => {

@@ -3,8 +3,12 @@ import { FONT } from "../../constants";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, TYPOGRAPHY, GLASS } from "../../utils/theme";
 import { BAR_STYLES } from "../../utils/playerStyles";
 import { BarPreview } from "../SettingsComponents";
+import { useOverlayLayer } from "../../hooks/useOverlayLayer";
 
 export function BarStyleModal({ accent, settings, updateSetting, onClose }) {
+  // Se monta/desmonta con createPortal desde PageApariencia → siempre "abierto"
+  useOverlayLayer(true);
+
   return (
     <div
       onClick={onClose}

@@ -150,7 +150,7 @@ function AppInner() {
     [setSelectedPlaylist, setTab, closeDetailViews],
   );
 
-  const onOpenSettings = useCallback(() => setShowSettingsPanel(v => !v), [setShowSettingsPanel]);
+  const onOpenSettings = useCallback(() => setShowSettingsPanel((v) => !v), [setShowSettingsPanel]);
 
   const handleTabChange = useCallback(
     (t) => {
@@ -687,6 +687,7 @@ function AppInner() {
         playSong={playSong}
         onSeek={handleSeek}
         progressRef={progressRef}
+        audioRef={audioRef}
         accentColor={neonColor}
         lyricsCacheRef={lyricsCacheRef}
         onRemoveFromQueue={removeFromQueue}

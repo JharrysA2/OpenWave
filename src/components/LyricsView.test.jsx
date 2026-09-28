@@ -358,7 +358,7 @@ describe("LyricsView", () => {
       ).length;
 
     // Esperar a que la línea 0 quede ACTIVA (el karaoke solo corre en la activa)
-    // Con el tick de 1000ms, el timeout por defecto (1000ms) queda al filo.
+    // El reloj es rAF: frame-preciso, así que basta con esperar unos frames.
     await waitFor(() => expect(row.style.opacity).toBe("1"), { timeout: 3000 });
     await waitFor(() => expect(litCount()).toBeGreaterThan(0), { timeout: 3000 });
     const earlyCount = litCount();
@@ -470,7 +470,18 @@ describe("LyricsView auto-scroll latch", () => {
 
   it("ignores its own programmatic scroll but honors manual scrolls", async () => {
     vi.useFakeTimers({
-      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date", "performance"],
+      toFake: [
+        "setTimeout",
+        "clearTimeout",
+        "setInterval",
+        "clearInterval",
+        // El reloj de letras es rAF: hay que fakearlo para que
+        // advanceTimersByTime() avance también los frames.
+        "requestAnimationFrame",
+        "cancelAnimationFrame",
+        "Date",
+        "performance",
+      ],
     });
     const lrcLines = ["[00:01.00]Line one", "[00:10.00]Line two", "[00:15.00]Line three"];
     mockApiGet.mockImplementation((path) => {
@@ -496,7 +507,8 @@ describe("LyricsView auto-scroll latch", () => {
     expect(scrollBox).not.toBeNull();
     const calls = () => Element.prototype.scrollIntoView.mock.calls.length;
 
-    // Avanza 1000ms (≥1 tick de 400ms): progressSec=3 → línea 0 activa → scroll programático
+    // Avanza 1000ms de reloj falso (~62 frames de rAF): progressRef=3 →
+    // línea 0 activa → scroll programático
     act(() => {
       vi.advanceTimersByTime(1000);
     });

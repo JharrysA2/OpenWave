@@ -1269,8 +1269,8 @@ const KaraokeWords = React.memo(
 // ═══════════════════════════════════════════════════════════════════════════
 //  LyricLine — Línea sincronizada memoizada.
 //  Recibe props PRIMITIVAS + handlers estables, así React la salta cuando no
-//  cambia. En cada tick de progreso (400ms) solo se re-renderiza la línea
-//  activa; el resto de la lista no se toca.
+//  cambia. El reloj rAF solo re-renderiza cuando cambia la línea activa o su
+//  palabra; el resto de la lista no se toca.
 //  ═══════════════════════════════════════════════════════════════════════════
 const LyricLine = React.memo(function LyricLine({
   index,
@@ -1360,6 +1360,7 @@ export function LyricsView({
   playSong,
   onSeek,
   progressRef,
+  audioRef,
   accentColor = "#a78bfa",
   lyricsCacheRef,
   onRemoveFromQueue,
@@ -1388,7 +1389,13 @@ export function LyricsView({
   const scrollLatchRef = useRef(0); // performance.now() del último scroll programático
   const lastScrolledLineRef = useRef(-1); // última línea centrada por auto-scroll
   const SCROLL_LATCH_MS = 800; // ventana en ms para ignorar el smooth scroll propio
-  const [progressSec, setProgressSec] = useState(0);
+  // ── Estado del reloj rAF (frame-preciso) ──────────────────────────────
+  //    `wordIdx` lo escribe el reloj SOLO al cruzar de palabra; los mirrors
+  //    en ref evitan setState redundantes en cada frame.
+  const [wordIdx, setWordIdx] = useState(-1);
+  const wordIdxRef = useRef(-1); // último wordIdx escrito (mirror)
+  const wordLineRef = useRef(-1); // línea a la que pertenece wordListRef
+  const wordListRef = useRef(null); // palabras de esa línea (se recortan solo al cambiar)
   // ── Settings modal ──────────────────────────────────────────────────
   const [showLyricsSettings, setShowLyricsSettings] = useState(false);
   const [reloadCounter, setReloadCounter] = useState(0); // fuerza re-fetch
@@ -1493,7 +1500,10 @@ export function LyricsView({
     currentLineRef.current = -1;
     setAutoScroll(true);
     setIsSynced(false);
-    setProgressSec(0);
+    setWordIdx(-1);
+    wordIdxRef.current = -1;
+    wordLineRef.current = -1;
+    wordListRef.current = null;
     lineRefs.current = {};
     lastScrolledLineRef.current = -1;
     scrollLatchRef.current = 0;
@@ -1534,62 +1544,108 @@ export function LyricsView({
     reloadCounter,
   ]);
 
-  // ── Track progress for synced lyrics (cada 400ms) ─────────────────────
-  //    Cadencia fina: con 1s el karaoke encadenaba palabras en bloques de
-  //    un segundo y el cambio de línea arrastraba ≤1.25s de retraso visible
-  //    ("las letras van lentas"). La fuente progressRef está en sincronía
-  //    (lo comprueba el reloj de la barra); el problema era la cadencia de
-  //    este tick. Coste: solo re-renderiza la línea activa (LyricLine memo).
+  // ── Reloj de letras por rAF (frame-preciso) ───────────────────────────
+  //    Antes: setInterval(400ms) sobre progressRef (que solo se actualiza
+  //    con `timeupdate`, ~250ms) → hasta ~0.65s de retraso real: palabras y
+  //    cambios de línea llegaban tarde ("el karaoke va lento"). Ahora: rAF
+  //    muestreando `audio.currentTime` directamente (el mismo reloj que
+  //    usan los renderizadores de karaoke serios; progressRef queda como
+  //    fallback p.ej. en tests). setState SOLO cuando cambia la línea o la
+  //    palabra → menos re-renders que el tick forzado de antes (~150/canción
+  //    a cualquier hora) y encadenado exacto en el frame. En frames muertos
+  //    solo corre matemática (sin render de React); el navegador pausa rAF
+  //    al ocultar la ventana y `visible` lo frena si la ventana pierde el
+  //    foco — al volver, el primer frame recalcula donde va la canción.
 
   useEffect(() => {
     if (!open || !isSynced || !visible) return;
-    const interval = setInterval(() => {
-      if (progressRef?.current !== undefined) {
-        setProgressSec(progressRef.current);
+    if (!Array.isArray(lyrics) || lyrics.length === 0) return;
+    wordLineRef.current = -1; // las letras pueden haber cambiado (reload)
+    let rafId = 0;
+
+    const readTime = () => {
+      const t = audioRef?.current?.currentTime;
+      if (typeof t === "number" && !Number.isNaN(t)) return t;
+      return typeof progressRef?.current === "number" ? progressRef.current : 0;
+    };
+
+    const tick = () => {
+      rafId = requestAnimationFrame(tick);
+      const t = readTime();
+      if (typeof t !== "number" || Number.isNaN(t)) return;
+
+      // ── Línea activa: búsqueda binaria (~8 comparaciones por frame) ──
+      let lo = 0,
+        hi = lyrics.length - 1,
+        idx = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (t >= lyrics[mid].time) {
+          idx = mid;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
       }
-    }, 400);
-    return () => clearInterval(interval);
-  }, [open, isSynced, visible, progressRef]);
+      if (idx !== currentLineRef.current) {
+        currentLineRef.current = idx;
+        setCurrentLine(idx);
+      }
+
+      // ── Palabra activa (cambia ~1-6 veces por segundo) ──
+      let w = -1;
+      if (idx >= 0) {
+        if (wordLineRef.current !== idx) {
+          wordLineRef.current = idx;
+          wordListRef.current = lyrics[idx].text.split(/\s+/).filter((x) => x.length > 0);
+        }
+        const words = wordListRef.current;
+        if (words.length > 0) {
+          const lineStart = lyrics[idx].time;
+          const lineEnd = idx < lyrics.length - 1 ? lyrics[idx + 1].time : lineStart + 5;
+          const lineDuration = Math.max(lineEnd - lineStart, 0.5);
+          const progressInLine = Math.min(Math.max((t - lineStart) / lineDuration, 0), 1);
+          // ⭐ Resaltado proporcional a CARACTERES (no uniforme por palabra):
+          //    el karaoke avanza según la longitud real de cada palabra.
+          const totalChars = words.reduce((s, x) => s + x.length, 0) || 1;
+          const targetChars = progressInLine * totalChars;
+          let acc = 0;
+          w = words.length - 1;
+          for (let wi = 0; wi < words.length; wi++) {
+            acc += words[wi].length;
+            if (targetChars < acc) {
+              w = wi;
+              break;
+            }
+          }
+        }
+      }
+      if (w !== wordIdxRef.current) {
+        wordIdxRef.current = w;
+        setWordIdx(w);
+      }
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [open, isSynced, visible, lyrics, progressRef, audioRef]);
 
   // ── Auto-scroll to current synced line ─────────────────────────────────────
 
   useEffect(() => {
     if (!isSynced || !Array.isArray(lyrics) || lyrics.length === 0) return;
+    if (!autoScroll || currentLine < 0 || !lyricsContainerRef.current) return;
+    if (currentLine === lastScrolledLineRef.current) return;
 
-    let lo = 0,
-      hi = lyrics.length - 1,
-      activeIdx = -1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (progressSec >= lyrics[mid].time) {
-        activeIdx = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
+    // ⭐ Solo hacer scroll cuando cambia la línea activa (no cada frame):
+    //    evita "saltos" constantes y micro-jitter del smooth scroll.
+    lastScrolledLineRef.current = currentLine;
+    scrollLatchRef.current = performance.now();
+    const el = lineRefs.current[currentLine];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-
-    if (activeIdx !== currentLineRef.current) {
-      currentLineRef.current = activeIdx;
-      setCurrentLine(activeIdx);
-    }
-
-    if (
-      autoScroll &&
-      activeIdx >= 0 &&
-      lyricsContainerRef.current &&
-      activeIdx !== lastScrolledLineRef.current
-    ) {
-      // ⭐ Solo hacer scroll cuando cambia la línea activa (no cada tick):
-      //    evita "saltos" constantes y micro-jitter del smooth scroll.
-      lastScrolledLineRef.current = activeIdx;
-      scrollLatchRef.current = performance.now();
-      const el = lineRefs.current[activeIdx];
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
-  }, [progressSec, lyrics, isSynced, autoScroll]);
+  }, [currentLine, lyrics, isSynced, autoScroll]);
 
   // ── Reset scroll timer when user scrolls manually ──────────────────────────
 
@@ -1628,14 +1684,16 @@ export function LyricsView({
   const handleLineClick = useCallback(
     (time) => {
       if (!settings.lyricsClickSeek) return;
+      // ⭐ Pintado optimista: el reloj rAF lee audio.currentTime en el
+      //    siguiente frame (o progressRef si el audio aún no existe).
+      if (progressRef && typeof time === "number") progressRef.current = time;
       if (onSeek && typeof time === "number") {
         onSeek(time);
-        setProgressSec(time);
       } else if (song && playSong) {
         playSong(song, time);
       }
     },
-    [settings.lyricsClickSeek, onSeek, playSong, song],
+    [settings.lyricsClickSeek, onSeek, playSong, song, progressRef],
   );
 
   // ── Thumbnail para fondo — usar la más grande disponible para blur HD ────
@@ -2363,37 +2421,12 @@ export function LyricsView({
                 const lineDistance =
                   currentLine >= 0 ? Math.abs(i - currentLine) : Math.max(0, 2 - i);
 
-                // ── Calcular qué palabra está iluminada (solo línea activa) ──
-                let activeWordIdx = -1;
-                if (isActive && lyrics[i]) {
-                  const lineStart = line.time;
-                  const nextLine = i < lyrics.length - 1 ? lyrics[i + 1] : null;
-                  const lineEnd = nextLine ? nextLine.time : lineStart + 5;
-                  const lineDuration = Math.max(lineEnd - lineStart, 0.5);
-                  const words = line.text.split(/\s+/).filter((w) => w.length > 0);
-                  if (words.length > 0 && progressSec >= lineStart) {
-                    const progressInLine = Math.min(
-                      Math.max((progressSec - lineStart) / lineDuration, 0),
-                      1,
-                    );
-                    // ⭐ Resaltado proporcional a CARACTERES (no uniforme por palabra):
-                    //    el karaoke avanza según la longitud real de cada palabra.
-                    const totalChars = words.reduce((s, w) => s + w.length, 0) || 1;
-                    const targetChars = progressInLine * totalChars;
-                    let acc = 0;
-                    activeWordIdx = words.length - 1;
-                    for (let wi = 0; wi < words.length; wi++) {
-                      acc += words[wi].length;
-                      if (targetChars < acc) {
-                        activeWordIdx = wi;
-                        break;
-                      }
-                    }
-                  }
-                }
+                // ── Palabra iluminada: la escribe el reloj rAF; solo la
+                //    línea activa la recibe (el resto, -1 = apagado) ──
+                const activeWordIdx = isActive ? wordIdx : -1;
 
                 // ⭐ LyricLine memoizada: con props primitivas y handlers
-                //    estables, en cada tick SOLO cambia la línea activa.
+                //    estables, en cada frame SOLO cambia la línea activa.
                 return (
                   <LyricLine
                     key={i}

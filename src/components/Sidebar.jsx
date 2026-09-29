@@ -24,6 +24,7 @@ export const Sidebar = React.memo(function Sidebar({
 
   return (
     <div
+      className="app-sidebar"
       style={{
         width: "200px",
         height: "100%",

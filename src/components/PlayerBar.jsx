@@ -4,6 +4,7 @@ import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { usePerformance } from "../contexts/PerformanceContext";
+import { useOverlayActive } from "../hooks/useOverlayLayer";
 import { fmtTime } from "../utils/formatTime";
 import {
   COLORS,
@@ -256,14 +257,21 @@ export const PlayerBar = memo(function PlayerBar({
   // "mini tirones" una vez por segundo). paintProgress escribe al DOM sin
   // re-render de React, así que los ticks extra son un par de asignaciones.
   // Se pausa cuando la ventana no es visible — no aporta nada leer el reloj
-  // si nadie mira la barra, y la música sigue sonando.
+  // si nadie mira la barra, y la música sigue sonando. Igual con un overlay
+  // a pantalla completa montado (`useOverlayActive`): la barra queda debajo
+  // del scrim, esas escrituras son invisibles y cada una repinta la región,
+  // re-ejecutando los backdrop-filter de las capas de detrás. Al cerrar el
+  // overlay el efecto se re-programa y el primer paint lee el progressRef
+  // actual, así que no se pierde progreso.
+  const overlayOpen = useOverlayActive();
   useEffect(() => {
-    if (!isPlaying || !visible) return undefined;
+    if (!isPlaying || !visible || overlayOpen) return undefined;
 
+    paintProgress(); // repaint inmediato al retomar (barra congelada el tiempo del overlay)
     const interval = setInterval(() => paintProgress(), 200);
 
     return () => clearInterval(interval);
-  }, [isPlaying, visible, paintProgress]);
+  }, [isPlaying, visible, overlayOpen, paintProgress]);
 
   // Sync puntual: montaje y cada cambio de canción/duración/estado
   useEffect(() => {

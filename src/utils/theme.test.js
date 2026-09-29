@@ -67,27 +67,30 @@ describe("theme — materiales translúcidos", () => {
     expect(GLASS.card.backdropFilter).toBeUndefined();
   });
 
-  it("sheets y popups difuminan poco y sin saturate (coste por frame)", () => {
-    // Regresión de GPU: con blur(10px) saturate(140%) en TODOS los modales,
-    // abrir uno subía el uso de iGPU del 33 % al 76 % mientras estaba abierto
-    // (el fondo de detrás sigue repintándose → re-blur en cada frame).
-    expect(GLASS.sheet.backdropFilter).toBe("blur(6px)");
-    expect(GLASS.sheet.WebkitBackdropFilter).toBe("blur(6px)");
-    expect(GLASS.sheet.backdropFilter).not.toContain("saturate");
-    expect(GLASS.popup.backdropFilter).toBe("blur(6px)");
-    expect(GLASS.popup.WebkitBackdropFilter).toBe("blur(6px)");
-    expect(GLASS.popup.backdropFilter).not.toContain("saturate");
+  it("sheets, popups y paneles NO difuminan (presupuesto de overlays = 0 filtros)", () => {
+    // Regresión de GPU (docs/PERFORMANCE.md §7): con blur(10px) saturate(140%)
+    // en TODOS los modales, abrir uno subía el uso de iGPU del 33 % al 76 %
+    // mientras estaba abierto; bajándolo a 6px sin saturate seguía por encima
+    // del 70 %. La hoja va sobre un scrim al 55 % (el blur ahí no se ve) y su
+    // backdrop se repinta con el modal abierto → el coste era por frame.
+    expect(GLASS.sheet.backdropFilter).toBeUndefined();
+    expect(GLASS.sheet.WebkitBackdropFilter).toBeUndefined();
+    expect(GLASS.popup.backdropFilter).toBeUndefined();
+    expect(GLASS.popup.WebkitBackdropFilter).toBeUndefined();
+    expect(GLASS.settings.backdropFilter).toBeUndefined();
+    expect(GLASS.settings.WebkitBackdropFilter).toBeUndefined();
   });
 
-  it("presupuesto de overlays: toda superficie de modal/panel difumina 6px", () => {
-    // Regla única de docs/PERFORMANCE.md: overlays (sheet, popup y panel de
-    // Ajustes full-screen con sus secciones expandibles) = blur(6px) exacto.
-    // El panel de Ajustes iba a 10px: re-difuminaba la pantalla entera en
-    // cada repintado de la barra del player detrás.
+  it("ninguna superficie de modal/panel vuelve a difuminar", () => {
+    // Lista dura: sheet (modales de letras/opciones), popup (volumen y
+    // crossfade de la barra) y settings (panel full-screen con las secciones
+    // expandibles). Si alguna reaparece, el pico de iGPU con modal abierto
+    // vuelve.
     for (const key of ["sheet", "popup", "settings"]) {
-      expect(`${key}: ${GLASS[key].backdropFilter}`).toBe(`${key}: blur(6px)`);
-      expect(`${key} webkit: ${GLASS[key].WebkitBackdropFilter}`).toBe(`${key} webkit: blur(6px)`);
-      expect(GLASS[key].backdropFilter).not.toContain("saturate");
+      expect(`${key}: ${GLASS[key].backdropFilter ?? "undefined"}`).toBe(`${key}: undefined`);
+      expect(`${key} webkit: ${GLASS[key].WebkitBackdropFilter ?? "undefined"}`).toBe(
+        `${key} webkit: undefined`,
+      );
     }
   });
 });

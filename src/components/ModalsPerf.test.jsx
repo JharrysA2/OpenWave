@@ -14,11 +14,12 @@ import { BarStyleModal } from "./settings/BarStyleModal";
 import { BtnShapeModal } from "./settings/BtnShapeModal";
 
 // Presupuesto de GPU de overlays: ver `expectOverlayGlassBudget` en
-// test-utils.jsx y docs/PERFORMANCE.md. Resumen: 0 backdrop-filter en
-// cualquier capa de un overlay (ni scrim, ni hoja: el filtro full-screen se
-// re-ejecutaba en cada repintado de detrás) y `html.overlay-open` montado
-// mientras el overlay está abierto (pausa animaciones, repaints y blurs de
-// la shell que quedan tapados).
+// test-utils.jsx y docs/PERFORMANCE.md. Resumen: dentro de un overlay SOLO
+// difumina la superficie de cristal (fondo con degradado) y SOLO con
+// blur(6px) sin saturate; scrim, filas y capas internas, 0 filtros. Con
+// `html.overlay-open` montado mientras el overlay está abierto (pausa
+// animaciones y apaga los blurs de la shell) el detrás queda congelado y el
+// compositor cachea el frosted ≈0.
 
 const mockApiGet = vi.fn();
 vi.mock("../utils/api", () => ({
@@ -152,7 +153,7 @@ describe("presupuesto de glass en overlays", () => {
     mockApiGet.mockImplementation(() => Promise.resolve({}));
   });
 
-  it.each(overlays)("%s: 0 backdrop-filter y overlay-open", (name, element) => {
+  it.each(overlays)("%s: presupuesto de glass (≤6px) y overlay-open", (name, element) => {
     const { unmount } = renderWithSettings(element);
 
     expectOverlayGlassBudget();
@@ -163,15 +164,19 @@ describe("presupuesto de glass en overlays", () => {
     expect(overlayOpen()).toBe(false);
   });
 
-  it("el blur viejo (10px/saturate/8px/6px) no reaparece en los overlays", () => {
+  it("solo la superficie de cristal difumina: blur(6px), nunca 10/8px ni saturate", () => {
     renderWithSettings(overlays[7][1]); // EntityOptionsSheet (hoja con acciones)
     const html = document.body.innerHTML;
     expect(html).not.toContain("blur(10px)");
-    expect(html).not.toContain("blur(6px)");
-    expect(html).not.toContain("saturate(");
     expect(html).not.toContain("blur(8px)");
-    // Ninguna capa del overlay difumina: 0 filtros, no "6px"
-    expect(inlineBlurred().length).toBe(0);
+    expect(html).not.toContain("saturate(");
+    // La hoja difumina con 6px; NADA más (scrim, filas, capas internas)
+    const blurs = inlineBlurred();
+    expect(blurs.length).toBeGreaterThan(0);
+    for (const el of blurs) {
+      expect(el.style.backdropFilter).toBe("blur(6px)");
+      expect(el.style.background).toContain("gradient");
+    }
     expectOverlayGlassBudget();
   });
 });

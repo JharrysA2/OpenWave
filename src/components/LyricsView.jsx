@@ -1018,10 +1018,11 @@ function LyricsSettingsModal({
         borderRadius: "16px",
         ...GLASS.sheet,
         // Sin scrim debajo (flota sobre las letras vivas): base oscura en el
-        // propio panel para que el karaoke no se transparente ahora que las
-        // hojas no difuminan (presupuesto de overlays = 0 filtros, §7).
-        background:
-          "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%), rgba(12,12,18,.8)",
+        // propio panel para que el karaoke no se transparente tras el
+        // blur(6px) mínimo de la hoja (presupuesto de overlays = 6px máx. en
+        // la superficie de cristal, §7).
+        background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
+        backgroundColor: "rgba(12,12,18,.8)", // capa de contraste BAJO el cristal
         border: `1px solid ${accentColor}44`,
         boxShadow: `0 16px 48px rgba(0,0,0,.6), 0 0 0 1px ${accentColor}22, 0 0 40px ${accentColor}22`,
         padding: "14px 16px",

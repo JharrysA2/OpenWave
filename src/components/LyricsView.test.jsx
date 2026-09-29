@@ -819,9 +819,11 @@ describe("LyricsView — letras elegidas persisten al salir de la pantalla", () 
 //  33 % al 76 % mientras estaba montado: scrim full-screen con blur(8px),
 //  cada resultado de búsqueda con su propia capa blur y las hojas a 10px
 //  con saturate, todo repintándose detrás (shimmer, pulse, progreso a 5 Hz).
-//  Bajarlo a 6px no bastó (>70 %): el presupuesto ahora es 0 filtros en
-//  cualquier capa de un overlay. Reglas completas en docs/PERFORMANCE.md y
-//  en expectOverlayGlassBudget.
+//  Bajarlo a 6px no bastó MIENTRAS ese detrás seguía vivo (>70 %). Con
+//  `overlay-open` + `useOverlayActive` congelándolo, la hoja vuelve a
+//  difuminar con blur(6px): solo en la superficie de cristal, sin saturate y
+//  sin capas por fila. Reglas completas en docs/PERFORMANCE.md §7 y en
+//  expectOverlayGlassBudget.
 
 describe("LyricsView — presupuesto de glass en sus modales", () => {
   beforeEach(() => {
@@ -830,16 +832,18 @@ describe("LyricsView — presupuesto de glass en sus modales", () => {
     document.documentElement.classList.remove("overlay-open");
   });
 
-  it("«Buscar letras»: 0 backdrop-filter en el overlay y overlay-open", () => {
+  it("«Buscar letras»: presupuesto de glass (6px en la hoja) y overlay-open", () => {
     const view = renderLyrics();
 
     fireEvent.click(screen.getByTitle("Configuración de letras"));
     fireEvent.click(screen.getByText("Buscar letras"));
 
-    // Scrim, hoja y contenido: ni la capa ni sus hijos difuminan
+    // Scrim y capa sin blur; difuminan solo las superficies de cristal
+    // (hoja de búsqueda + panel de configuración), todas al mínimo permitido
     expectOverlayGlassBudget();
     const blurs = inlineBlurred().map((el) => el.style.backdropFilter);
-    expect(blurs).toEqual([]); // 0 filtros (antes: la hoja a blur(6px))
+    expect(blurs.length).toBeGreaterThan(0);
+    for (const b of blurs) expect(b).toBe("blur(6px)"); // presupuesto: máx. 6px
     expect(document.body.innerHTML).not.toContain("blur(8px)"); // ni el del scrim
     expect(document.body.innerHTML).not.toContain("blur(10px)");
 

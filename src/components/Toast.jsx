@@ -32,6 +32,11 @@ export function Toasts({ toasts }) {
                 : t.type === "success"
                   ? "rgba(5,46,22,.88)"
                   : GLASS.popup.background,
+            // Variantes sólidas (error/éxito): a ~88 % de opacidad el blur
+            // no se ve — opt-out de coste cero (docs/PERFORMANCE.md §7)
+            ...(t.type === "error" || t.type === "success"
+              ? { backdropFilter: "none", WebkitBackdropFilter: "none" }
+              : {}),
             color:
               t.type === "error"
                 ? "#fca5a5"

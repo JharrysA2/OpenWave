@@ -2,6 +2,14 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { PlayerBar } from "./PlayerBar";
+import { useOverlayLayer } from "../hooks/useOverlayLayer";
+
+// Monta solo el hook: simula que hay un overlay a pantalla completa (modal)
+// tapando la barra, igual que hace FloatingModal dentro de LyricsView.
+function OverlayProbe() {
+  useOverlayLayer(true);
+  return null;
+}
 
 // Mock MusicCover
 vi.mock("./MusicCover", () => ({
@@ -265,6 +273,26 @@ describe("PlayerBar — progreso imperativo", () => {
 
     setIntervalSpy.mockRestore();
     unmount();
+  });
+
+  it("congela el progreso mientras un overlay tapa la barra y lo reanuda al cerrar", () => {
+    // Bajo el scrim la barra es invisible: pintar el progreso (5 Hz) solo
+    // repinta la región y re-ejecuta los backdrop-filter de detrás. Ver
+    // docs/PERFORMANCE.md §7.
+    const setIntervalSpy = vi.spyOn(globalThis, "setInterval");
+    const overlay = render(<OverlayProbe />);
+    const bar = renderBar({ song, duration: 200, isPlaying: true, progressRef: { current: 0 } });
+
+    expect(document.documentElement.classList.contains("overlay-open")).toBe(true);
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+
+    // Cierra el overlay → la barra re-programa el loop al instante
+    overlay.unmount();
+    expect(document.documentElement.classList.contains("overlay-open")).toBe(false);
+    expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+
+    bar.unmount();
+    setIntervalSpy.mockRestore();
   });
 
   it("pinta tiempo, relleno y thumb leyendo progressRef", async () => {

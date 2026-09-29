@@ -240,7 +240,17 @@ export const PlayerBar = memo(function PlayerBar({
 
       const pct = duration > 0 ? Math.min(100, Math.max(0, (raw / duration) * 100)) : 0;
 
-      if (progressFillRef.current) progressFillRef.current.style.width = `${pct}%`;
+      // Relleno con transform en capa propia (will-change: transform): antes
+      // escribíamos width% → layout+paint de la barra 5 veces por segundo y
+      // cada repintado re-ejecutaba los backdrop-filter de las capas de detrás
+      // (coste de iGPU medido con música). scaleX es composición pura: no
+      // invalida layout ni repinta la región de la barra.
+      if (progressFillRef.current) {
+        progressFillRef.current.style.transform = `scaleX(${(pct / 100).toFixed(3)})`;
+      }
+      // El thumb sigue por right%: es un nodo de 14 px en hover (opacity 0 en
+      // reposo), su layout local es de un nodo absoluto; se re-mide si en la
+      // validación Fase 3 aparece como fuente de repintado.
       if (progressThumbRef.current) progressThumbRef.current.style.right = `${100 - pct}%`;
       if (progressTimeRef.current) {
         const label = fmtTime(raw || 0);
@@ -255,7 +265,10 @@ export const PlayerBar = memo(function PlayerBar({
   // Loop: 200ms interval while playing — a mitad de camino entre el rAF a
   // 60fps (GPU-heavy en este equipo) y el tick de 1s (el relleno saltaba a
   // "mini tirones" una vez por segundo). paintProgress escribe al DOM sin
-  // re-render de React, así que los ticks extra son un par de asignaciones.
+  // re-render de React, así que los ticks extra son un par de asignaciones;
+  // y desde que el relleno va por scaleX en capa propia esos ticks ni siquiera
+  // repintan la región de la barra (composición pura), así que se mantiene la
+  // cadencia fina sin coste de iGPU.
   // Se pausa cuando la ventana no es visible — no aporta nada leer el reloj
   // si nadie mira la barra, y la música sigue sonando. Igual con un overlay
   // a pantalla completa montado (`useOverlayActive`): la barra queda debajo
@@ -898,16 +911,20 @@ export const PlayerBar = memo(function PlayerBar({
               e.currentTarget.style.height = "5px";
             }}
           >
-            {/* Filled portion — el ancho lo escribe paintProgress (imperativo) */}
+            {/* Filled portion — paintProgress escribe scaleX (imperativo, capa
+                propia; width:100% fijo → cero layout futuro) */}
             <div
               ref={progressFillRef}
               data-testid="progress-fill"
               style={{
                 height: "100%",
                 borderRadius: "3px",
-                width: "0%",
+                width: "100%",
                 background: `linear-gradient(90deg, ${accentColor}, ${withAlpha(accentColor, "cc")})`,
-                transition: "width .15s linear",
+                transition: "transform .15s linear",
+                transformOrigin: "left center",
+                transform: "scaleX(0)",
+                willChange: "transform",
                 position: "relative",
                 boxShadow: `0 0 10px ${accentColor}66`,
               }}

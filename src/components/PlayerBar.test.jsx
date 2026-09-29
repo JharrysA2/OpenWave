@@ -299,14 +299,16 @@ describe("PlayerBar — progreso imperativo", () => {
     renderBar({ song, duration: 200, progressRef: { current: 40 } });
 
     await waitFor(() => expect(screen.getByTestId("progress-time")).toHaveTextContent("0:40"));
-    expect(screen.getByTestId("progress-fill").style.width).toBe("20%");
+    expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(0.200)");
     expect(screen.getByTestId("progress-thumb").style.right).toBe("80%");
   });
 
   it("clampea el relleno al 100% si progressRef supera la duración", async () => {
     renderBar({ song, duration: 200, progressRef: { current: 500 } });
 
-    await waitFor(() => expect(screen.getByTestId("progress-fill").style.width).toBe("100%"));
+    await waitFor(() =>
+      expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(1.000)"),
+    );
   });
 
   it("usa 0% cuando la duración todavía no se conoce, y se corrige al llegar", async () => {
@@ -316,11 +318,13 @@ describe("PlayerBar — progreso imperativo", () => {
     );
 
     await waitFor(() => expect(screen.getByTestId("progress-time")).toHaveTextContent("0:12"));
-    expect(screen.getByTestId("progress-fill").style.width).toBe("0%");
+    expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(0.000)");
 
     // Al conocerse la duración se repinta con el porcentaje real
     rerender(<PlayerBar {...defaultProps} song={song} duration={120} progressRef={progressRef} />);
-    await waitFor(() => expect(screen.getByTestId("progress-fill").style.width).toBe("10%"));
+    await waitFor(() =>
+      expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(0.100)"),
+    );
   });
 
   it("avanza con requestAnimationFrame mientras suena música", async () => {
@@ -333,7 +337,7 @@ describe("PlayerBar — progreso imperativo", () => {
     progressRef.current = 100;
 
     await waitFor(() => expect(screen.getByTestId("progress-time")).toHaveTextContent("1:40"));
-    expect(screen.getByTestId("progress-fill").style.width).toBe("50%");
+    expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(0.500)");
   });
 
   it("no repinta en pausa: el loop rAF está detenido", async () => {
@@ -345,7 +349,7 @@ describe("PlayerBar — progreso imperativo", () => {
     await new Promise((resolve) => setTimeout(resolve, 60)); // varios frames de rAF
 
     expect(screen.getByTestId("progress-time")).toHaveTextContent("0:40");
-    expect(screen.getByTestId("progress-fill").style.width).toBe("20%");
+    expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(0.200)");
   });
 
   it("hace un sync puntual al cambiar de canción aunque esté en pausa", async () => {
@@ -403,6 +407,6 @@ describe("PlayerBar — progreso imperativo", () => {
 
     expect(onSeek).toHaveBeenCalledWith(50);
     expect(screen.getByTestId("progress-time")).toHaveTextContent("0:50");
-    expect(screen.getByTestId("progress-fill").style.width).toBe("25%");
+    expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(0.250)");
   });
 });

@@ -23,7 +23,7 @@ import {
 } from "../utils/lyricsOverrides";
 import { preblurToDataUrl } from "../utils/imageBlur";
 import { useSettings } from "../contexts/useSettings";
-import { useOverlayLayer } from "../hooks/useOverlayLayer";
+import { useOverlayLayer, useOverlayActive } from "../hooks/useOverlayLayer";
 import { usePerformance } from "../contexts/PerformanceContext";
 
 // ── dnd-kit: Drag & Drop para reordenar cola ─────────────────────────────
@@ -1017,6 +1017,11 @@ function LyricsSettingsModal({
         maxHeight: "calc(100vh - 100px)",
         borderRadius: "16px",
         ...GLASS.sheet,
+        // Sin scrim debajo (flota sobre las letras vivas): base oscura en el
+        // propio panel para que el karaoke no se transparente ahora que las
+        // hojas no difuminan (presupuesto de overlays = 0 filtros, §7).
+        background:
+          "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%), rgba(12,12,18,.8)",
         border: `1px solid ${accentColor}44`,
         boxShadow: `0 16px 48px rgba(0,0,0,.6), 0 0 0 1px ${accentColor}22, 0 0 40px ${accentColor}22`,
         padding: "14px 16px",
@@ -1588,6 +1593,10 @@ export function LyricsView({
     reloadCounter,
   ]);
 
+  // `true` mientras un overlay a pantalla completa tapa las letras — el
+  // reloj de karaoke de abajo se detiene mientras tanto (ver useEffect).
+  const overlayOpen = useOverlayActive();
+
   // ── Reloj de letras por rAF (frame-preciso) ───────────────────────────
   //    Antes: setInterval(400ms) sobre progressRef (que solo se actualiza
   //    con `timeupdate`, ~250ms) → hasta ~0.65s de retraso real: palabras y
@@ -1602,7 +1611,14 @@ export function LyricsView({
   //    foco — al volver, el primer frame recalcula donde va la canción.
 
   useEffect(() => {
-    if (!open || !isSynced || !visible) return;
+    // Con un overlay a pantalla completa montado (modal "Buscar letras",
+    // Ajustes…) las letras quedan DETRÁS del scrim: los setState de línea y
+    // palabra solo repintan un fondo invisible y re-ejecutan los
+    // backdrop-filter de detrás en cada frame. El bucle se detiene entero y,
+    // al cerrar el overlay, este efecto se re-programa, resetea wordLineRef y
+    // el primer tick recalcula desde audio.currentTime (mismo patrón que
+    // `visible` al ocultar la ventana).
+    if (!open || !isSynced || !visible || overlayOpen) return;
     if (!Array.isArray(lyrics) || lyrics.length === 0) return;
     wordLineRef.current = -1; // las letras pueden haber cambiado (reload)
     let rafId = 0;
@@ -1672,7 +1688,7 @@ export function LyricsView({
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [open, isSynced, visible, lyrics, progressRef, audioRef]);
+  }, [open, isSynced, visible, overlayOpen, lyrics, progressRef, audioRef]);
 
   // ── Auto-scroll to current synced line ─────────────────────────────────────
 

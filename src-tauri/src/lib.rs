@@ -9,19 +9,21 @@ struct BackendProcess(Mutex<Option<std::process::Child>>);
 
 const BACKEND_ADDR: &str = "127.0.0.1:8765";
 
-/// true si algo en BACKEND_ADDR responde a GET /health identificándose como
+/// true si algo en `addr` responde a GET /health identificándose como
 /// SoundWave. Un simple TCP connect no basta: cualquier proceso puede aceptar
 /// la conexión y hacernos creer que nuestro backend está sano.
-fn backend_responds_as_soundwave() -> bool {
-    let Ok(addr) = BACKEND_ADDR.parse::<std::net::SocketAddr>() else {
-        return false;
-    };
+///
+/// La respuesta se lee en BUCLE hasta encontrar el marcador (o agotar el
+/// plazo global): una única `read()` se quedaba con lo primero que llegara y
+/// un /health sano partido en dos paquetes parecía muerto — el falso negativo
+/// que imprimía «no responde a /health» con la app y el backend vivos.
+fn health_probe(addr: std::net::SocketAddr) -> bool {
     let Ok(mut stream) = std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(500))
     else {
         return false;
     };
     if stream
-        .set_read_timeout(Some(Duration::from_millis(800)))
+        .set_read_timeout(Some(Duration::from_millis(400)))
         .is_err()
     {
         return false;
@@ -32,14 +34,37 @@ fn backend_responds_as_soundwave() -> bool {
     {
         return false;
     }
+    let deadline = std::time::Instant::now() + Duration::from_millis(1500);
+    let mut acc: Vec<u8> = Vec::with_capacity(512);
     let mut buf = [0u8; 512];
-    let n = stream.read(&mut buf).unwrap_or(0);
-    if n == 0 {
-        return false;
+    while std::time::Instant::now() < deadline {
+        match stream.read(&mut buf) {
+            // EOF sin el marcador: no es (o ya no está) nuestro backend.
+            Ok(0) => break,
+            Ok(n) => {
+                acc.extend_from_slice(&buf[..n]);
+                let head = String::from_utf8_lossy(&acc);
+                if head.contains("\"service\":\"SoundWave\"") {
+                    return head.starts_with("HTTP/1.0 200") || head.starts_with("HTTP/1.1 200");
+                }
+            }
+            // Todavía no llega / paquete a medias: el plazo global decide.
+            Err(ref e)
+                if e.kind() == std::io::ErrorKind::TimedOut
+                    || e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(_) => return false,
+        }
     }
-    let head = String::from_utf8_lossy(&buf[..n]);
-    (head.starts_with("HTTP/1.0 200") || head.starts_with("HTTP/1.1 200"))
-        && head.contains("\"service\":\"SoundWave\"")
+    false
+}
+
+/// true si BACKEND_ADDR responde a /health como SoundWave (ver health_probe).
+fn backend_responds_as_soundwave() -> bool {
+    let Ok(addr) = BACKEND_ADDR.parse::<std::net::SocketAddr>() else {
+        return false;
+    };
+    health_probe(addr)
 }
 
 /// true si algo (cualquiera) está escuchando en BACKEND_ADDR.
@@ -245,4 +270,92 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| eprintln!("[soundwave] Error al ejecutar la aplicación: {e}"));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::health_probe;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::time::Duration;
+
+    const OK_BODY: &str = "{\"service\":\"SoundWave\"}";
+
+    fn serve(response_parts: Vec<Vec<u8>>, close_after: bool) -> std::net::SocketAddr {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            let (mut s, _) = listener.accept().unwrap();
+            let mut req = [0u8; 256];
+            let _ = s.read(&mut req);
+            for (i, part) in response_parts.iter().enumerate() {
+                let _ = s.write_all(part);
+                let _ = s.flush();
+                if i + 1 < response_parts.len() {
+                    std::thread::sleep(Duration::from_millis(150));
+                }
+            }
+            if close_after {
+                drop(s);
+            } else {
+                // mantener la conexión abierta hasta que el hilo muera
+                std::thread::sleep(Duration::from_millis(3000));
+            }
+        });
+        addr
+    }
+
+    // El caso real que motivó el bucle: un /health sano llega en dos paquetes
+    // y la read() única solo veía la cabecera → falso negativo cosmético.
+    #[test]
+    fn respuesta_fragmentada_sigue_siendo_soundwave() {
+        let head = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n";
+        let tail = format!("Content-Length: {}\r\n\r\n{}", OK_BODY.len(), OK_BODY);
+        let addr = serve(vec![head.to_vec(), tail.into_bytes()], true);
+        assert!(health_probe(addr));
+    }
+
+    #[test]
+    fn respuesta_ok_en_un_solo_paquete() {
+        let full = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+            OK_BODY.len(),
+            OK_BODY
+        );
+        let addr = serve(vec![full.into_bytes()], true);
+        assert!(health_probe(addr));
+    }
+
+    #[test]
+    fn otro_servicio_en_el_puerto_no_pasa() {
+        let full = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 7\r\n\r\nhola!!";
+        let addr = serve(vec![full.as_bytes().to_vec()], true);
+        assert!(!health_probe(addr));
+    }
+
+    #[test]
+    fn error_con_el_marcador_no_pasa() {
+        let full = format!(
+            "HTTP/1.1 503 Busy\r\nContent-Length: {}\r\n\r\n{}",
+            OK_BODY.len(),
+            OK_BODY
+        );
+        let addr = serve(vec![full.into_bytes()], true);
+        assert!(!health_probe(addr));
+    }
+
+    #[test]
+    fn conexion_cerrada_sin_respuesta_no_pasa() {
+        let addr = serve(vec![], true);
+        assert!(!health_probe(addr));
+    }
+
+    #[test]
+    fn sin_respuesta_no_cuelga_mas_del_plazo() {
+        // acepta y no dice nada: el plazo global debe cortar (≈1,5 s)
+        let addr = serve(vec![], false);
+        let t0 = std::time::Instant::now();
+        assert!(!health_probe(addr));
+        assert!(t0.elapsed() < Duration::from_secs(3));
+    }
 }

@@ -13,9 +13,11 @@ El blur en vivo solo cuesta cuando hay **repintado detrás** (medido: ≈0 % en
 superficies estáticas por caché de compositing; ~1,8 % GPU en capa full-screen
 que se repinta con letras/scroll). Por tanto:
 
-- `backdrop-filter` permitido únicamente en superficies **estáticas**: sheet,
-  popup, searchbar, ajustes, sidebar, titleBar, player bar (con el presupuesto
-  de overlays de la sección 7 para lo que se monta y desmonta).
+- `backdrop-filter` permitido únicamente en superficies **estáticas**: searchbar,
+  sidebar, titleBar y player bar (y aún así `html.overlay-open` las apaga
+  mientras un overlay las tapa). Las superficies de los overlays —sheet, popup,
+  panel de Ajustes— quedaron **sin ningún filtro**: un filtro full-screen con
+  detrás repintándose es el mayor coste de iGPU del repo (§7).
 - **Prohibido en superficies vivas**: grids, tarjetas, listas, botones con
   hover, contenido con scroll (cada repintado re-ejecuta el blur en la iGPU) y,
   en particular, **en los scrims de los modales** (ver §7).
@@ -96,7 +98,7 @@ que se repinta con letras/scroll). Por tanto:
   MSI/NSIS): frontend minificado + gzip (`vite-plugin-compression`) y Rust en
   release.
 
-## 7. Overlays (modales, sheets, paneles): blur de 6 px y fondo en pausa
+## 7. Overlays (modales, sheets, paneles): 0 filtros y fondo congelado
 
 **Síntoma medido (iGPU compartida):** en reposo la app consumía ≈ **33 %**; al
 abrir **cualquier** modal/submenú/sección desplegable subía a **76 %
@@ -104,13 +106,23 @@ sostenido** mientras estaba montado. Con Ajustes → Rendimiento activo (blur y
 animaciones off) bajaba a **11 %**, así que el culpable era la cadena
 `backdrop-filter` + animaciones, no React.
 
+**Primera vuelta — insuficiente.** Se quitó el blur del scrim y se bajó el de
+las hojas de `blur(10px) saturate(140%)` a `blur(6px)` sin `saturate`: **seguía
+por encima del 70 %**. El coste no era el radio de Gauss ni el `saturate`,
+era **el filtro en sí** — una hoja a pantalla completa con `backdrop-filter`
+re-ejecuta captura + blur de iGPU en cada repintado de detrás, y ese detrás
+sigue vivo (ver causa).
+
 **Causa.** Un modal no congela lo que hay detrás: la barra del player sigue
-repintando el progreso a 5 Hz, los `.skeleton` brillan, el punto de conexión
-parpadea, el "sonando ahora" late y los hovers siguen vivos. Cada repintado
-invalida la región del backdrop y la iGPU re-ejecuta el blur del overlay en ese
-mismo frame. Encima, los modales acumulaban: scrim a pantalla completa con
+repintando el progreso a 5 Hz, el reloj de karaoke sigue haciendo `setState`
+de línea/palabra, los `.skeleton` brillan, el punto de conexión parpadea, el
+"sonando ahora" late y los hovers siguen vivos. Cada repintado invalida la
+región del backdrop y la iGPU re-ejecuta el blur de **cada capa que toca** en
+ese mismo frame. Encima, los modales acumulaban: scrim a pantalla completa con
 `blur(8px)`, hojas con `blur(10px) saturate(140%)` y un `blur(10px)` **por
-resultado** de búsqueda apilado sobre el de la hoja.
+resultado** de búsqueda apilado sobre el de la hoja. Y debajo del scrim seguían
+difuminando las superficies de la shell (sidebar, titlebar, searchbar, player),
+que nadie ve pero que cada repintado pagaba igual.
 
 **Reglas (todas con test de regresión):**
 
@@ -119,19 +131,31 @@ resultado** de búsqueda apilado sobre el de la hoja.
    el velo negro que lo cubre, no. Además, `html.perf-solid [style*=
 "backdrop-filter"]` le pintaría el velo entero de color sólido en modo
    Rendimiento (bug ya visto en el scrim de Letras).
-2. **Presupuesto de blur de overlays = `blur(6px)` exacto, sin `saturate`:**
-   `GLASS.sheet` (los 12 modales), `GLASS.popup` (volumen/crossfade) y
-   `GLASS.settings` (panel de Ajustes full-screen, que es donde viven las
-   filas desplegables). 6 px sigue leyendo como "frosted" y recorta el coste
-   por frame (menos radio de Gauss + sin pase extra de color).
+2. **Presupuesto de overlays = 0 `backdrop-filter`:** `GLASS.sheet` (los 12
+   modales), `GLASS.popup` (volumen/crossfade) y `GLASS.settings` (panel de
+   Ajustes full-screen, que es donde viven las filas desplegables) no
+   difuminan. El "frosted" lo dan el degradado translúcido, la sombra y el
+   rim light; además la hoja va sobre un scrim al 55 %, donde el blur apenas
+   se ve mientras su coste es por frame. `expectOverlayGlassBudget` exige
+   **0 filtros** en cualquier capa de un overlay (sí se permite el opt-out
+   explícito `backdropFilter: "none"`, de coste cero).
 3. **Ninguna fila/resultado dentro de una hoja crea su propia capa blur**: se
    sustituye por gradiente + sombra (se apilaba un blur por elemento).
-4. **Mientras hay un overlay montado, `html.overlay-open`** (clase que añade
-   `src/hooks/useOverlayLayer.js` con ref-count) pausa
-   `animation-play-state: paused` de `.skeleton`, `.connection-dot` y
-   `.now-playing-pulse`: están tapados por el scrim, así que nadie las ve, pero
-   cada frame suyo re-difuminaba el fondo. Mismo patrón que `.app-hidden`
-   (§4) y `perf-anim-off`.
+4. **Mientras hay un overlay montado, `html.overlay-open`** (clase con
+   ref-count que añade `src/hooks/useOverlayLayer.js`) deja de pagar todo lo
+   que está detrás, tapado por el scrim y por eso invisible:
+   - `animation-play-state: paused` de `.skeleton`, `.connection-dot` y
+     `.now-playing-pulse` (mismo patrón que `.app-hidden`, §4);
+   - `backdrop-filter: none !important` sobre las superficies de la shell
+     (`.app-sidebar`, `.app-titlebar`, `.app-searchbar`, `.player-bar`):
+     conservan su blur propio fuera de un overlay, pero debajo del scrim solo
+     costaba iGPU. Las clases las llevan `Sidebar`, `TitleBar`, `SearchBar` y
+     `PlayerBar`;
+   - `useOverlayActive()` (mismo módulo) congela el intervalo de progreso de
+     `PlayerBar` (5 Hz) y el reloj de karaoke de `LyricsView` (`setState` de
+     línea y palabra): writes a un fondo invisible. Al cerrar, el efecto se
+     re-programa y el primer tick recalcula desde `progressRef` /
+     `audio.currentTime`, así que no se pierde progreso.
 5. **Nada de `transition: "all"`** (37 usos eliminados del repo: 10 en
    `LyricsView.jsx` y 27 en el resto): cada elemento declara solo las
    propiedades que cambian de verdad (`background`, `color`, `transform`,
@@ -141,16 +165,20 @@ resultado** de búsqueda apilado sobre el de la hoja.
 
 **Cifras de referencia** (modo dev; método `scripts/measure-perf.ps1`):
 
-| Escenario                    | Antes    | Después / objetivo                              |
-| ---------------------------- | -------- | ----------------------------------------------- |
-| Reposo, sin overlay          | 33 %     | 33 %                                            |
-| Cualquier modal abierto      | **76 %** | **≈ 11-15 %** (a verificar con el mismo método) |
-| Ajustes → Rendimiento activo | 11 %     | 11 % (límite de referencia)                     |
+| Escenario                                 | Antes    | Resultado                                       |
+| ----------------------------------------- | -------- | ----------------------------------------------- |
+| Reposo, sin overlay                       | 33 %     | 33 %                                            |
+| Modal abierto — v1: scrim sin blur + 6 px | —        | **> 70 %** (medido: no bastaba)                 |
+| Modal abierto — v2: 0 filtros + congelado | **76 %** | **≈ 11-15 %** (a verificar en la misma máquina) |
+| Ajustes → Rendimiento activo              | 11 %     | 11 % (límite de referencia)                     |
 
 Tests de regresión: `ModalsPerf.test.jsx` (los 11 overlays a pantalla
-completa), `LyricsView.test.jsx` (scrim y resultados de «Buscar letras»),
-`useOverlayLayer.test.jsx` (clase + regla CSS) y `theme.test.js` (presupuesto
-de 6 px en `sheet`/`popup`/`settings`).
+completa, con 0 filtros), `LyricsView.test.jsx` (scrim/hoja sin blur,
+resultados y reloj de karaoke congelado bajo el modal), `useOverlayLayer.test.jsx`
+(clase + estado React + reglas CSS de animaciones y blurs de la shell),
+`PlayerBar.test.jsx` (intervalo de progreso congelado con overlay y reanudado
+al cerrarlo) y `theme.test.js` (`sheet`/`popup`/`settings` sin
+`backdrop-filter`).
 
 ## Regla de oro
 

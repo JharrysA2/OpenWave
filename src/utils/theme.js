@@ -674,17 +674,19 @@ export const GLASS = {
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), 0 8px 24px rgba(0,0,0,.3)",
   },
 
-  /** Popup / Sheet / Modal — Liquid Glass SIN backdrop-filter.
-   *  Presupuesto de overlays = 0 filtros (docs/PERFORMANCE.md §7): la hoja
-   *  cubre la pantalla entera y su backdrop SIGUE repintándose con el modal
-   *  abierto (progreso del player a 5 Hz, palabras del karaoke, hovers de los
-   *  resultados), así que un backdrop-filter full-screen se re-ejecuta en cada
-   *  repintado de la iGPU. Medido: blur(10px) saturate(140%) subía el uso del
-   *  33 % al 76 % (11 % en modo Rendimiento) y bajarlo a 6px sin saturate
-   *  seguía dejándolo por encima del 70 % — el coste era el filtro en sí, no
-   *  el radio. Además la hoja va sobre un scrim al 55 % de negro: ahí el blur
-   *  apenas se ve, mientras su coste es por frame. El "frosted" lo dan el
-   *  degradado translúcido, la sombra y el rim light.
+  /** Popup / Sheet / Modal — Liquid Glass con blur mínimo (6px, sin saturate).
+   *  Presupuesto de overlays (docs/PERFORMANCE.md §7): SOLO la superficie de
+   *  cristal difumina y SOLO con `blur(6px)`; scrim, filas y capas internas,
+   *  0 filtros. Historia: con blur(10px) saturate(140%) un modal subía el uso
+   *  de iGPU del 33 % al 76 % sostenido, y a 6px seguía >70 % — porque el
+   *  backdrop se re-ejecutaba en CADA repintado de detrás (progreso a 5 Hz,
+   *  palabras del karaoke, hovers). Desde entonces `html.overlay-open` +
+   *  `useOverlayActive` congelan TODO ese detrás (progreso, reloj de karaoke,
+   *  animaciones y los propios blurs de la shell): con el fondo estático el
+   *  compositor cachea el frosted (mismo argumento medido ≈0 de
+   *  player/sidebar) y el 6px cuesta ~0 en reposo. Revalidado A/B con
+   *  openwave-perf (glass_pre2 vs glass_post3: +0,18 pp, §7); si una
+   *  medición futura lo condena, se vuelve a 0 filtros.
    *  Ojo: un scrim full-screen NUNCA debe llevar backdrop-filter (y,
    *  además, `html.perf-solid [style*="backdrop-filter"]` le pintaría el velo
    *  entero de color sólido en modo Rendimiento). */
@@ -693,6 +695,8 @@ export const GLASS = {
     border: "1px solid rgba(255,255,255,.12)",
     borderColor: "rgba(255,255,255,.12)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), " + "0 24px 80px rgba(0,0,0,.6)",
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
   },
 
   /** Title bar — Liquid Glass. Igual que el sidebar: superficie permanente
@@ -705,27 +709,32 @@ export const GLASS = {
     border: "1px solid rgba(255,255,255,.06)",
   },
 
-  /** Volume / Crossfade popup — Liquid Glass SIN backdrop-filter.
-   *  Mismo presupuesto que `sheet` (ver comentario): flota sobre la barra del
-   *  player, que repinta el progreso a 5 Hz → con blur, cada tick re-difuminaba
-   *  el popup. Degradado + sombra lo levantan sin filtro. */
+  /** Volume / Crossfade popup — Liquid Glass con blur mínimo (6px).
+   *  Mismo presupuesto que `sheet` (docs/PERFORMANCE.md §7): con el backdrop
+   *  congelado bajo `overlay-open` el frosted estático se cachea ≈0. */
   popup: {
     background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
     border: "1px solid rgba(255,255,255,.10)",
     borderColor: "rgba(255,255,255,.10)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.12), " + "0 12px 40px rgba(0,0,0,.5)",
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
   },
 
-  /** Settings panel — Liquid Glass SIN backdrop-filter.
-   *  Panel full-screen (inset 0): con blur era un filtro de pantalla entera
-   *  re-ejecutado en cada repintado de detrás (barra del player a 5 Hz,
-   *  karaoke) — iba a 10px, luego 6px y aun así >70 % de iGPU. El fondo
-   *  "frosted" lo dan el degradado translúcido (ver sheet).
+  /** Settings panel — Liquid Glass con blur mínimo (6px) en la raíz.
+   *  Panel full-screen (inset 0): era la superficie más cara (filtro de
+   *  pantalla entera re-ejecutado con cada repintado de detrás → >70 % con
+   *  6px mientras el detrás seguía vivo). Con `overlay-open` congelando ese
+   *  detrás (§7) el coste en reposo baja a ~0: es LA superficie que más
+   *  pesa en el A/B (glass_pre2 vs glass_post3, +0,00 pp); si la medición
+   *  futura no la perdona, se retira primero esta (hojas y popup siguen).
    *  - sin `border`: dibujaría un marco de 1px en los 4 bordes del viewport.
    *    La jerarquía la dan el `borderBottom` del header y los divisores de
    *    `SettingRow`. */
   settings: {
     background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
   },
 
   /** Window control buttons (minimize, maximize, close) — Liquid Glass */

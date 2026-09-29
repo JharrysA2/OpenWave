@@ -67,30 +67,20 @@ describe("theme — materiales translúcidos", () => {
     expect(GLASS.card.backdropFilter).toBeUndefined();
   });
 
-  it("sheets, popups y paneles NO difuminan (presupuesto de overlays = 0 filtros)", () => {
-    // Regresión de GPU (docs/PERFORMANCE.md §7): con blur(10px) saturate(140%)
-    // en TODOS los modales, abrir uno subía el uso de iGPU del 33 % al 76 %
-    // mientras estaba abierto; bajándolo a 6px sin saturate seguía por encima
-    // del 70 %. La hoja va sobre un scrim al 55 % (el blur ahí no se ve) y su
-    // backdrop se repinta con el modal abierto → el coste era por frame.
-    expect(GLASS.sheet.backdropFilter).toBeUndefined();
-    expect(GLASS.sheet.WebkitBackdropFilter).toBeUndefined();
-    expect(GLASS.popup.backdropFilter).toBeUndefined();
-    expect(GLASS.popup.WebkitBackdropFilter).toBeUndefined();
-    expect(GLASS.settings.backdropFilter).toBeUndefined();
-    expect(GLASS.settings.WebkitBackdropFilter).toBeUndefined();
-  });
-
-  it("ninguna superficie de modal/panel vuelve a difuminar", () => {
-    // Lista dura: sheet (modales de letras/opciones), popup (volumen y
-    // crossfade de la barra) y settings (panel full-screen con las secciones
-    // expandibles). Si alguna reaparece, el pico de iGPU con modal abierto
-    // vuelve.
+  it("sheets, popups y paneles difuminan con blur(6px) mínimo (glass de overlays)", () => {
+    // Presupuesto de overlays (docs/PERFORMANCE.md §7): la superficie de
+    // cristal (hoja, popup, panel) difumina SOLO con blur(6px) y sin
+    // saturate. Historicamente: blur(10px) saturate(140%) subía el iGPU del
+    // 33 % al 76 % con el modal abierto y 6px seguía >70 % MIENTRAS el
+    // detrás repintaba (progreso 5 Hz, karaoke, shimmer). Con `overlay-open`
+    // congelando ese detrás, el frost estático se cachea ≈0 — revalidado A/B
+    // con openwave-perf (glass_pre/glass_post).
     for (const key of ["sheet", "popup", "settings"]) {
-      expect(`${key}: ${GLASS[key].backdropFilter ?? "undefined"}`).toBe(`${key}: undefined`);
+      expect(`${key}: ${GLASS[key].backdropFilter ?? "undefined"}`).toBe(`${key}: blur(6px)`);
       expect(`${key} webkit: ${GLASS[key].WebkitBackdropFilter ?? "undefined"}`).toBe(
-        `${key} webkit: undefined`,
+        `${key} webkit: blur(6px)`,
       );
+      expect(GLASS[key].backdropFilter).not.toContain("saturate");
     }
   });
 });

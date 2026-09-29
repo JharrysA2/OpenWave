@@ -161,6 +161,20 @@
         animation-play-state: paused !important;
       }
 
+      /* Superficies de la shell que quedan DETRÁS del overlay: conservan su
+         backdrop-filter (sidebar/titlebar/searchbar/player) y cada repintado
+         de detrás — progreso del player a 5 Hz, palabras del karaoke — les
+         cuesta un re-blur por frame de iGPU para un resultado tapado por el
+         scrim al 55 %. Se apagan mientras dure el overlay y vuelven solas al
+         cerrarlo (la clase la gestiona hooks/useOverlayLayer.js). */
+      html.overlay-open .app-sidebar,
+      html.overlay-open .app-titlebar,
+      html.overlay-open .app-searchbar,
+      html.overlay-open .player-bar {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body {
         overflow: hidden !important;

@@ -674,22 +674,22 @@ export const GLASS = {
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), 0 8px 24px rgba(0,0,0,.3)",
   },
 
-  /** Popup / Sheet / Modal — Liquid Glass.
-   *  blur(6px) SIN `saturate`: los modales son el 100 % de los sheets y con
-   *  el modal abierto el fondo de detrás SIGUE repintándose (progreso a 5 Hz,
-   *  shimmer de skeletons, hover con `transition: all`), así que el blur se
-   *  re-ejecuta en cada repintado. `saturate(140%)` añadía un pase extra de
-   *  color por frame y el radio de 10px hacía 4 pases más de Gauss: medido en
-   *  equipo con iGPU, abrir cualquier modal subía el uso de 33 % a 76 % y el
-   *  modo Rendimiento lo bajaba a 11 % (la culpa era la cadena blur+saturate).
-   *  6px sin saturate conserva el "frosted" y corta la mayor parte del coste.
-   *  Ojo: un scrim full-screen NUNCA debe llevar backdrop-filter (carísimo y,
+  /** Popup / Sheet / Modal — Liquid Glass SIN backdrop-filter.
+   *  Presupuesto de overlays = 0 filtros (docs/PERFORMANCE.md §7): la hoja
+   *  cubre la pantalla entera y su backdrop SIGUE repintándose con el modal
+   *  abierto (progreso del player a 5 Hz, palabras del karaoke, hovers de los
+   *  resultados), así que un backdrop-filter full-screen se re-ejecuta en cada
+   *  repintado de la iGPU. Medido: blur(10px) saturate(140%) subía el uso del
+   *  33 % al 76 % (11 % en modo Rendimiento) y bajarlo a 6px sin saturate
+   *  seguía dejándolo por encima del 70 % — el coste era el filtro en sí, no
+   *  el radio. Además la hoja va sobre un scrim al 55 % de negro: ahí el blur
+   *  apenas se ve, mientras su coste es por frame. El "frosted" lo dan el
+   *  degradado translúcido, la sombra y el rim light.
+   *  Ojo: un scrim full-screen NUNCA debe llevar backdrop-filter (y,
    *  además, `html.perf-solid [style*="backdrop-filter"]` le pintaría el velo
    *  entero de color sólido en modo Rendimiento). */
   sheet: {
     background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-    backdropFilter: "blur(6px)",
-    WebkitBackdropFilter: "blur(6px)",
     border: "1px solid rgba(255,255,255,.12)",
     borderColor: "rgba(255,255,255,.12)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), " + "0 24px 80px rgba(0,0,0,.6)",
@@ -705,32 +705,27 @@ export const GLASS = {
     border: "1px solid rgba(255,255,255,.06)",
   },
 
-  /** Volume / Crossfade popup — Liquid Glass.
-   *  Mismo criterio que `sheet`: popup pequeño sobre la barra, así que 6px de
-   *  blur sin `saturate` (ver comentario de sheet por el coste por frame). */
+  /** Volume / Crossfade popup — Liquid Glass SIN backdrop-filter.
+   *  Mismo presupuesto que `sheet` (ver comentario): flota sobre la barra del
+   *  player, que repinta el progreso a 5 Hz → con blur, cada tick re-difuminaba
+   *  el popup. Degradado + sombra lo levantan sin filtro. */
   popup: {
     background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-    backdropFilter: "blur(6px)",
-    WebkitBackdropFilter: "blur(6px)",
     border: "1px solid rgba(255,255,255,.10)",
     borderColor: "rgba(255,255,255,.10)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.12), " + "0 12px 40px rgba(0,0,0,.5)",
   },
 
-  /** Settings panel — Liquid Glass. Panel full-screen (inset 0), así que:
-   *  - sin `saturate`: sobre una superficie tan grande el coste de GPU hunde
-   *    el frame rate. Solo blur.
-   *  - `blur(6px)` y no 10px: el panel tapa la pantalla mientras las filas se
-   *    expanden y el fondo de detrás (barra del player a 5 Hz) sigue repintando
-   *    → con 10px cada repintado re-difuminaba toda la pantalla. Presupuesto de
-   *    overlays = 6px (ver sheet/popup y docs/PERFORMANCE.md).
+  /** Settings panel — Liquid Glass SIN backdrop-filter.
+   *  Panel full-screen (inset 0): con blur era un filtro de pantalla entera
+   *  re-ejecutado en cada repintado de detrás (barra del player a 5 Hz,
+   *  karaoke) — iba a 10px, luego 6px y aun así >70 % de iGPU. El fondo
+   *  "frosted" lo dan el degradado translúcido (ver sheet).
    *  - sin `border`: dibujaría un marco de 1px en los 4 bordes del viewport.
    *    La jerarquía la dan el `borderBottom` del header y los divisores de
    *    `SettingRow`. */
   settings: {
     background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
-    backdropFilter: "blur(6px)",
-    WebkitBackdropFilter: "blur(6px)",
   },
 
   /** Window control buttons (minimize, maximize, close) — Liquid Glass */

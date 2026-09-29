@@ -29,18 +29,26 @@ export function mockApiResponse(data, status = 200) {
   });
 }
 
-// ── Presupuesto de GPU de overlays (docs/PERFORMANCE.md) ────────────────────
+// ── Presupuesto de GPU de overlays (docs/PERFORMANCE.md §7) ────────────────
 //
 // Medido en iGPU: con un modal abierto el uso subía del 33 % al 76 % mientras
-// estaba montado, y a 11 % con el modo Rendimiento (blur/anim off). Reglas:
+// estaba montado, y a 11 % con el modo Rendimiento (blur/anim off). Bajar el
+// blur de las hojas de 10px+saturate a 6px sin saturate NO bastó: seguía por
+// encima del 70 % — el coste era el filtro en sí (full-screen, backdrop que se
+// repinta con el modal abierto), no su radio. Reglas:
 //
 //   1. Un scrim (capa full-screen de atenuación: fondo plano, no degradado)
 //      NUNCA lleva backdrop-filter: se re-ejecuta en cada repintado de detrás
 //      (progreso del player a 5 Hz, shimmer de skeletons, hovers) y, además,
 //      `html.perf-solid [style*="backdrop-filter"]` lo pintaría entero en
 //      modo Rendimiento.
-//   2. Cualquier backdrop-filter inline de un overlay es `blur(6px)` exacto
-//      (o `none` para anularlo): sin `saturate` y sin radios de 8/10px.
+//   2. NINGÚN elemento de un overlay lleva backdrop-filter inline: la hoja es
+//      full-screen y su backdrop cambia mientras está montado, así que un
+//      filtro = un pase de Gauss de iGPU por frame. El "frosted" lo dan el
+//      degradado, la sombra y el rim light.
+//      (Las superficies de la shell —sidebar/titlebar/searchbar/player— sí
+//      difuminan fuera de un overlay; `html.overlay-open` las apaga mientras
+//      dure, por eso aquí solo se inspecciona el subárbol de las capas.)
 
 function isZeroPx(v) {
   return v === "0" || v === "0px";
@@ -68,10 +76,11 @@ function isDimmingScrim(el) {
   return bg !== "" && !bg.includes("gradient");
 }
 
-/** Valores de backdrop-filter inline en el árbol de document.body. */
+/** Valores de backdrop-filter inline EN SERIO (el `none` es un opt-out de
+ *  coste cero que el repo usa para blindarse contra futuros blurs). */
 export function inlineBlurred() {
   return [...document.body.querySelectorAll("*")].filter(
-    (el) => el.style && el.style.backdropFilter,
+    (el) => el.style && el.style.backdropFilter && el.style.backdropFilter !== "none",
   );
 }
 
@@ -84,8 +93,19 @@ export function expectOverlayGlassBudget() {
   for (const scrim of layers.filter(isDimmingScrim)) {
     expect(scrim.style.backdropFilter ?? "").toBe("");
   }
-  // Regla 2: todo lo que difumina es blur(6px) (o "none" explícito)
-  for (const el of inlineBlurred()) {
-    expect(["blur(6px)", "none"]).toContain(el.style.backdropFilter);
+  // Regla 2: 0 backdrop-filter dentro de las capas del overlay (ni en la
+  // capa propia, ni en la hoja, ni en sus hijos). `none` es un opt-out de
+  // coste cero y se permite. Los elementos fuera de las capas (superficies
+  // de la shell) no se tocan: html.overlay-open los apaga mientras el
+  // overlay está montado.
+  const offenders = new Set();
+  for (const layer of layers) {
+    for (const el of [layer, ...layer.querySelectorAll("*")]) {
+      const blur = el.style && el.style.backdropFilter;
+      if (blur && blur !== "none") {
+        offenders.add(`${el.tagName.toLowerCase()}: ${blur}`);
+      }
+    }
   }
+  expect([...offenders]).toEqual([]);
 }

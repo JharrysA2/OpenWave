@@ -6,6 +6,7 @@ export function TitleBar() {
   return (
     <div
       data-tauri-drag-region
+      className="app-titlebar"
       style={{
         display: "flex",
         alignItems: "stretch",

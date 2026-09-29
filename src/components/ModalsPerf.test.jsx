@@ -14,10 +14,11 @@ import { BarStyleModal } from "./settings/BarStyleModal";
 import { BtnShapeModal } from "./settings/BtnShapeModal";
 
 // Presupuesto de GPU de overlays: ver `expectOverlayGlassBudget` en
-// test-utils.jsx y docs/PERFORMANCE.md. Resumen: scrim full-screen sin
-// backdrop-filter, todo lo que difumina a `blur(6px)` sin saturate, y
-// `html.overlay-open` montado mientras el overlay está abierto (pausa las
-// animaciones infinitas de detrás).
+// test-utils.jsx y docs/PERFORMANCE.md. Resumen: 0 backdrop-filter en
+// cualquier capa de un overlay (ni scrim, ni hoja: el filtro full-screen se
+// re-ejecutaba en cada repintado de detrás) y `html.overlay-open` montado
+// mientras el overlay está abierto (pausa animaciones, repaints y blurs de
+// la shell que quedan tapados).
 
 const mockApiGet = vi.fn();
 vi.mock("../utils/api", () => ({
@@ -151,24 +152,26 @@ describe("presupuesto de glass en overlays", () => {
     mockApiGet.mockImplementation(() => Promise.resolve({}));
   });
 
-  it.each(overlays)("%s: scrim sin blur, backdrops a 6px y overlay-open", (name, element) => {
+  it.each(overlays)("%s: 0 backdrop-filter y overlay-open", (name, element) => {
     const { unmount } = renderWithSettings(element);
 
     expectOverlayGlassBudget();
-    // Clase que pausa shimmer/pulse/ conexión detrás del overlay
+    // Clase que pausa shimmer/pulse/conexión y apaga los blurs de la shell
     expect(overlayOpen()).toBe(true);
 
     unmount();
     expect(overlayOpen()).toBe(false);
   });
 
-  it("el blur viejo de 10px/saturate no reaparece en los overlays", () => {
+  it("el blur viejo (10px/saturate/8px/6px) no reaparece en los overlays", () => {
     renderWithSettings(overlays[7][1]); // EntityOptionsSheet (hoja con acciones)
     const html = document.body.innerHTML;
     expect(html).not.toContain("blur(10px)");
+    expect(html).not.toContain("blur(6px)");
     expect(html).not.toContain("saturate(");
     expect(html).not.toContain("blur(8px)");
-    expect(inlineBlurred().length).toBeGreaterThan(0); // sí difumina, pero a 6px
+    // Ninguna capa del overlay difumina: 0 filtros, no "6px"
+    expect(inlineBlurred().length).toBe(0);
     expectOverlayGlassBudget();
   });
 });

@@ -188,7 +188,8 @@ export default function SettingsPanel({
                 height: "34px",
                 borderRadius: RADIUS.cover,
                 ...GLASS.btn,
-                // Sin blur propio: el panel ya difumina el fondo (ver GLASS.settings)
+                // Opt-out explícito: presupuesto de overlays = 0 filtros
+                // (ver GLASS.settings y docs/PERFORMANCE.md §7)
                 backdropFilter: "none",
                 WebkitBackdropFilter: "none",
                 display: "flex",
@@ -227,7 +228,8 @@ export default function SettingsPanel({
               onClick={onClose}
               style={{
                 ...GLASS.btn,
-                // Sin blur propio: el panel ya difumina el fondo (ver GLASS.settings)
+                // Opt-out explícito: presupuesto de overlays = 0 filtros
+                // (ver GLASS.settings y docs/PERFORMANCE.md §7)
                 backdropFilter: "none",
                 WebkitBackdropFilter: "none",
                 color: "rgba(255,255,255,.55)",

@@ -1315,6 +1315,16 @@ const LyricLine = React.memo(function LyricLine({
   const scaleX = isActive ? 1 : Math.max(0.6, 1 - 0.05 * lineDistance);
   const scaleY = isActive ? 1 : Math.max(0.85, 1 - 0.015 * lineDistance);
 
+  // ── Ventana de render: NO usar content-visibility ──────────────────────
+  //    Probado y descartado con A/B empírico (misma canción, 5 aperturas
+  //    con y sin la propiedad, monitor 2 Hz): `content-visibility: auto` en
+  //    las líneas no activas PEORA el escenario real del karaoke — el
+  //    scroll suave activa/desactiva líneas continuamente y cada activación
+  //    corrige el tamaño estimado (contain-intrinsic-size) → layout extra +
+  //    repintado. Medido: GPU 18.4% → 10.2%, layout 3139 → 2520 ms y un
+  //    longtask de 60 ms de más. El montaje completo de las líneas es barato
+  //    (medido: sin longtask en la apertura); el jank venía del pre-difuminado
+  //    (resuelto con convertToBlob fuera del hilo principal).
   return (
     <div
       data-testid={`lyric-line-${index}`}
@@ -1793,9 +1803,28 @@ export function LyricsView({
 
     const succeed = (url, img) => {
       if (cancelled) return;
-      setBgBlurUrl(preblurToDataUrl(img) || "");
       setBgSrc(url);
       setBgLoaded(true);
+      // El pre-difuminado en canvas (drawImage con filtros + toDataURL sobre
+      // 960-1440 px) cuesta 30-100 ms sincronos: dentro del onload caia en el
+      // episodio de apertura de Letras y dominaba el jank medido (picos de
+      // 77-101 ms de longtask al abrir). Se difiere al primer idle para que el
+      // primer paint de la vista pase limpio; mientras tanto la capa usa el
+      // fallback de filtro CSS (ya se ve difuminado) → el swap es invisible.
+      const run = async () => {
+        if (cancelled) return;
+        // preblurToDataUrl es async: dibuja en OffscreenCanvas y codifica con
+        // convertToBlob FUERA del hilo principal (la codificación es el 99%
+        // del coste: medido 147 ms síncronos a 1280² → hueco máximo de 18 ms
+        // con convertToBlob → sin longtask en la apertura de Letras).
+        const blurred = await preblurToDataUrl(img);
+        if (!cancelled && blurred) setBgBlurUrl(blurred);
+      };
+      if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(run, { timeout: 1500 });
+      } else {
+        setTimeout(run, 120); // jsdom/tests: sin requestIdleCallback
+      }
     };
     const fail = () => {
       if (!cancelled) setBgLoaded(true);

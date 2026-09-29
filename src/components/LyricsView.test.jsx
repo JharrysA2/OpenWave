@@ -819,7 +819,9 @@ describe("LyricsView — letras elegidas persisten al salir de la pantalla", () 
 //  33 % al 76 % mientras estaba montado: scrim full-screen con blur(8px),
 //  cada resultado de búsqueda con su propia capa blur y las hojas a 10px
 //  con saturate, todo repintándose detrás (shimmer, pulse, progreso a 5 Hz).
-//  Reglas completas en docs/PERFORMANCE.md y en expectOverlayGlassBudget.
+//  Bajarlo a 6px no bastó (>70 %): el presupuesto ahora es 0 filtros en
+//  cualquier capa de un overlay. Reglas completas en docs/PERFORMANCE.md y
+//  en expectOverlayGlassBudget.
 
 describe("LyricsView — presupuesto de glass en sus modales", () => {
   beforeEach(() => {
@@ -828,22 +830,18 @@ describe("LyricsView — presupuesto de glass en sus modales", () => {
     document.documentElement.classList.remove("overlay-open");
   });
 
-  it("«Buscar letras»: scrim sin backdrop-filter, hoja a 6px y overlay-open", () => {
+  it("«Buscar letras»: 0 backdrop-filter en el overlay y overlay-open", () => {
     const view = renderLyrics();
 
     fireEvent.click(screen.getByTitle("Configuración de letras"));
     fireEvent.click(screen.getByText("Buscar letras"));
 
-    // Scrim full-screen sin blur + cualquier backdrop a 6px sin saturate
+    // Scrim, hoja y contenido: ni la capa ni sus hijos difuminan
     expectOverlayGlassBudget();
     const blurs = inlineBlurred().map((el) => el.style.backdropFilter);
-    expect(blurs.length).toBeGreaterThan(0); // la hoja sí difumina…
-    expect(blurs).toContain("blur(6px)");
-    expect(blurs).not.toContain("blur(8px)"); // …el del scrim ya no existe
-    expect(blurs).not.toContain("blur(10px)");
-    for (const el of inlineBlurred()) {
-      expect(["blur(6px)", "none"]).toContain(el.style.backdropFilter);
-    }
+    expect(blurs).toEqual([]); // 0 filtros (antes: la hoja a blur(6px))
+    expect(document.body.innerHTML).not.toContain("blur(8px)"); // ni el del scrim
+    expect(document.body.innerHTML).not.toContain("blur(10px)");
 
     // Con el modal montado se pausan las animaciones infinitas de detrás
     expect(document.documentElement.classList.contains("overlay-open")).toBe(true);
@@ -890,5 +888,99 @@ describe("LyricsView — presupuesto de glass en sus modales", () => {
     expect(result).toBeTruthy();
     expect(result.style.backdropFilter ?? "").toBe("");
     expectOverlayGlassBudget();
+  });
+});
+
+// ── Regresión: reloj de karaoke congelado bajo un overlay ──────────────────
+//  Con un modal a pantalla completa las letras quedan DETRÁS del scrim:
+//  seguir haciendo setState de línea/palabra repintaba un fondo invisible y
+//  re-ejecutaba los backdrop-filter de detrás en cada frame (iGPU). Lo
+//  congela `useOverlayActive` (hooks/useOverlayLayer.js) — mismo patrón que
+//  `visible` al ocultar la ventana: al cerrar, el primer tick recalcula.
+
+describe("LyricsView — reloj de karaoke con overlay", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    document.documentElement.classList.remove("overlay-open");
+  });
+
+  it("se detiene bajo el modal «Buscar letras» y retoma al cerrarlo", async () => {
+    vi.useFakeTimers({
+      toFake: [
+        "setTimeout",
+        "clearTimeout",
+        "setInterval",
+        "clearInterval",
+        "requestAnimationFrame",
+        "cancelAnimationFrame",
+        "Date",
+        "performance",
+      ],
+    });
+    const lrcLines = ["[00:01.00]Line one", "[00:10.00]Line two", "[00:15.00]Line three"];
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) {
+        return Promise.resolve({ lyrics: lrcLines, source: "lrcLib" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+    Element.prototype.scrollIntoView.mockClear();
+
+    const progressRef = { current: 3 };
+    renderLyrics({ progressRef });
+
+    // Flush la cadena de promesas que resuelve el fetch de letras
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const calls = () => Element.prototype.scrollIntoView.mock.calls.length;
+    const frozen = () => document.documentElement.classList.contains("overlay-open");
+
+    // Línea 0 activa → auto-scroll programático
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(calls()).toBe(1);
+
+    // Panel de Ajustes (320px, NO tapa las letras) → el reloj sigue vivo
+    fireEvent.click(screen.getByTitle("Configuración de letras"));
+    expect(frozen()).toBe(false);
+    act(() => {
+      progressRef.current = 11;
+    });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(document.querySelector('[data-testid="lyric-line-1"]').style.opacity).toBe("1");
+    expect(calls()).toBe(2);
+
+    // Modal «Buscar letras»: overlay a pantalla completa → reloj congelado
+    fireEvent.click(screen.getByText("Buscar letras"));
+    expect(frozen()).toBe(true);
+    act(() => {
+      progressRef.current = 16;
+    });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    // La canción avanzó detrás del scrim, pero nada repinta: ni scroll ni
+    // cambio de línea (los dos forzarían un repaint de la iGPU)
+    expect(calls()).toBe(2);
+    expect(document.querySelector('[data-testid="lyric-line-2"]').style.opacity).not.toBe("1");
+
+    // Cerrar el modal → el reloj se re-programa y recalcula desde progressRef
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(frozen()).toBe(false);
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(document.querySelector('[data-testid="lyric-line-2"]').style.opacity).toBe("1");
+    expect(calls()).toBe(3);
   });
 });

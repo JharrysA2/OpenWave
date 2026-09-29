@@ -28,6 +28,7 @@ export function SearchBar({
 }) {
   return (
     <div
+      className="app-searchbar"
       style={{
         ...containerStyle,
         display: "flex",

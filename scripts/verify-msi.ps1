@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Verificacion estatica del MSI de SoundWave sin instalarlo (32 comprobaciones).
+    Verificacion estatica del MSI de SoundWave sin instalarlo (36 comprobaciones).
 
 .DESCRIPTION
     Lee las tablas del .msi con el objeto COM WindowsInstaller.Installer y
@@ -93,6 +93,55 @@ $props    = @(Invoke-MsiQuery $db 'SELECT * FROM Property')     # 0 Property 1 V
 $reg      = @(Invoke-MsiQuery $db 'SELECT * FROM Registry')     # 0 Registry 1 Root 2 Key 3 Name_ 4 Value 5 Component_
 $rfile    = @(Invoke-MsiQuery $db 'SELECT * FROM RemoveFile')   # 0 RemoveFile 1 Component_ 2 FileName 3 DirProperty 4 InstallMode
 $files    = @(Invoke-MsiQuery $db 'SELECT * FROM File')
+$comps    = @(Invoke-MsiQuery $db 'SELECT * FROM Component')  # 0 Component 1 ComponentId 2 Directory_
+$dirs     = @(Invoke-MsiQuery $db 'SELECT * FROM Directory')  # 0 Directory 1 Directory_Parent 2 DefaultDir
+
+# Rutas instaladas: File -> Component -> Directory (para poder exigir que el
+# backend, el Python embebido y ffmpeg vayan DENTRO del MSI y no solo en el
+# repo; fue el fallo que dejo el primer MSI sin servidor que arrancar).
+$dirParent = @{}
+$dirName   = @{}
+foreach ($d in $dirs) {
+    $dirParent[$d[0]] = $d[1]
+    $n = [string]$d[2]
+    if ($n -match '\|') { $n = ($n -split '\|')[1] }   # corto|largo
+    $dirName[$d[0]] = $n
+}
+function InstallPath([string]$dirId) {
+    $parts = @()
+    $cur = $dirId
+    while ($cur -and $dirParent.ContainsKey($cur)) {
+        if ($dirName[$cur]) { $parts = , $dirName[$cur] + $parts }
+        $cur = $dirParent[$cur]
+        if ($parts.Count -gt 40) { break }
+    }
+    ($parts -join '\')
+}
+$compDir = @{}
+foreach ($c in $comps) { $compDir[$c[0]] = $c[2] }
+
+# Ruta instalada -> FileSize (File: 0 File 1 Component_ 2 FileName 3 FileSize)
+$fileSizes = @{}
+foreach ($f in $files) {
+    $name = [string]$f[2]
+    if ($name -match '\|') { $name = ($name -split '\|')[1] }
+    $dir = $compDir[$f[1]]
+    if ($dir) { $fileSizes[(InstallPath $dir) + '\' + $name] = [int]$f[3] }
+}
+$payBackend     = @($fileSizes.Keys | Where-Object { $_ -like '*\backend\main.py' -and $_ -notlike '*site-packages*' })
+$payPython      = @($fileSizes.Keys | Where-Object { $_ -like '*\runtime\python.exe' })
+$payFfmpeg      = @($fileSizes.Keys | Where-Object { $_ -like '*\ffmpeg\ffmpeg.exe' })
+# El backend del MSI debe ser el del staging: si solo cambio el codigo y el
+# staging no se refresco, este check se cae antes de repartir un MSI viejo.
+$payBackendFresh = $true
+$stagingMain = Join-Path (Split-Path -Parent $PSScriptRoot) 'build\staging\backend\main.py'
+if (Test-Path -LiteralPath $stagingMain) {
+    if ($payBackend.Count -eq 1) {
+        $payBackendFresh = ($fileSizes[$payBackend[0]] -eq (Get-Item -LiteralPath $stagingMain).Length)
+    } else {
+        $payBackendFresh = $false
+    }
+}
 
 $dialogNames = @($dialogs | ForEach-Object { $_[0] })
 $optControls = @($controls | Where-Object { $_[0] -eq 'OptionsDlg' })
@@ -188,6 +237,10 @@ $checks = [ordered]@{
         [bool]($rfile | Where-Object { $_[1] -eq 'ApplicationShortcutDesktop' -and $_[3] -eq 'DesktopFolder' }) -and
         [bool]($rfile | Where-Object { $_[1] -eq 'ApplicationShortcut' -and $_[3] -eq 'ApplicationProgramsFolder' })
     'Payload con mas de 5000 ficheros' = ($files.Count -gt 5000)
+    'Payload: backend empaquetado (backend\main.py)' = ($payBackend.Count -eq 1)
+    'Payload: main.py del MSI identico al staging (sin backend viejo)' = $payBackendFresh
+    'Payload: Python embebido (runtime\python.exe)' = ($payPython.Count -eq 1)
+    'Payload: ffmpeg (ffmpeg\ffmpeg.exe)' = ($payFfmpeg.Count -eq 1)
 }
 
 Write-Host ''

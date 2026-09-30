@@ -74,7 +74,7 @@ npm run tauri dev
 | `scripts/generate-license.ps1` | (Windows) Genera `build/windows/licencia.txt` para el diálogo de licencia del MSI |
 | `scripts/prepare-runtime.ps1` | (Windows) Prepara Python embebido + dependencias + ffmpeg en `build/staging` |
 | `scripts/package-windows.ps1` | (Windows) Construye el instalador MSI completo → `build/windows/` |
-| `scripts/verify-msi.ps1` | (Windows) Verificación estática del MSI compilado: 32 comprobaciones sobre sus tablas, sin instalar |
+| `scripts/verify-msi.ps1` | (Windows) Verificación estática del MSI compilado: 36 comprobaciones sobre sus tablas y su payload, sin instalar |
 
 Guía completa del instalador (pasos, decisiones de diseño y checklist de
 aceptación): **[docs/instalador/README.md](docs/instalador/README.md)**.

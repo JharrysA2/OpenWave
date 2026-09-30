@@ -45,7 +45,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass \
 | 1 | `scripts/generate-license.ps1` | `build/windows/licencia.txt` + `licencia.rtf` |
 | 2 | `scripts/prepare-runtime.ps1` | `build/staging/{backend,runtime,ffmpeg}` |
 | 3 | `npx tauri build --bundles msi` | Compila y enlaza el MSI |
-| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (32 checks) |
+| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (36 checks) |
 
 `prepare-runtime.ps1` es idempotente: deja `build/staging/.ready` y solo se
 vuelve a ejecutar si cambia `backend/requirements-runtime.txt` o con `-Force`.
@@ -88,7 +88,7 @@ con el hash esperado y el obtenido para que se actualice el pin.
 | `scripts/generate-license.ps1` | Compone ambos textos en `build/windows/licencia.txt` |
 | `scripts/prepare-runtime.ps1` | Python embebido + deps + ffmpeg → `build/staging/` |
 | `scripts/package-windows.ps1` | Orquesta todo y renombra el MSI |
-| `scripts/verify-msi.ps1` | Lee las tablas del MSI por COM y ejecuta las 32 comprobaciones |
+| `scripts/verify-msi.ps1` | Lee las tablas del MSI por COM y ejecuta las 36 comprobaciones |
 
 ### Estructura instalada
 
@@ -105,6 +105,28 @@ Los datos **nunca** van en `Program Files`, sino en
 `%LOCALAPPDATA%\SoundWave` (descargas, cubiertos, letras, caché de stream,
 base de datos y log), así la app funciona sin privilegios y sobrevive a
 desinstalar/reinstalar.
+
+### Ciclo de vida del backend
+
+El servidor Python **va dentro del MSI** (todo `backend\`, `runtime\` y
+`ffmpeg\` son filas de la tabla `File`, y `verify-msi.ps1` lo exige con tres
+checks de payload), y no hay nada que arrancar a mano: lo gestiona el propio
+`SoundWave.exe` (`src-tauri/src/lib.rs`).
+
+1. **Al abrir la app** (`setup`), si `127.0.0.1:8765` no responde ya, lanza
+   en segundo plano `runtime\python.exe backend\main.py` (con consola
+   oculta), `SOUNDWAVE_DATA_DIR=%LOCALAPPDATA%\SoundWave` y `runtime\` y
+   `ffmpeg\` delante en `PATH`; después espera hasta 15 s a que
+   `GET /health` conteste `SoundWave` antes de dar por buena la conexión.
+2. **Si el puerto ya responde** (otra instancia abierta, o un backend que
+   sobrevivió a un cierre brusco), no lanza otro: reutiliza ese.
+3. **Al cerrar la ventana** (`CloseRequested`) hace `child.kill()` sobre
+   *su* proceso hijo: muere `python.exe` y con él uvicorn. Si la app muere
+   sin pasar por ese cierre («Finalizar tarea»), el backend se queda vivo y
+   el paso 2 lo reutiliza en el siguiente arranque.
+
+El stderr del backend (arranques, tracebacks, warmup) cae en
+`%LOCALAPPDATA%\SoundWave\backend.err.log`.
 
 ---
 
@@ -190,8 +212,9 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 - `ruff check backend/ && python -m pytest` en `backend/` (337 tests).
 - `npm test` (frontend).
 - Tras recompilar: `powershell -ExecutionPolicy Bypass -File scripts\verify-msi.ps1`
-  → 32 comprobaciones sobre las tablas del MSI (flujo del asistente, valores
-  por defecto de las casillas, licencia embebida, limpieza de INSTALLDIR),
+  → 36 comprobaciones sobre las tablas del MSI (flujo del asistente, valores
+  por defecto de las casillas, licencia embebida, limpieza de INSTALLDIR,
+  payload: backend + Python embebido + ffmpeg y `main.py` al día),
   sin instalar nada.
 
 ---

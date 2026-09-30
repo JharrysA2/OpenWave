@@ -252,8 +252,14 @@ $smokeDir = Join-Path $env:TEMP "soundwave-smoke-$smokeId"
 $smokePy = Join-Path $env:TEMP "soundwave-smoke-$smokeId.py"
 New-Item -ItemType Directory -Force -Path $smokeDir | Out-Null
 $smokeCode = @'
+# Como la app instalada: backend/ en el path. Ojo, al lanzar
+# `python fichero.py` Python mete en sys.path la CARPETA DEL SCRIPT (aqui,
+# Temp) y no el cwd, asi que hay que declararlo.
 import importlib
+import os
 import sys
+
+sys.path.insert(0, os.getcwd())
 
 mods = [
     "main",          # la app completa (arranca db, rutas, streaming...)

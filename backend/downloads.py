@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yt_dlp
 from cache import download_progress
-from config import BASE_DIR, COVERS_DIR, LYRICS_DIR, MUSIC_DIR
+from config import BASE_DIR, COVERS_DIR, LYRICS_DIR, MUSIC_DIR, PROJECT_DIR
 from db import _db_lock, get_db
 from logging_config import get_logger
 
@@ -49,7 +49,12 @@ def do_download(
 
     try:
         # ── 1. Buscar ffmpeg ──────────────────────────────────────────
+        # Prioridad al ffmpeg empaquetado junto a la app (MSI) o al
+        # preparado para desarrollo en Windows (build/staging/ffmpeg);
+        # después el comportamiento histórico y, por último, el PATH.
         _search_dirs = [
+            BASE_DIR.parent / "ffmpeg",
+            PROJECT_DIR / "build" / "staging" / "ffmpeg",
             BASE_DIR.parent,
             BASE_DIR,
             BASE_DIR.parent / "bin",
@@ -58,7 +63,7 @@ def do_download(
         ]
         _ffmpeg_dir = None
         for d in _search_dirs:
-            if (d / "ffmpeg.exe").exists():
+            if (d / "ffmpeg.exe").is_file() or (d / "ffmpeg").is_file():
                 _ffmpeg_dir = str(d)
                 break
         if not _ffmpeg_dir:

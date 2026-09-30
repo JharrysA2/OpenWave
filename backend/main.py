@@ -198,4 +198,8 @@ if __name__ == "__main__":
         port=API_PORT,
         reload=False,
         log_level="info",
+        # Sin access log: en la app instalada el stderr va a backend.err.log
+        # y cada petición saturaría el fichero sin aportar nada (la app ya
+        # loguea lo importante en soundwave.log).
+        access_log=False,
     )

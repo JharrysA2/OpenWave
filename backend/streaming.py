@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import io
+import os
 import shutil
 import subprocess
 import sys
@@ -70,12 +71,41 @@ def lowq_path(video_id: str):
     return STREAM_CACHE_DIR / f"{video_id}{LOWQ_EXT}"
 
 
-def _yt_dlp_cmd() -> list:
-    """Binario de yt-dlp: PATH → venv → módulo con el Python actual.
+def _bundle_dir(name: str) -> Path | None:
+    """Directorio `name` empaquetado junto a la app (raíz de la instalación).
 
-    El backend no siempre arranca con el venv activado (el binario vive en
-    ``venv/bin``), así que sin este resolvedor el subproceso fallaría.
+    En el MSI la app vive en `Program Files\\SoundWave` con `runtime\\` y
+    `ffmpeg\\` al lado del `.exe`; en desarrollo el mismo layout puede
+    existir bajo `build/staging/` (lo crea scripts/prepare-runtime.ps1).
     """
+    base = Path(__file__).resolve().parent.parent
+    for root in (base, base / "build" / "staging"):
+        cand = root / name
+        if cand.is_dir():
+            return cand
+    return None
+
+
+def _yt_dlp_cmd() -> list:
+    """Binario de yt-dlp: runtime empaquetado → PATH → venv → módulo.
+
+    En la instalación de Windows no hay binario suelto: se usa el Python
+    embebido (`sys.executable`) con el módulo yt_dlp de
+    `runtime/Lib/site-packages`, exactamente la versión que probamos.
+    El resto de órdenes cubre desarrollo (venv/bin o PATH).
+    """
+    bundle = _bundle_dir("runtime")
+    if bundle is not None:
+        # El intérprete embebido es el que tiene Lib\site-packages: usarlo
+        # aunque el proceso actual sea otro Python (arranque suelto de main.py).
+        candidates = (
+            [bundle / "python.exe", bundle / "bin" / "python3"]
+            if os.name == "nt"
+            else [bundle / "bin" / "python3", bundle / "python3"]
+        )
+        for py in candidates:
+            if py.is_file():
+                return [str(py), "-m", "yt_dlp"]
     exe = shutil.which("yt-dlp")
     if exe:
         return [exe]
@@ -86,7 +116,13 @@ def _yt_dlp_cmd() -> list:
 
 
 def _ffmpeg_bin() -> str:
-    """Binario de ffmpeg: PATH → ~/.local/bin → PATH como último recurso."""
+    """Binario de ffmpeg: empaquetado → PATH → ~/.local/bin → PATH."""
+    bundle = _bundle_dir("ffmpeg")
+    if bundle is not None:
+        for name in ("ffmpeg.exe", "ffmpeg"):
+            cand = bundle / name
+            if cand.is_file():
+                return str(cand)
     exe = shutil.which("ffmpeg")
     if exe:
         return exe

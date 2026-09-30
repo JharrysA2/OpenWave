@@ -1,5 +1,6 @@
 """Configuración global de pytest para el backend SoundWave."""
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -8,6 +9,11 @@ from fastapi.testclient import TestClient
 
 # ── Forzar rutas temporales antes de importar config ──────────────────────────
 TMP_DIR = Path(tempfile.mkdtemp(prefix="sw_test_"))
+
+# Los datos (downloads, db, log, stream_cache) van a un dir temporal ANTES de
+# importar config: además de no ensuciar el repo, cubre la ruta de datos
+# "heredada" (SOUNDWAVE_DATA_DIR) que usa la app instalada en Program Files.
+os.environ.setdefault("SOUNDWAVE_DATA_DIR", str(TMP_DIR))
 
 # Sobrescribir paths de config antes de cualquier import del backend
 import config as cfg  # noqa: E402

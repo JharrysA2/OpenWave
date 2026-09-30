@@ -30,6 +30,7 @@ backend/htmlcov/
 backend/soundwave.db-shm
 backend/soundwave.db-wal
 backend/url_cache.json
+backend/stream_cache/
 
 # ── IDE / Editor ──────────────────────────────────────
 .idea/

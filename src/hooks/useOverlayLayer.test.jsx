@@ -82,20 +82,21 @@ describe("useOverlayLayer — pausa de animaciones detrás de un overlay", () =>
     expect(html).toMatch(/html\.overlay-open[^}]*animation-play-state:\s*paused\s*!important/);
   });
 
-  it("index.html apaga los blurs de la shell mientras hay overlay", () => {
+  it("index.html apaga los blurs de la shell mientras hay overlay (menos el player)", () => {
     // Superficies con backdrop-filter que quedan DETRÁS del overlay: sin
     // esta regla cada repintado de detrás (progreso a 5 Hz, karaoke) les
     // cuesta un re-blur por frame para un resultado tapado por el scrim.
     const html = readProjectFile("index.html");
-    for (const sel of [".app-sidebar", ".app-titlebar", ".app-searchbar", ".player-bar"]) {
+    for (const sel of [".app-sidebar", ".app-titlebar", ".app-searchbar"]) {
       expect(html).toContain(`html.overlay-open ${sel}`);
     }
     expect(html).toMatch(
       /html\.overlay-open \.app-sidebar,[^}]*backdrop-filter:\s*none\s*!important/,
     );
-    expect(html).toMatch(
-      /html\.overlay-open \.player-bar \{\s*backdrop-filter:\s*none\s*!important/,
-    );
+    // El player bar es la excepción: conserva su blur(10px) con los modales
+    // abiertos (coherencia visual con el cristal esmerilado; el overlay
+    // congela el detrás, así que el coste ≈ 0 con el backdrop estático).
+    expect(html).not.toMatch(/html\.overlay-open \.player-bar/);
   });
 
   it("las superficies de la shell llevan la clase que apaga html.overlay-open", () => {

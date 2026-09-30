@@ -293,8 +293,11 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,.55)",
-        animation: "sw-fade-in .2s ease both",
+        // Sin velo oscuro y sin animar la opacidad: mientras el scrim está
+        // por debajo de opacidad 1 es la backdrop root de la tarjeta y ésta
+        // muestrea vacío — el blur(40px) no se ve hasta que algo invalida la
+        // muestra (p. ej. un cambio de foco). El scrim solo gestiona el clic.
+        background: "transparent",
       }}
       onClick={onClose}
     >

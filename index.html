@@ -173,16 +173,16 @@
         animation-play-state: paused !important;
       }
 
-      /* Superficies de la shell que quedan DETRÁS del overlay: conservan su
-         backdrop-filter (sidebar/titlebar/searchbar/player) y cada repintado
-         de detrás — progreso del player a 5 Hz, palabras del karaoke — les
-         cuesta un re-blur por frame de iGPU para un resultado tapado por el
-         scrim al 55 %. Se apagan mientras dure el overlay y vuelven solas al
-         cerrarlo (la clase la gestiona hooks/useOverlayLayer.js). */
+      /* Superficies de la shell que quedan DETRÁS del overlay: se apagan sus
+         blurs mientras dure el overlay (la clase la gestiona
+         hooks/useOverlayLayer.js). El player bar es la EXCEPCIÓN y conserva
+         su blur(10px): un player sin desenfoque al lado de los cristales
+         esmerilados de los modales se ve incoherente; su coste ≈ 0 porque el
+         overlay congela lo que hay detrás (progreso, karaoke, animaciones) y
+         con el backdrop estático el compositor cachea el frosted. */
       html.overlay-open .app-sidebar,
       html.overlay-open .app-titlebar,
-      html.overlay-open .app-searchbar,
-      html.overlay-open .player-bar {
+      html.overlay-open .app-searchbar {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
       }

@@ -12,7 +12,9 @@ function glFactory(renderer, { withDebugExt = true } = {}) {
   return () => ({
     RENDERER: 0x1f01,
     getExtension: (name) =>
-      name === "WEBGL_debug_renderer_info" && withDebugExt ? { UNMASKED_RENDERER_WEBGL: 0x9246 } : null,
+      name === "WEBGL_debug_renderer_info" && withDebugExt
+        ? { UNMASKED_RENDERER_WEBGL: 0x9246 }
+        : null,
     getParameter: () => renderer,
   });
 }
@@ -37,7 +39,9 @@ describe("detectSoftwareRenderer", () => {
   it("ANGLE sobre SwiftShader → software", () => {
     expect(
       detectSoftwareRenderer(
-        glFactory("ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)"),
+        glFactory(
+          "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)",
+        ),
       ),
     ).toBe(true);
   });
@@ -72,9 +76,9 @@ describe("detectSoftwareRenderer", () => {
   });
 
   it("GPU real Intel vía ANGLE/Direct3D (Windows) → NO software", () => {
-    expect(
-      detectSoftwareRenderer(glFactory("ANGLE (Intel(R) UHD Graphics 630, Direct3D11)")),
-    ).toBe(false);
+    expect(detectSoftwareRenderer(glFactory("ANGLE (Intel(R) UHD Graphics 630, Direct3D11)"))).toBe(
+      false,
+    );
   });
 });
 

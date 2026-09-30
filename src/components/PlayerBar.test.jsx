@@ -2,7 +2,12 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { PlayerBar } from "./PlayerBar";
+import { SettingsProvider } from "../contexts/SettingsContext";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
+
+// PlayerBar lee ajustes en vivo (forma del botón, grosor de la pista, tiempo)
+// vía useSettings → los renders de prueba necesitan el provider.
+const withSettings = (ui) => <SettingsProvider>{ui}</SettingsProvider>;
 
 // Monta solo el hook: simula que hay un overlay a pantalla completa (modal)
 // tapando la barra, igual que hace FloatingModal dentro de LyricsView.
@@ -49,7 +54,7 @@ const defaultProps = {
 };
 
 function renderBar(props = {}) {
-  return render(<PlayerBar {...defaultProps} {...props} />);
+  return render(withSettings(<PlayerBar {...defaultProps} {...props} />));
 }
 
 describe("PlayerBar", () => {
@@ -314,14 +319,20 @@ describe("PlayerBar — progreso imperativo", () => {
   it("usa 0% cuando la duración todavía no se conoce, y se corrige al llegar", async () => {
     const progressRef = { current: 12 };
     const { rerender } = render(
-      <PlayerBar {...defaultProps} song={song} duration={0} progressRef={progressRef} />,
+      withSettings(
+        <PlayerBar {...defaultProps} song={song} duration={0} progressRef={progressRef} />,
+      ),
     );
 
     await waitFor(() => expect(screen.getByTestId("progress-time")).toHaveTextContent("0:12"));
     expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(0.000)");
 
     // Al conocerse la duración se repinta con el porcentaje real
-    rerender(<PlayerBar {...defaultProps} song={song} duration={120} progressRef={progressRef} />);
+    rerender(
+      withSettings(
+        <PlayerBar {...defaultProps} song={song} duration={120} progressRef={progressRef} />,
+      ),
+    );
     await waitFor(() =>
       expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(0.100)"),
     );
@@ -355,25 +366,29 @@ describe("PlayerBar — progreso imperativo", () => {
   it("hace un sync puntual al cambiar de canción aunque esté en pausa", async () => {
     const progressRef = { current: 40 };
     const { rerender } = render(
-      <PlayerBar
-        {...defaultProps}
-        song={song}
-        duration={200}
-        isPlaying={false}
-        progressRef={progressRef}
-      />,
+      withSettings(
+        <PlayerBar
+          {...defaultProps}
+          song={song}
+          duration={200}
+          isPlaying={false}
+          progressRef={progressRef}
+        />,
+      ),
     );
     await waitFor(() => expect(screen.getByTestId("progress-time")).toHaveTextContent("0:40"));
 
     progressRef.current = 0;
     rerender(
-      <PlayerBar
-        {...defaultProps}
-        song={{ ...song, videoId: "other" }}
-        duration={200}
-        isPlaying={false}
-        progressRef={progressRef}
-      />,
+      withSettings(
+        <PlayerBar
+          {...defaultProps}
+          song={{ ...song, videoId: "other" }}
+          duration={200}
+          isPlaying={false}
+          progressRef={progressRef}
+        />,
+      ),
     );
 
     await waitFor(() => expect(screen.getByTestId("progress-time")).toHaveTextContent("0:00"));

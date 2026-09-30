@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { SongOptionsSheet } from "./SongOptionsSheet";
+import { SettingsProvider } from "../contexts/SettingsContext";
 import { mockApiResponse } from "../test-utils";
 
 // Mock MusicCover
@@ -35,7 +36,12 @@ const defaultProps = {
 };
 
 function renderSheet(props = {}) {
-  return render(<SongOptionsSheet {...defaultProps} {...props} />);
+  // Lee settings.downloadQuality vía useSettings → necesita el provider.
+  return render(
+    <SettingsProvider>
+      <SongOptionsSheet {...defaultProps} {...props} />
+    </SettingsProvider>,
+  );
 }
 
 describe("SongOptionsSheet", () => {

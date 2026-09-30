@@ -45,13 +45,18 @@
    (migrado íntegro desde el hook useDynamicTheme).
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* Pista + relleno visible: el componente <Slider> escribe --fill (0%-100%)
+   inline y aquí se dibuja la barra recorrida en el acento y la porción
+   restante en gris. Sin --fill el slider degrada a pista gris completa
+   (nunca invisible). La pista base sube de 0.08 → 0.14 de blanco para que
+   se lea sin hover. */
 input[type="range"] {
   -webkit-appearance: none !important;
   appearance: none !important;
   width: 100%;
   height: 4px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: transparent !important;
   outline: none !important;
   cursor: pointer;
   margin: 8px 0;
@@ -61,7 +66,13 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    to right,
+    var(--neon) 0%,
+    var(--neon) var(--fill, 0%),
+    rgba(255, 255, 255, 0.14) var(--fill, 0%),
+    rgba(255, 255, 255, 0.14) 100%
+  );
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none !important;
@@ -79,11 +90,8 @@ input[type="range"]::-webkit-slider-thumb {
     0 2px 4px rgba(0, 0, 0, 0.3);
   transition:
     transform 0.15s,
-    box-shadow 0.15s,
-    opacity 0.15s;
-  opacity: 0;
-}
-input[type="range"]:hover::-webkit-slider-thumb {
+    box-shadow 0.15s;
+  /* Siempre visible: la barra sola no dice dónde está el valor. */
   opacity: 1;
 }
 input[type="range"]::-webkit-slider-thumb:hover {
@@ -102,7 +110,13 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 input[type="range"]::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    to right,
+    var(--neon) 0%,
+    var(--neon) var(--fill, 0%),
+    rgba(255, 255, 255, 0.14) var(--fill, 0%),
+    rgba(255, 255, 255, 0.14) 100%
+  );
   border: none;
 }
 input[type="range"]::-moz-range-thumb {
@@ -112,9 +126,6 @@ input[type="range"]::-moz-range-thumb {
   background: var(--neon);
   cursor: pointer;
   border: 2px solid rgba(255, 255, 255, 0.2);
-  opacity: 0;
-}
-input[type="range"]:hover::-moz-range-thumb {
   opacity: 1;
 }
 ::placeholder,

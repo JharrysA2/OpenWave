@@ -48,7 +48,10 @@ async def start_download(video_id: str, request: Request):
             body.get("album_browse_id", "") or body.get("albumBrowseId", ""),
             body.get("artist_browse_id", "") or body.get("artistBrowseId", ""),
         ),
-        kwargs={"thumbnails": body.get("thumbnails", [])},
+        kwargs={
+            "thumbnails": body.get("thumbnails", []),
+            "quality": body.get("quality", "") or "192",
+        },
         daemon=True,
     )
     thread.start()
@@ -101,6 +104,7 @@ def _download_album_thread(key: str, body: dict, tracks: list):
                 album_browse_id=body.get("browseId", ""),
                 artist_browse_id=body.get("artistBrowseId", ""),
                 thumbnails=t.get("thumbnails") or body.get("thumbnails") or [],
+                quality=body.get("quality", "") or "192",
             )
             if download_progress.get(vid, {}).get("status") == "error":
                 errors += 1

@@ -5,7 +5,15 @@ import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { api } from "../utils/api";
 import { Ic } from "../icons/Icons";
 
-export function PlaylistPickerModal({ open, playlists, song, songs, toast, refreshPlaylists, onClose }) {
+export function PlaylistPickerModal({
+  open,
+  playlists,
+  song,
+  songs,
+  toast,
+  refreshPlaylists,
+  onClose,
+}) {
   useOverlayLayer(open);
 
   if (!open) return null;

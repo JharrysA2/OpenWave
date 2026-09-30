@@ -94,3 +94,17 @@ export function clearLyricsOverride(videoId) {
   writeAll(map);
   return true;
 }
+
+/**
+ * Borrar TODAS las letras personalizadas (Ajustes → Privacidad).
+ * Devuelve el número de canciones afectadas.
+ */
+export function clearAllLyricsOverrides() {
+  try {
+    const n = Object.keys(readAll()).length;
+    localStorage.removeItem(OVERRIDES_KEY);
+    return n;
+  } catch {
+    return 0;
+  }
+}

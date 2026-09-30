@@ -34,6 +34,8 @@ export default function SettingsPanel({
   neonColor,
   crossfadeDuration,
   setCrossfadeDuration,
+  sleep,
+  setSleep,
   downloads,
   onClearDownloads,
   onClearHistory,
@@ -68,6 +70,8 @@ export default function SettingsPanel({
           neonColor={neonColor}
           crossfadeDuration={crossfadeDuration}
           setCrossfadeDuration={setCrossfadeDuration}
+          sleep={sleep}
+          setSleep={setSleep}
         />
       ),
     },
@@ -89,6 +93,9 @@ export default function SettingsPanel({
           neonColor={neonColor}
           downloads={downloads}
           onClearDownloads={onClearDownloads}
+          history={history}
+          onClearHistory={onClearHistory}
+          toast={toast}
         />
       ),
     },

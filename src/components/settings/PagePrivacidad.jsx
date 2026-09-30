@@ -8,10 +8,12 @@ import {
 } from "../SettingsComponents";
 import { Ic } from "../../icons/Icons";
 import { ConfirmPanel } from "./ConfirmPanel";
+import { clearAllLyricsOverrides } from "../../utils/lyricsOverrides";
 
 export function PagePrivacidad({ neonColor, onClearHistory, toast }) {
   const { settings, updateSetting, t } = useSettings();
-  const [confirming, setConfirming] = useState(false);
+  // null | "history" | "lyrics" — qué acción espera confirmación
+  const [confirming, setConfirming] = useState(null);
   return (
     <div style={{ padding: "20px 16px" }}>
       <SettingsSection title={t.privacy}>
@@ -27,21 +29,39 @@ export function PagePrivacidad({ neonColor, onClearHistory, toast }) {
           }
         />
         <SettingRow
+          icon={Ic.edit}
+          label={t.resetCustomLyrics}
+          desc={t.resetCustomLyricsDesc}
+          onClick={() => setConfirming("lyrics")}
+          right={<SettingsChevron />}
+        />
+        <SettingRow
           border={false}
           icon={Ic.trash}
           label={t.clearHistory}
-          onClick={() => setConfirming(true)}
+          onClick={() => setConfirming("history")}
           right={<SettingsChevron />}
         />
       </SettingsSection>
-      {confirming && (
+      {confirming === "history" && (
         <ConfirmPanel
           message={`${t.clearHistory}?`}
-          onCancel={() => setConfirming(false)}
+          onCancel={() => setConfirming(null)}
           onConfirm={() => {
             onClearHistory();
-            setConfirming(false);
+            setConfirming(null);
             toast("Historial eliminado", "info");
+          }}
+        />
+      )}
+      {confirming === "lyrics" && (
+        <ConfirmPanel
+          message={`${t.resetCustomLyrics}?`}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            const n = clearAllLyricsOverrides();
+            setConfirming(null);
+            toast?.(n > 0 ? t.resetCustomLyricsDone : t.noCustomLyrics, "info");
           }}
         />
       )}

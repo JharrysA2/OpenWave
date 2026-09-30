@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { getLyricsOverride, setLyricsOverride, clearLyricsOverride } from "./lyricsOverrides";
+import {
+  getLyricsOverride,
+  setLyricsOverride,
+  clearLyricsOverride,
+  clearAllLyricsOverrides,
+} from "./lyricsOverrides";
 
 const KEY = "sw_lyrics_overrides_v1";
 
@@ -81,6 +86,19 @@ describe("lyricsOverrides — persistencia de letras elegidas", () => {
     // Segunda limpieza: no había nada
     expect(clearLyricsOverride("v1")).toBe(false);
     expect(clearLyricsOverride(undefined)).toBe(false);
+  });
+
+  it("borra todas las letras personalizadas y devuelve el recuento", () => {
+    // Nada guardado → 0, sin errores
+    expect(clearAllLyricsOverrides()).toBe(0);
+
+    setLyricsOverride("v1", { lines: ["Una"] });
+    setLyricsOverride("v2", { lines: ["Dos"] });
+
+    expect(clearAllLyricsOverrides()).toBe(2);
+    expect(localStorage.getItem(KEY)).toBeNull();
+    expect(getLyricsOverride("v1")).toBeNull();
+    expect(getLyricsOverride("v2")).toBeNull();
   });
 
   it("poda las entradas más antiguas y respeta el tope", () => {

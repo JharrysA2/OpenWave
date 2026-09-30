@@ -34,6 +34,11 @@ const PerformanceContext = createContext({
  *        perfMode = "custom"      → solo lo que el usuario marque en
  *                                   perfBlur / perfAnim / perfShadow
  *
+ *     Además aplica el ESTILO DE FONDO de Apariencia (blurStyle):
+ *     "solid" fuerza el modo sólido y "none" apaga todo filtro; "blur"
+ *     no toca nada. Solo restringe (nunca reenciende lo que el modo de
+ *     rendimiento apagó).
+ *
  *  3) Expone vía contexto los toggles RESUELTOS (blurOn, animOn, shadowOn,
  *     visible) para que la página de rendimiento y los componentes
  *     sepan qué está activo SIN re-leer los ajustes ni re-calcular CSS.
@@ -47,6 +52,15 @@ export function PerformanceProvider({ children }) {
   const customAnim = settings.perfAnim !== false;
   const customShadow = settings.perfShadow !== false;
   const customSolid = settings.perfSolid !== false;
+  // Estilo de fondo (Apariencia): refuerza el modo de rendimiento, nunca lo
+  // relaja — si Rendimiento ya apagó el blur, "Desenfoque" no lo reenciende.
+  //   blur   → cristal con backdrop-filter (comportamiento normal)
+  //   solid  → colores sólidos sin velo translúcido (html.perf-solid)
+  //   none   → sin ningún filtro detrás de la UI (html.perf-blur-off)
+  const blurStyle = settings.blurStyle || "blur";
+  // pauseEffectsHidden (Rendimiento): al apagarlo la app conserva blur/anim
+  // aunque la ventana esté oculta (por defecto se pausan para ahorrar GPU).
+  const pauseHidden = settings.pauseEffectsHidden !== false;
 
   const flags = useMemo(() => {
     if (mode === "auto") {
@@ -69,11 +83,11 @@ export function PerformanceProvider({ children }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.toggle("perf-blur-off", !flags.blurOn);
+    root.classList.toggle("perf-blur-off", !flags.blurOn || blurStyle === "none");
     root.classList.toggle("perf-anim-off", !flags.animOn);
     root.classList.toggle("perf-shadow-off", !flags.shadowOn);
-    root.classList.toggle("perf-solid", !!flags.solidOn);
-    root.classList.toggle("app-hidden", !visible);
+    root.classList.toggle("perf-solid", !!flags.solidOn || blurStyle === "solid");
+    root.classList.toggle("app-hidden", !visible && pauseHidden);
     return () => {
       root.classList.remove(
         "perf-blur-off",
@@ -83,7 +97,7 @@ export function PerformanceProvider({ children }) {
         "app-hidden",
       );
     };
-  }, [flags, visible]);
+  }, [flags, visible, blurStyle, pauseHidden]);
 
   const value = useMemo(() => ({ ...flags, visible }), [flags, visible]);
 

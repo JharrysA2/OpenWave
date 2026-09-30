@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 
 // ── Importaciones del proyecto refactorizado ──────────────────────────────────
 import { FONT } from "./constants";
@@ -64,7 +64,12 @@ function AppInner() {
     doSearch,
     doSearchVideos,
     setQuery,
-  } = useSearch();
+  } = useSearch(settings.defaultSearchTab || "music");
+  // Cambiar la pestaña por defecto en Ajustes → Contenido aplica en caliente:
+  // searchTab vive en App durante toda la sesión, no en SearchView.
+  useEffect(() => {
+    setSearchTab(settings.defaultSearchTab || "music");
+  }, [settings.defaultSearchTab, setSearchTab]);
   const {
     liked,
     setLiked,
@@ -85,7 +90,13 @@ function AppInner() {
     () => new Set((downloads || []).map((d) => d.videoId || d.video_id)),
     [downloads],
   );
-  const player = usePlayer(toast, results, settings.crossfade || 0);
+  const player = usePlayer(
+    toast,
+    results,
+    settings.crossfade || 0,
+    settings.playbackQuality || "standard",
+    settings.downloadQuality || "192",
+  );
   const {
     currentSong,
     queue,
@@ -144,6 +155,31 @@ function AppInner() {
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+
+  // ── Temporizador de apagado (Ajustes → Reproductor y sonido) ──────────────
+  // `sleep` = { at: timestamp (ms) en el que pausar, minutes: preset elegido };
+  // null = inactivo. Vive aquí (no en la página de ajustes) para que siga
+  // contando aunque el panel de ajustes se cierre o se cambie de sección.
+  const [sleep, setSleep] = useState(null);
+  const isPlayingRef = useRef(isPlaying);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+  useEffect(() => {
+    if (!sleep) return undefined;
+    const fire = () => {
+      setSleep(null);
+      if (isPlayingRef.current) togglePlay();
+      toast("Temporizador: reproducción pausada", "info");
+    };
+    const remaining = sleep.at - Date.now();
+    if (remaining <= 0) {
+      fire();
+      return undefined;
+    }
+    const id = setTimeout(fire, remaining);
+    return () => clearTimeout(id);
+  }, [sleep, togglePlay, toast]);
 
   // ── useCallback para evitar re-renders en Sidebar ────────────────────────────
   const onSelectPlaylist = useCallback(
@@ -409,6 +445,7 @@ function AppInner() {
       playlists,
       setPlaylistPickerOpen,
       setPlaylistPickerSongs,
+      downloadQuality: settings.downloadQuality,
     });
 
   // ── Navegación ──────────────────────────────────────────────────────────────
@@ -516,6 +553,7 @@ function AppInner() {
         hasAccent={hasAccent}
         overlayOpacity={overlayOpacity}
         cfTransitionSpeed={cfTransitionSpeed}
+        vignette={settings.vignette ?? 100}
       />
 
       {/* ── Aviso de desconexión con el backend ───────────────────────── */}
@@ -548,6 +586,8 @@ function AppInner() {
               neonColor={neonColor}
               crossfadeDuration={crossfadeDuration}
               setCrossfadeDuration={setCrossfadeDuration}
+              sleep={sleep}
+              setSleep={setSleep}
               downloads={downloads}
               onClearDownloads={handleClearDownloads}
               onClearHistory={handleClearHistory}

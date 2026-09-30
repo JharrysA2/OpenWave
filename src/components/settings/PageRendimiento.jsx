@@ -9,8 +9,7 @@ export function PageRendimiento({ neonColor }) {
   const accent = neonColor || "#a78bfa";
   const mode = settings.perfMode || "auto";
   // Modo efectivo para mostrar el resumen: "auto" resuelve según la GPU.
-  const effective =
-    mode === "auto" ? (isSoftwareRenderer() ? "performance" : "balanced") : mode;
+  const effective = mode === "auto" ? (isSoftwareRenderer() ? "performance" : "balanced") : mode;
   // Diagnóstico de GPU para el usuario: ¿la aceleración por hardware está activa?
   const gpu = getRendererInfo();
 
@@ -88,6 +87,33 @@ export function PageRendimiento({ neonColor }) {
         ))}
       </SettingsSection>
 
+      {/* ── Pausa de efectos con la ventana oculta ─────────────────────── */}
+      <SettingsSection title={t.perfEffects}>
+        <SettingRow
+          border={false}
+          icon={
+            <span
+              style={{
+                width: "7px",
+                height: "7px",
+                borderRadius: "50%",
+                background: settings.pauseEffectsHidden !== false ? accent : "rgba(255,255,255,.2)",
+                boxShadow: settings.pauseEffectsHidden !== false ? `0 0 8px ${accent}` : "none",
+              }}
+            />
+          }
+          label={t.pauseEffectsHidden}
+          desc={t.pauseEffectsHiddenDesc}
+          right={
+            <SettingsToggle
+              value={settings.pauseEffectsHidden !== false}
+              onChange={(v) => updateSetting("pauseEffectsHidden", v)}
+              accent={accent}
+            />
+          }
+        />
+      </SettingsSection>
+
       {mode === "custom" && (
         <SettingsSection title={t.performanceDesc}>
           {toggleRow(t.perfBlur, t.perfBlurDesc, "perfBlur")}
@@ -134,9 +160,7 @@ export function PageRendimiento({ neonColor }) {
               </svg>
             </span>
             <div style={{ fontSize: "12px", color: "rgba(255,255,255,.5)", fontWeight: "600" }}>
-              {effective === "performance"
-                ? t.perfModePerformanceDesc
-                : t.perfModeBalancedDesc}
+              {effective === "performance" ? t.perfModePerformanceDesc : t.perfModeBalancedDesc}
             </div>
           </div>
         </SettingsSection>

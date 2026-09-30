@@ -18,6 +18,8 @@ export const MainRouter = React.memo(function MainRouter({
   neonColor,
   crossfadeDuration,
   setCrossfadeDuration,
+  sleep,
+  setSleep,
   downloads,
   onClearDownloads,
   onClearHistory,
@@ -81,6 +83,8 @@ export const MainRouter = React.memo(function MainRouter({
           neonColor={neonColor}
           crossfadeDuration={crossfadeDuration}
           setCrossfadeDuration={setCrossfadeDuration}
+          sleep={sleep}
+          setSleep={setSleep}
           downloads={downloads}
           onClearDownloads={onClearDownloads}
           onClearHistory={onClearHistory}

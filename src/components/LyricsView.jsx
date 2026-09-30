@@ -1176,6 +1176,18 @@ function LyricsSettingsModal({
             </div>
             <div style={rowStyle}>
               <div>
+                <div style={labelStyle}>Girar fondo</div>
+                <div style={descStyle}>Rotación lenta de la foto difuminada</div>
+              </div>
+              <button
+                onClick={() => updateSetting("lyricsRotateBg", !settings.lyricsRotateBg)}
+                style={toggleStyle(settings.lyricsRotateBg)}
+              >
+                <div style={toggleKnob(settings.lyricsRotateBg)} />
+              </button>
+            </div>
+            <div style={rowStyle}>
+              <div>
                 <div style={labelStyle}>Tamaño</div>
                 <div style={descStyle}>
                   {FONT_SIZES.find((s) => s.key === settings.lyricsFontSize)?.px || "36px"}
@@ -2067,7 +2079,20 @@ export function LyricsView({
             data-testid="lyrics-bg"
             style={{
               position: "absolute",
-              inset: "-5%",
+              // «Girar el fondo» (lyricsRotateBg): capa cuadrada de 150vmax
+              // centrada — un cuadrado ≥ diagonal del viewport siempre cubre,
+              // así la rotación no deja esquinas destapadas (el contenedor
+              // con overflow:hidden la recorta). Sin la opción: 110% + scale.
+              ...(settings.lyricsRotateBg
+                ? {
+                    width: "150vmax",
+                    height: "150vmax",
+                    left: "50%",
+                    top: "50%",
+                    transform: "translate(-50%, -50%)",
+                    animation: "sw-bg-spin 90s linear infinite",
+                  }
+                : { inset: "-5%", transform: "scale(1.1)" }),
               backgroundImage: bgLoaded && bgLayerSrc ? `url(${bgLayerSrc})` : "none",
               backgroundSize: "cover",
               backgroundPosition: "center",
@@ -2079,7 +2104,6 @@ export function LyricsView({
                 bgLoaded && bgSrc && !bgBlurUrl
                   ? "blur(12px) saturate(1.2) brightness(0.7)"
                   : undefined,
-              transform: "scale(1.1)",
               opacity: bgLoaded ? 1 : 0,
               transition: "opacity .3s cubic-bezier(.16,1,.3,1)",
               contain: "paint",
@@ -2614,6 +2638,12 @@ export function LyricsView({
          @keyframes sw-modal-in {
            from { opacity: 0; transform: scale(0.92) translateY(20px); }
            to { opacity: 1; transform: scale(1) translateY(0); }
+         }
+         /* Rotación lenta del fondo (settings.lyricsRotateBg). La pausa
+            html.perf-anim-off / app-hidden la frena con animation-play-state. */
+         @keyframes sw-bg-spin {
+           from { transform: translate(-50%, -50%) rotate(0deg); }
+           to { transform: translate(-50%, -50%) rotate(360deg); }
          }
        `}</style>
     </div>

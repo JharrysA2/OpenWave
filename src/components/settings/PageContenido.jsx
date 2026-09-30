@@ -1,6 +1,6 @@
 import React from "react";
 import { useSettings } from "../../contexts/useSettings";
-import { SettingsSection, SettingRow, SettingsToggle } from "../SettingsComponents";
+import { SettingsSection, SettingRow, SettingsToggle, SegBtn } from "../SettingsComponents";
 import { Svg } from "./icons";
 import { Ic } from "../../icons/Icons";
 
@@ -8,7 +8,7 @@ export function PageContenido({ neonColor }) {
   const { settings, updateSetting, t } = useSettings();
   return (
     <div style={{ padding: "20px 16px" }}>
-      <SettingsSection title={t.content}>
+      <SettingsSection title={t.lyricsProvider}>
         <SettingRow
           icon={Ic.globe}
           label={t.lrcLib}
@@ -29,6 +29,25 @@ export function PageContenido({ neonColor }) {
               value={settings.kuGou ?? true}
               onChange={(v) => updateSetting("kuGou", v)}
               accent={neonColor}
+            />
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection title={t.searchDefaults}>
+        <SettingRow
+          border={false}
+          icon={Ic.search2}
+          label={t.defaultSearchTab}
+          desc={t.defaultSearchTabDesc}
+          right={
+            <SegBtn
+              options={[
+                ["music", t.tabMusic],
+                ["videos", t.tabVideos],
+              ]}
+              settingKey="defaultSearchTab"
+              current={settings.defaultSearchTab || "music"}
             />
           }
         />

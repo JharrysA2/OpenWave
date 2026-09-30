@@ -5,6 +5,7 @@ import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, SPACING, SHADOWS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
+import { useSettings } from "../contexts/useSettings";
 
 export function SongOptionsSheet({
   song,
@@ -25,6 +26,7 @@ export function SongOptionsSheet({
   const [dlPct, setDlPct] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [details, setDetails] = useState(null);
+  const { settings } = useSettings();
 
   useEffect(() => {
     if (!open) {
@@ -61,6 +63,8 @@ export function SongOptionsSheet({
       album_title: song.album || song.albumTitle || "",
       album_browse_id: song.albumBrowseId || "",
       artist_browse_id: song.artistBrowseId || "",
+      // Calidad elegida en Ajustes → Reproductor y sonido (128/192/320).
+      quality: settings.downloadQuality || "192",
     });
     const es = new EventSource(`${api.base}/download/progress/${song.videoId}`);
     es.onmessage = (e) => {

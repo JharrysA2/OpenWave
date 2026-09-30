@@ -76,6 +76,19 @@ describe("PageReproductor", () => {
     );
     expect(screen.getByText(/5s/)).toBeInTheDocument();
   });
+
+  it("should render playback quality alongside download quality", () => {
+    renderWithSettings(
+      <PageReproductor neonColor="#a78bfa" crossfadeDuration={0} setCrossfadeDuration={() => {}} />,
+    );
+    expect(screen.getByText("Calidad de audio")).toBeInTheDocument();
+    expect(screen.getByText("Calidad de reproducción")).toBeInTheDocument();
+    expect(screen.getByText("Calidad de descarga")).toBeInTheDocument();
+    // Opciones de calidad de reproducción (default = Estándar)
+    expect(screen.getByText("Baja")).toBeInTheDocument();
+    expect(screen.getByText("Estándar")).toBeInTheDocument();
+    expect(screen.getByText("Alta")).toBeInTheDocument();
+  });
 });
 
 // ── PageAlmacenamiento ─────────────────────────────────────────────────────
@@ -97,9 +110,9 @@ describe("PageAlmacenamiento", () => {
     expect(screen.queryByText("Eliminar todas las descargas?")).not.toBeInTheDocument();
   });
 
-  it("should show image cache label", () => {
+  it("should show streaming cache row", () => {
     renderWithSettings(<PageAlmacenamiento downloads={[]} onClearDownloads={() => {}} />);
-    expect(screen.getByText("Caché de imágenes")).toBeInTheDocument();
+    expect(screen.getByText("Caché del reproductor")).toBeInTheDocument();
   });
 });
 
@@ -148,6 +161,18 @@ describe("PagePrivacidad", () => {
     fireEvent.click(screen.getByText("Cancelar"));
     expect(screen.queryByText("Borrar historial de escuchas?")).not.toBeInTheDocument();
   });
+
+  it("should confirm and clear custom lyrics", () => {
+    const toast = vi.fn();
+    renderWithSettings(
+      <PagePrivacidad neonColor="#a78bfa" onClearHistory={() => {}} toast={toast} />,
+    );
+    fireEvent.click(screen.getByText("Restablecer letras personalizadas"));
+    expect(screen.getByText("Restablecer letras personalizadas?")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Borrar"));
+    expect(toast).toHaveBeenCalled();
+    expect(screen.queryByText("Restablecer letras personalizadas?")).not.toBeInTheDocument();
+  });
 });
 
 // ── PageApariencia ──────────────────────────────────────────────────────
@@ -175,6 +200,18 @@ describe("PageApariencia", () => {
     expect(screen.getByText("Reproductor")).toBeInTheDocument();
     expect(screen.getByText("Forma del botón de play")).toBeInTheDocument();
     expect(screen.getByText("Estilo de la barra de progreso")).toBeInTheDocument();
+    // Tono del play + alineación del texto de la barra
+    expect(screen.getByText("Estilo de botones del reproductor")).toBeInTheDocument();
+    expect(screen.getByText("Alineación del texto del reproductor")).toBeInTheDocument();
+    expect(screen.getByText("Blanco")).toBeInTheDocument();
+    // "Centro" aparece también en la posición del texto de las letras
+    expect(screen.getAllByText("Centro").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("should render vignette slider row", () => {
+    renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
+    expect(screen.getByText("Oscurecimiento de fondo")).toBeInTheDocument();
+    expect(screen.getByText(/100%\)/)).toBeInTheDocument();
   });
 
   it("should render lyrics section with all options", () => {
@@ -223,7 +260,7 @@ describe("PageApariencia", () => {
 describe("PageContenido", () => {
   it("should render content section", () => {
     renderWithSettings(<PageContenido neonColor="#a78bfa" />);
-    expect(screen.getByText("Contenido")).toBeInTheDocument();
+    expect(screen.getByText("Proveedor de letras")).toBeInTheDocument();
   });
 
   it("should render LrcLib toggle", () => {
@@ -240,6 +277,14 @@ describe("PageContenido", () => {
     renderWithSettings(<PageContenido neonColor="#a78bfa" />);
     const lrcLibRow = screen.getByText("LrcLib").parentElement.parentElement;
     expect(lrcLibRow.querySelector("div[style*='cursor']")).toBeInTheDocument();
+  });
+
+  it("should render default search tab SegBtn", () => {
+    renderWithSettings(<PageContenido neonColor="#a78bfa" />);
+    expect(screen.getByText("Búsqueda")).toBeInTheDocument();
+    expect(screen.getByText("Pestaña de búsqueda por defecto")).toBeInTheDocument();
+    expect(screen.getByText("Música")).toBeInTheDocument();
+    expect(screen.getByText("Vídeos")).toBeInTheDocument();
   });
 });
 

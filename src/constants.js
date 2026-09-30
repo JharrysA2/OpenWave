@@ -31,4 +31,21 @@ export const DEFAULT_SETTINGS = {
   perfAnim: true,
   perfShadow: true,
   perfSolid: false,
+  // Calidad de descarga (bitrate): "128" | "192" | "320" — la usa
+  // SongOptionsSheet en POST /download/{id} (backend/downloads.py).
+  downloadQuality: "192",
+  // Calidad de reproducción en streaming: "low" | "standard" | "high"
+  // (escalera QUALITY_FORMATS de backend/streaming.py).
+  playbackQuality: "standard",
+  // Tono del botón de play en la barra: "color" (neón) | "blanco".
+  playerBtnTone: "color",
+  // Alineación del bloque título/artista de la barra: "left" | "center".
+  playerTextAlign: "left",
+  // Oscurecimiento extra del fondo dinámico (vignette): 0–200 (%),
+  // 100 = comportamiento actual, 0 = sin oscurecer, >100 = más oscuro.
+  vignette: 100,
+  // Pestaña inicial de Búsqueda: "music" | "videos".
+  defaultSearchTab: "music",
+  // Pausar glass/animaciones cuando la app pierde el foco (app-hidden).
+  pauseEffectsHidden: true,
 };

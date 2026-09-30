@@ -1,13 +1,14 @@
 import { useState, useRef, useCallback } from "react";
 import { api } from "../utils/api";
 
-export function useSearch() {
+export function useSearch(initialTab = "music") {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searchArtists, setSearchArtists] = useState([]);
   const [searchAlbums, setSearchAlbums] = useState([]);
   const [songsVisible, setSongsVisible] = useState(5);
-  const [searchTab, setSearchTab] = useState("music");
+  // Pestaña inicial de Búsqueda — settings.defaultSearchTab ("music" | "videos").
+  const [searchTab, setSearchTab] = useState(initialTab);
   const [videoResults, setVideoResults] = useState([]);
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoError, setVideoError] = useState(null);
@@ -65,7 +66,7 @@ export function useSearch() {
   //    el ícono de búsqueda (no en cada tecleo).
   //    ⚡ Rule: async-parallel — Promise.all para operaciones independientes
 
-const handleSearchChange = useCallback(
+  const handleSearchChange = useCallback(
     (value) => {
       setQuery(value);
       if (!value.trim()) {

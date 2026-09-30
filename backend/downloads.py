@@ -28,8 +28,15 @@ def do_download(
     album_browse_id: str = "",
     artist_browse_id: str = "",
     thumbnails: list = None,
+    quality: str = "192",
 ):
-    """Descargar canción: audio MP3 + cover + letras."""
+    """Descargar canción: audio MP3 + cover + letras.
+
+    `quality` = bitrate MP3 elegido en el cliente (Ajustes → Reproductor y
+    sonido): "128" | "192" | "320". Cualquier otro valor cae a 192.
+    """
+    if str(quality) not in ("128", "192", "320"):
+        quality = "192"
     download_progress[video_id] = {"status": "downloading", "progress": 0}
 
     def _hook(d):
@@ -68,7 +75,7 @@ def do_download(
                 {
                     "key": "FFmpegExtractAudio",
                     "preferredcodec": "mp3",
-                    "preferredquality": "192",
+                    "preferredquality": str(quality),
                 }
             ],
             "progress_hooks": [_hook],

@@ -1,11 +1,45 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSettings } from "../../contexts/useSettings";
-import { SettingsSection, SettingRow } from "../SettingsComponents";
+import { SettingsSection, SettingRow, SegBtn, Slider } from "../SettingsComponents";
 import { Svg } from "./icons";
+import { Ic } from "../../icons/Icons";
 
-export function PageReproductor({ neonColor, crossfadeDuration, setCrossfadeDuration }) {
-  const { t } = useSettings();
+const SLEEP_PRESETS = [15, 30, 45, 60];
+const QUALITY_OPTS = [
+  ["128", "128k"],
+  ["192", "192k"],
+  ["320", "320k"],
+];
+
+export function PageReproductor({ crossfadeDuration, setCrossfadeDuration, sleep, setSleep }) {
+  const { t, settings } = useSettings();
   const [localCf, setLocalCf] = useState(crossfadeDuration);
+
+  // ── Temporizador de apagado ──────────────────────────────────────────────
+  // `sleep` vive en App ({ at, minutes }) → sigue corriendo aunque esta
+  // página se desmonte. Aquí solo se refresca el contador cada segundo.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!sleep) return undefined;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [sleep]);
+
+  const remainingMs = sleep ? Math.max(0, sleep.at - now) : 0;
+  const mm = Math.floor(remainingMs / 60000);
+  const ss = Math.floor((remainingMs % 60000) / 1000);
+  const countdown = `${mm}:${String(ss).padStart(2, "0")}`;
+  const activePreset = sleep ? sleep.minutes : 0;
+
+  const setSleepPreset = (minutes) => {
+    if (!minutes) {
+      setSleep(null);
+      return;
+    }
+    setSleep({ at: Date.now() + minutes * 60000, minutes });
+  };
+
   return (
     <div style={{ padding: "20px 16px" }}>
       <SettingsSection title={t.playerSound}>
@@ -18,16 +52,12 @@ export function PageReproductor({ neonColor, crossfadeDuration, setCrossfadeDura
         <div
           style={{ padding: "4px 18px 16px", display: "flex", flexDirection: "column", gap: "8px" }}
         >
-          <input
-            type="range"
-            min="0"
-            max="12"
-            step="1"
+          <Slider
+            min={0}
+            max={12}
             value={localCf}
-            onChange={(e) => setLocalCf(Number(e.target.value))}
-            onMouseUp={(e) => setCrossfadeDuration(Number(e.target.value))}
-            onTouchEnd={(e) => setCrossfadeDuration(Number(e.target.value))}
-            style={{ width: "100%", accentColor: neonColor || "#a78bfa", cursor: "pointer" }}
+            onChange={setLocalCf}
+            onCommit={setCrossfadeDuration}
           />
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
@@ -38,6 +68,59 @@ export function PageReproductor({ neonColor, crossfadeDuration, setCrossfadeDura
             </span>
           </div>
         </div>
+      </SettingsSection>
+
+      <SettingsSection title={t.sleepTimer}>
+        <SettingRow
+          icon={Svg.clock}
+          label={t.sleepTimer}
+          desc={sleep ? `${t.sleepPausesIn} ${countdown}` : t.sleepTimerDesc}
+          border={false}
+          right={
+            <SegBtn
+              options={[
+                // "OFF" (no t.off) para no colisionar con el "Off" del
+                // crossfade en tests de texto exacto.
+                [0, "OFF"],
+                ...SLEEP_PRESETS.map((m) => [m, `${m}m`]),
+              ]}
+              current={activePreset}
+              onChange={setSleepPreset}
+            />
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection title={t.audioQuality}>
+        <SettingRow
+          icon={Ic.radio}
+          label={t.playbackQuality}
+          desc={t.playbackQualityDesc}
+          right={
+            <SegBtn
+              options={[
+                ["low", t.qualityLow],
+                ["standard", t.qualityStandard],
+                ["high", t.qualityHigh],
+              ]}
+              settingKey="playbackQuality"
+              current={settings.playbackQuality || "standard"}
+            />
+          }
+        />
+        <SettingRow
+          icon={Ic.download(16)}
+          label={t.downloadQuality}
+          desc={t.downloadQualityDesc}
+          border={false}
+          right={
+            <SegBtn
+              options={QUALITY_OPTS}
+              settingKey="downloadQuality"
+              current={settings.downloadQuality || "192"}
+            />
+          }
+        />
       </SettingsSection>
     </div>
   );

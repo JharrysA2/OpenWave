@@ -151,8 +151,12 @@ export function SettingsChevron() {
 
 import { useSettings } from "../contexts/useSettings";
 
-export function SegBtn({ options, settingKey, current }) {
+export function SegBtn({ options, settingKey, current, onChange }) {
   const { updateSetting } = useSettings();
+  const handle = (val) => {
+    if (onChange) onChange(val);
+    else updateSetting(settingKey, val);
+  };
   return (
     <div
       style={{
@@ -166,7 +170,7 @@ export function SegBtn({ options, settingKey, current }) {
       {options.map(([val, label]) => (
         <button
           key={val}
-          onClick={() => updateSetting(settingKey, val)}
+          onClick={() => handle(val)}
           style={{
             padding: "5px 10px",
             borderRadius: "6px",
@@ -184,6 +188,38 @@ export function SegBtn({ options, settingKey, current }) {
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Slider — input[type=range] con barra de relleno visible.
+ *
+ * Escribe la custom property `--fill` (0-100%) en el elemento; el CSS global
+ * (dynamic-theme.css) dibuja con ella la porción recorrida en el acento y la
+ * restante en gris, de modo que SIEMPRE se ve la barra y el porcentaje, no
+ * solo el pulgar al hacer hover.
+ *
+ * - `onCommit` se dispara al soltar el puntero (mouseup/touchend): útil para
+ *   crossfade, donde aplicar en cada paso re-dispara la transición de audio.
+ */
+export function Slider({ value, min, max, step = 1, onChange, onCommit, style }) {
+  const span = max - min;
+  const pct = span > 0 ? Math.min(100, Math.max(0, ((value - min) / span) * 100)) : 0;
+  const commit = (e) => {
+    if (onCommit) onCommit(Number(e.target.value));
+  };
+  return (
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      onMouseUp={onCommit ? commit : undefined}
+      onTouchEnd={onCommit ? commit : undefined}
+      style={{ width: "100%", cursor: "pointer", "--fill": `${pct}%`, ...style }}
+    />
   );
 }
 

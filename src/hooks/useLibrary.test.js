@@ -156,10 +156,7 @@ describe("useLibrary", () => {
 
   it("should not overwrite existing likedMeta during hydration", async () => {
     localStorage.setItem("sw_liked_v2", JSON.stringify(["dl1"]));
-    localStorage.setItem(
-      "sw_liked_meta_v1",
-      JSON.stringify({ dl1: { title: "Custom Title" } }),
-    );
+    localStorage.setItem("sw_liked_meta_v1", JSON.stringify({ dl1: { title: "Custom Title" } }));
     const mockDownloads = [{ videoId: "dl1", title: "From Downloads" }];
 
     let callCount = 0;

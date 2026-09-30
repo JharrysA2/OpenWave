@@ -4,18 +4,12 @@ import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { usePerformance } from "../contexts/PerformanceContext";
+import { useSettings } from "../contexts/useSettings";
 import { useOverlayActive } from "../hooks/useOverlayLayer";
 import { fmtTime } from "../utils/formatTime";
-import {
-  COLORS,
-  RADIUS,
-  SPACING,
-  SHADOWS,
-  TRANSITIONS,
-  GLASS,
-  withAlpha,
-  safeAccentText,
-} from "../utils/theme";
+import { getBtnShapeStyle } from "../utils/playerStyles";
+import { Slider } from "./SettingsComponents";
+import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, safeAccentText } from "../utils/theme";
 
 /* Botones del player — GLASS.btn SIN backdrop-filter (decisión de diseño):
    el hover los escala y re-difuminaría su región en cada frame (6 regiones
@@ -205,6 +199,27 @@ export const PlayerBar = memo(function PlayerBar({
   const progressThumbRef = useRef(null);
   const progressTimeRef = useRef(null);
   const { visible } = usePerformance();
+  const { settings } = useSettings();
+
+  // ── Ajustes aplicados en vivo ───────────────────────────────────────────
+  // showProgressTime: oculta los números (actual / total) de la barra.
+  const showTime = settings.showProgressTime ?? true;
+  // playerBtnShape: forma del botón de play (circle/rounded/square/pill).
+  const btnShape = getBtnShapeStyle(settings.playerBtnShape);
+  // playerBarStyle: grosor de la pista de progreso (thin 2 / line 4 / thick 8).
+  const trackH =
+    settings.playerBarStyle === "thin" ? 2 : settings.playerBarStyle === "thick" ? 8 : 4;
+  const trackHoverH = trackH + 2;
+  const trackR = Math.max(1, Math.round(trackH / 2));
+  // playerBtnTone: color del icono del play — "color" = neón, "blanco" = puro.
+  const playBtnColor =
+    (settings.playerBtnTone || "color") === "white" ? "#ffffff" : "var(--neon-fg)";
+  // playerTextAlign: alineación del bloque título/artista.
+  const infoAlign = settings.playerTextAlign === "center" ? "center" : "left";
+  // Acento vía var(--neon) → hereda la interpolación de color (--neon-transition)
+  // a la velocidad de settings.colorTransitionSpeed en vez de saltar por render.
+  const neon = `var(--neon, ${accentColor})`;
+
   // Último valor/duración ya pintados en el DOM → evita escrituras repetidas
   const paintedProgressRef = useRef(null);
   const paintedDurationRef = useRef(null);
@@ -420,6 +435,7 @@ export const PlayerBar = memo(function PlayerBar({
                 whiteSpace: "nowrap",
                 color: COLORS.textPlayerTitle,
                 lineHeight: 1.3,
+                textAlign: infoAlign,
               }}
             >
               {song?.title || "SoundWave"}
@@ -433,6 +449,7 @@ export const PlayerBar = memo(function PlayerBar({
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 marginTop: "1px",
+                textAlign: infoAlign,
               }}
             >
               {song?.artist || "\u00A0"}
@@ -498,17 +515,18 @@ export const PlayerBar = memo(function PlayerBar({
               onClick={onPlayPause}
               disabled={streamLoading}
               style={{
-                width: "36px",
-                height: "36px",
+                width: btnShape.width,
+                height: btnShape.height,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: streamLoading ? "default" : "pointer",
                 // Degradado del acento de fondo → primer plano dinámico
-                color: "var(--neon-fg)",
-                borderRadius: "10px",
+                // (o blanco puro si playerBtnTone = "blanco")
+                color: playBtnColor,
+                borderRadius: btnShape.borderRadius,
                 transition: "transform .15s cubic-bezier(.16,1,.3,1), box-shadow .15s",
-                ...GLASS.playBtn(accentColor),
+                ...GLASS.playBtn(neon),
               }}
               onMouseDown={(e) => {
                 if (!streamLoading) {
@@ -522,12 +540,12 @@ export const PlayerBar = memo(function PlayerBar({
               onMouseEnter={(e) => {
                 if (!streamLoading) {
                   e.currentTarget.style.transform = "scale(1.08)";
-                  e.currentTarget.style.boxShadow = `0 0 24px ${accentColor}ee, 0 0 48px ${accentColor}66`;
+                  e.currentTarget.style.boxShadow = `0 0 24px color-mix(in srgb, ${neon} 93%, transparent), 0 0 48px color-mix(in srgb, ${neon} 40%, transparent)`;
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = SHADOWS.playBtn(accentColor);
+                e.currentTarget.style.boxShadow = `0 0 12px color-mix(in srgb, ${neon} 40%, transparent), 0 0 24px color-mix(in srgb, ${neon} 15%, transparent), inset 0 1px 0 rgba(255,255,255,.25)`;
               }}
             >
               {streamLoading ? (
@@ -756,15 +774,7 @@ export const PlayerBar = memo(function PlayerBar({
                     {crossfadeDuration > 0 ? `${crossfadeDuration}s` : "Off"}
                   </span>
                 </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="12"
-                  step="1"
-                  value={crossfadeDuration}
-                  onChange={(e) => onCrossfadeDuration(Number(e.target.value))}
-                  style={{ width: "100%", cursor: "pointer", accentColor }}
-                />
+                <Slider min={0} max={12} value={crossfadeDuration} onChange={onCrossfadeDuration} />
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span
                     style={{
@@ -880,6 +890,7 @@ export const PlayerBar = memo(function PlayerBar({
             textAlign: "right",
             fontVariantNumeric: "tabular-nums",
             letterSpacing: ".2px",
+            ...(showTime ? {} : { display: "none" }),
           }}
         />
         <div
@@ -897,18 +908,18 @@ export const PlayerBar = memo(function PlayerBar({
           <div
             style={{
               width: "100%",
-              height: "5px",
-              borderRadius: "3px",
+              height: `${trackH}px`,
+              borderRadius: `${trackR}px`,
               background: COLORS.progressTrack,
               position: "relative",
               overflow: "visible",
               transition: "height .15s cubic-bezier(.16,1,.3,1)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.height = "7px";
+              e.currentTarget.style.height = `${trackHoverH}px`;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.height = "5px";
+              e.currentTarget.style.height = `${trackH}px`;
             }}
           >
             {/* Filled portion — paintProgress escribe scaleX (imperativo, capa
@@ -918,15 +929,15 @@ export const PlayerBar = memo(function PlayerBar({
               data-testid="progress-fill"
               style={{
                 height: "100%",
-                borderRadius: "3px",
+                borderRadius: `${trackR}px`,
                 width: "100%",
-                background: `linear-gradient(90deg, ${accentColor}, ${withAlpha(accentColor, "cc")})`,
+                background: `linear-gradient(90deg, ${neon}, color-mix(in srgb, ${neon} 80%, transparent))`,
                 transition: "transform .15s linear",
                 transformOrigin: "left center",
                 transform: "scaleX(0)",
                 willChange: "transform",
                 position: "relative",
-                boxShadow: `0 0 10px ${accentColor}66`,
+                boxShadow: `0 0 10px color-mix(in srgb, ${neon} 40%, transparent)`,
               }}
             />
             {/* Thumb — aparece en hover con escala suave */}
@@ -942,7 +953,7 @@ export const PlayerBar = memo(function PlayerBar({
                 height: "14px",
                 borderRadius: RADIUS.full,
                 background: COLORS.white,
-                boxShadow: `0 0 8px ${accentColor}aa, 0 2px 6px rgba(0,0,0,.4)`,
+                boxShadow: `0 0 8px color-mix(in srgb, ${neon} 67%, transparent), 0 2px 6px rgba(0,0,0,.4)`,
                 transition:
                   "right .15s linear, transform .15s cubic-bezier(.16,1,.3,1), opacity .15s",
                 opacity: 0,
@@ -959,6 +970,7 @@ export const PlayerBar = memo(function PlayerBar({
             minWidth: "32px",
             fontVariantNumeric: "tabular-nums",
             letterSpacing: ".2px",
+            ...(showTime ? {} : { display: "none" }),
           }}
         >
           {totalDisplay}

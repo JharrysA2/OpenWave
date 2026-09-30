@@ -20,6 +20,7 @@ export function useEntityOptions({
   playlists,
   setPlaylistPickerOpen,
   setPlaylistPickerSongs,
+  downloadQuality,
 }) {
   const [entityOptions, setEntityOptions] = useState(null);
   // { type: 'album'|'artist', entity, tracks: array|null, open: bool }
@@ -34,19 +35,16 @@ export function useEntityOptions({
   }, []);
 
   /** Carga las pistas de un álbum (la caché de api.get evita repeticiones). */
-  const fetchAlbumTracks = useCallback(
-    async (album, providedTracks) => {
-      if (providedTracks && providedTracks.length > 0) return providedTracks;
-      if (!album?.browseId) return [];
-      try {
-        const d = await api.get(`/album/${encodeURIComponent(album.browseId)}`);
-        return d?.tracks || [];
-      } catch {
-        return [];
-      }
-    },
-    [],
-  );
+  const fetchAlbumTracks = useCallback(async (album, providedTracks) => {
+    if (providedTracks && providedTracks.length > 0) return providedTracks;
+    if (!album?.browseId) return [];
+    try {
+      const d = await api.get(`/album/${encodeURIComponent(album.browseId)}`);
+      return d?.tracks || [];
+    } catch {
+      return [];
+    }
+  }, []);
 
   /**
    * Descarga un álbum completo en el backend (POST /downloads/album) y
@@ -69,6 +67,7 @@ export function useEntityOptions({
         artistBrowseId: album.artistBrowseId || "",
         thumbnail: album.thumbnail || "",
         thumbnails: album.thumbnails || [],
+        quality: downloadQuality || "192",
         tracks: list.map((t) => ({
           videoId: t.videoId,
           title: t.title || "",
@@ -95,7 +94,10 @@ export function useEntityOptions({
             if (d.status === "done") {
               es.close();
               toast?.("Álbum descargado", "success");
-              api.fetchDownloads().then(setDownloads).catch(() => {});
+              api
+                .fetchDownloads()
+                .then(setDownloads)
+                .catch(() => {});
             } else if (d.status === "error") {
               es.close();
               toast?.("Error al descargar el álbum", "error");
@@ -111,7 +113,7 @@ export function useEntityOptions({
         toast?.("No se pudo iniciar la descarga", "error");
       }
     },
-    [fetchAlbumTracks, toast, setDownloads],
+    [fetchAlbumTracks, toast, setDownloads, downloadQuality],
   );
 
   const withTracks = useCallback(
@@ -173,7 +175,15 @@ export function useEntityOptions({
     setPlaylistPickerOpen?.(true);
     // la hoja queda abierta hasta elegir playlist (igual que canciones)
     closeEntityOptions();
-  }, [entityOptions, fetchAlbumTracks, playlists, toast, setPlaylistPickerSongs, setPlaylistPickerOpen, closeEntityOptions]);
+  }, [
+    entityOptions,
+    fetchAlbumTracks,
+    playlists,
+    toast,
+    setPlaylistPickerSongs,
+    setPlaylistPickerOpen,
+    closeEntityOptions,
+  ]);
 
   const toggleEntityLike = useCallback(() => {
     const { type, entity } = entityOptions || {};
@@ -182,7 +192,10 @@ export function useEntityOptions({
       toast?.(added ? "Añadido a Me gusta" : "Quitado de Me gusta", added ? "success" : "info");
     } else {
       const added = toggleFollow?.(entity);
-      toast?.(added ? `Siguiendo a ${entity?.name || "artista"}` : "Dejaste de seguir", added ? "success" : "info");
+      toast?.(
+        added ? `Siguiendo a ${entity?.name || "artista"}` : "Dejaste de seguir",
+        added ? "success" : "info",
+      );
     }
   }, [entityOptions, toggleAlbumLike, toggleFollow, toast]);
 
@@ -205,9 +218,7 @@ export function useEntityOptions({
       entity={entity}
       liked={liked}
       onToggleLike={toggleEntityLike}
-      onDownload={
-        type === "album" ? () => downloadAlbum(entity, entityOptions.tracks) : null
-      }
+      onDownload={type === "album" ? () => downloadAlbum(entity, entityOptions.tracks) : null}
       onPlay={type === "album" ? (shuffle) => playAlbum(shuffle) : null}
       onShuffle={type === "album" ? () => playAlbum(true) : null}
       onGoTo={goToEntity}

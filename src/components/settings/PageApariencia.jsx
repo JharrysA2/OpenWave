@@ -8,6 +8,7 @@ import {
   SettingsToggle,
   SettingsChevron,
   SegBtn,
+  Slider,
 } from "../SettingsComponents";
 import { Svg } from "./icons";
 import { Ic } from "../../icons/Icons";
@@ -39,7 +40,13 @@ export function PageApariencia({ neonColor }) {
           <SettingRow
             icon={Ic.reload}
             label={t.colorTransitionSpeed}
-            desc={`${(settings.colorTransitionSpeed ?? 0.5) === 0 ? t.instant : (settings.colorTransitionSpeed ?? 0.5) >= 1.5 ? t.slow : `${(settings.colorTransitionSpeed ?? 0.5).toFixed(1)}s`}`}
+            desc={`${t.colorTransitionSpeedDesc} (${
+              (settings.colorTransitionSpeed ?? 0.5) === 0
+                ? t.instant
+                : (settings.colorTransitionSpeed ?? 0.5) >= 1.5
+                  ? t.slow
+                  : `${(settings.colorTransitionSpeed ?? 0.5).toFixed(1)}s`
+            })`}
             border
           />
         )}
@@ -52,14 +59,12 @@ export function PageApariencia({ neonColor }) {
               gap: "8px",
             }}
           >
-            <input
-              type="range"
-              min="0"
-              max="2"
-              step="0.2"
+            <Slider
+              min={0}
+              max={2}
+              step={0.2}
               value={settings.colorTransitionSpeed ?? 0.5}
-              onChange={(e) => updateSetting("colorTransitionSpeed", Number(e.target.value))}
-              style={{ width: "100%", accentColor: accent, cursor: "pointer" }}
+              onChange={(v) => updateSetting("colorTransitionSpeed", v)}
             />
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
@@ -74,7 +79,7 @@ export function PageApariencia({ neonColor }) {
         <SettingRow
           icon={Svg.circle}
           label={t.pureBlack}
-          desc="Elimina todos los tintes de color"
+          desc={t.pureBlackDesc}
           right={
             <SettingsToggle
               value={settings.pureBlack}
@@ -83,6 +88,35 @@ export function PageApariencia({ neonColor }) {
             />
           }
         />
+        <SettingRow
+          icon={Ic.moon}
+          label={t.vignette}
+          desc={`${t.vignetteDesc} (${settings.vignette ?? 100}%)`}
+        />
+        <div
+          style={{
+            padding: "4px 18px 14px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          <Slider
+            min={0}
+            max={200}
+            step={10}
+            value={settings.vignette ?? 100}
+            onChange={(v) => updateSetting("vignette", v)}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
+              {t.vignetteMin}
+            </span>
+            <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
+              {t.vignetteMax}
+            </span>
+          </div>
+        </div>
         <SettingRow
           border={false}
           icon={Svg.rectangle}
@@ -103,6 +137,16 @@ export function PageApariencia({ neonColor }) {
       </SettingsSection>
 
       <SettingsSection title={t.defaultTab}>
+        <div
+          style={{
+            fontSize: "11.5px",
+            color: "rgba(255,255,255,.45)",
+            fontWeight: "600",
+            padding: "12px 18px 6px",
+          }}
+        >
+          {t.defaultTabDesc}
+        </div>
         {[
           ["home", "Inicio"],
           ["search", "Búsqueda"],
@@ -136,7 +180,6 @@ export function PageApariencia({ neonColor }) {
           right={<SettingsChevron />}
         />
         <SettingRow
-          border={false}
           icon={Svg.line}
           label="Estilo de la barra de progreso"
           desc={
@@ -144,6 +187,35 @@ export function PageApariencia({ neonColor }) {
           }
           onClick={() => setShowBarModal(true)}
           right={<SettingsChevron />}
+        />
+        <SettingRow
+          icon={Ic.play(16)}
+          label={t.playerBtnStyle}
+          right={
+            <SegBtn
+              options={[
+                ["color", t.playerBtnColor],
+                ["white", t.playerBtnWhite],
+              ]}
+              settingKey="playerBtnTone"
+              current={settings.playerBtnTone || "color"}
+            />
+          }
+        />
+        <SettingRow
+          border={false}
+          icon={Svg.lines}
+          label={t.playerTextAlign}
+          right={
+            <SegBtn
+              options={[
+                ["left", t.alignLeft],
+                ["center", t.alignCenter],
+              ]}
+              settingKey="playerTextAlign"
+              current={settings.playerTextAlign || "left"}
+            />
+          }
         />
       </SettingsSection>
 
@@ -217,19 +289,16 @@ export function PageApariencia({ neonColor }) {
           border={false}
           icon={Svg.clock2}
           label={t.lyricsScrollResume}
-          desc={`${settings.lyricsScrollResume ?? 3}s`}
+          desc={`${t.lyricsScrollResumeDesc} (${settings.lyricsScrollResume ?? 3}s)`}
         />
         <div
           style={{ padding: "4px 18px 14px", display: "flex", flexDirection: "column", gap: "8px" }}
         >
-          <input
-            type="range"
-            min="1"
-            max="10"
-            step="1"
+          <Slider
+            min={1}
+            max={10}
             value={settings.lyricsScrollResume ?? 3}
-            onChange={(e) => updateSetting("lyricsScrollResume", Number(e.target.value))}
-            style={{ width: "100%", accentColor: accent, cursor: "pointer" }}
+            onChange={(v) => updateSetting("lyricsScrollResume", v)}
           />
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
@@ -246,7 +315,7 @@ export function PageApariencia({ neonColor }) {
         <SettingRow
           icon={Svg.clock}
           label={t.showProgressTime}
-          desc="Muestra 0:00 a los lados de la barra"
+          desc={t.showProgressTimeDesc}
           right={
             <SettingsToggle
               value={settings.showProgressTime ?? true}

@@ -45,6 +45,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass \
 | 1 | `scripts/generate-license.ps1` | `build/windows/licencia.txt` + `licencia.rtf` |
 | 2 | `scripts/prepare-runtime.ps1` | `build/staging/{backend,runtime,ffmpeg}` |
 | 3 | `npx tauri build --bundles msi` | Compila y enlaza el MSI |
+| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (32 checks) |
 
 `prepare-runtime.ps1` es idempotente: deja `build/staging/.ready` y solo se
 vuelve a ejecutar si cambia `backend/requirements-runtime.txt` o con `-Force`.
@@ -87,6 +88,7 @@ con el hash esperado y el obtenido para que se actualice el pin.
 | `scripts/generate-license.ps1` | Compone ambos textos en `build/windows/licencia.txt` |
 | `scripts/prepare-runtime.ps1` | Python embebido + deps + ffmpeg → `build/staging/` |
 | `scripts/package-windows.ps1` | Orquesta todo y renombra el MSI |
+| `scripts/verify-msi.ps1` | Lee las tablas del MSI por COM y ejecuta las 32 comprobaciones |
 
 ### Estructura instalada
 
@@ -187,6 +189,10 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 
 - `ruff check backend/ && python -m pytest` en `backend/` (337 tests).
 - `npm test` (frontend).
+- Tras recompilar: `powershell -ExecutionPolicy Bypass -File scripts\verify-msi.ps1`
+  → 32 comprobaciones sobre las tablas del MSI (flujo del asistente, valores
+  por defecto de las casillas, licencia embebida, limpieza de INSTALLDIR),
+  sin instalar nada.
 
 ---
 
@@ -220,6 +226,26 @@ Tauri valida `bundle.resources` en cualquier build: ejecuta
 usan `Invoke-Native`, que baja `$ErrorActionPreference` durante la llamada:
 `2>&1` + `Stop` convertiría cualquier stderr en excepción. Si añades llamadas
 nuevas a comandos nativos, pásalas por ahí (o por `Invoke-Checked`).
+
+**`dark.exe` dice que faltan filas (DARK1059) y solo ve 1 diálogo.** El
+descompilador de WiX decompila mal la UI de este MSI: emite solo `OptionsDlg`
+(13 controles) y se inventa avisos sobre claves ajenas que sí existen. Las
+tablas reales están completas (24 diálogos, 228 controles). Para inspeccionar
+el MSI de verdad usa `scripts\verify-msi.ps1`, que las lee con el COM
+`WindowsInstaller.Installer` y las imprime. Tres peculiaridades que ya están
+resueltas dentro del script:
+
+- MSI SQL solo admite `SELECT *` aquí: las listas de columnas con guion bajo
+  final (`Control_`, `Dialog_`…) las rechaza `OpenView` (`OpenView,Sql`).
+- `Binary.Data` (binario) y las columnas nulas (`Component.KeyPath`) lanzan
+  excepción en `StringData`: hay que leer campo a campo con `try/catch`.
+- `View.Execute` devuelve `$null` y, como sentencia desnuda, se cuela en el
+  pipeline como primera fila de cada consulta (hay que ignorarlo con `[void]`).
+
+También conviene saberlo al leer la plantilla: **no existe la tabla
+`RemoveFolder` en MSI**; el `<RemoveFolder>` de WiX se compila a la tabla
+`RemoveFile` con `FileName` vacío (y `Product` tampoco es tabla: la autoría
+`<Product>` acaba en las propiedades `ProductName`/`ProductLanguage`/…).
 
 ---
 

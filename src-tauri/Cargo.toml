@@ -4,6 +4,7 @@ version = "1.0.0"
 description = "SoundWave Music App"
 authors = []
 edition = "2021"
+license = "GPL-3.0-or-later"
 
 [lib]
 name = "app_lib"

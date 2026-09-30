@@ -70,6 +70,10 @@ npm run tauri dev
 | `ruff check backend/` | Ruff linter (backend Python) |
 | `ruff format backend/` | Ruff formatter (backend) |
 | `python -m pytest` | Tests del backend (en `backend/`) |
+| `scripts/sync-windows` | (WSL) Sincroniza la copia de trabajo de Windows con este repo |
+| `scripts/generate-license.ps1` | (Windows) Genera `build/windows/licencia.txt` para el diálogo de licencia del MSI |
+| `scripts/prepare-runtime.ps1` | (Windows) Prepara Python embebido + dependencias + ffmpeg en `build/staging` |
+| `scripts/package-windows.ps1` | (Windows) Construye el instalador MSI completo → `build/windows/` |
 
 ---
 

@@ -87,6 +87,81 @@ fn wait_for_backend(timeout_secs: u64) -> bool {
     false
 }
 
+/// ¿Se puede escribir realmente dentro de `path`?
+///
+/// Espejo de `config._dir_escribible` del backend: se intenta crear un
+/// archivo de prueba (en Program Files `CreateFile` es lo único que decide;
+/// y `path` puede ni existir, en cuyo caso se mira su ancestro).
+fn dir_writable(path: &std::path::Path) -> bool {
+    use std::io::Write;
+    let mut probe_dir = path.to_path_buf();
+    while !probe_dir.exists() {
+        match probe_dir.parent() {
+            Some(parent) if parent != probe_dir => probe_dir = parent.to_path_buf(),
+            _ => return false,
+        }
+    }
+    if std::fs::create_dir_all(&probe_dir).is_err() {
+        return false;
+    }
+    let probe = probe_dir.join(format!(".soundwave-write-test-{}", std::process::id()));
+    let ok = match std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(&probe)
+    {
+        Ok(mut f) => f.write_all(b"").is_ok(),
+        Err(_) => false,
+    };
+    let _ = std::fs::remove_file(&probe);
+    ok
+}
+
+/// Directorio de datos de la app — la ÚNICA fuente de verdad: el backend
+/// recibe `SOUNDWAVE_DATA_DIR` apuntando aquí y ya no decide por su cuenta
+/// (así log, base de datos, descargas y `backend.err.log` coinciden).
+///
+/// Misma regla que `config._datos_dir`: env → código escribible (desarrollo)
+/// → `%LOCALAPPDATA%\SoundWave` (instalación en Program Files) → XDG en Unix.
+fn resolve_data_dir(backend_dir: &std::path::Path) -> PathBuf {
+    if let Ok(d) = std::env::var("SOUNDWAVE_DATA_DIR") {
+        if !d.is_empty() {
+            return PathBuf::from(d);
+        }
+    }
+    if dir_writable(backend_dir) {
+        return backend_dir.to_path_buf();
+    }
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        return PathBuf::from(local).join("SoundWave");
+    }
+    if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
+        if !xdg.is_empty() {
+            return PathBuf::from(xdg).join("SoundWave");
+        }
+    }
+    match std::env::var("HOME") {
+        Ok(home) => PathBuf::from(home).join(".local/share/SoundWave"),
+        Err(_) => PathBuf::from("."),
+    }
+}
+
+/// Crea/trunca `<data>/backend.err.log` para capturar el stderr del backend
+/// en release Windows (sin consola: ahí caen los tracebacks de Python y los
+/// arranques de uvicorn). SoloWindows + release: en desarrollo se hereda la
+/// consola del terminal.
+#[cfg(all(target_os = "windows", not(debug_assertions)))]
+fn create_err_log(data_dir: &std::path::Path) -> Option<std::fs::File> {
+    std::fs::create_dir_all(data_dir).ok()?;
+    std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(data_dir.join("backend.err.log"))
+        .ok()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -154,10 +229,35 @@ pub fn run() {
                 }
             };
 
-            // Candidatos en orden: venv del proyecto → python → python3 → py.
-            // El venv va primero: su intérprete ya tiene las dependencias del
-            // backend (fastapi, httpx, yt-dlp, ...).
-            let project_root = backend_path.parent().and_then(|p| p.parent());
+            // ── Directorio de datos único ──────────────────────────────────
+            // Rust lo decide y se lo pasa al backend (SOUNDWAVE_DATA_DIR):
+            // log, base de datos, descargas y backend.err.log viven juntos,
+            // tanto en desarrollo (backend/) como instalados
+            // (%LOCALAPPDATA%\SoundWave en Program Files).
+            let backend_dir = backend_path
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| PathBuf::from("."));
+            let data_dir = resolve_data_dir(&backend_dir);
+
+            // Candidatos de intérprete, en orden:
+            //  1. runtime empaquetado (instalación Windows: Python embebido
+            //     con las dependencias en Lib\site-packages)
+            //  2. venv del proyecto (desarrollo)
+            //  3. python / python3 / py del PATH (desarrollo)
+            let mut python_paths: Vec<String> = Vec::new();
+            if let Some(runtime_dir) = backend_dir.parent().map(|p| p.join("runtime")) {
+                let runtime_python = if cfg!(target_os = "windows") {
+                    runtime_dir.join("python.exe")
+                } else {
+                    runtime_dir.join("bin").join("python3")
+                };
+                if runtime_python.exists() {
+                    python_paths.push(runtime_python.to_string_lossy().into_owned());
+                }
+            }
+
+            let project_root = backend_dir.parent();
             let venv_python = project_root
                 .map(|p| {
                     if cfg!(target_os = "windows") {
@@ -170,30 +270,66 @@ pub fn run() {
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default();
 
-            let python_paths = [
+            python_paths.extend([
                 venv_python,
                 "python".to_string(),
                 "python3".to_string(),
                 "py".to_string(),
-            ];
+            ]);
+
+            // ffmpeg empaquetado al frente del PATH: yt-dlp (y cualquier
+            // otra herramienta) lo invoca por nombre sin recibir la ruta.
+            let ffmpeg_dir = backend_dir
+                .parent()
+                .map(|p| p.join("ffmpeg"))
+                .filter(|p| p.is_dir());
 
             let mut child = None;
             for py in &python_paths {
                 if py.is_empty() { continue; }
                 let mut cmd = Command::new(py);
                 cmd.arg(&backend_path);
-                // Si el candidato resolvió a una ruta con directorio (venv),
-                // su carpeta va al frente del PATH para que yt-dlp y ffmpeg
-                // hereden las herramientas del proyecto. El separador del PATH
-                // es ";" en Windows y ":" en el resto de plataformas.
+                // Directorio del intérprete (y el ffmpeg empaquetado) al
+                // frente del PATH para que yt-dlp hereda las herramientas.
+                // ";" en Windows, ":" en el resto de plataformas.
+                let sep = if cfg!(target_os = "windows") { ";" } else { ":" };
+                let old = std::env::var("PATH").unwrap_or_default();
+                let mut path_prefix: Vec<String> = Vec::new();
                 let py_path = std::path::Path::new(py.as_str());
                 if let Some(dir) = py_path.parent() {
                     if !dir.as_os_str().is_empty() {
-                        let sep = if cfg!(target_os = "windows") { ";" } else { ":" };
-                        let old = std::env::var("PATH").unwrap_or_default();
-                        cmd.env("PATH", format!("{}{}{}", dir.display(), sep, old));
+                        path_prefix.push(dir.display().to_string());
                     }
                 }
+                if let Some(dir) = &ffmpeg_dir {
+                    path_prefix.push(dir.display().to_string());
+                }
+                if !path_prefix.is_empty() {
+                    cmd.env("PATH", format!("{}{}{}", path_prefix.join(sep), sep, old));
+                }
+                cmd.env("SOUNDWAVE_DATA_DIR", &data_dir);
+
+                // En la app instalada (Windows release) no debe aparecer una
+                // consola: stdout va al vacío (todo lo importante ya cae en
+                // soundwave.log) y stderr se guarda en backend.err.log para
+                // poder diagnosticar un arranque roto.
+                #[cfg(all(target_os = "windows", not(debug_assertions)))]
+                {
+                    use std::os::windows::process::CommandExt;
+                    use std::process::Stdio;
+                    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+                    cmd.creation_flags(CREATE_NO_WINDOW);
+                    cmd.stdout(Stdio::null());
+                    match create_err_log(&data_dir) {
+                        Some(f) => {
+                            cmd.stderr(Stdio::from(f));
+                        }
+                        None => {
+                            cmd.stderr(Stdio::null());
+                        }
+                    }
+                }
+
                 match cmd.spawn() {
                     Ok(c) => { child = Some(c); break; }
                     Err(_) => continue,
@@ -245,10 +381,12 @@ pub fn run() {
                 }
             });
 
-            // Esperar hasta que el backend pase el health check real o 8s
-            if !wait_for_backend(8) {
+            // Esperar hasta que el backend pase el health check real o 15s
+            // (el primer arranque con el runtime embebido tarda más: frío de
+            // disco + importar yt-dlp/curl_cffi sin pyc).
+            if !wait_for_backend(15) {
                 eprintln!(
-                    "[soundwave] El backend no respondió en 8s: la app abrirá igual y mostrará «sin conexión»."
+                    "[soundwave] El backend no respondió en 15s: la app abrirá igual y mostrará «sin conexión»."
                 );
             }
 

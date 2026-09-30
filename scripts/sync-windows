@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Sincroniza la copia de trabajo de Windows (WSL) con este repo.
+#
+# La copia Windows vive en C:\Users\jharrys\Desktop\OpenWave y es un clone
+# git cuyo remoto `local` apunta a este repo. Este script hace fetch + reset
+# duro para que quede idéntico a HEAD de aquí (allí solo se hace build, nunca
+# se edita: si quieres cambios, cómmítalos primero desde WSL).
+#
+# Uso:
+#   scripts/sync-windows          # reset --hard a local/master
+#   scripts/sync-windows --check  # solo muestra el diff, no toca nada
+set -euo pipefail
+
+WIN_DIR="${SOUNDWAVE_WIN_DIR:-/mnt/c/Users/jharrys/Desktop/OpenWave}"
+BRANCH="${1:-master}"
+
+if [[ ! -d "$WIN_DIR/.git" && ! -f "$WIN_DIR/.git" ]]; then
+  echo "No existe el checkout Windows: $WIN_DIR" >&2
+  echo "(define SOUNDWAVE_WIN_DIR si está en otra ruta)" >&2
+  exit 1
+fi
+
+git fetch local "$BRANCH"
+
+if [[ "${2:-}" == "--check" ]]; then
+  echo "== Commits locales (WSL) que faltan en Windows:"
+  git -C "$WIN_DIR" log --oneline "HEAD..local/$BRANCH"
+  echo "== Diferencias de contenido:"
+  git -C "$WIN_DIR" diff --stat HEAD "local/$BRANCH"
+  exit 0
+fi
+
+# Descartar lo que haya en Windows (allí solo se hace build) y alinear.
+git -C "$WIN_DIR" reset --hard "local/$BRANCH"
+echo "Windows sincronizado con local/$BRANCH:"
+git -C "$WIN_DIR" log --oneline -1

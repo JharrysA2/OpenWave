@@ -7,19 +7,26 @@
 > PC de bajos recursos jugando videojuegos de fondo ⇒ la app debe pesar lo
 > mínimo sin perder su look.
 
-## 1. `backdrop-filter` solo en superficies estáticas; fondos pre-renderizados
+## 1. `backdrop-filter` solo donde hay movimiento detrás o es modal; fondos pre-renderizados
 
 El blur en vivo solo cuesta cuando hay **repintado detrás** (medido: ≈0 % en
 superficies estáticas por caché de compositing; ~1,8 % GPU en capa full-screen
 que se repinta con letras/scroll). Por tanto:
 
-- `backdrop-filter` permitido únicamente en superficies **estáticas**: searchbar,
-  sidebar, titleBar y player bar (y aún así `html.overlay-open` las apaga
-  mientras un overlay las tapa). Las superficies de los overlays —sheet, popup,
-  panel de Ajustes— sólo difuminan con el cristal mínimo `blur(6px)` sobre su
-  degradado y sólo mientras el detrás está congelado por `overlay-open`; un
-  filtro full-screen con detrás repintándose fue el mayor coste de iGPU del
-  repo (§7).
+- **Superficies de la shell SIN blur**: sidebar, titleBar, searchbar y el
+  banner de conexión **no** llevan `backdrop-filter` — detrás no pasa ni se
+  anima nada (y la gradiente opaca del sidebar lo tapaba igualmente): el
+  blur era puro coste invisible. Regresión = reintroducirlo.
+- `backdrop-filter` permitido únicamente donde **hay movimiento real
+  detrás** o es una **superficie de modal**:
+  - **player bar** (`blur(10px)`): el scroll de las vistas y el karaoke
+    pasan por detrás (y aun así `html.overlay-open` la apaga mientras un
+    overlay la tapa);
+  - **cristal de modal**: `GLASS.sheet` (los 12 modales) y `GLASS.settings`
+    (panel de Ajustes) difuminan con `blur(40px)` sobre su degradado, con el
+    detrás congelado por `overlay-open` (§7);
+  - **transitorias no modales**: `GLASS.popup` (toast/volumen/crossfade) se
+    queda en `blur(6px)` — pueden flotar sobre contenido que se mueve.
 - **Prohibido en superficies vivas**: grids, tarjetas, listas, botones con
   hover, contenido con scroll (cada repintado re-ejecuta el blur en la iGPU) y,
   en particular, **en los scrims de los modales** (ver §7).
@@ -100,7 +107,7 @@ que se repinta con letras/scroll). Por tanto:
   MSI/NSIS): frontend minificado + gzip (`vite-plugin-compression`) y Rust en
   release.
 
-## 7. Overlays (modales, sheets, paneles): cristal mínimo sobre fondo congelado
+## 7. Overlays (modales, sheets, paneles): cristal de modal sobre fondo congelado
 
 **Síntoma medido (iGPU compartida):** en reposo la app consumía ≈ **33 %**; al
 abrir **cualquier** modal/submenú/sección desplegable subía a **76 %
@@ -133,19 +140,22 @@ que nadie ve pero que cada repintado pagaba igual.
    el velo negro que lo cubre, no. Además, `html.perf-solid [style*=
 "backdrop-filter"]` le pintaría el velo entero de color sólido en modo
    Rendimiento (bug ya visto en el scrim de Letras).
-2. **Presupuesto de overlays = `blur(6px)` SOLO en la superficie de cristal:**
-   `GLASS.sheet` (los 12 modales), `GLASS.popup` (volumen/crossfade/toast) y
-   `GLASS.settings` (panel de Ajustes full-screen, que es donde viven las
-   filas desplegables) difumina(n) con `blur(6px)` y **sin `saturate`**;
+2. **Presupuesto de overlays = `blur(40px)` SOLO en la superficie de cristal
+   de modal:** `GLASS.sheet` (los 12 modales) y `GLASS.settings` (panel de
+   Ajustes full-screen, que es donde viven las filas desplegables)
+   difuminan con `blur(40px)` — el desenfoque visible que el diseño pide
+   (`DESIGN.md`: mín. 20px) — y **sin `saturate`**; `GLASS.popup`
+   (toast/volumen/crossfade: no modal, transitorio) se queda en `blur(6px)`;
    scrim, filas, resultados y cualquier capa interna, **0 filtros** (el
    opt-out explícito `backdropFilter: "none"`, de coste cero, se permite).
-   ¿Por qué ahora sí un filtro? Porque la regla 4 congeló el detrás: un
-   `backdrop-filter` sobre un fondo estático lo cachea el compositor ≈0 en
-   reposo (mismo argumento medido de player/sidebar, §4). Si un A/B con
-   openwave-perf vuelve a condenar una superficie (la candidata es el panel
-   full-screen), se retiera ESA y el resto sigue. `expectOverlayGlassBudget`
-   impone: superficie con degradado y `blur(6px)` exacto — cualquier otro
-   valor dentro de un overlay es regresión.
+   ¿Por qué el radio ya no es el coste? Porque la regla 4 congeló el detrás:
+   un `backdrop-filter` sobre un fondo estático lo cachea el compositor ≈0 en
+   reposo y el radio solo se paga en la animación de apertura (recortada en
+   el A/B). Si un A/B con openwave-perf vuelve a condenar una superficie (la
+   candidata es el panel full-screen), se baja ESA superficie y el resto
+   sigue. `expectOverlayGlassBudget` impone: superficie con degradado y
+   `blur(40px)` (modal) o `blur(6px)` (transitorio) exacto — cualquier
+   otro valor dentro de un overlay es regresión.
 3. **Ninguna fila/resultado dentro de una hoja crea su propia capa blur**: se
    sustituye por gradiente + sombra (se apilaba un blur por elemento).
 4. **Mientras hay un overlay montado, `html.overlay-open`** (clase con
@@ -155,9 +165,11 @@ que nadie ve pero que cada repintado pagaba igual.
      `.now-playing-pulse` (mismo patrón que `.app-hidden`, §4);
    - `backdrop-filter: none !important` sobre las superficies de la shell
      (`.app-sidebar`, `.app-titlebar`, `.app-searchbar`, `.player-bar`):
-     conservan su blur propio fuera de un overlay, pero debajo del scrim solo
-     costaba iGPU. Las clases las llevan `Sidebar`, `TitleBar`, `SearchBar` y
-     `PlayerBar`;
+     hoy solo el player-bar difumina (la shell estática ya no lleva blur,
+     §1), pero la regla se mantiene para las cuatro clases como defensa
+     barata — si alguien reintrodujera blur en la shell, debajo del scrim
+     solo costaría iGPU. Las clases las llevan `Sidebar`, `TitleBar`,
+     `SearchBar` y `PlayerBar`;
    - `useOverlayActive()` (mismo módulo) congela el intervalo de progreso de
      `PlayerBar` (5 Hz) y el reloj de karaoke de `LyricsView` (`setState` de
      línea y palabra): writes a un fondo invisible. Al cerrar, el efecto se
@@ -204,14 +216,35 @@ música sonando y geometría idéntica en las dos sesiones. Ojo: el campo
 `document.hasFocus()` — el criterio de validez es la clase `app-hidden`, no
 ese flag.
 
+**A/B del presupuesto v3 — shell sin blur + cristal de modal a 40px**
+(openwave-perf, misma metodología y recorte; sesiones `glass_post3` = A con el
+estado anterior — shell con blur y modales a `blur(6px)` —, `glass_post4` = B
+con este presupuesto; veredicto VÁLIDA: `app-hidden` 0 ms en las tres
+ventanas, geometría idéntica, música en bucle):
+
+| Fase con overlay abierto       | A: post3 (6px)  | B: post4 (40px) | Δ B−A                                  |
+| ------------------------------ | --------------- | --------------- | -------------------------------------- |
+| Baseline (sin overlay)         | 1,76 %          | 1,80 %          | +0,04 pp                               |
+| Panel de Ajustes (≈ 12 s)      | 1,86 %          | 1,93 %          | **+0,07 pp** (p95 2,5→2,1)             |
+| Hoja CreatePlaylist (≈ 8 s)    | 2,22 %          | 2,19 %          | **−0,02 pp**                           |
+| **Agregado** media / p95 / máx | 2,01 / 2,5 / 2,9 % | 2,04 / 2,4 / 3,2 % | **+0,03 / −0,1 / +0,4 pp**         |
+
+Long tasks **0 en ambas**, `layout_ms` 0 en ambas. **Criterio (≤ +3-4 pp):
+PASA**: subir el radio de 6px a 40px sobre fondo congelado es ~gratis
+(compositor cachea el frosted; lo que costó históricamente fue el detrás
+repintando, no el radio) y quitar el blur de la shell no mueve el baseline
+fuera del ruido. Consumo global de la sesión: CPU 0,9 % → **0,7 %** y GPU
+1,3 % → **1,1 %** de media frente a `glass_post3`.
+
 Tests de regresión: `ModalsPerf.test.jsx` (los 11 overlays a pantalla
-completa: cristal ≤ 6px en la superficie, 0 filtros en el resto),
-`LyricsView.test.jsx` (hoja a 6px, scrim sin blur, resultados sin capa
+completa: cristal de modal 40px en la superficie, 0 filtros en el resto),
+`LyricsView.test.jsx` (hoja a 40px, scrim sin blur, resultados sin capa
 propia y reloj de karaoke congelado bajo el modal), `useOverlayLayer.test.jsx`
 (clase + estado React + reglas CSS de animaciones y blurs de la shell),
 `PlayerBar.test.jsx` (intervalo de progreso congelado con overlay y reanudado
-al cerrarlo) y `theme.test.js` (`sheet`/`popup`/`settings` a `blur(6px)` sin
-`saturate`).
+al cerrarlo), `theme.test.js` (`sheet`/`settings` a `blur(40px)`, `popup` a
+`blur(6px)`, shell sin blur y sin `saturate`) y `ConnectionBanner.test.jsx`
+(banner de conexión sin `backdrop-filter`).
 
 ## Regla de oro
 

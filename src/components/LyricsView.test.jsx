@@ -820,10 +820,10 @@ describe("LyricsView — letras elegidas persisten al salir de la pantalla", () 
 //  cada resultado de búsqueda con su propia capa blur y las hojas a 10px
 //  con saturate, todo repintándose detrás (shimmer, pulse, progreso a 5 Hz).
 //  Bajarlo a 6px no bastó MIENTRAS ese detrás seguía vivo (>70 %). Con
-//  `overlay-open` + `useOverlayActive` congelándolo, la hoja vuelve a
-//  difuminar con blur(6px): solo en la superficie de cristal, sin saturate y
-//  sin capas por fila. Reglas completas en docs/PERFORMANCE.md §7 y en
-//  expectOverlayGlassBudget.
+//  `overlay-open` + `useOverlayActive` congelándolo, la hoja difumina con el
+//  cristal de modal `blur(40px)`: solo en la superficie de cristal, sin
+//  saturate y sin capas por fila. Reglas completas en docs/PERFORMANCE.md §7
+//  y en expectOverlayGlassBudget.
 
 describe("LyricsView — presupuesto de glass en sus modales", () => {
   beforeEach(() => {
@@ -832,18 +832,18 @@ describe("LyricsView — presupuesto de glass en sus modales", () => {
     document.documentElement.classList.remove("overlay-open");
   });
 
-  it("«Buscar letras»: presupuesto de glass (6px en la hoja) y overlay-open", () => {
+  it("«Buscar letras»: presupuesto de glass (cristal 40px en la hoja) y overlay-open", () => {
     const view = renderLyrics();
 
     fireEvent.click(screen.getByTitle("Configuración de letras"));
     fireEvent.click(screen.getByText("Buscar letras"));
 
     // Scrim y capa sin blur; difuminan solo las superficies de cristal
-    // (hoja de búsqueda + panel de configuración), todas al mínimo permitido
+    // (hoja de búsqueda + panel de configuración), con el cristal de modal
     expectOverlayGlassBudget();
     const blurs = inlineBlurred().map((el) => el.style.backdropFilter);
     expect(blurs.length).toBeGreaterThan(0);
-    for (const b of blurs) expect(b).toBe("blur(6px)"); // presupuesto: máx. 6px
+    for (const b of blurs) expect(b).toBe("blur(40px)"); // presupuesto: cristal de modal
     expect(document.body.innerHTML).not.toContain("blur(8px)"); // ni el del scrim
     expect(document.body.innerHTML).not.toContain("blur(10px)");
 

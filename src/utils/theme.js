@@ -561,11 +561,13 @@ export const TRANSITIONS = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const GLASS = {
-  /** Player bar — Liquid Glass: translucent + light blur.
+  /** Player bar — Liquid Glass: translucent + light blur. Es LA única
+   *  superficie de la shell que difumina: el scroll de las vistas y las
+   *  letras de karaoke pasan por detrás (hay movimiento real que difuminar).
    *  Restaurado tras la atribución fina (comparación A−C): el 1.80% GPU de
    *  Letras era la cadena `filter: blur()` de la capa de fondo, no los
    *  backdrops (medidos ≈0: el compositing cachea los frosted estáticos).
-   *  Sin `saturate`: superficie permanente a ancho completo (ver GLASS.sidebar).
+   *  Sin `saturate`: superficie permanente a ancho completo.
    *  En modo Rendimiento/software renderer lo desactiva `perf-blur-off`. */
   player: {
     background: "rgba(10,10,18,.18)",
@@ -575,20 +577,16 @@ export const GLASS = {
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), " + "0 4px 20px rgba(0,0,0,.25)",
   },
 
-  /** Sidebar — Liquid Glass estructural con blur ligero.
-   *  Detrás solo hay el fondo de la ventana (estático): el compositing
-   *  cachea el frost → coste medido ≈0. 8px sin `saturate`: una columna
-   *  presente en TODAS las pantallas no justifica la pasada extra de color,
-   *  y el radio queda por debajo del blur(10px) del bar. (8px y no 6px:
-   *  la regla perf-solid de index.html `html.perf-solid [style*="blur(6px)"]`
-   *  está reservada a botones y pintaría un borde de acento aquí.)
+  /** Sidebar — Liquid Glass SIN backdrop-filter.
+   *  Nada pasa ni se anima por detrás (el contenido vive al lado, nunca por
+   *  detrás) y, además, Sidebar.jsx lo tapa con la gradiente opaca
+   *  `sidebarBgGradient()` — el blur era puro coste invisible. Regla nueva:
+   *  `backdrop-filter` solo donde hay movimiento detrás (player) o en
+   *  superficies de modal (sheet/settings, §7 de docs/PERFORMANCE.md).
    *  Sin `border`: el divisor lo aporta el `borderRight` inline de Sidebar.jsx
-   *  (color-mix con el acento). Un border de 4 lados se ve como línea blanca
-   *  sobre el blur. */
+   *  (color-mix con el acento). Un border de 4 lados se ve como línea blanca. */
   sidebar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
   },
 
   /** Nav items — Liquid Glass sutil */
@@ -645,11 +643,10 @@ export const GLASS = {
       `inset 0 1px 0 rgba(255,255,255,.25)`,
   }),
 
-  /** Search bar — Liquid Glass */
+  /** Search bar — Liquid Glass SIN backdrop-filter: va dentro del flujo de
+   *  la vista (scrollea con el contenido) y nunca pasa nada por detrás. */
   searchbar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
-    backdropFilter: "blur(10px) saturate(140%)",
-    WebkitBackdropFilter: "blur(10px) saturate(140%)",
     border: "1px solid rgba(255,255,255,.10)",
     borderColor: "rgba(255,255,255,.10)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 2px 8px rgba(0,0,0,.15)",
@@ -674,19 +671,21 @@ export const GLASS = {
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), 0 8px 24px rgba(0,0,0,.3)",
   },
 
-  /** Popup / Sheet / Modal — Liquid Glass con blur mínimo (6px, sin saturate).
+  /** Sheet / Modal — Liquid Glass con el desenfoque del modal DEVUELTO:
+   *  `blur(40px)` (el radio original, sin `saturate`).
    *  Presupuesto de overlays (docs/PERFORMANCE.md §7): SOLO la superficie de
-   *  cristal difumina y SOLO con `blur(6px)`; scrim, filas y capas internas,
-   *  0 filtros. Historia: con blur(10px) saturate(140%) un modal subía el uso
-   *  de iGPU del 33 % al 76 % sostenido, y a 6px seguía >70 % — porque el
-   *  backdrop se re-ejecutaba en CADA repintado de detrás (progreso a 5 Hz,
-   *  palabras del karaoke, hovers). Desde entonces `html.overlay-open` +
-   *  `useOverlayActive` congelan TODO ese detrás (progreso, reloj de karaoke,
-   *  animaciones y los propios blurs de la shell): con el fondo estático el
-   *  compositor cachea el frosted (mismo argumento medido ≈0 de
-   *  player/sidebar) y el 6px cuesta ~0 en reposo. Revalidado A/B con
-   *  openwave-perf (glass_pre2 vs glass_post3: +0,18 pp, §7); si una
-   *  medición futura lo condena, se vuelve a 0 filtros.
+   *  cristal difumina y ahora con su radio visible; scrim, filas y capas
+   *  internas, 0 filtros. Historia: con blur(10px) saturate(140%) un modal
+   *  subía el uso de iGPU del 33 % al 76 % sostenido — no por el radio,
+   *  sino porque el backdrop se re-ejecutaba en CADA repintado de detrás
+   *  (progreso a 5 Hz, palabras del karaoke, hovers). `html.overlay-open` +
+   *  `useOverlayActive` congelan TODO ese detrás (progreso, reloj de
+   *  karaoke, animaciones y los blurs de la shell): con el fondo estático el
+   *  compositor cachea el frosted, así que el coste en reposo lo decide el
+   *  congelado y no el radio (la pasada extra solo se paga al abrir, en la
+   *  animación de entrada que el A/B recorta). Regla: medición A/B antes de
+   *  merge (§7); si la cifra lo condena, se baja el radio — no el principio
+   *  "modal = cristal con desenfoque visible".
    *  Ojo: un scrim full-screen NUNCA debe llevar backdrop-filter (y,
    *  además, `html.perf-solid [style*="backdrop-filter"]` le pintaría el velo
    *  entero de color sólido en modo Rendimiento). */
@@ -695,23 +694,22 @@ export const GLASS = {
     border: "1px solid rgba(255,255,255,.12)",
     borderColor: "rgba(255,255,255,.12)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), " + "0 24px 80px rgba(0,0,0,.6)",
-    backdropFilter: "blur(6px)",
-    WebkitBackdropFilter: "blur(6px)",
+    backdropFilter: "blur(40px)",
+    WebkitBackdropFilter: "blur(40px)",
   },
 
-  /** Title bar — Liquid Glass. Igual que el sidebar: superficie permanente
-   *  a ancho completo, así que sin `saturate` y con blur ligero (8px);
-   *  detrás, fondo estático (frost cacheado ≈0). */
+  /** Title bar — Liquid Glass SIN backdrop-filter: superficie estática a
+   *  ancho completo; detrás solo está el fondo de la ventana y nada pasa
+   *  por detrás, así que el blur no aportaba nada visible. */
   titleBar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
     border: "1px solid rgba(255,255,255,.06)",
   },
 
-  /** Volume / Crossfade popup — Liquid Glass con blur mínimo (6px).
-   *  Mismo presupuesto que `sheet` (docs/PERFORMANCE.md §7): con el backdrop
-   *  congelado bajo `overlay-open` el frosted estático se cachea ≈0. */
+  /** Volume / Crossfade popup / Toast — Liquid Glass con blur mínimo (6px).
+   *  No es modal: superficie transitoria, translúcida, que puede flotar
+   *  sobre contenido que se mueve detrás (scroll/letras) — 6px, sin
+   *  saturate (docs/PERFORMANCE.md §7). */
   popup: {
     background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
     border: "1px solid rgba(255,255,255,.10)",
@@ -721,20 +719,20 @@ export const GLASS = {
     WebkitBackdropFilter: "blur(6px)",
   },
 
-  /** Settings panel — Liquid Glass con blur mínimo (6px) en la raíz.
-   *  Panel full-screen (inset 0): era la superficie más cara (filtro de
-   *  pantalla entera re-ejecutado con cada repintado de detrás → >70 % con
-   *  6px mientras el detrás seguía vivo). Con `overlay-open` congelando ese
-   *  detrás (§7) el coste en reposo baja a ~0: es LA superficie que más
-   *  pesa en el A/B (glass_pre2 vs glass_post3, +0,00 pp); si la medición
-   *  futura no la perdona, se retira primero esta (hojas y popup siguen).
+  /** Settings panel — Liquid Glass con el cristal de modal (40px) en la raíz.
+   *  Panel full-screen (inset 0) y Ajustes ES un modal: hereda el mismo
+   *  presupuesto que `sheet` (§7). Era la superficie más cara cuando el
+   *  detrás repintaba (filtro de pantalla entera re-ejecutado en cada frame
+   *  → >70 % con 6px); con `overlay-open` congelándolo el coste en reposo
+   *  baja a ~0 (glass_pre2 vs glass_post3, +0,00 pp en su fase). Si un A/B
+   *  condena esta superficie, se retira primero esta (hojas siguen).
    *  - sin `border`: dibujaría un marco de 1px en los 4 bordes del viewport.
    *    La jerarquía la dan el `borderBottom` del header y los divisores de
    *    `SettingRow`. */
   settings: {
     background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
-    backdropFilter: "blur(6px)",
-    WebkitBackdropFilter: "blur(6px)",
+    backdropFilter: "blur(40px)",
+    WebkitBackdropFilter: "blur(40px)",
   },
 
   /** Window control buttons (minimize, maximize, close) — Liquid Glass */

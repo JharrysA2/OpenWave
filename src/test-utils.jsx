@@ -94,11 +94,13 @@ export function expectOverlayGlassBudget() {
     expect(scrim.style.backdropFilter ?? "").toBe("");
   }
   // Regla 2: dentro de las capas del overlay SOLO difumina la superficie de
-  // cristal (fondo con degradado) y SOLO con blur ≤ 6px y sin saturate.
-  // Filas, resultados y capas internas: 0 filtros (`none` es el opt-out de
-  // coste cero y se permite). Los elementos fuera de las capas (superficies
-  // de la shell) no se tocan: html.overlay-open los apaga mientras el
-  // overlay está montado.
+  // cristal (fondo con degradado) y SOLO con el valor del presupuesto:
+  // `blur(40px)` (cristal de modal: sheet/settings, §7) o `blur(6px)`
+  // (superficie transitoria tipo popup), siempre sin `saturate`. Filas,
+  // resultados y capas internas: 0 filtros (`none` es el opt-out de coste
+  // cero y se permite). Los elementos fuera de las capas (superficies de la
+  // shell) no se tocan: html.overlay-open los apaga mientras el overlay
+  // está montado.
   const offenders = new Set();
   for (const layer of layers) {
     for (const el of [layer, ...layer.querySelectorAll("*")]) {
@@ -106,8 +108,8 @@ export function expectOverlayGlassBudget() {
       if (!blur || blur === "none") continue;
       const bg = `${el.style.background || ""}${el.style.backgroundImage || ""}`;
       const isGlassSurface = bg.includes("gradient");
-      const isSmallBlur = /^blur\(([1-6](?:\.\d+)?px)\)$/.test(blur);
-      if (!isGlassSurface || !isSmallBlur) {
+      const isBudgetBlur = /^blur\((?:40|6)(?:\.\d+)?px\)$/.test(blur);
+      if (!isGlassSurface || !isBudgetBlur) {
         const cls = el.getAttribute && el.getAttribute("class");
         const bg = (el.style.background || "").slice(0, 48) || "∅";
         offenders.add(`${el.tagName.toLowerCase()}${cls ? `.${cls}` : ""}: ${blur} | bg: ${bg}`);

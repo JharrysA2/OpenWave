@@ -12,6 +12,9 @@ const AMBER = "#f59e0b";
  *
  * - `aria-live="polite"` para que un lector de pantalla anuncie el cambio.
  * - Sin `pointerEvents` para no bloquear la UI que hay debajo.
+ * - Sin `backdrop-filter`: es un chip opaco (.86) y transitorio, y detrás no
+ *   hay animación que difuminar (presupuesto: blur solo con movimiento detrás
+ *   o en superficies de modal, ver docs/PERFORMANCE.md §1/§7).
  * - Se oculta automáticamente al reconectar (el estado vive en backendHealth).
  */
 export function ConnectionBanner() {
@@ -46,8 +49,6 @@ export function ConnectionBanner() {
         background: "rgba(45,28,4,.86)",
         border: `1px solid ${AMBER}66`,
         boxShadow: "0 4px 20px rgba(0,0,0,.35)",
-        backdropFilter: "blur(10px) saturate(140%)",
-        WebkitBackdropFilter: "blur(10px) saturate(140%)",
         pointerEvents: "none",
         animation: "sw-fade-slide-up .25s cubic-bezier(.16,1,.3,1)",
       }}

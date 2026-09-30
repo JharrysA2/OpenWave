@@ -165,7 +165,7 @@ A core rhythm of 4px-6px increments is used for internal component spacing. Tigh
 
 Elevation in this design system is conveyed through **chromatic light and transparency** rather than physical shadows. 
 
-1.  **Glassmorphism:** Overlays and sidebars use a base `rgba(0,0,0,.2)` transparency with a heavy backdrop-blur (minimum 20px) to maintain legibility while hinting at the content beneath.
+1.  **Glassmorphism:** Overlays (modals, sheets, settings panel) use a base `rgba(0,0,0,.2)` transparency with a heavy backdrop-blur (minimum 20px, `blur(40px)` on the modal glass surface) to maintain legibility while hinting at the content beneath. Static chrome — sidebar, title bar, search bar, connection banner — keeps the translucent base **without** backdrop blur: nothing animates behind it (see `docs/PERFORMANCE.md` §1/§7).
 2.  **Tonal Layers:** Cards use a subtle `4%` white opacity for resting states and `8%` for hover states.
 3.  **Neon Glows:** Active elements (like the currently playing track or a focused button) emit light. This is achieved via a layered box-shadow using the current `--neon` variable.
 4.  **Background Tints:** Radial gradients (`radial-gradient(ellipse at 30% 20%, ${accentColor}12 0%, transparent 70%)`) are placed behind content to create a cohesive atmosphere that shifts with the music.

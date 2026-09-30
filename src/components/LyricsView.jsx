@@ -1019,8 +1019,10 @@ function LyricsSettingsModal({
         ...GLASS.sheet,
         // Sin scrim debajo (flota sobre las letras vivas): base oscura en el
         // propio panel para que el karaoke no se transparente tras el
-        // blur(6px) mínimo de la hoja (presupuesto de overlays = 6px máx. en
-        // la superficie de cristal, §7).
+        // blur(40px) del cristal de modal (presupuesto §7). Este modal NO
+        // monta useOverlayLayer: detrás siguen las letras animándose — es
+        // justamente una superficie CON movimiento detrás, que es donde el
+        // blur tiene sentido.
         background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
         backgroundColor: "rgba(12,12,18,.8)", // capa de contraste BAJO el cristal
         border: `1px solid ${accentColor}44`,

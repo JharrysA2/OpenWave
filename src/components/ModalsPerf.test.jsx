@@ -15,11 +15,11 @@ import { BtnShapeModal } from "./settings/BtnShapeModal";
 
 // Presupuesto de GPU de overlays: ver `expectOverlayGlassBudget` en
 // test-utils.jsx y docs/PERFORMANCE.md. Resumen: dentro de un overlay SOLO
-// difumina la superficie de cristal (fondo con degradado) y SOLO con
-// blur(6px) sin saturate; scrim, filas y capas internas, 0 filtros. Con
-// `html.overlay-open` montado mientras el overlay está abierto (pausa
-// animaciones y apaga los blurs de la shell) el detrás queda congelado y el
-// compositor cachea el frosted ≈0.
+// difumina la superficie de cristal (fondo con degradado) y SOLO con el
+// valor del presupuesto (`blur(40px)` en el cristal de modal, sin saturate);
+// scrim, filas y capas internas, 0 filtros. Con `html.overlay-open` montado
+// mientras el overlay está abierto (pausa animaciones y apaga los blurs de
+// la shell) el detrás queda congelado y el compositor cachea el frosted ≈0.
 
 const mockApiGet = vi.fn();
 vi.mock("../utils/api", () => ({
@@ -153,7 +153,7 @@ describe("presupuesto de glass en overlays", () => {
     mockApiGet.mockImplementation(() => Promise.resolve({}));
   });
 
-  it.each(overlays)("%s: presupuesto de glass (≤6px) y overlay-open", (name, element) => {
+  it.each(overlays)("%s: presupuesto de glass (cristal 40px) y overlay-open", (name, element) => {
     const { unmount } = renderWithSettings(element);
 
     expectOverlayGlassBudget();
@@ -164,17 +164,18 @@ describe("presupuesto de glass en overlays", () => {
     expect(overlayOpen()).toBe(false);
   });
 
-  it("solo la superficie de cristal difumina: blur(6px), nunca 10/8px ni saturate", () => {
+  it("solo la superficie de cristal difumina: blur(40px), nunca 10/8px ni saturate", () => {
     renderWithSettings(overlays[7][1]); // EntityOptionsSheet (hoja con acciones)
     const html = document.body.innerHTML;
     expect(html).not.toContain("blur(10px)");
     expect(html).not.toContain("blur(8px)");
     expect(html).not.toContain("saturate(");
-    // La hoja difumina con 6px; NADA más (scrim, filas, capas internas)
+    // La hoja difumina con su cristal de modal (40px); NADA más (scrim,
+    // filas, capas internas)
     const blurs = inlineBlurred();
     expect(blurs.length).toBeGreaterThan(0);
     for (const el of blurs) {
-      expect(el.style.backdropFilter).toBe("blur(6px)");
+      expect(el.style.backdropFilter).toBe("blur(40px)");
       expect(el.style.background).toContain("gradient");
     }
     expectOverlayGlassBudget();

@@ -64,6 +64,14 @@ que se repinta con letras/scroll). Por tanto:
   animaciones con `animation-play-state: paused` (pausadas, no muertas ⇒
   retoman donde estaban), backdrop/filter/shadow/will-change apagados, rAF de
   letras y de la barra frenados.
+- **Exención del cristal de modal**: `html.app-hidden:not(.perf-blur-off):
+  not(.perf-solid) [style*="blur(40px)"]` mantiene el `backdrop-filter` de las
+  hojas y paneles (`GLASS.sheet`/`GLASS.settings`) al perder el foco: un modal
+  abierto es lo que el usuario mira y el vidrio no debe pasar de esmerilado a
+  transparente en pantalla (bug «los modales no tienen blur», reproducido con
+  foco robado el 2026-09-29: texto del karaoke nítido a través de la hoja).
+  Solo se salva el `blur(40px)` inline; shell/player/popup siguen apagándose
+  y los modos explícitos de Rendimiento ganan gracias al `:not()`.
 - La música sigue sonando y al volver (Alt+Tab) el primer frame recalcula el
   estado exacto. No se necesitan hooks en Rust: WebView2 reporta
   `document.hidden` y el `blur` de la ventana llega al JS.
@@ -243,8 +251,10 @@ propia y reloj de karaoke congelado bajo el modal), `useOverlayLayer.test.jsx`
 (clase + estado React + reglas CSS de animaciones y blurs de la shell),
 `PlayerBar.test.jsx` (intervalo de progreso congelado con overlay y reanudado
 al cerrarlo), `theme.test.js` (`sheet`/`settings` a `blur(40px)`, `popup` a
-`blur(6px)`, shell sin blur y sin `saturate`) y `ConnectionBanner.test.jsx`
-(banner de conexión sin `backdrop-filter`).
+`blur(6px)`, shell sin blur y sin `saturate`), `ConnectionBanner.test.jsx`
+(banner de conexión sin `backdrop-filter`) y `PerformanceContext.test.jsx`
+(apagado de `app-hidden` en `index.html` + exención del cristal `blur(40px)`
+al perder el foco).
 
 ## Regla de oro
 

@@ -147,6 +147,18 @@
         box-shadow: none !important;
         will-change: auto !important;
       }
+      /* EXCEPCIÓN — cristal de modal: un modal abierto es exactamente lo que
+         el usuario está mirando; al perder el foco DOM la regla de arriba
+         convertía el vidrio esmerilado en transparente de golpe (bug: "los
+         modales no tienen blur", reproducido con foco robado el 2026-09-29).
+         Solo se salva el `blur(40px)` inline de GLASS.sheet/settings (hojas y
+         paneles); shell/player/popup siguen apagándose. Los modos explícitos
+         de Rendimiento ganan por el :not() — perf-blur-off/perf-solid tienen
+         prioridad sobre la exención. */
+      html.app-hidden:not(.perf-blur-off):not(.perf-solid) [style*="blur(40px)"] {
+        backdrop-filter: blur(40px) !important;
+        -webkit-backdrop-filter: blur(40px) !important;
+      }
 
       /* ═══════════════════════════════════════════════════════════════════════
          OVERLAY OPEN — un modal/sheet/panel a pantalla completa está montado

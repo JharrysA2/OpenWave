@@ -1,9 +1,14 @@
 import React from "react";
 import { render } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { SettingsProvider } from "./SettingsContext";
 import { PerformanceProvider } from "./PerformanceContext";
 import { SW_SETTINGS_KEY } from "../constants";
+
+// Los tests corren con cwd en la raíz del proyecto (npm test)
+const readProjectFile = (rel) => readFileSync(join(process.cwd(), rel), "utf8");
 
 const mockSoftware = vi.hoisted(() => vi.fn(() => true));
 vi.mock("../utils/softwareRenderer", () => ({ isSoftwareRenderer: () => mockSoftware() }));
@@ -88,5 +93,27 @@ describe("PerformanceProvider — modo auto con detección de GPU", () => {
     renderProvider();
     expect(classes()).not.toContain("app-hidden");
     focusSpy.mockRestore();
+  });
+});
+
+describe("app-hidden — reglas CSS de index.html (presupuesto §4)", () => {
+  it("con la ventana sin foco apaga backdrop-filter/filtro/sombras de todo", () => {
+    const html = readProjectFile("index.html");
+    expect(html).toMatch(/html\.app-hidden \*[^}]*backdrop-filter:\s*none\s*!important/);
+    expect(html).toMatch(/html\.app-hidden \*[^}]*filter:\s*none\s*!important/);
+  });
+
+  it("excepción: el cristal de modal blur(40px) NO se apaga (vidrio debe conservarse)", () => {
+    // Un modal abierto es lo que el usuario está mirando: sin esta exención,
+    // perder el foco DOM convertía el vidrio esmerilado en transparente de
+    // golpe (bug "los modales no tienen blur", reproducido con foco robado).
+    const html = readProjectFile("index.html");
+    expect(html).toMatch(
+      /html\.app-hidden:not\(\.perf-blur-off\):not\(\.perf-solid\) \[style\*="blur\(40px\)"\]\s*\{\s*backdrop-filter:\s*blur\(40px\)\s*!important/,
+    );
+    // Solo el cristal de modal: los modos explícitos de Rendimiento siguen
+    // ganando (el :not() desactiva la exención si perf-blur-off/perf-solid).
+    expect(html).toContain('[style*="blur(40px)"]');
+    expect(html).toMatch(/:not\(\.perf-blur-off\):not\(\.perf-solid\)/);
   });
 });

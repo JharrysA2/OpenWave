@@ -227,6 +227,22 @@ usan `Invoke-Native`, que baja `$ErrorActionPreference` durante la llamada:
 `2>&1` + `Stop` convertiría cualquier stderr en excepción. Si añades llamadas
 nuevas a comandos nativos, pásalas por ahí (o por `Invoke-Checked`).
 
+**`ModuleNotFoundError: No module named 'cache'` al arrancar la app instalada
+(el backend no levanta).** El Python embebido lleva un `python314._pth`, que
+**sustituye** la inicialización normal de `sys.path`: solo quedan
+`python314.zip`, la propia carpeta del runtime y `Lib\site-packages`; ni la
+carpeta del script (`sys.path[0]`) ni el cwd entran. Como el backend usa
+imports planos (`from cache import ...`), el backend del primer MSI murió con
+ese error. Resuelto con el bootstrap de `sys.path` de `backend/main.py` (va
+justo después de los imports de la stdlib y mete la carpeta del propio
+fichero). El smoke test de `prepare-runtime.ps1` ahora **arranca el entry
+point de verdad** (con la ruta `\\?\` que lanza Tauri y una cwd ajena); antes
+hacía `sys.path.insert(0, os.getcwd())` con cwd = `backend\`, que reproducía
+un entorno que la app instalada nunca tiene — por eso no cazó el fallo.
+
+**`package-windows.ps1` falla con «El puerto 8765 ya esta en uso».** El smoke
+test necesita arrancar el backend: cierra SoundWave y vuelve a ejecutar.
+
 **`dark.exe` dice que faltan filas (DARK1059) y solo ve 1 diálogo.** El
 descompilador de WiX decompila mal la UI de este MSI: emite solo `OptionsDlg`
 (13 controles) y se inventa avisos sobre claves ajenas que sí existen. Las

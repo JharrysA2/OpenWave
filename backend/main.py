@@ -12,6 +12,18 @@ import sys
 import threading
 import time
 
+# ── Bootstrap de sys.path ────────────────────────────────────────────────────
+# El Python embebido de Windows lleva un `python314._pth` que SUSTITUYE la
+# inicialización normal de sys.path: solo quedan `python314.zip`, la carpeta
+# del runtime y `Lib\site-packages`. Ni la carpeta del script (`sys.path[0]`)
+# ni el cwd entran, así que estos imports planos de abajo morirían con
+# `ModuleNotFoundError: No module named 'cache'` en la app instalada: era el
+# bug que dejaba el backend del MSI muerto. Se añade la carpeta de este
+# fichero antes de cualquier import: sirve para el runtime embebido (app
+# instalada y `tauri dev`), para el venv de desarrollo y con cualquier cwd;
+# Tauri lanza esto con rutas `\\?\` y también funcionan.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import httpx
 from cache import api_cache_get, api_cache_set
 from config import API_HOST, API_PORT, BASE_DIR, MUSIC_DIR

@@ -18,8 +18,9 @@
   este script (la única descarga sin hash es get-pip.py, que solo arranca pip
   y luego se va: HTTPS + se guarda su hash en el marcador para trazabilidad).
 
-  Idempotente: si existe build\staging\.ready y backend\requirements-runtime.txt
-  no ha cambiado, no hace nada. Usa -Force para reconstruir a mano.
+  Idempotente: si existe build\staging\.ready y no han cambiado
+  backend\requirements-runtime.txt ni el codigo del backend (*.py de
+  produccion), no hace nada. Usa -Force para reconstruir a mano.
 
 .NOTES
   Se ejecuta en Windows:  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\prepare-runtime.ps1
@@ -60,6 +61,24 @@ $GetPipUrl = 'https://bootstrap.pypa.io/get-pip.py'
 # ── Utilidades ───────────────────────────────────────────────────────────────
 function Get-Sha256([string]$path) {
     (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLower()
+}
+
+# Hash del codigo que se empaqueta (*.py de produccion, sin tests ni venv).
+# Va en el marcador: si solo cambia el codigo (no requirements), el staging se
+# reconstruye igual, para que el MSI no se quede con un backend viejo.
+function Get-BackendCodeHash {
+    $files = @(Get-ChildItem -Path $backendSrc -Recurse -File -Filter '*.py' | Where-Object {
+        $_.FullName -notmatch '\\(venv|\.venv|__pycache__|\.pytest_cache|\.ruff_cache)\\' -and
+        $_.Name -notlike 'test_*' -and
+        $_.Name -ne 'conftest.py'
+    } | Sort-Object FullName)
+    $parts = foreach ($f in $files) {
+        $rel = $f.FullName.Substring($backendSrc.Length).TrimStart('\')
+        '{0} {1}' -f $rel.ToLowerInvariant(), (Get-Sha256 $f.FullName)
+    }
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes(($parts -join "`n"))
+    ([BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '').ToLower()
 }
 
 function Get-PinnedFile([string]$url, [string]$dest, [string]$expectedSha, [string]$what) {
@@ -122,6 +141,10 @@ function Test-RequiresRebuild {
         Write-Host '  requirements-runtime.txt ha cambiado: se reconstruye el runtime.'
         return $true
     }
+    if ($prev.backendHash -ne $script:backendHash) {
+        Write-Host '  backend/*.py ha cambiado: se vuelve a empaquetar el codigo.'
+        return $true
+    }
     foreach ($p in @($runtime, $backendDst, (Join-Path $stage 'ffmpeg'))) {
         if (-not (Test-Path -LiteralPath $p)) { return $true }
     }
@@ -131,6 +154,7 @@ function Test-RequiresRebuild {
 if (-not (Test-Path -LiteralPath $requirements)) { throw "No existe $requirements" }
 if (-not (Test-Path -LiteralPath $backendSrc)) { throw "No existe $backendSrc" }
 $script:reqHash = Get-Sha256 $requirements
+$script:backendHash = Get-BackendCodeHash
 
 if (-not (Test-RequiresRebuild)) {
     Write-Host "Runtime ya preparado (build\staging\.ready). Usa -Force para reconstruir."
@@ -246,42 +270,53 @@ if (-not $KeepPip) {
 }
 
 # ── 7. Smoke test contra el staging ──────────────────────────────────────────
-Write-Host '[7/7] Smoke test (importa el backend tal y como se empaqueta)'
+Write-Host '[7/7] Smoke test (arranca el backend igual que la app instalada)'
 $smokeId = [guid]::NewGuid().ToString('N')
 $smokeDir = Join-Path $env:TEMP "soundwave-smoke-$smokeId"
-$smokePy = Join-Path $env:TEMP "soundwave-smoke-$smokeId.py"
+$smokeErr = Join-Path $env:TEMP "soundwave-smoke-$smokeId.err.log"
+$smokeOut = Join-Path $env:TEMP "soundwave-smoke-$smokeId.out.log"
 New-Item -ItemType Directory -Force -Path $smokeDir | Out-Null
-$smokeCode = @'
-# Como la app instalada: backend/ en el path. Ojo, al lanzar
-# `python fichero.py` Python mete en sys.path la CARPETA DEL SCRIPT (aqui,
-# Temp) y no el cwd, asi que hay que declararlo.
-import importlib
-import os
-import sys
 
-sys.path.insert(0, os.getcwd())
-
-mods = [
-    "main",          # la app completa (arranca db, rutas, streaming...)
-    "fastapi", "uvicorn", "pydantic", "httpx", "slowapi",
-    "yt_dlp", "ytmusicapi", "curl_cffi",
-]
-for m in mods:
-    importlib.import_module(m)
-print("SMOKE_OK " + sys.version.split()[0])
-'@
-[System.IO.File]::WriteAllText($smokePy, $smokeCode, (New-Object System.Text.UTF8Encoding($false)))
+# La app instalada arranca el backend exactamente asi:
+#     runtime\python.exe  \\?\...\backend\main.py   (cwd = la de la app)
+# sin tocar sys.path. El ._pth del Python embebido NO anade ni la carpeta del
+# script ni el cwd, asi que si main.py no se abre el camino a sus propios
+# modulos el backend muere con ModuleNotFoundError. Por eso aqui se lanza el
+# entry point de verdad (con la ruta \?\ que usa Tauri) en vez de un import
+# simulado: la version anterior hacia sys.path.insert(0, cwd) con cwd=backend,
+# que enmascara exactamente ese fallo.
+# Con comillas alrededor: Start-Process no comilla los argumentos y una ruta
+# de destino con espacios (C:\Program Files\...) se partiria en dos.
+$smokeMain = '"\\?\' + (Join-Path $backendDst 'main.py') + '"'
 $env:SOUNDWAVE_DATA_DIR = $smokeDir
-Push-Location $backendDst
+$smokeProc = $null
 try {
-    $out = Invoke-Checked $py @($smokePy) 'smoke test'
-    if ($out -notmatch 'SMOKE_OK') { throw "Smoke test sin confirmacion:`n$out" }
-    Write-Host "  " ($out -split "`r?`n" | Where-Object { $_ -match 'SMOKE_OK' })
+    if (Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue) {
+        throw 'El puerto 8765 ya esta en uso: cierra SoundWave antes de empaquetar (el smoke test arranca el backend).'
+    }
+    $smokeProc = Start-Process -FilePath $py -ArgumentList $smokeMain -WorkingDirectory $env:TEMP -RedirectStandardError $smokeErr -RedirectStandardOutput $smokeOut -PassThru -WindowStyle Hidden
+    $up = $false
+    for ($i = 0; $i -lt 120 -and -not $up; $i++) {
+        Start-Sleep -Milliseconds 500
+        if ($smokeProc.HasExited) { break }
+        try {
+            $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8765/health' -UseBasicParsing -TimeoutSec 2
+            if ($r.StatusCode -eq 200 -and $r.Content -match 'SoundWave') { $up = $true }
+        } catch { }
+    }
+    if (-not $up) {
+        $err = if (Test-Path -LiteralPath $smokeErr) { Get-Content -Raw -LiteralPath $smokeErr } else { '(sin stderr)' }
+        throw "El backend no ha arrancado con el runtime embebido.`n--- stderr ---`n$err"
+    }
+    Write-Host '  backend arrancado y GET /health -> 200 (con la sys.path real de la app)'
 } finally {
-    Pop-Location
+    if ($smokeProc -and -not $smokeProc.HasExited) {
+        Stop-Process -Id $smokeProc.Id -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 800
+    }
     Remove-Item -LiteralPath 'Env:\SOUNDWAVE_DATA_DIR' -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force -LiteralPath $smokeDir -ErrorAction SilentlyContinue
-    Remove-Item -Force -LiteralPath $smokePy -ErrorAction SilentlyContinue
+    Remove-Item -Force -LiteralPath $smokeErr, $smokeOut -ErrorAction SilentlyContinue
 }
 
 # Los .pyc del backend apuntarian a las rutas de esta maquina y solo retrasan
@@ -300,6 +335,7 @@ $markerData = @{
     python          = $PyVersion
     ffmpeg          = $FfmpegVersion
     requirementsHash = $script:reqHash
+    backendHash     = $script:backendHash
     getPipHash      = $getPipHash
     createdAt       = (Get-Date).ToString('o')
 } | ConvertTo-Json

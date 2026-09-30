@@ -190,6 +190,39 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 
 ---
 
+## 🩹 Solución de problemas
+
+**`failed to run ...candle.exe` sin más detalle.** Tauri propaga solo ese
+mensaje y se queda con la salida de `candle`, así que el error real hay que
+verlo a mano. `main.wxs` que hay que pasarle es el que Tauri ya renderizó en
+`target` (con las plantillas `{{ }}` resueltas):
+
+```powershell
+$wix = "$env:LOCALAPPDATA\tauri\WixTools314"
+& "$wix\candle.exe" -nologo -arch x64 `
+    -ext "$wix\WixUIExtension.dll" -ext "$wix\WixUtilExtension.dll" `
+    src-tauri\target\release\wix\x64\main.wxs -out "$env:TEMP\main.wixobj"
+```
+
+Errores ya vistos y resueltos en la plantilla (no deberían volver a salir):
+
+| Error | Causa |
+|-------|-------|
+| `CNDL0005: The Dialog element contains an unexpected child element 'TabOrder'` | WiX 3 no admite `<TabOrder>`: el orden de tabulación sale del orden de los `<Control>`. |
+| `CNDL1006: Property 'X' does not contain a Value ... is being ignored` | Un `<Property>` sin `Value` no genera nada. Para un checkbox desmarcado por defecto se deja **sin declarar** la propiedad (y `Value=""` no sirve: `CNDL0006`). |
+
+**`resource path ... build/staging ... doesn't exist`.** El `build.rs` de
+Tauri valida `bundle.resources` en cualquier build: ejecuta
+`scripts/prepare-runtime.ps1`, o en desarrollo crea los directorios vacíos
+(«Obligatorio», más arriba).
+
+**`pip`/avisos de herramientas abortando un script PowerShell.** Los scripts
+usan `Invoke-Native`, que baja `$ErrorActionPreference` durante la llamada:
+`2>&1` + `Stop` convertiría cualquier stderr en excepción. Si añades llamadas
+nuevas a comandos nativos, pásalas por ahí (o por `Invoke-Checked`).
+
+---
+
 ## 📌 Pendientes conocidos
 
 - **Firma de código** (Authenticode): sin ella, SmartScreen avisará en la

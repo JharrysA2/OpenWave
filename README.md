@@ -75,6 +75,9 @@ npm run tauri dev
 | `scripts/prepare-runtime.ps1` | (Windows) Prepara Python embebido + dependencias + ffmpeg en `build/staging` |
 | `scripts/package-windows.ps1` | (Windows) Construye el instalador MSI completo → `build/windows/` |
 
+Guía completa del instalador (pasos, decisiones de diseño y checklist de
+aceptación): **[docs/instalador/README.md](docs/instalador/README.md)**.
+
 ---
 
 ## 🗂️ Estructura del proyecto
@@ -249,7 +252,7 @@ soundwave/
 
 - **ESLint** — Reglas para React 18 + JSX + Hooks
 - **Prettier** — Formateo automático
-- **Vitest** — 552 tests unitarios (componentes, hooks y utils del frontend)
+- **Vitest** — 735 tests unitarios en 46 ficheros (componentes, hooks y utils del frontend)
 - **Playwright** — Tests e2e (navegación, búsqueda, reproducción, settings, librería)
 - **Ruff** — Linter y formatter para Python backend
 - **Pytest** — Tests del backend (rutas, DB, streaming, descargas, letras, utils)

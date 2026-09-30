@@ -65,12 +65,15 @@
         <!-- ── Estado por defecto de las casillas del diálogo OptionsDlg ─────
              Debe coincidir con el Level de cada feature:
                INSTALL_X = "1"  -> casilla marcada  -> feature Level="1"  (instalada)
-               sin valor        -> casilla vacía    -> feature Level="101" (no instalada)
+               INSTALL_X ≠ "1"  -> casilla vacía    -> feature Level="101" (no instalada)
              Estas propiedades solo viven en la UI; OptionsDlg.Next las
-             traduce a ADDLOCAL/REMOVE con eventos AddLocal/Remove. -->
+             traduce a ADDLOCAL/REMOVE con eventos AddLocal/Remove.
+             INSTALL_STARTUP no se declara a propósito: en WiX un <Property>
+             sin Value se ignora (CNDL1006) y Value="" es un error (CNDL0006),
+             así que «desmarcado por defecto» = propiedad indefinida, que es
+             como la lee el checkbox. -->
         <Property Id="INSTALL_STARTMENU" Value="1" />
         <Property Id="INSTALL_DESKTOP" Value="1" />
-        <Property Id="INSTALL_STARTUP" />
 
         {{#if allow_downgrades}}
             <MajorUpgrade Schedule="afterInstallInitialize" AllowDowngrades="yes" />
@@ -195,15 +198,10 @@
                 <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
                     <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
                 </Control>
-
-                <TabOrder Id="OptionsDlg">
-                    <Control Id="StartMenuCheck" Order="1" />
-                    <Control Id="DesktopCheck" Order="2" />
-                    <Control Id="StartupCheck" Order="3" />
-                    <Control Id="Back" Order="4" />
-                    <Control Id="Next" Order="5" />
-                    <Control Id="Cancel" Order="6" />
-                </TabOrder>
+                <!-- WiX 3.14 no admite <TabOrder> (error CNDL0005): el orden
+                     de tabulación es el orden de los controles, que ya deja
+                     las casillas primero y después Next, Back y Cancel, igual
+                     que en los diálogos de WixUI. -->
             </Dialog>
         </UI>
 

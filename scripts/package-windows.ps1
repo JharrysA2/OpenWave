@@ -50,8 +50,11 @@ try {
     if (-not $SkipLicense) {
         Write-Host ''
         Write-Host '--- Licencia ---'
+        # Un `throw` dentro del hijo se propaga y, con EAP=Stop, aborta este
+        # script; no se comprueba $LASTEXITCODE porque el hijo puede dejar un
+        # codigo no cero deliberado (la comprobacion de pip sale 1 al no
+        # existir). Las postcondiciones de abajo validan el resultado.
         & (Join-Path $root 'scripts\generate-license.ps1')
-        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw 'generate-license.ps1 ha fallado.' }
     }
     $licenseTxt = Join-Path $root 'build\windows\licencia.txt'
     if (-not (Test-Path -LiteralPath $licenseTxt)) {
@@ -63,7 +66,6 @@ try {
         Write-Host ''
         Write-Host '--- Runtime embebido ---'
         & (Join-Path $root 'scripts\prepare-runtime.ps1')
-        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw 'prepare-runtime.ps1 ha fallado.' }
     }
     $marker = Join-Path $root 'build\staging\.ready'
     if (-not (Test-Path -LiteralPath $marker)) {

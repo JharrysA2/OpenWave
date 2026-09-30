@@ -7,12 +7,20 @@
 # se edita: si quieres cambios, cómmítalos primero desde WSL).
 #
 # Uso:
-#   scripts/sync-windows          # reset --hard a local/master
-#   scripts/sync-windows --check  # solo muestra el diff, no toca nada
+#   scripts/sync-windows              # reset --hard a local/master
+#   scripts/sync-windows --check      # solo muestra el diff, no toca nada
+#   scripts/sync-windows <rama>       # otra rama (admitido con --check)
 set -euo pipefail
 
 WIN_DIR="${SOUNDWAVE_WIN_DIR:-/mnt/c/Users/jharrys/Desktop/OpenWave}"
-BRANCH="${1:-master}"
+BRANCH="master"
+CHECK=0
+for arg in "$@"; do
+  case "$arg" in
+    --check) CHECK=1 ;;
+    *) BRANCH="$arg" ;;
+  esac
+done
 
 if [[ ! -d "$WIN_DIR/.git" && ! -f "$WIN_DIR/.git" ]]; then
   echo "No existe el checkout Windows: $WIN_DIR" >&2
@@ -20,9 +28,11 @@ if [[ ! -d "$WIN_DIR/.git" && ! -f "$WIN_DIR/.git" ]]; then
   exit 1
 fi
 
-git fetch local "$BRANCH"
+# El remoto `local` (ruta POSIX de este repo) vive en el clone Windows, y es
+# WSL el que entiende esa ruta, así que el fetch se hace desde aquí con -C.
+git -C "$WIN_DIR" fetch local "$BRANCH"
 
-if [[ "${2:-}" == "--check" ]]; then
+if [[ "$CHECK" == "1" ]]; then
   echo "== Commits locales (WSL) que faltan en Windows:"
   git -C "$WIN_DIR" log --oneline "HEAD..local/$BRANCH"
   echo "== Diferencias de contenido:"

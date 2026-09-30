@@ -84,12 +84,30 @@ function Get-PinnedFile([string]$url, [string]$dest, [string]$expectedSha, [stri
     $dest
 }
 
-function Invoke-Checked([string]$exe, [string[]]$argumentList, [string]$what) {
-    $out = (& $exe @argumentList 2>&1 | Out-String)
-    if ($LASTEXITCODE -ne 0) {
-        throw "$what ha fallado (codigo $LASTEXITCODE):`n$out"
+# Ejecuta un comando nativo y devuelve salida + codigo de salida.
+#
+# El stderr de un comando nativo llega a PowerShell como ErrorRecord: con
+# $ErrorActionPreference = 'Stop' y `2>&1` (como aqui) basta un simple
+# WARNING de pip para que el script aborte. Por eso se baja la preferencia
+# solo durante la llamada.
+function Invoke-Native([string]$exe, [string[]]$argumentList) {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = (& $exe @argumentList 2>&1 | Out-String)
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previous
     }
-    $out
+    [pscustomobject]@{ Output = $out; ExitCode = $code }
+}
+
+function Invoke-Checked([string]$exe, [string[]]$argumentList, [string]$what) {
+    $r = Invoke-Native $exe $argumentList
+    if ($r.ExitCode -ne 0) {
+        throw "$what ha fallado (codigo $($r.ExitCode)):`n$($r.Output)"
+    }
+    $r.Output
 }
 
 function Test-RequiresRebuild {
@@ -211,10 +229,16 @@ Write-Host (($out -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -L
 
 if (-not $KeepPip) {
     Write-Host '  desinstalando pip/setuptools/wheel del runtime'
-    $null = & $py -m pip uninstall -y setuptools wheel 2>&1
-    $out = Invoke-Checked $py @('-m', 'pip', 'uninstall', '-y', 'pip') 'pip uninstall'
-    $null = & $py -c 'import importlib.util as u, sys; sys.exit(1 if u.find_spec("pip") else 0)' 2>&1
-    if ($LASTEXITCODE -ne 0) { throw 'pip sigue instalado en el runtime embebido.' }
+    # get-pip ya no instala setuptools desde Python 3.12 y pip avisa por
+    # stderr de que no esta: eso no debe abortar el script.
+    $null = (Invoke-Native $py @('-m', 'pip', 'uninstall', '-y', 'setuptools', 'wheel')).Output
+    $r = Invoke-Native $py @('-m', 'pip', 'uninstall', '-y', 'pip')
+    if ($r.ExitCode -ne 0) {
+        throw "pip uninstall ha fallado (codigo $($r.ExitCode)):`n$($r.Output)"
+    }
+    # `import pip` sale 0 si aun esta instalado y 1 si ya no.
+    $check = Invoke-Native $py @('-c', 'import pip')
+    if ($check.ExitCode -eq 0) { throw 'pip sigue instalado en el runtime embebido.' }
     # Los lanzadores de console (Scripts\) apuntan a rutas de esta maquina y
     # no los usa nadie: el backend arranca con `python -m ...`.
     $scriptsDir = Join-Path $runtime 'Scripts'

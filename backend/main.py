@@ -4,6 +4,7 @@ Entry point delgado que importa y monta todos los módulos.
 """
 
 import asyncio
+import contextlib
 import json
 import os
 import re
@@ -23,6 +24,22 @@ import time
 # instalada y `tauri dev`), para el venv de desarrollo y con cualquier cwd;
 # Tauri lanza esto con rutas `\\?\` y también funcionan.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# stdio: en la app instalada Tauri redirige stdout/stderr del backend a
+# backend.err.log, y Python abre esos flujos con la codificación de la locale
+# (cp1252 en Windows), que no sabe escribir el '→' del formato de logging.
+# El error saltaba DENTRO del handler y ensuciaba backend.err.log con un
+# "Logging error" por cada registro nuestro (la app funcionaba, pero el
+# fichero que sirve para diagnosticar quedaba inutilizable). UTF-8 con
+# errors="replace" hace ese fallo imposible; en consola interactiva el flujo
+# ya es UTF-8 y no cambia nada.
+for _stream in (sys.stdout, sys.stderr):
+    _reconf = getattr(_stream, "reconfigure", None)
+    if callable(_reconf):
+        # Un flujo raro (cerrado, capturado por los tests) no debe tumbar el
+        # arranque: si no se puede reconfigurar, se escribe como hasta ahora.
+        with contextlib.suppress(Exception):
+            _reconf(encoding="utf-8", errors="replace")
 
 import httpx
 from cache import api_cache_get, api_cache_set

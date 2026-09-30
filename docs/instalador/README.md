@@ -296,4 +296,11 @@ También conviene saberlo al leer la plantilla: **no existe la tabla
 - **NSIS** deshabilitado (`targets: ["msi"]`); si se re-habilita hay que
   revisar `bundle.licenseFile`, que NSIS usa de otra manera.
 - **Compresión del cabinet** y CI en Windows: aún no.
+- **`ytmusicapi.get_charts()` roto** en `ytmusicapi==1.7.3`: con `GT` da
+  `IndexError: list index out of range` (dentro de
+  `ytmusicapi/mixins/explore.py`) y con `US`/`MX`, `StopIteration` — YouTube
+  Music cambió la estructura de la respuesta. El warmup de `main.py` lo
+  captura y la app sigue, pero la sección «trending» queda sin datos. No es
+  problema del instalador (falla igual en desarrollo): hay que subir
+  `ytmusicapi` o parchear el parsing.
 - La app tiene favicon y icono de ventana distintos (inconsistencia de marca).

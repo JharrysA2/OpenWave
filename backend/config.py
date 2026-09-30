@@ -16,16 +16,23 @@ COVERS_DIR = BASE_DIR / "downloads" / "covers"
 LYRICS_DIR = BASE_DIR / "downloads" / "lyrics"
 DB_FILE = BASE_DIR / "soundwave.db"
 URL_CACHE_FILE = BASE_DIR / "url_cache.json"
+# Audio re-codificado para "Calidad de reproducción: Baja" (~64 kb/s).
+# Es una caché derivada (se puede regenerar), NO son las descargas del usuario.
+STREAM_CACHE_DIR = BASE_DIR / "stream_cache"
 
 # Crear directorios si no existen
 MUSIC_DIR.mkdir(exist_ok=True)
 COVERS_DIR.mkdir(exist_ok=True)
 LYRICS_DIR.mkdir(exist_ok=True)
+STREAM_CACHE_DIR.mkdir(exist_ok=True)
 
 # TTLs de caché
 CACHE_TTL = 6 * 3600  # 6 horas para URLs de stream
 API_CACHE_TTL = 600  # 10 min para respuestas de API
 TRENDING_TTL = 1800  # 30 min para tendencias
+
+# Tope de la caché de baja calidad (poda LRU por fecha de modificación)
+STREAM_CACHE_MAX_BYTES = 512 * 1024 * 1024  # 512 MB
 
 # Puerto del servidor
 API_PORT = 8765

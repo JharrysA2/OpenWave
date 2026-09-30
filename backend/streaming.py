@@ -3,8 +3,12 @@
 import asyncio
 import contextlib
 import io
+import shutil
+import subprocess
+import sys
 import threading
 from contextlib import suppress
+from pathlib import Path
 
 import httpx
 import yt_dlp
@@ -14,12 +18,229 @@ from cache import (
     in_flight,
     in_flight_lock,
 )
+from config import STREAM_CACHE_DIR, STREAM_CACHE_MAX_BYTES
 from logging_config import get_logger
 
 logger = get_logger(__name__)
 
+# ── Calidad de reproducción ─────────────────────────────────────────────────
+# Escalera de formatos de yt-dlp por calidad de streaming. TODAS terminan en
+# "18/bestaudio" (itag 18 del client android: mp4 progresivo con rangos
+# completos) para que si un formato superior no existe para el vídeo, la
+# selección degrade al comportamiento actual y la reproducción nunca se rompa.
+QUALITY_FORMATS = {
+    # "Baja" se sirve desde el M4A local re-codificado (ver stream_audio_generator);
+    # esta escalera solo aplica si se pidiera una URL directa para esa calidad.
+    "low": "18/bestaudio",
+    "standard": "18/bestaudio",  # comportamiento actual (~128k)
+    "high": "251/140/18/bestaudio",  # opus ~160k → m4a ~128k → estándar
+}
 
-def _ydl_get_url(video_id: str, client: str = "") -> tuple:
+
+def sanitize_quality(quality: str) -> str:
+    """Normaliza el parámetro de calidad (whitelist → nunca confiar en input)."""
+    return quality if quality in QUALITY_FORMATS else "standard"
+
+
+def _stream_key(video_id: str, quality: str) -> str:
+    """Clave de caché por (video, calidad).
+
+    El estándar conserva el video_id simple: es compatible con la caché en
+    disco ya escrita y con los tests existentes; el resto se compone.
+    """
+    return video_id if quality == "standard" else f"{video_id}@{quality}"
+
+
+# ── Calidad "Baja": re-codificado local a ~64 kb/s ──────────────────────────
+# YouTube (sin PO token) solo sirve con rangos completos el itag 18 (~128 kb/s);
+# los formatos de audio puro (249/251) rechazan con 403 cualquier rango más
+# allá de ~0.9 MB, así que no se pueden reproducir enteros desde el navegador.
+# Por eso "Baja" se sirve desde un M4A re-codificado con ffmpeg y cacheado en
+# disco (STREAM_CACHE_DIR): el propio backend lo entrega completo y el
+# navegador recibe el archivo entero, como con las descargas locales.
+
+LOWQ_EXT = ".64k.m4a"
+
+_lowq_inflight: dict = {}
+_lowq_lock = threading.Lock()
+
+
+def lowq_path(video_id: str):
+    """Path del M4A ~64 kb/s cacheado para `video_id`."""
+    return STREAM_CACHE_DIR / f"{video_id}{LOWQ_EXT}"
+
+
+def _yt_dlp_cmd() -> list:
+    """Binario de yt-dlp: PATH → venv → módulo con el Python actual.
+
+    El backend no siempre arranca con el venv activado (el binario vive en
+    ``venv/bin``), así que sin este resolvedor el subproceso fallaría.
+    """
+    exe = shutil.which("yt-dlp")
+    if exe:
+        return [exe]
+    local = Path(sys.executable).resolve().parent / "yt-dlp"
+    if local.exists():
+        return [str(local)]
+    return [sys.executable, "-m", "yt_dlp"]
+
+
+def _ffmpeg_bin() -> str:
+    """Binario de ffmpeg: PATH → ~/.local/bin → PATH como último recurso."""
+    exe = shutil.which("ffmpeg")
+    if exe:
+        return exe
+    local = Path.home() / ".local" / "bin" / "ffmpeg"
+    if local.exists():
+        return str(local)
+    return "ffmpeg"
+
+
+def _prune_lowq_cache() -> None:
+    """Poda LRU: si la caché supera el tope, borra los archivos más antiguos."""
+    try:
+        files = sorted(
+            (f for f in STREAM_CACHE_DIR.glob(f"*{LOWQ_EXT}") if f.is_file()),
+            key=lambda f: f.stat().st_mtime,
+        )
+        total = sum(f.stat().st_size for f in files)
+        for f in files:
+            if total <= STREAM_CACHE_MAX_BYTES:
+                break
+            try:
+                total -= f.stat().st_size
+                f.unlink()
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
+def _build_low_quality(video_id: str) -> None:
+    """Descarga (itag 18) y re-codifica a ~64 kb/s → `lowq_path(video_id)`.
+
+    El itag 18 es el único formato con rangos completos sin PO token; el vídeo
+    sobrante se descarta con `-vn`. Escritura atómica (.part → rename) para que
+    una petición concurrente nunca vea un archivo a medias.
+    """
+    out = lowq_path(video_id)
+    if out.exists() and out.stat().st_size > 0:
+        return
+
+    src_template = STREAM_CACHE_DIR / f".{video_id}.src.%(ext)s"
+    subprocess.run(
+        _yt_dlp_cmd()
+        + [
+            "-f",
+            "18/bestaudio",
+            "--extractor-args",
+            "youtube:player_client=android",
+            "-o",
+            str(src_template),
+            "--quiet",
+            "--no-warnings",
+            "--js-runtimes",
+            "deno",
+            "--impersonate",
+            "chrome",
+            f"https://www.youtube.com/watch?v={video_id}",
+        ],
+        check=True,
+        capture_output=True,
+        timeout=180,
+    )
+    src_files = list(STREAM_CACHE_DIR.glob(f".{video_id}.src.*"))
+    src_files = [f for f in src_files if not f.name.endswith(".part")]
+    if not src_files:
+        raise RuntimeError("yt-dlp no produjo ningún archivo de audio")
+
+    tmp = out.parent / f"{out.name}.part"
+    try:
+        subprocess.run(
+            [
+                _ffmpeg_bin(),
+                "-y",
+                "-i",
+                str(src_files[0]),
+                "-vn",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "64k",
+                "-ac",
+                "2",
+                "-movflags",
+                "+faststart",
+                # El destino termina en .part (escritura atómica) y ffmpeg no
+                # infiere el contenedor de esa extensión → declararlo.
+                "-f",
+                "mp4",
+                str(tmp),
+            ],
+            check=True,
+            capture_output=True,
+            timeout=120,
+        )
+        tmp.replace(out)
+    finally:
+        for f in src_files:
+            with suppress(OSError):
+                f.unlink()
+        with suppress(OSError):
+            tmp.unlink(missing_ok=True)
+    _prune_lowq_cache()
+
+
+def ensure_low_quality_sync(video_id: str):
+    """Devuelve (construyéndolo si hace falta) el M4A ~64 kb/s del vídeo.
+
+    Coordina threads con un evento por vídeo: si dos peticiones llegan a la
+    vez, solo una construye y la otra espera el resultado.
+    """
+    path = lowq_path(video_id)
+    if path.exists() and path.stat().st_size > 0:
+        return path
+
+    with _lowq_lock:
+        ev = _lowq_inflight.get(video_id)
+        primary = ev is None
+        if primary:
+            ev = threading.Event()
+            _lowq_inflight[video_id] = ev
+
+    if not primary:
+        ev.wait(timeout=240)
+        if path.exists() and path.stat().st_size > 0:
+            return path
+        raise RuntimeError("Audio en baja calidad no disponible")
+
+    try:
+        _build_low_quality(video_id)
+        return path
+    finally:
+        with _lowq_lock:
+            _lowq_inflight.pop(video_id, None)
+        ev.set()
+
+
+def warm_low_quality(video_id: str) -> None:
+    """Construye el audio en baja calidad en un thread daemon (no bloquea)."""
+    try:
+        if lowq_path(video_id).exists():
+            return
+    except OSError:
+        return
+
+    def _run() -> None:
+        try:
+            ensure_low_quality_sync(video_id)
+        except Exception as e:
+            logger.debug("warm low %s: %s", video_id, e)
+
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _ydl_get_url(video_id: str, client: str = "", quality: str = "standard") -> tuple:
     """Extraer URL de audio usando yt-dlp.
 
     Args:
@@ -27,13 +248,14 @@ def _ydl_get_url(video_id: str, client: str = "") -> tuple:
         client: Client específico ("tv_embedded", "ios", etc.)
                 o "" para usar el default (client "android", funciona sin
                 cookies y sin PO token; sus URLs aceptan rangos completos).
+        quality: "low" | "standard" | "high" (ver QUALITY_FORMATS).
 
     Nota: el client "android" con itag 18 (mp4 progresivo) es el único que
     sirve el archivo completo; los clients default/web restringen los rangos
     a los primeros ~512KB y devuelven HTTP 403 para el resto.
     """
     opts = {
-        "format": "18/bestaudio",
+        "format": QUALITY_FORMATS[sanitize_quality(quality)],
         "quiet": True,
         "no_warnings": True,
         "socket_timeout": 8,
@@ -144,7 +366,7 @@ def _ydl_get_url_with_cookies(video_id: str) -> tuple:
     raise last_error or RuntimeError("Sin URL (cookies)")
 
 
-def _extract_audio_url_sync(video_id: str) -> tuple:
+def _extract_audio_url_sync(video_id: str, quality: str = "standard") -> tuple:
     """Extraer URL de audio con caché y fallback progresivo.
 
     Estrategia (de más anónimo a menos):
@@ -153,21 +375,27 @@ def _extract_audio_url_sync(video_id: str) -> tuple:
     3. tv_embedded (rápido, funciona con advertencia)
     4. Cookies del navegador (Chrome, Firefox, Edge, Brave) — solo si el usuario
        tiene una sesión activa de YouTube en su navegador
+
+    Cada calidad tiene su propia entrada de caché/in-flight: si el usuario
+    cambia Baja/Estándar/Alta no se sirve una URL cacheada de otra calidad.
     """
+    quality = sanitize_quality(quality)
+    key = _stream_key(video_id, quality)
+
     # Intentar caché
-    cached_url, cached_headers = get_cached_url(video_id)
+    cached_url, cached_headers = get_cached_url(key)
     if cached_url:
         return cached_url, cached_headers
 
     # Coordinación entre threads para evitar duplicados
     with in_flight_lock:
-        if video_id in in_flight:
-            ev, box = in_flight[video_id]
+        if key in in_flight:
+            ev, box = in_flight[key]
             is_waiter = True
         else:
             ev = threading.Event()
             box = [None, None]
-            in_flight[video_id] = (ev, box)
+            in_flight[key] = (ev, box)
             is_waiter = False
 
     if is_waiter:
@@ -185,8 +413,8 @@ def _extract_audio_url_sync(video_id: str) -> tuple:
         #    Funciona anónimamente, no requiere cookies ni JS runtime, y sus
         #    URLs aceptan rangos completos (los demás clients dan 403).
         try:
-            url, headers = _ydl_get_url(video_id)  # client="" → default
-            cache_url(video_id, url, headers)
+            url, headers = _ydl_get_url(video_id, quality=quality)  # client="" → default
+            cache_url(key, url, headers)
             box[0], box[1] = url, headers
             return url, headers
         except Exception as e:
@@ -195,8 +423,8 @@ def _extract_audio_url_sync(video_id: str) -> tuple:
 
         # ═══ 2. tv_embedded (rápido, fallback) ═══
         try:
-            url, headers = _ydl_get_url(video_id, "tv_embedded")
-            cache_url(video_id, url, headers)
+            url, headers = _ydl_get_url(video_id, "tv_embedded", quality=quality)
+            cache_url(key, url, headers)
             box[0], box[1] = url, headers
             return url, headers
         except Exception as e:
@@ -206,7 +434,7 @@ def _extract_audio_url_sync(video_id: str) -> tuple:
         # ═══ 3. Cookies del navegador (último recurso) ═══
         try:
             url, headers = _ydl_get_url_with_cookies(video_id)
-            cache_url(video_id, url, headers)
+            cache_url(key, url, headers)
             box[0], box[1] = url, headers
             logger.info("✓ recuperado con cookies: %s", video_id)
             return url, headers
@@ -219,27 +447,51 @@ def _extract_audio_url_sync(video_id: str) -> tuple:
         raise err
     finally:
         with in_flight_lock:
-            in_flight.pop(video_id, None)
+            in_flight.pop(key, None)
         ev.set()
 
 
-async def get_audio_url(video_id: str) -> tuple:
+async def get_audio_url(video_id: str, quality: str = "standard") -> tuple:
     """Obtener URL de audio (async wrapper)."""
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _extract_audio_url_sync, video_id)
+    return await loop.run_in_executor(
+        None, _extract_audio_url_sync, video_id, sanitize_quality(quality)
+    )
 
 
-async def stream_audio_generator(video_id: str):
+async def stream_audio_generator(video_id: str, quality: str = "standard"):
     """Descargar audio con yt-dlp y streamearlo por chunks (async generator).
 
     Método principal: yt-dlp subprocess con Deno + impersonate Chrome.
     Un solo intento, rápido y anónimo.
+
+    ``quality`` (low/standard/high) escala el formato -f elegido; la escalera
+    siempre termina en 18/bestaudio así que el stream nunca se queda sin fuente.
+
+    ``low`` se sirve desde el M4A re-codificado local (~64 kb/s); si no está
+    disponible, se cae al método normal para no cortar la reproducción.
     """
+    quality = sanitize_quality(quality)
+    if quality == "low":
+        try:
+            loop = asyncio.get_running_loop()
+            path = await loop.run_in_executor(None, ensure_low_quality_sync, video_id)
+            with open(path, "rb") as fh:
+                while True:
+                    chunk = fh.read(65536)
+                    if not chunk:
+                        break
+                    yield chunk
+            return
+        except Exception as e:
+            logger.warning("stream %s baja no disponible (%s); usando itag 18", video_id, e)
+
+    fmt = QUALITY_FORMATS[quality]
     try:
         proc = await asyncio.create_subprocess_exec(
             "yt-dlp",
             "-f",
-            "18/bestaudio",
+            fmt,
             "--extractor-args",
             "youtube:player_client=android",
             "-o",
@@ -290,7 +542,7 @@ async def stream_audio_generator(video_id: str):
 
     # ═══ Fallback: httpx con URL extraída ═══
     try:
-        url, headers = await get_audio_url(video_id)
+        url, headers = await get_audio_url(video_id, quality)
         if url:
             async with (
                 httpx.AsyncClient(follow_redirects=True, timeout=30) as client,
@@ -365,10 +617,11 @@ def _extract_with_cookies_sync(video_id: str) -> tuple:
     raise RuntimeError("Sin URL (cookies)")
 
 
-def prefetch(video_id: str):
-    """Pre-cargar URL de audio en caché."""
-    cached_url, _ = get_cached_url(video_id)
+def prefetch(video_id: str, quality: str = "standard"):
+    """Pre-cargar URL de audio en caché (entrada propia por calidad)."""
+    quality = sanitize_quality(quality)
+    cached_url, _ = get_cached_url(_stream_key(video_id, quality))
     if cached_url:
         return
     with suppress(Exception):
-        _extract_audio_url_sync(video_id)
+        _extract_audio_url_sync(video_id, quality)

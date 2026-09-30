@@ -2389,7 +2389,15 @@ export function LyricsView({
                   const isCurrent = i === queueIndex;
                   const isPast = i < queueIndex;
                   const isUpcoming = i > queueIndex;
-                  const isPrecached = !!streamCacheRef?.current?.[qSong.videoId];
+                  // Las claves del cache llevan la calidad (id|calidad):
+                  // basta con una entrada cacheada para este video.
+                  const sc = streamCacheRef?.current;
+                  const isPrecached = !!(
+                    sc &&
+                    Object.keys(sc).some(
+                      (k) => k === qSong.videoId || k.startsWith(`${qSong.videoId}|`),
+                    )
+                  );
 
                   return (
                     <div

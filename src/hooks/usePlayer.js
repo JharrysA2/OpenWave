@@ -77,7 +77,13 @@ function populateQueueFromResults(song, searchResults, setQueueFn) {
   return -1;
 }
 
-export function usePlayer(toast, results = [], initialCrossfade = 0) {
+export function usePlayer(
+  toast,
+  results = [],
+  initialCrossfade = 0,
+  initialQuality = "standard",
+  initialDownloadQuality = "192",
+) {
   const [currentSong, setCurrentSong] = useState(null);
   const [queue, setQueue] = useState(() => loadPersistedQueue().queue);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -124,7 +130,79 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
   const volumeRef = useRef(volume); // volumen actual para el fade loop (evita stale closures)
   const volumePersistRef = useRef({ last: 0, timer: null }); // throttle de escritura en localStorage
   volumeRef.current = volume;
+  const qualityRef = useRef(initialQuality); // calidad de streaming (lectura fresca)
+  qualityRef.current = initialQuality;
+  const dlQualityRef = useRef(initialDownloadQuality); // calidad de descarga (Alta)
+  dlQualityRef.current = initialDownloadQuality;
+  // Al cambiar Baja/Estándar/Alta se invalidan las URLs pre-cacheadas: sus
+  // claves llevan la calidad (id|calidad), así que las de otra calidad no se
+  // sirven por accidente.
+  useEffect(() => {
+    streamCacheRef.current = {};
+  }, [initialQuality]);
   const handleNextRef = useRef(null); // red de seguridad: avanzar si el crossfade falla tras "ended"
+
+  // ── Calidad Alta: ¿existe ya el MP3 local? (fetch crudo: api.get cachéa) ─
+  const localExists = useCallback(async (videoId) => {
+    try {
+      const r = await fetch(`${api.base}/stream/exists/${videoId}`, { cache: "no-store" });
+      if (!r.ok) return false;
+      const d = await r.json();
+      return !!d?.exists;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Descargas pedidas esta sesión (dedupe: /download tiene rate limit 5/min)
+  const downloadAskedRef = useRef(new Set());
+
+  const requestDownload = useCallback(async (song) => {
+    try {
+      await api.post(`/download/${song.videoId}`, {
+        title: song.title,
+        artist: song.artist,
+        thumbnail: song.thumbnail,
+        thumbnails: song.thumbnails || [],
+        duration: song.duration,
+        album_title: song.album || song.albumTitle || "",
+        album_browse_id: song.albumBrowseId || "",
+        artist_browse_id: song.artistBrowseId || "",
+        // Misma palanca que SongOptionsSheet: Ajustes → Calidad de descarga.
+        quality: dlQualityRef.current || "192",
+      });
+      downloadAskedRef.current.add(song.videoId);
+      return true;
+    } catch {
+      // 429 (rate limit) u otro error: quizá ya se está descargando; el
+      // polling de ensureDownloaded lo detectará igualmente.
+      return false;
+    }
+  }, []);
+
+  // ── Calidad Alta: pedir descarga (calidad de descarga) y esperar el MP3 ──
+  // Devuelve true si el archivo local está listo; false si conviene caer al
+  // stream normal para no dejar la reproducción muda.
+  const ensureDownloaded = useCallback(
+    async (song) => {
+      if (await localExists(song.videoId)) return true;
+
+      let asked = downloadAskedRef.current.has(song.videoId);
+      if (!asked) asked = await requestDownload(song);
+
+      // Espera máxima: si nosotros lanzamos la descarga, bastante para que
+      // baje + transcodifique; si el POST falló, solo un suspenso por si otra
+      // vía ya la estaba descargando.
+      const deadline = Date.now() + (asked ? 45_000 : 6_000);
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 700));
+        if (fetchSongIdRef.current !== song.videoId) return false; // otra canción mandó
+        if (await localExists(song.videoId)) return true;
+      }
+      return false;
+    },
+    [localExists, requestDownload],
+  );
 
   // ── normalizeThumbnails: Asegura que un song tenga thumbnails[] HD ─────────
   //    Si el song viene de history/downloads sin thumbnails[], genera las
@@ -183,14 +261,21 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
       if (nextSong.downloaded) {
         // Descargada: usar el MP3 local del backend (funciona offline)
         streamUrl = `${api.base}/stream/${nextSong.videoId}`;
+      } else if (qualityRef.current === "high" && (await localExists(nextSong.videoId))) {
+        // Calidad Alta: la descarga que adelantó el pre-cache ya terminó →
+        // reproducir el MP3 local (calidad de descarga) en vez del stream.
+        streamUrl = `${api.base}/stream/${nextSong.videoId}`;
       } else {
-        const cached = streamCacheRef.current[nextSong.videoId];
+        const cacheKey = `${nextSong.videoId}|${qualityRef.current}`;
+        const cached = streamCacheRef.current[cacheKey];
         if (cached?.url) {
           streamUrl = cached.url;
-          delete streamCacheRef.current[nextSong.videoId]; // consumir cache
+          delete streamCacheRef.current[cacheKey]; // consumir cache
         } else {
           try {
-            const d = await api.get(`/stream-url/${nextSong.videoId}`);
+            const d = await api.get(
+              `/stream-url/${nextSong.videoId}?quality=${qualityRef.current}`,
+            );
             streamUrl = d?.url;
           } catch {}
         }
@@ -362,7 +447,7 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
         }, 30000);
       }
     },
-    [crossfadeDuration, normalizeThumbnails],
+    [crossfadeDuration, normalizeThumbnails, localExists],
   );
 
   // ── Reproducción (SIN crossfade inline — el crossfade se maneja vía progress monitoring) ──
@@ -465,26 +550,41 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
         fetchSongIdRef.current = song.videoId;
       }
 
+      // ═══ CALIDAD ALTA: reproducir a la calidad de descarga ═══════════
+      // Si aún no está el MP3 local, se pide la descarga (con la calidad de
+      // descarga) y se espera a que esté listo; si falla o expira, se cae
+      // al stream normal para no dejar la reproducción muda.
+      let preferLocal = !!song.downloaded;
+      if (qualityRef.current === "high" && !preferLocal) {
+        preferLocal = await ensureDownloaded(song);
+        // Si mientras esperábamos entró otra canción, este playSong quedó
+        // cancelado: los flags (crossfade/streamLoading) ya los gestiona el
+        // playSong nuevo, así que salimos sin tocar nada.
+        if (fetchSongIdRef.current !== song.videoId) return;
+      }
+
       // ═══ REPRODUCCIÓN DE AUDIO ═════════════════════════════════════
       //    Verificar cache primero (pre-cargado por el efecto de pre-cache)
       //    Crossfade SOLO se activa cuando handleSongEnded lo habilita
       //    (crossfadeEnabledRef). Así el fade-in solo ocurre al final
       //    natural de la canción y NO en saltos manuales (handleNext/Prev).
       let usedProxy = false;
-      // Canción descargada: primer intento con el MP3 local del backend
-      // (GET /stream/{id}, disponible sin internet). Si el archivo no existe,
-      // play() rechaza y el bucle reintenta con streaming online.
-      const tryLocalFirst = !!song.downloaded;
+      // Canción descargada (o preparada por la calidad Alta): primer intento
+      // con el MP3 local del backend (GET /stream/{id}, disponible sin
+      // internet). Si el archivo no existe, play() rechaza y el bucle
+      // reintenta con streaming online.
+      const tryLocalFirst = preferLocal;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const useLocal = tryLocalFirst && attempt === 0;
           let d = null;
           if (!useLocal) {
-            d = streamCacheRef.current[song.videoId];
+            const cacheKey = `${song.videoId}|${qualityRef.current}`;
+            d = streamCacheRef.current[cacheKey];
             if (d) {
-              delete streamCacheRef.current[song.videoId]; // consumir cache
+              delete streamCacheRef.current[cacheKey]; // consumir cache
             } else if (attempt === 0) {
-              d = await api.get(`/stream-url/${song.videoId}`);
+              d = await api.get(`/stream-url/${song.videoId}?quality=${qualityRef.current}`);
             }
             if (!d?.url && attempt === 0) throw new Error("No stream URL");
           }
@@ -506,7 +606,7 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
             ? `${api.base}/stream/${song.videoId}`
             : attempt === 0 && !usedProxy
               ? d.url
-              : `${api.base}/stream/play/${song.videoId}`;
+              : `${api.base}/stream/play/${song.videoId}?quality=${qualityRef.current}`;
           currentAudio.src = srcUrl;
           currentAudio.currentTime = startFrom;
           // volumeRef en vez de `volume`: siempre fresca y además deja
@@ -544,7 +644,7 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
       //    playSong está configurando el audio (race window B3).
       crossfadePendingRef.current = false;
     },
-    [toast, normalizeThumbnails, isPlaying, currentSong],
+    [toast, normalizeThumbnails, isPlaying, currentSong, ensureDownloaded],
   );
 
   const togglePlay = useCallback(() => {
@@ -720,11 +820,7 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
       const timeLeft = currentTime > 0 && duration > 0 ? duration - currentTime : Infinity;
       const near = timeLeft <= crossfadeDuration + 2;
 
-      if (
-        !crossfadeActiveRef.current &&
-        timeLeft <= crossfadeDuration + 0.2 &&
-        timeLeft > 0.5
-      ) {
+      if (!crossfadeActiveRef.current && timeLeft <= crossfadeDuration + 0.2 && timeLeft > 0.5) {
         const cfId = ++crossfadeIdRef.current;
         spawnCrossfade(cfId);
       }
@@ -943,7 +1039,9 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
   useEffect(() => {
     const prevImgs = preloadedImgsRef.current;
     if (prevImgs) {
-      prevImgs.forEach((img) => { img.src = ""; });
+      prevImgs.forEach((img) => {
+        img.src = "";
+      });
     }
     preloadedImgsRef.current = [];
 
@@ -965,9 +1063,23 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
       const doPreCache = () => {
         if (!nextSong?.videoId) return;
 
-        if (!streamCacheRef.current[nextSong.videoId] && !nextSong.downloaded) {
-          api.get(`/stream-url/${nextSong.videoId}`)
-            .then((d) => { if (d?.url) streamCacheRef.current[nextSong.videoId] = d; })
+        const quality = qualityRef.current;
+        const streamKey = `${nextSong.videoId}|${quality}`;
+        if (quality === "high") {
+          // Calidad Alta: adelantar la descarga con la calidad de descarga
+          // para que al llegar el turno ya esté el MP3 local (dedupe por
+          // sesión: /download tiene rate limit 5/min).
+          if (!nextSong.downloaded && !downloadAskedRef.current.has(nextSong.videoId)) {
+            localExists(nextSong.videoId).then((ok) => {
+              if (!ok && fetchSongIdRef.current !== nextSong.videoId) requestDownload(nextSong);
+            });
+          }
+        } else if (!streamCacheRef.current[streamKey] && !nextSong.downloaded) {
+          api
+            .get(`/stream-url/${nextSong.videoId}?quality=${quality}`)
+            .then((d) => {
+              if (d?.url) streamCacheRef.current[streamKey] = d;
+            })
             .catch(() => {});
         }
 
@@ -975,8 +1087,13 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
         // no pre-cargues la automática: LyricsView la ignora igual (el
         // override tiene prioridad) y así ahorramos la request.
         if (!lyricsCacheRef.current[nextSong.videoId] && !getLyricsOverride(nextSong.videoId)) {
-          api.get(`/lyrics/${nextSong.videoId}?title=${encodeURIComponent(nextSong.title || "")}&artist=${encodeURIComponent(nextSong.artist || "")}`)
-            .then((data) => { if (data?.lyrics) lyricsCacheRef.current[nextSong.videoId] = data; })
+          api
+            .get(
+              `/lyrics/${nextSong.videoId}?title=${encodeURIComponent(nextSong.title || "")}&artist=${encodeURIComponent(nextSong.artist || "")}`,
+            )
+            .then((data) => {
+              if (data?.lyrics) lyricsCacheRef.current[nextSong.videoId] = data;
+            })
             .catch(() => {});
         }
 
@@ -1017,7 +1134,7 @@ export function usePlayer(toast, results = [], initialCrossfade = 0) {
         preCacheTimeoutRef.current = null;
       }
     };
-  }, [queue, queueIndex, normalizeThumbnails]);
+  }, [queue, queueIndex, normalizeThumbnails, initialQuality, localExists, requestDownload]);
 
   // ── Sincronizar volumen con el elemento audio ──────────────────────────────
 

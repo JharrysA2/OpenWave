@@ -40,11 +40,22 @@ export const HIDDEN_OFFLINE_INTERVAL_MS = 10_000;
 /** Timeout del propio health-check. */
 export const HEALTH_TIMEOUT_MS = 4_000;
 /**
- * Timeout del PRIMER chequeo (arranque): corto a propósito para que la
- * pantalla de inicio se resuelva rápido con el backend caído (en vez de
- * esperar los 4s del chequeo normal o los 20s del primer latido).
+ * Timeout del PRIMER chequeo (arranque): corto a propósito para que cada
+ * intento resuelva rápido con el backend caído (en vez de esperar los 4s
+ * del chequeo normal).
  */
 export const BOOT_TIMEOUT_MS = 3_000;
+/**
+ * Ventana de gracia del arranque: mientras no la agotemos, cada chequeo
+ * fallido se reintenta cada `BOOT_RETRY_INTERVAL_MS` y el estado sigue en
+ * `booting` (pantalla «Iniciando…» con la animación) en vez de mostrar el
+ * error. El backend en frío tarda ~15-20 s en servir (imports de Python +
+ * escaneo de Defender tras instalar), así que un único chequeo inmediato
+ * declaraba la app caída siempre.
+ */
+export const BOOT_GRACE_MS = 30_000;
+/** Intervalo de reintento dentro de la ventana de gracia del arranque. */
+export const BOOT_RETRY_INTERVAL_MS = 1_500;
 
 const INITIAL_STATE = {
   /** ¿El backend respondió la última vez que supimos de él? */
@@ -74,6 +85,14 @@ const reconnectListeners = new Set();
 let running = false;
 let heartbeatTimer = null;
 let heartbeatDelay = null;
+/**
+ * Inicio de la ventana de gracia del arranque (0 = fuera de arranque o sin
+ * `startHeartbeat`, en cuyo caso cualquier fallo resuelve al instante como
+ * antes). Se fija en `startHeartbeat`.
+ */
+let bootStartedAt = 0;
+/** Timer de reintento dentro de la ventana de gracia. */
+let bootRetryTimer = null;
 
 // ── Suscripción ──────────────────────────────────────────────────────────────
 
@@ -175,6 +194,7 @@ export async function checkHealth({ timeout = HEALTH_TIMEOUT_MS } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
 
+  let vivo = false;
   try {
     const resp = await fetch(`${API}${HEALTH_PATH}`, { signal: controller.signal });
     if (!resp.ok) {
@@ -182,6 +202,7 @@ export async function checkHealth({ timeout = HEALTH_TIMEOUT_MS } = {}) {
       return false;
     }
     markOnline();
+    vivo = true;
     return true;
   } catch (err) {
     if (err?.name === "AbortError") markOffline("Timeout", "E-CNX-02");
@@ -189,13 +210,34 @@ export async function checkHealth({ timeout = HEALTH_TIMEOUT_MS } = {}) {
     return false;
   } finally {
     clearTimeout(timer);
-    // Primer chequeo terminado → fin del arranque (la UI puede salir de la
-    // pantalla de inicio con el resultado real: online o error + código).
-    patch({ checking: false, booting: false });
+    patch({ checking: false });
+    if (state.booting) {
+      if (vivo || Date.now() - bootStartedAt >= BOOT_GRACE_MS) {
+        // Resuelto (backend vivo) o agotada la gracia: la pantalla de
+        // inicio decide salir con el resultado real (app o error+código).
+        patch({ booting: false });
+      } else {
+        // Backend aún frío (imports/escaneo): seguimos «Iniciando…» y
+        // reintentamos pronto en vez de mostrar un error prematuro.
+        scheduleBootRetry();
+      }
+    }
   }
 }
 
 // ── Heartbeat ────────────────────────────────────────────────────────────────
+
+/**
+ * Programa el siguiente intento dentro de la ventana de gracia del arranque
+ * (solo mientras el heartbeat está activo).
+ */
+function scheduleBootRetry() {
+  if (bootRetryTimer !== null || !running) return;
+  bootRetryTimer = setTimeout(() => {
+    bootRetryTimer = null;
+    void checkHealth({ timeout: BOOT_TIMEOUT_MS });
+  }, BOOT_RETRY_INTERVAL_MS);
+}
 
 /** ¿La ventana está oculta (minimizada, cubierta o en otra pestaña)? */
 function isPageHidden() {
@@ -255,6 +297,7 @@ function handleVisibilityChange() {
 export function startHeartbeat() {
   if (running) return;
   running = true;
+  bootStartedAt = Date.now();
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", handleVisibilityChange);
   }
@@ -273,6 +316,10 @@ export function stopHeartbeat() {
     heartbeatTimer = null;
   }
   heartbeatDelay = null;
+  if (bootRetryTimer) {
+    clearTimeout(bootRetryTimer);
+    bootRetryTimer = null;
+  }
 }
 
 /** ¿Está el heartbeat activo? */
@@ -289,6 +336,16 @@ export function getHeartbeatInterval() {
 export function __resetHealth() {
   stopHeartbeat();
   state = { ...INITIAL_STATE };
+  bootStartedAt = 0;
   statusListeners.clear();
   reconnectListeners.clear();
+}
+
+/**
+ * Da por agotada la ventana de gracia del arranque: el siguiente chequeo
+ * fallido resuelve `booting` (como si hubieran pasado los
+ * `BOOT_GRACE_MS`). Solo para tests, para no esperar 30 s reales.
+ */
+export function __expireBootGrace() {
+  bootStartedAt = Date.now() - BOOT_GRACE_MS - 1_000;
 }

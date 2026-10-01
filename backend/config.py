@@ -36,6 +36,29 @@ def _dir_escribible(path: Path) -> bool:
         return False
 
 
+def _es_instalado(base_dir: Path, es_windows: bool) -> bool:
+    """¿`base_dir` pertenece a una INSTALACIÓN de Windows (no al repo)?
+
+    Solo en Windows deciden estas marcas (el repo jamás las cumple):
+
+    * la ruta contiene `Program Files` / `Program Files (x86)`;
+    * hay un hermano `runtime\\` junto a `backend\\` (solo el empaquetado
+      tiene `backend\\` + `runtime\\` + `ffmpeg\\`).
+
+    Por qué no basta con «no escribible»: al arrancar la app desde la
+    última página del instalador el proceso hereda token elevado y la
+    carpeta del código SÍ resulta escribible, con lo que la base de datos
+    y las descargas acababan en «Archivos de programa» (espejo de
+    `lib.rs::es_instalado`).
+    """
+    if not es_windows:
+        return False
+    ruta = str(base_dir).lower()
+    if "\\program files\\" in ruta or "\\program files (x86)\\" in ruta:
+        return True
+    return (base_dir.parent / "runtime").exists()
+
+
 def _resolver_datos_dir(
     base_dir: Path, entorno: Mapping[str, str], es_windows: bool
 ) -> Path:
@@ -49,7 +72,7 @@ def _resolver_datos_dir(
     if env:
         return Path(env)
 
-    if _dir_escribible(base_dir):
+    if not _es_instalado(base_dir, es_windows) and _dir_escribible(base_dir):
         return base_dir
 
     if es_windows:
@@ -80,12 +103,15 @@ def _datos_dir() -> Path:
       lo usan tests, depuración y quien quiera mover las descargas.
     - En desarrollo (código en un repo, escribible) los datos van junto al
       código, como siempre: `backend/downloads`, `backend/openwave.db`, etc.
-    - En la instalación de Windows el código vive en `Program Files` (no
-      escribible) y los datos van a «Datos de Programas»,
+    - En la instalación de Windows los datos van a «Datos de Programas»,
       `%PROGRAMDATA%\\OpenWave`: descargas, cubiertos, letras, caché de
       stream, base de datos y log. Así comparten raíz con el resto de
       programas, no dependen de la cuenta y sobreviven a desinstalar y
-      reinstalar la app.
+      reinstalar la app. La instalación se reconoce por el layout (ruta en
+      `Program Files` o hermano `runtime\\`, ver `_es_instalado`), NO por
+      la escritura: el arranque elevado desde el instalador haría que el
+      código pareciera escribible y los datos acabarían en «Archivos de
+      programa».
     - Si ProgramData no estuviera disponible/escribible, a
       `%LOCALAPPDATA%\\OpenWave` (fallo sin privilegios).
     - En el resto de sistemas, a XDG (`$XDG_DATA_HOME/OpenWave`).

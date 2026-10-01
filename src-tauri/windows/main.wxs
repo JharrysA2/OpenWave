@@ -113,14 +113,11 @@
              match wins. We list the NSIS default-key search first and the MSI InstallDir
              search second so that the MSI-specific path takes priority when both keys exist. -->
         <Property Id="INSTALLDIR">
-          <!-- Legacy: instalaciones previas con el nombre antiguo del producto
-               escribieron la clave bajo "SoundWave"; se busca la PRIMERA para
-               que, si existe, las busquedas siguientes (prioritarias) la pisen.
-               La ruta va SIN plantillas: handlebars/Tauri solo colapsan el
-               doble barra pegado a {{var}} y un "\\literal" llega a ICE03. -->
-          <RegistrySearch Id="PrevInstallDirLegacyNoName" Root="HKCU" Key="Software\soundwave\SoundWave" Type="raw" />
-          <RegistrySearch Id="PrevInstallDirLegacyWithName" Root="HKCU" Key="Software\soundwave\SoundWave" Name="InstallDir" Type="raw" />
-
+          <!-- Nota: NO se busca la clave legacy "Software\...\SoundWave" (nombre
+               anterior del producto): preservarla hacia a instalar las
+               versiones nuevas en la carpeta con el nombre viejo. La carpeta
+               anterior la limpia el MajorUpgrade con el INSTALLDIR que el
+               producto antiguo tenía registrado. -->
           <!-- First attempt: Search for the default key value (this is how the nsis installer stores the path) -->
           <RegistrySearch Id="PrevInstallDirNoName" Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Type="raw" />
 

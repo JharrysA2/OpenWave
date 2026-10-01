@@ -12,15 +12,18 @@ import { COLORS, SPACING, TYPOGRAPHY } from "../utils/theme";
  * Cubre el hueco entre el splash estático (index.html) y la primera respuesta
  * real del backend:
  *
- *   - **Arrancando**: logo + "Iniciando OpenWave…" mientras corre el PRIMER
- *     health-check (`booting` en utils/backendHealth).
- *   - **Error**: si ese primer chequeo falla, se queda la pantalla con el
- *     estado de error + CÓDIGO reportable + "Reintentar" / "Continuar sin
- *     conexión" (nunca un skeleton eterno ni una app a medias).
+ *   - **Arrancando**: logo + "Iniciando OpenWave…" mientras corre la ventana
+ *     de gracia del health-check (reintenta cada 1,5 s hasta 30 s: el backend
+ *     en frío tarda ~15-20 s en servir). Si el primer intento falla, aparece
+ *     ya un «Continuar sin conexión» para no retener al usuario.
+ *   - **Error**: si la gracia se agota, la pantalla pasa al estado de error +
+ *     CÓDIGO reportable + "Reintentar" / "Continuar sin conexión" (nunca un
+ *     skeleton eterno ni una app a medias). Si el backend acaba de subir
+ *     después, el overlay se desvanece solo (vuelve a `online`).
  *   - **Listo**: se desvanece (~320 ms) y se desmonta, dejando paso a la app.
  *
- * Solo el PRIMER chequeo decide: si el backend se cae DESPUÉS, el overlay no
- * vuelve (eso lo lleva ConnectionBanner).
+ * Si el backend se cae DESPUÉS de entrar, el overlay no vuelve (eso lo
+ * lleva ConnectionBanner).
  *
  * Sin `<SettingsProvider>` cae a los textos por defecto (tests).
  */
@@ -117,6 +120,25 @@ export function BootScreen() {
               aria-hidden="true"
               style={{ width: "180px", height: "4px", borderRadius: "999px" }}
             />
+            {/* Si ya falló algún intento, no retenemos: salir a la app. */}
+            {!online && (
+              <button
+                type="button"
+                onClick={() => setDismissed(true)}
+                style={{
+                  ...TYPOGRAPHY.body,
+                  background: "none",
+                  border: "none",
+                  color: COLORS.textMuted,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  padding: SPACING.xs,
+                  marginTop: SPACING.xs,
+                }}
+              >
+                {t.continueOffline || "Continuar sin conexión"}
+              </button>
+            )}
           </div>
         )}
 

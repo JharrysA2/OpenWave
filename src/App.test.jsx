@@ -3,7 +3,7 @@ import { act, render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { api } from "./utils/api";
 import { winCtrl } from "./utils/windowControls";
-import { __resetHealth, isHeartbeatRunning, markOffline, markOnline } from "./utils/backendHealth";
+import { __expireBootGrace, __resetHealth, isHeartbeatRunning, markOffline, markOnline } from "./utils/backendHealth";
 import { contrastRatio } from "./utils/colorTheme";
 import App from "./App";
 
@@ -558,6 +558,12 @@ describe("App — conexión con el backend", () => {
     render(<App />);
     // Arranque: splash → BootScreen en estado "Iniciando…"
     expect(screen.getByTestId("boot-screen")).toBeInTheDocument();
+
+    // Agotamos la ventana de gracia (30 s reales en producción) para que el
+    // primer chequeo fallido resuelva el arranque con error + código.
+    act(() => {
+      __expireBootGrace();
+    });
 
     // El primer chequeo falla → estado de error con código reportable
     await act(async () => {});

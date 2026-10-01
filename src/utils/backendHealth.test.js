@@ -5,6 +5,7 @@ import {
   HIDDEN_ONLINE_INTERVAL_MS,
   HIDDEN_OFFLINE_INTERVAL_MS,
   BOOT_TIMEOUT_MS,
+  __expireBootGrace,
   __resetHealth,
   checkHealth,
   getHealthState,
@@ -282,6 +283,8 @@ describe("backendHealth — heartbeat", () => {
     fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
 
     startHeartbeat();
+    // Este test mide el LATIDO, no la ventana de gracia del arranque.
+    __expireBootGrace();
     expect(fetchMock).toHaveBeenCalledTimes(1); // chequeo inmediato de arranque
     // El backend se cae antes del primer latido (lo detecta api.js, no el heartbeat)
     markOffline("ECONNREFUSED");
@@ -347,6 +350,8 @@ describe("backendHealth — heartbeat", () => {
     );
 
     startHeartbeat();
+    // Este test mide el TIMEOUT del primer chequeo, no la ventana de gracia.
+    __expireBootGrace();
     expect(getHealthState().booting).toBe(true);
 
     // Sin backend: se aborta a los 3 s (no a los 4 s del chequeo normal ni
@@ -398,6 +403,9 @@ describe("backendHealth — ventana oculta", () => {
 
     setVisibility("hidden");
     startHeartbeat();
+    // Este test mide el intervalo OCULTO, no la ventana de gracia del
+    // arranque (que reintentaría a los 1,5 s y desmontaría la cuenta).
+    __expireBootGrace();
 
     // El chequeo inmediato ya asentó el estado (offline + arranque terminado)
     await vi.advanceTimersByTimeAsync(0);

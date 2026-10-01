@@ -162,7 +162,7 @@ fn resolver_data_dir(backend_dir: &std::path::Path, env: &EntornoDatos) -> PathB
     if let Some(d) = &env.openwave_data_dir {
         return PathBuf::from(d);
     }
-    if dir_writable(backend_dir) {
+    if !es_instalado(backend_dir, env.es_windows) && dir_writable(backend_dir) {
         return backend_dir.to_path_buf();
     }
     if env.es_windows {
@@ -188,6 +188,33 @@ fn resolver_data_dir(backend_dir: &std::path::Path, env: &EntornoDatos) -> PathB
         Some(home) => PathBuf::from(home).join(".local/share/OpenWave"),
         None => PathBuf::from("."),
     }
+}
+
+/// true si `backend_dir` pertenece a una INSTALACIÓN de Windows (no al repo
+/// de desarrollo). Solo ahí deciden: en Windows los datos NUNCA deben ir
+/// junto al código aunque el directorio sea escribible — el arranque desde
+/// la última página del instalador hereda un token elevado,
+/// `dir_writable(Program Files\...\backend)` devuelve true y la base de
+/// datos y las descargas acababan archivadas en «Archivos de programa» (la
+/// queja original del usuario, reproducida en la primera prueba real).
+///
+/// Se detecta por el layout del empaquetado, que es estable:
+///   * la ruta contiene `Program Files` / `Program Files (x86)`, o
+///   * existe un hermano `runtime\` junto a `backend\` (solo el paquete
+///     tiene `backend\` + `runtime\` + `ffmpeg\`; el repo tiene
+///     `backend\venv` y ningún `runtime` en la raíz).
+fn es_instalado(backend_dir: &std::path::Path, es_windows: bool) -> bool {
+    if !es_windows {
+        return false;
+    }
+    let ruta = backend_dir.to_string_lossy().to_lowercase();
+    if ruta.contains("\\program files\\") || ruta.contains("\\program files (x86)\\") {
+        return true;
+    }
+    backend_dir
+        .parent()
+        .map(|raiz| raiz.join("runtime").exists())
+        .unwrap_or(false)
 }
 
 /// Marcador de «ya migré los datos heredados», dentro del directorio nuevo.

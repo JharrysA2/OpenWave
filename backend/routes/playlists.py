@@ -1,4 +1,4 @@
-"""SoundWave Backend — Rutas de playlists."""
+"""OpenWave Backend — Rutas de playlists."""
 
 import asyncio
 

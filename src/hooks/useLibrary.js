@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { api } from "../utils/api";
+import { DEFAULT_ERROR_CODE } from "../utils/errorCodes";
 
 const LIKED_KEY = "sw_liked_v2";
 const LIKED_META_KEY = "sw_liked_meta_v1";
@@ -48,6 +49,12 @@ export function useLibrary() {
   const [history, setHistory] = useState([]);
   const [downloads, setDownloads] = useState([]);
   const [playlists, setPlaylists] = useState([]);
+  // ── Estado de carga ─────────────────────────────────────────────────────
+  // Sin esto la Home no distinguía "cargando" de "vacío": el backend caído
+  // dejaba los skeletons para siempre. `error` lleva { message, code } con el
+  // código reportable (utils/errorCodes) para poder mostrarlo al usuario.
+  const [status, setStatus] = useState("loading"); // "loading" | "ready" | "error"
+  const [error, setError] = useState(null); // { message, code } | null
 
   // Refs espejo para que toggleLike no dependa de closures obsoletas
   const likedRef = useRef(liked);
@@ -59,44 +66,75 @@ export function useLibrary() {
     likedMetaRef.current = likedMeta;
   }, [likedMeta]);
 
+  // ── Carga de la biblioteca (montaje + refresco) ──────────────────────────
+  //    `silent` = refresco en caliente (reconexión): NO vuelve a "loading"
+  //    para no vaciar la UI con skeletons mientras ya hay datos.
+  const loadLibrary = useCallback(async (silent = false) => {
+    if (!silent) {
+      setStatus("loading");
+      setError(null);
+    }
+
+    const settled = await Promise.allSettled([
+      api.fetchPlaylists(),
+      api.fetchDownloads(),
+      api.fetchHistory(),
+    ]);
+    const [playlistsR, downloadsR, historyR] = settled;
+
+    const freshPlaylists = playlistsR.status === "fulfilled" ? playlistsR.value : [];
+    const freshDownloads = downloadsR.status === "fulfilled" ? downloadsR.value : [];
+    const freshHistory = historyR.status === "fulfilled" ? historyR.value : [];
+
+    setPlaylists(freshPlaylists);
+    setDownloads(freshDownloads);
+    setHistory(freshHistory);
+
+    // Solo hay estado de error si FALLAN LAS TRES: un fallo parcial deja la
+    // biblioteca con los datos que sí llegaron (mejor que bloques la Home).
+    const failures = settled.filter((r) => r.status === "rejected");
+    if (failures.length === settled.length) {
+      const err = failures[0].reason;
+      setError({
+        message: err?.message || "Error de conexión",
+        code: err?.code || DEFAULT_ERROR_CODE,
+      });
+      setStatus("error");
+      return;
+    }
+    setError(null);
+    setStatus("ready");
+
+    // Hidratar metadatos de canciones gustadas que no tienen (likes previos
+    // a sw_liked_meta_v1): historial y descargas son fuentes baratas.
+    try {
+      const ids = new Set(readJson(LIKED_KEY, []));
+      if (ids.size === 0) return;
+      const meta = { ...likedMetaRef.current };
+      const byId = {};
+      for (const s of [...freshHistory, ...freshDownloads]) {
+        if (s?.videoId) byId[s.videoId] = s;
+      }
+      let changed = false;
+      for (const id of ids) {
+        if (!meta[id] && byId[id]) {
+          meta[id] = pickMeta(byId[id]);
+          changed = true;
+        }
+      }
+      if (changed) {
+        writeJson(LIKED_META_KEY, meta);
+        likedMetaRef.current = meta;
+        setLikedMeta(meta);
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     const stored = readJson(LIKED_KEY, []);
     if (stored.length > 0) setLiked(new Set(stored));
-
-    Promise.all([
-      api.fetchPlaylists().catch(() => []),
-      api.fetchDownloads().catch(() => []),
-      api.fetchHistory().catch(() => []),
-    ]).then(([playlists, downloads, history]) => {
-      setPlaylists(playlists);
-      setDownloads(downloads);
-      setHistory(history);
-
-      // Hidratar metadatos de canciones gustadas que no tienen (likes previos
-      // a sw_liked_meta_v1): historial y descargas son fuentes baratas.
-      try {
-        const ids = new Set(readJson(LIKED_KEY, []));
-        if (ids.size === 0) return;
-        const meta = { ...likedMetaRef.current };
-        const byId = {};
-        for (const s of [...history, ...downloads]) {
-          if (s?.videoId) byId[s.videoId] = s;
-        }
-        let changed = false;
-        for (const id of ids) {
-          if (!meta[id] && byId[id]) {
-            meta[id] = pickMeta(byId[id]);
-            changed = true;
-          }
-        }
-        if (changed) {
-          writeJson(LIKED_META_KEY, meta);
-          likedMetaRef.current = meta;
-          setLikedMeta(meta);
-        }
-      } catch {}
-    });
-  }, []);
+    loadLibrary();
+  }, [loadLibrary]);
 
   const toggleLike = useCallback((videoId, song) => {
     if (!videoId) return;
@@ -131,6 +169,13 @@ export function useLibrary() {
     }
   }, []);
 
+  /**
+   * Reconsulta playlists + descargas + historial (silencioso: sin volver a
+   * "loading"). Lo usa el botón "Reintentar" y la reconexión del backend.
+   * @returns {Promise<void>}
+   */
+  const refreshLibrary = useCallback(() => loadLibrary(true), [loadLibrary]);
+
   const mostPlayed = useMemo(() => {
     if (!history || history.length === 0) return [];
     return [...history].sort((a, b) => (b.playCount || 0) - (a.playCount || 0)).slice(0, 20);
@@ -149,5 +194,10 @@ export function useLibrary() {
     toggleLike,
     mostPlayed,
     refreshPlaylists,
+    /** "loading" | "ready" | "error" — estado de la carga inicial/refresco */
+    status,
+    /** { message, code } con el código reportable, o null */
+    error,
+    refreshLibrary,
   };
 }

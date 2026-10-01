@@ -22,6 +22,8 @@ import {
   clearLyricsOverride,
 } from "../utils/lyricsOverrides";
 import { preblurToDataUrl } from "../utils/imageBlur";
+import { codeFromReason } from "../utils/errorCodes";
+import { StatusState } from "./StatusState";
 import { useSettings } from "../contexts/useSettings";
 import { useOverlayLayer, useOverlayActive } from "../hooks/useOverlayLayer";
 import { usePerformance } from "../contexts/PerformanceContext";
@@ -1443,9 +1445,19 @@ export function LyricsView({
   // ── Settings modal ──────────────────────────────────────────────────
   const [showLyricsSettings, setShowLyricsSettings] = useState(false);
   const [reloadCounter, setReloadCounter] = useState(0); // fuerza re-fetch
+  // Código reportable del último fallo al traer la letra: sin esto, un error
+  // de red se mostraba como "Letras no encontradas" (falso negativo).
+  const [lyricsError, setLyricsError] = useState(null);
   // ⭐ Ref (no dispara re-render): marca que el próximo fetch debe saltarse
   //    el cache. Evita el doble disparo que causaba resetear reloadCounter.
   const skipCacheRef = useRef(false);
+
+  // Recargar la letra desde cero (botón del estado de error y del modal).
+  const reloadLyrics = useCallback(() => {
+    clearLyricsOverride(song?.videoId);
+    setReloadCounter((c) => c + 1);
+    skipCacheRef.current = true;
+  }, [song?.videoId]);
 
   // ── Búsqueda de letras ──────────────────────────────────────────────────
   const [searchResults, setSearchResults] = useState(null);
@@ -1552,6 +1564,7 @@ export function LyricsView({
   useEffect(() => {
     if (!open || !song?.videoId) return;
     setLyrics(null);
+    setLyricsError(null);
     setLoading(true);
     setCurrentLine(-1);
     currentLineRef.current = -1;
@@ -1603,7 +1616,12 @@ export function LyricsView({
         }
         processLyricsData(data);
       })
-      .catch(() => setLyrics([]))
+      .catch((err) => {
+        // Fallo real (red/servidor): se marca con su código para que no se
+        // confunda con "la canción no tiene letra".
+        setLyricsError(err?.code || codeFromReason(err?.message));
+        setLyrics([]);
+      })
       .finally(() => {
         setLoading(false);
         // ⭐ Reset via REF (no state): no re-dispara el efecto → sin doble fetch
@@ -2192,9 +2210,7 @@ export function LyricsView({
           onReload={() => {
             // Recargar = volver a la fuente automática: descarta la letra
             // elegida/buscada por el usuario para esta canción.
-            clearLyricsOverride(song?.videoId);
-            setReloadCounter((c) => c + 1);
-            skipCacheRef.current = true;
+            reloadLyrics();
             setShowLyricsSettings(false);
           }}
           song={song}
@@ -2532,22 +2548,35 @@ export function LyricsView({
         >
           {loading && <SkeletonLyrics fontSize={lyricsFontSize} accentColor={accentColor} />}
 
-          {!loading && (!lyrics || (Array.isArray(lyrics) && lyrics.length === 0)) && (
-            <div
-              style={{
-                fontSize: "20px",
-                color: COLORS.textMuted,
-                fontWeight: "700",
-                textAlign: "center",
-                paddingTop: "120px",
-              }}
-            >
-              <div style={{ marginBottom: "24px", opacity: 0.3, transform: "scale(1.8)" }}>
-                {Ic.mic}
-              </div>
-              Letras no encontradas para esta canción
-            </div>
+          {/* Fallo al traer la letra: estado de error con CÓDIGO + Recargar
+              (separate de "Letras no encontradas": eso es ausencia real). */}
+          {!loading && lyricsError && (
+            <StatusState
+              compact
+              code={lyricsError}
+              onRetry={reloadLyrics}
+              accentColor={accentColor}
+            />
           )}
+
+          {!loading &&
+            !lyricsError &&
+            (!lyrics || (Array.isArray(lyrics) && lyrics.length === 0)) && (
+              <div
+                style={{
+                  fontSize: "20px",
+                  color: COLORS.textMuted,
+                  fontWeight: "700",
+                  textAlign: "center",
+                  paddingTop: "120px",
+                }}
+              >
+                <div style={{ marginBottom: "24px", opacity: 0.3, transform: "scale(1.8)" }}>
+                  {Ic.mic}
+                </div>
+                Letras no encontradas para esta canción
+              </div>
+            )}
 
           {!loading && isSynced && Array.isArray(lyrics) && (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>

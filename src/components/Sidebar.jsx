@@ -56,7 +56,7 @@ export const Sidebar = React.memo(function Sidebar({
               color: "rgba(255,255,255,.92)",
             }}
           >
-            SoundWave
+            OpenWave
           </span>
         </div>
         {/* ── Settings button — Apple-style: circle with subtle glass ── */}

@@ -1,4 +1,4 @@
-"""SoundWave Backend — Obtención de letras desde múltiples fuentes."""
+"""OpenWave Backend — Obtención de letras desde múltiples fuentes."""
 
 import asyncio
 import os
@@ -34,7 +34,7 @@ async def search_lyrics(title: str = "", artist: str = "", source: str = "lrclib
                 r = await client.get(
                     "https://lrclib.net/api/search",
                     params={"artist_name": artist, "track_name": title},
-                    headers={"Lrclib-Client": "SoundWave/1.0"},
+                    headers={"Lrclib-Client": "OpenWave/1.0"},
                 )
                 r.raise_for_status()
                 data = r.json()
@@ -109,7 +109,7 @@ async def search_lyrics(title: str = "", artist: str = "", source: str = "lrclib
                     params={"q": f"{artist} {title}", "per_page": 10},
                     headers={
                         "Authorization": f"Bearer {GENIUS_TOKEN}",
-                        "User-Agent": "SoundWave/1.0",
+                        "User-Agent": "OpenWave/1.0",
                     },
                 )
                 search_r.raise_for_status()
@@ -260,8 +260,8 @@ async def get_lyrics(video_id: str, title: str = "", artist: str = ""):
                 timeout=10,
                 follow_redirects=True,
                 headers={
-                    "Lrclib-Client": "SoundWave/1.0",
-                    "User-Agent": "SoundWave/1.0",
+                    "Lrclib-Client": "OpenWave/1.0",
+                    "User-Agent": "OpenWave/1.0",
                 },
             ) as client:
                 # Exact match

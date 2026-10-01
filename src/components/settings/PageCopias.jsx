@@ -22,7 +22,7 @@ export function PageCopias({ neonColor, liked, history, playlists, toast }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `soundwave-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `openwave-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
       toast("Datos exportados", "success");

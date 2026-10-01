@@ -1,4 +1,4 @@
-"""SoundWave Backend — Base de datos SQLite."""
+"""OpenWave Backend — Base de datos SQLite."""
 
 import atexit
 import json

@@ -1,4 +1,4 @@
-"""SoundWave Backend — Rutas de historial."""
+"""OpenWave Backend — Rutas de historial."""
 
 import asyncio
 

@@ -1,4 +1,4 @@
-# 📦 Instalador MSI de SoundWave
+# 📦 Instalador MSI de OpenWave
 
 Instalador de Windows en español (es-ES) con flujo **«siguiente, siguiente,
 siguiente»**: aceptación de licencia, selector de carpeta con `Browse`,
@@ -26,7 +26,7 @@ Y para cada build:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package-windows.ps1
 ```
 
-Sale en `build\windows\SoundWave-<versión>-x64-es-ES.msi` (y el MSI «crudo»
+Sale en `build\windows\OpenWave-<versión>-x64-es-ES.msi` (y el MSI «crudo»
 de Tauri sigue quedando en `src-tauri\target\release\bundle\msi\`).
 
 Desde WSL se puede disparar todo sin cambiar de terminal (la copia de trabajo
@@ -47,7 +47,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass \
 | 2 | `scripts/prepare-runtime.ps1` | `build/staging/{backend,runtime,ffmpeg}` |
 | 3 | `npx tauri build --bundles msi` | Compila y enlaza el MSI |
 | 3b | `scripts/msi-postprocess.ps1` | Tipografía del MSI enlazado: títulos sin negrita, `WixUI_Font_Bigger` a 11 pt |
-| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (47 checks) |
+| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (49 checks) |
 
 `prepare-runtime.ps1` es idempotente: deja `build/staging/.ready` y solo se
 vuelve a ejecutar si cambia `backend/requirements-runtime.txt` o con `-Force`.
@@ -92,36 +92,41 @@ con el hash esperado y el obtenido para que se actualice el pin.
 | `scripts/prepare-runtime.ps1` | Python embebido + deps + ffmpeg → `build/staging/` |
 | `scripts/msi-postprocess.ps1` | UPDATE de `TextStyle` en el MSI ya enlazado (sin negrita en títulos) |
 | `scripts/package-windows.ps1` | Orquesta todo, post-procesa y renombra el MSI |
-| `scripts/verify-msi.ps1` | Lee las tablas del MSI por COM y ejecuta las 47 comprobaciones |
+| `scripts/verify-msi.ps1` | Lee las tablas del MSI por COM y ejecuta las 49 comprobaciones |
 
 ### Estructura instalada
 
 ```
-C:\Program Files\SoundWave\
-├── SoundWave.exe
+C:\Program Files\OpenWave\
+├── OpenWave.exe
 ├── LICENSE
 ├── backend\            ← solo código .py (sin tests ni cachés)
 ├── runtime\            ← python.exe + Lib\site-packages (sin pip)
 └── ffmpeg\ffmpeg.exe
 ```
 
-Los datos **nunca** van en `Program Files`, sino en
-`%LOCALAPPDATA%\SoundWave` (descargas, cubiertos, letras, caché de stream,
-base de datos y log), así la app funciona sin privilegios y sobrevive a
-desinstalar/reinstalar.
+Los datos **nunca** van en `Program Files`, sino en `C:\ProgramData\OpenWave`
+(descargas, cubiertos, letras, caché de stream, base de datos, copias de
+seguridad y log — «Datos de Programas»), así la app funciona sin privilegios
+y sobrevive a desinstalar/reinstalar. En la primera ejecución se crea esa
+carpeta (un usuario sin privilegios puede crearla: verificado) y se migran
+automáticamente los datos de la ubicación anterior
+(`%LOCALAPPDATA%\OpenWave` o `%LOCALAPPDATA%\SoundWave` de versiones previas).
+Las preferencias y listas viven además en el perfil WebView2 del usuario
+(`localStorage`).
 
 ### Ciclo de vida del backend
 
 El servidor Python **va dentro del MSI** (todo `backend\`, `runtime\` y
 `ffmpeg\` son filas de la tabla `File`, y `verify-msi.ps1` lo exige con tres
 checks de payload), y no hay nada que arrancar a mano: lo gestiona el propio
-`SoundWave.exe` (`src-tauri/src/lib.rs`).
+`OpenWave.exe` (`src-tauri/src/lib.rs`).
 
 1. **Al abrir la app** (`setup`), si `127.0.0.1:8765` no responde ya, lanza
    en segundo plano `runtime\python.exe backend\main.py` (con consola
-   oculta), `SOUNDWAVE_DATA_DIR=%LOCALAPPDATA%\SoundWave` y `runtime\` y
+   oculta), `OPENWAVE_DATA_DIR=C:\ProgramData\OpenWave` y `runtime\` y
    `ffmpeg\` delante en `PATH`; después espera hasta 15 s a que
-   `GET /health` conteste `SoundWave` antes de dar por buena la conexión.
+   `GET /health` conteste `OpenWave` antes de dar por buena la conexión.
 2. **Si el puerto ya responde** (otra instancia abierta, o un backend que
    sobrevivió a un cierre brusco), no lanza otro: reutiliza ese.
 3. **Al cerrar la ventana** (`CloseRequested`) hace `child.kill()` sobre
@@ -130,7 +135,7 @@ checks de payload), y no hay nada que arrancar a mano: lo gestiona el propio
    el paso 2 lo reutiliza en el siguiente arranque.
 
 El stderr del backend (arranques, tracebacks, warmup) cae en
-`%LOCALAPPDATA%\SoundWave\backend.err.log`.
+`C:\ProgramData\OpenWave\backend.err.log`.
 
 ---
 
@@ -197,13 +202,39 @@ El stderr del backend (arranques, tracebacks, warmup) cae en
   base hay que abrirla en **modo lectura/escritura (1)**; el 0 es de solo
   lectura y todo `UPDATE` falla en `Execute`.
 
-- **Los gráficos del asistente son nuestros** (`wix.bannerPath` /
-  `wix.dialogImagePath` → `build/windows/{banner,dialog}.bmp`, que genera
-  `scripts/generate-installer-art.ps1` en el paso 1b): banda clara a la
-  izquierda para que el título negro de WixUI se lea, marca (barras de
-  ecualizador) solo en `x ≥ 412`, y panel violeta con logotipo en la columna
-  izquierda de la imagen de diálogo (los controles de texto arrancan en
-  `x = 180 px`), dejando libre la zona blanca de la derecha.
+- **Los gráficos del asistente son nuestros, pero sin logo** (`wix.bannerPath`
+  / `wix.dialogImagePath` → `build/windows/{banner,dialog}.bmp`, que genera
+  `scripts/generate-installer-art.ps1` en el paso 1b): banda clara con un
+  filete para que el título negro de WixUI se lea, y panel violeta liso —sin
+  logotipo ni texto, por petición del usuario— en la columna izquierda de la
+  imagen de diálogo (los controles de texto arrancan en `x = 180 px`),
+  dejando libre la zona blanca de la derecha.
+
+- **`upgradeCode` fijado a mano en `tauri.conf.json`** (`25B18CFC-...`).
+  Si no se fija, Tauri lo deriva de `productName` (uuid v5 sobre
+  `<productName>.exe.app.x64`): al renombrar la app de SoundWave a OpenWave
+  el MSI habría cambiado de identidad y Windows habría visto dos programas
+  distintos (instalación duplicada, sin actualización). Con el GUID fijado,
+  el build nuevo hace MajorUpgrade sobre la SoundWave instalada.
+
+- **El `identifier` `com.soundwave.app` NO se renombra.** De él derivan el
+  perfil de WebView2 (`%LOCALAPPDATA%\com.soundwave.app`, donde vive el
+  `localStorage`: listas, ajustes, biblioteca), el `manufacturer` de WiX
+  (`HKCU\Software\soundwave\...`) y el AppUserModelID; cambiarlo supondría
+  perder los datos del usuario. La marca visible (nombre, `.exe`, ventanas,
+  documentos) sí es OpenWave.
+
+- **Los datos viven en «Datos de Programas» (`C:\ProgramData\OpenWave`).**
+  `config._datos_dir()` y `lib.rs::resolver_data_dir()` añaden esa rama con
+  un gate que crea la carpeta y comprueba que se puede escribir, con fallback
+  a `%LOCALAPPDATA%\OpenWave`. El instalador NO crea la carpeta: una creada
+  por el MSI elevado quedaría en manos de Administradores y los usuarios
+  normales no podrían escribir en ella; en cambio un usuario sin privilegios
+  SÍ puede crear subcarpetas en `C:\ProgramData` (verificado) y queda como
+  propietario con control total. En el primer arranque se migran los datos
+  antiguos (`%LOCALAPPDATA%\OpenWave` y la carpeta `SoundWave` de versiones
+  previas, con `soundwave.db` → `openwave.db`) sin borrar el origen y con
+  marcador `.migrated.json`.
 
 ---
 
@@ -214,22 +245,22 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 ### Asistente
 
 1. Doble clic en el MSI → diálogo de Control de cuentas de usuario (Sí).
-2. **Bienvenida** en español, con la imagen de marca de SoundWave (panel
+2. **Bienvenida** en español, con la imagen de marca de OpenWave (panel
    violeta con el logotipo) a la izquierda.
 3. **Términos y licencia**: aparece `TERMINOS.txt` y después la GPL en español,
    a 9 pt y con interlineado compacto (sin el salto enorme de versiones
    anteriores); el botón «Siguiente» está **deshabilitado** hasta marcar
    «Acepto los términos».
-4. **Carpeta de destino**: `C:\Program Files\SoundWave`, con botón
+4. **Carpeta de destino**: `C:\Program Files\OpenWave`, con botón
    `Examinar...` que abre el diálogo de selección de carpeta.
 5. **Opciones de instalación**: tres casillas
    - [x] Crear un acceso directo en el menú inicio
    - [x] Crear un acceso directo en el escritorio
-   - [ ] Iniciar SoundWave con Windows  ← **desmarcado por defecto**
+   - [ ] Iniciar OpenWave con Windows  ← **desmarcado por defecto**
 6. **Listo para instalar** → «Instalar»: la página de progreso muestra
    **textos de estado** («Copiando archivos nuevos», «Archivo: …, directorio:
    …») sobre la barra, no solo la barra.
-7. **Finalizar**: casilla «Iniciar SoundWave al terminar la instalación»
+7. **Finalizar**: casilla «Iniciar OpenWave al terminar la instalación»
    marcada por defecto.
 8. Los títulos de cada página se ven **sin negrita** y a un tamaño
    proporcionado (tipografía corregida con `msi-postprocess.ps1`).
@@ -238,18 +269,20 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 
 9. La app arranca y la ventana carga sin errores de backend.
 10. Accesos directos creados en el escritorio y en
-    `Inicio ▸ SoundWave`, ambos apuntando al `.exe` instalado.
+    `Inicio ▸ OpenWave`, ambos apuntando al `.exe` instalado.
 11. Con la tercera casilla marcada: aparece
-    `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\SoundWave` y la app
+    `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\OpenWave` y la app
     arranca tras reiniciar. Sin marcar: la clave no existe.
 12. **Descarga MP3** y **calidad «Baja»** funcionan (usa `ffmpeg\ffmpeg.exe`).
-13. Los datos aparecen en `%LOCALAPPDATA%\SoundWave` y **no** en
-    `Program Files\SoundWave` (ni `soundwave.db`, ni `downloads\`).
+13. Los datos aparecen en `C:\ProgramData\OpenWave` y **no** en
+    `Program Files\OpenWave` (ni `openwave.db`, ni `downloads\`). Si había
+    datos en la ubicación antigua (`%LOCALAPPDATA%\OpenWave` o
+    `%LOCALAPPDATA%\SoundWave`), se migran automáticamente al primer arranque.
 14. Desinstalar desde «Aplicaciones» de Windows:
     - desaparecen los accesos directos,
-    - se borra `C:\Program Files\SoundWave` (INCLUIDA la carpeta),
+    - se borra `C:\Program Files\OpenWave` (INCLUIDA la carpeta),
     - se borra la clave de inicio con Windows si se creó,
-    - **queda** `%LOCALAPPDATA%\SoundWave` (los datos no se pierden).
+    - **queda** `C:\ProgramData\OpenWave` (los datos no se pierden).
 15. Reinstalar por encima (misma versión) funciona; instalar una versión
     **inferior** sobre una superior debe mostrar el mensaje de error de
     actualización en español.
@@ -272,7 +305,7 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 - `ruff check backend/ && python -m pytest` en `backend/` (337 tests).
 - `npm test` (frontend).
 - Tras recompilar: `powershell -ExecutionPolicy Bypass -File scripts\verify-msi.ps1`
-  → 47 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
+  → 49 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
   el modo mantenimiento, valores por defecto de las casillas, licencia embebida,
   textos de progreso de `ActionText`, tipografía de `TextStyle`, gráficos de
   marca, limpieza de INSTALLDIR, payload: backend + Python embebido + ffmpeg y
@@ -325,7 +358,7 @@ hacía `sys.path.insert(0, os.getcwd())` con cwd = `backend\`, que reproducía
 un entorno que la app instalada nunca tiene — por eso no cazó el fallo.
 
 **`package-windows.ps1` falla con «El puerto 8765 ya esta en uso».** El smoke
-test necesita arrancar el backend: cierra SoundWave y vuelve a ejecutar.
+test necesita arrancar el backend: cierra OpenWave y vuelve a ejecutar.
 
 **`dark.exe` dice que faltan filas (DARK1059) y solo ve 1 diálogo.** El
 descompilador de WiX decompila mal la UI de este MSI: emite solo `OptionsDlg`

@@ -18,6 +18,7 @@ import SongRow from "./SongRow";
 import AlbumCardRow from "./AlbumCardRow";
 import ArtistCardPill from "./ArtistCardPill";
 import { SearchBar } from "./SearchBar";
+import { StatusState } from "./StatusState";
 
 export default function SearchView({
   query,
@@ -33,6 +34,11 @@ export default function SearchView({
   videoResults,
   videoLoading,
   videoError,
+  videoErrorCode,
+  // Error de la búsqueda musical (useSearch): { message, code } con el
+  // código reportable. Sin esto el fallo se mostraba como "Sin resultados".
+  searchError = null,
+  onRetrySearch,
   currentSong,
   accentColor,
   playSong,
@@ -166,7 +172,20 @@ export default function SearchView({
             </div>
           )}
 
+          {/* Estado de error: código reportable + Reintentar. Se separa del
+              "Sin resultados": un fallo de conexión NO es una búsqueda vacía. */}
+          {!searching && searchError && (
+            <StatusState
+              compact
+              code={searchError.code}
+              message={searchError.message}
+              onRetry={onRetrySearch}
+              accentColor={accentColor}
+            />
+          )}
+
           {!searching &&
+            !searchError &&
             results.length === 0 &&
             searchArtists.length === 0 &&
             searchAlbums.length === 0 &&
@@ -354,17 +373,13 @@ export default function SearchView({
             </div>
           )}
           {videoError && (
-            <div
-              style={{
-                padding: "20px",
-                textAlign: "center",
-                color: COLORS.errorText,
-                fontSize: "13px",
-                fontWeight: "600",
-              }}
-            >
-              Error: {videoError}
-            </div>
+            <StatusState
+              compact
+              code={videoErrorCode}
+              message={videoError}
+              onRetry={onRetrySearch}
+              accentColor={accentColor}
+            />
           )}{" "}
           {!videoLoading && !videoError && videoResults.length === 0 && query && (
             <div

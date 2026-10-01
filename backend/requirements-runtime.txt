@@ -1,4 +1,4 @@
-# Dependencias en tiempo de EJECUCIÓN de SoundWave (lo que empaqueta el
+# Dependencias en tiempo de EJECUCIÓN de OpenWave (lo que empaqueta el
 # instalador en `runtime/Lib/site-packages`). Pines exactos para que el MSI
 # sea reproducible; el cierre completo de transitivos está incluido.
 #

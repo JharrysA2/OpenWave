@@ -31,7 +31,7 @@ export function TitleBar() {
           alignSelf: "center",
         }}
       >
-        SoundWave
+        OpenWave
       </span>
       <div style={{ display: "flex", alignItems: "stretch" }}>
         {/* ── Window controls — square, flush, full title-bar height like Windows ── */}

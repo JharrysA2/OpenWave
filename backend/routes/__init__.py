@@ -1,4 +1,4 @@
-"""SoundWave Backend — Agregador de rutas."""
+"""OpenWave Backend — Agregador de rutas."""
 
 from fastapi import APIRouter
 

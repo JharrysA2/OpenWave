@@ -1,7 +1,8 @@
 import { API } from "../constants";
+import { codeForHttp, codeFromReason } from "./errorCodes";
 
 /**
- * SoundWave — Estado de conexión con el backend
+ * OpenWave — Estado de conexión con el backend
  *
  * Store agnóstico de React (patrón external store) que centraliza:
  *
@@ -17,7 +18,7 @@ import { API } from "../constants";
  *      suscriptores (`subscribeReconnect`) para refrescar datos cacheados.
  *
  * Uso desde React:
- *   const { online, checking } = useBackendStatus();
+ *   const { online, checking, booting, code } = useBackendStatus();
  *
  * Uso fuera de React:
  *   const unsub = subscribeReconnect(() => api.clearCache());
@@ -38,16 +39,30 @@ export const HIDDEN_ONLINE_INTERVAL_MS = 60_000;
 export const HIDDEN_OFFLINE_INTERVAL_MS = 10_000;
 /** Timeout del propio health-check. */
 export const HEALTH_TIMEOUT_MS = 4_000;
+/**
+ * Timeout del PRIMER chequeo (arranque): corto a propósito para que la
+ * pantalla de inicio se resuelva rápido con el backend caído (en vez de
+ * esperar los 4s del chequeo normal o los 20s del primer latido).
+ */
+export const BOOT_TIMEOUT_MS = 3_000;
 
 const INITIAL_STATE = {
   /** ¿El backend respondió la última vez que supimos de él? */
   online: true,
   /** ¿Hay un health-check en vuelo ahora mismo? */
   checking: false,
+  /**
+   * ¿Estamos aún en el arranque (hasta que termine el primer chequeo)?
+   * La UI lo usa para la pantalla de inicio: sin él, el estado decía
+   * "online" (optimista) hasta el primer latido a +20 s.
+   */
+  booting: true,
   /** Timestamp del último resultado positivo. */
   lastCheckAt: 0,
   /** Último error de conexión registrado (null si todo bien). */
   error: null,
+  /** Código reportable del último error (catálogo utils/errorCodes). */
+  code: null,
   /** Cuántas veces se recuperó la conexión en esta sesión. */
   reconnects: 0,
 };
@@ -93,15 +108,20 @@ export function subscribeReconnect(listener) {
  * Marca el backend como caído. Lo llaman tanto `api.js` (error de red) como
  * el heartbeat.
  * @param {string} reason
+ * @param {string} [code] - código reportable (utils/errorCodes). Si no llega,
+ *   se deriva del motivo ("Timeout" → E-CNX-02, "HTTP 503" → E-INT-00…).
  * @returns {boolean} true si hubo cambio de estado (estaba online).
  */
-export function markOffline(reason = "Error de conexión") {
+export function markOffline(reason = "Error de conexión", code) {
+  const nextCode = code || codeFromReason(reason);
   if (!state.online) {
     // Ya estaba offline: solo actualizamos el motivo si cambió.
-    if (state.error !== reason) patch({ error: reason });
+    if (state.error !== reason || state.code !== nextCode) {
+      patch({ error: reason, code: nextCode });
+    }
     return false;
   }
-  patch({ online: false, error: reason });
+  patch({ online: false, error: reason, code: nextCode });
   // Al caerse el backend queremos reintentar YA (no esperar los 20s del
   // siguiente latido): se reprograma el timer pendiente al intervalo corto.
   rescheduleIfNeeded();
@@ -125,6 +145,7 @@ export function markOnline() {
   patch({
     online: true,
     error: null,
+    code: null,
     lastCheckAt: Date.now(),
     reconnects: recovered ? state.reconnects + 1 : state.reconnects,
   });
@@ -157,17 +178,20 @@ export async function checkHealth({ timeout = HEALTH_TIMEOUT_MS } = {}) {
   try {
     const resp = await fetch(`${API}${HEALTH_PATH}`, { signal: controller.signal });
     if (!resp.ok) {
-      markOffline(`HTTP ${resp.status}`);
+      markOffline(`HTTP ${resp.status}`, codeForHttp(resp.status));
       return false;
     }
     markOnline();
     return true;
   } catch (err) {
-    markOffline(err?.name === "AbortError" ? "Timeout" : "Error de conexión");
+    if (err?.name === "AbortError") markOffline("Timeout", "E-CNX-02");
+    else markOffline("Error de conexión", "E-CNX-01");
     return false;
   } finally {
     clearTimeout(timer);
-    patch({ checking: false });
+    // Primer chequeo terminado → fin del arranque (la UI puede salir de la
+    // pantalla de inicio con el resultado real: online o error + código).
+    patch({ checking: false, booting: false });
   }
 }
 
@@ -221,13 +245,20 @@ function handleVisibilityChange() {
   if (!isPageHidden()) void checkHealth();
 }
 
-/** Arranca el heartbeat (idempotente). */
+/**
+ * Arranca el heartbeat (idempotente).
+ *
+ * El primer chequeo es INMEDIATO (timeout corto): sin él el estado arrancaba
+ * "online" (optimista) y no se sabía de verdad si el backend vivía hasta el
+ * primer latido a +20 s, con lo que la UI quedaba en skeleton eterno.
+ */
 export function startHeartbeat() {
   if (running) return;
   running = true;
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", handleVisibilityChange);
   }
+  void checkHealth({ timeout: BOOT_TIMEOUT_MS });
   schedule();
 }
 

@@ -232,9 +232,14 @@ describe("LyricsView", () => {
       return Promise.reject(new Error("Network error"));
     });
     renderLyrics();
+    // Un fallo real NO se muestra como "Letras no encontradas": lleva su
+    // propio estado con el código reportable + Recargar.
     await waitFor(() => {
-      expect(screen.getByText("Letras no encontradas para esta canción")).toBeInTheDocument();
+      expect(screen.getByTestId("status-state")).toBeInTheDocument();
     });
+    expect(screen.getByTestId("error-code")).toHaveTextContent("E-CNX-01");
+    expect(screen.getByText(/Reintentar/)).toBeInTheDocument();
+    expect(screen.queryByText("Letras no encontradas para esta canción")).not.toBeInTheDocument();
   });
 
   // ── Queue (la cola viene del prop, no de API en LyricsView) ────────────

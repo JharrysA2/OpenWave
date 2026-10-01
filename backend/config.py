@@ -1,6 +1,8 @@
-"""SoundWave Backend — Configuración y paths."""
+"""OpenWave Backend — Configuración y paths."""
 
 import os
+import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -13,18 +15,20 @@ load_dotenv(PROJECT_DIR / ".env")
 
 
 def _dir_escribible(path: Path) -> bool:
-    """¿Se puede crear un archivo dentro de `path`?
+    """¿Se puede crear y escribir dentro de `path`?
 
-    Se comprueba escribiendo de verdad en el ancestro existente más cercano:
-    en Windows `os.access` miente con las ACLs de Program Files y con
-    directorios que aún no existen.
+    Crea `path` (y sus padres) si falta y comprueba la escritura de verdad
+    dentro: en Windows `os.access` miente con las ACLs de Program Files y
+    con directorios que aún no existen.
     """
-    probe_dir = path
-    while not probe_dir.exists() and probe_dir != probe_dir.parent:
-        probe_dir = probe_dir.parent
     try:
-        probe_dir.mkdir(parents=True, exist_ok=True)
-        probe = probe_dir / f".soundwave-write-test-{os.getpid()}"
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        # Ni siquiera se puede crear el directorio (ancestro que es un
+        # fichero, sin permisos, unidad de solo lectura…).
+        return False
+    try:
+        probe = path / f".openwave-write-test-{os.getpid()}"
         probe.write_text("", encoding="utf-8")
         probe.unlink()
         return True
@@ -32,35 +36,61 @@ def _dir_escribible(path: Path) -> bool:
         return False
 
 
-def _datos_dir() -> Path:
-    """Directorio de datos de la aplicación.
+def _resolver_datos_dir(
+    base_dir: Path, entorno: Mapping[str, str], es_windows: bool
+) -> Path:
+    """Elegir la raíz de datos a partir del entorno (ver `_datos_dir`).
 
-    - `SOUNDWAVE_DATA_DIR` (variable de entorno o `.env`) manda siempre:
-      lo usan tests, depuración y quien quiera mover las descargas.
-    - En desarrollo (código en un repo, escribible) los datos van junto al
-      código, como siempre: `backend/downloads`, `backend/soundwave.db`, etc.
-    - En la instalación de Windows el código vive en `Program Files` (no
-      escribible) y los datos pasan a `%LOCALAPPDATA%\\SoundWave`: descargas,
-      cubiertos, letras, caché de stream, base de datos y log. Así la app
-      funciona sin privilegios y sobrevive a desinstalar/reinstalar.
+    Separado de la lectura real del proceso para poder testear la rama de
+    Windows («Datos de Programas») también en Linux, sin tocar `os.name`
+    (pathlib se rompería) ni el entorno global.
     """
-    env = os.environ.get("SOUNDWAVE_DATA_DIR")
+    env = entorno.get("OPENWAVE_DATA_DIR")
     if env:
         return Path(env)
 
-    if _dir_escribible(BASE_DIR):
-        return BASE_DIR
+    if _dir_escribible(base_dir):
+        return base_dir
 
-    if os.name == "nt":
-        base = os.environ.get("LOCALAPPDATA") or str(
+    if es_windows:
+        # «Datos de Programas»: raíz compartida por la máquina, no depende
+        # del usuario y sobrevive a desinstalar/reinstalar. Solo si se puede
+        # crear y escribir de verdad (_dir_escribible crea la carpeta).
+        program_data = entorno.get("PROGRAMDATA")
+        if program_data:
+            candidato = Path(program_data) / "OpenWave"
+            if _dir_escribible(candidato):
+                return candidato
+        # Fallback por usuario: funciona sin privilegios.
+        base = entorno.get("LOCALAPPDATA") or str(
             Path.home() / "AppData" / "Local"
         )
-        return Path(base) / "SoundWave"
+        return Path(base) / "OpenWave"
 
-    base = os.environ.get("XDG_DATA_HOME") or str(
+    base = entorno.get("XDG_DATA_HOME") or str(
         Path.home() / ".local" / "share"
     )
-    return Path(base) / "SoundWave"
+    return Path(base) / "OpenWave"
+
+
+def _datos_dir() -> Path:
+    """Directorio de datos de la aplicación.
+
+    - `OPENWAVE_DATA_DIR` (variable de entorno o `.env`) manda siempre:
+      lo usan tests, depuración y quien quiera mover las descargas.
+    - En desarrollo (código en un repo, escribible) los datos van junto al
+      código, como siempre: `backend/downloads`, `backend/openwave.db`, etc.
+    - En la instalación de Windows el código vive en `Program Files` (no
+      escribible) y los datos van a «Datos de Programas»,
+      `%PROGRAMDATA%\\OpenWave`: descargas, cubiertos, letras, caché de
+      stream, base de datos y log. Así comparten raíz con el resto de
+      programas, no dependen de la cuenta y sobreviven a desinstalar y
+      reinstalar la app.
+    - Si ProgramData no estuviera disponible/escribible, a
+      `%LOCALAPPDATA%\\OpenWave` (fallo sin privilegios).
+    - En el resto de sistemas, a XDG (`$XDG_DATA_HOME/OpenWave`).
+    """
+    return _resolver_datos_dir(BASE_DIR, os.environ, es_windows=os.name == "nt")
 
 
 DATA_DIR = _datos_dir()
@@ -69,17 +99,29 @@ DATA_DIR = _datos_dir()
 MUSIC_DIR = DATA_DIR / "downloads"
 COVERS_DIR = MUSIC_DIR / "covers"
 LYRICS_DIR = DATA_DIR / "lyrics"
-DB_FILE = DATA_DIR / "soundwave.db"
+DB_FILE = DATA_DIR / "openwave.db"
 URL_CACHE_FILE = DATA_DIR / "url_cache.json"
 # Audio re-codificado para "Calidad de reproducción: Baja" (~64 kb/s).
 # Es una caché derivada (se puede regenerar), NO son las descargas del usuario.
 STREAM_CACHE_DIR = DATA_DIR / "stream_cache"
 
-# Crear directorios si no existen
-MUSIC_DIR.mkdir(parents=True, exist_ok=True)
-COVERS_DIR.mkdir(parents=True, exist_ok=True)
-LYRICS_DIR.mkdir(parents=True, exist_ok=True)
-STREAM_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+# Caché de yt-dlp (respuestas de extractor, nsig…). También caché derivada y
+# también dentro del directorio de datos: sin esto, yt-dlp la escribiría en
+# `%USERPROFILE%\.cache\yt-dlp` (o `$XDG_CACHE_HOME`), fuera de la raíz de
+# la aplicación.
+YT_DLP_CACHE_DIR = DATA_DIR / "yt-dlp-cache"
+
+# Crear directorios si no existen. Un fallo de permisos aquí NO debe tumbar
+# el import entero: mejor degradar (la app arranca y avisará al escribir)
+# antes que dejar el backend sin arrancar ni siquiera para mostrar el error.
+for _dir in (MUSIC_DIR, COVERS_DIR, LYRICS_DIR, STREAM_CACHE_DIR, YT_DLP_CACHE_DIR):
+    try:
+        _dir.mkdir(parents=True, exist_ok=True)
+    except OSError as _e:
+        print(
+            f"[openwave] No se pudo crear el directorio de datos {_dir}: {_e}",
+            file=sys.stderr,
+        )
 
 # TTLs de caché
 CACHE_TTL = 6 * 3600  # 6 horas para URLs de stream

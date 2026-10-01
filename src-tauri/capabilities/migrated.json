@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default permissions for SoundWave",
+  "description": "Default permissions for OpenWave",
   "windows": ["main"],
   "permissions": [
     "core:default",

@@ -293,4 +293,47 @@ describe("SearchView", () => {
     fireEvent.click(screen.getByText("Song v1"));
     expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "v1" }));
   });
+
+  // ── Estados de error con código reportable ────────────────────────────
+
+  it("un fallo de búsqueda NO muestra 'Sin resultados' sino el estado de error", () => {
+    const onRetrySearch = vi.fn();
+    renderSearch({
+      query: "test",
+      results: [],
+      searchError: { message: "Failed to fetch", code: "E-CNX-01" },
+      onRetrySearch,
+    });
+
+    expect(screen.getByTestId("status-state")).toBeInTheDocument();
+    expect(screen.getByTestId("error-code")).toHaveTextContent("E-CNX-01");
+    expect(screen.queryByText(/Sin resultados/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("status-retry"));
+    expect(onRetrySearch).toHaveBeenCalledTimes(1);
+  });
+
+  it("el estado de error de búsqueda prioriza el mensaje propio", () => {
+    renderSearch({
+      query: "test",
+      searchError: { message: "boom detail", code: "E-INT-00" },
+    });
+    expect(screen.getByText("boom detail")).toBeInTheDocument();
+    expect(screen.getByTestId("error-code")).toHaveTextContent("E-INT-00");
+  });
+
+  it("el error de videos muestra su código reportable (E-YTM-01)", () => {
+    renderSearch({
+      searchTab: "videos",
+      videoError: "YTMusic no disponible",
+      videoErrorCode: "E-YTM-01",
+    });
+    expect(screen.getByText(/YTMusic no disponible/)).toBeInTheDocument();
+    expect(screen.getByTestId("error-code")).toHaveTextContent("E-YTM-01");
+  });
+
+  it("el error de videos sin código cae al por defecto (E-UI-00)", () => {
+    renderSearch({ searchTab: "videos", videoError: "Network error" });
+    expect(screen.getByTestId("error-code")).toHaveTextContent("E-UI-00");
+  });
 });

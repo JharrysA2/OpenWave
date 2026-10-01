@@ -34,11 +34,11 @@ test.describe("Player Bar", () => {
     await page.goto("/");
   });
 
-  test("debe mostrar el título SoundWave en la barra por defecto", async ({ page }) => {
-    const soundwaveElements = page.getByText("SoundWave");
-    const count = await soundwaveElements.count();
+  test("debe mostrar el título OpenWave en la barra por defecto", async ({ page }) => {
+    const openwaveElements = page.getByText("OpenWave");
+    const count = await openwaveElements.count();
     expect(count).toBeGreaterThanOrEqual(1);
-    await expect(soundwaveElements.first()).toBeVisible();
+    await expect(openwaveElements.first()).toBeVisible();
   });
 
   test("debe mostrar el título y artista al reproducir una canción", async ({ page }) => {

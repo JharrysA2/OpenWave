@@ -1,6 +1,6 @@
 <#
 .SNOPSIS
-  Compila el instalador MSI de SoundWave en Windows (siguiente-siguiente-siguiente).
+  Compila el instalador MSI de OpenWave en Windows (siguiente-siguiente-siguiente).
 
 .DESCRIPTION
   1. scripts\generate-license.ps1 -> build\windows\licencia.txt (texto del
@@ -36,7 +36,7 @@ $confPath = Join-Path $root 'src-tauri\tauri.conf.json'
 
 Push-Location $root
 try {
-    Write-Host '== SoundWave: empaquetado del instalador MSI =='
+    Write-Host '== OpenWave: empaquetado del instalador MSI =='
 
     # ── 0. Prerrequisitos ────────────────────────────────────────────────────
     foreach ($tool in @('node', 'npm', 'cargo')) {
@@ -93,7 +93,7 @@ try {
 
     # ── 4. Post-proceso y resultado ──────────────────────────────────────────
     $msiDir = Join-Path $root "src-tauri\target\release\bundle\msi"
-    $expected = Join-Path $msiDir "SoundWave_${version}_x64_es-ES.msi"
+    $expected = Join-Path $msiDir "OpenWave_${version}_x64_es-ES.msi"
     if (Test-Path -LiteralPath $expected) {
         $msi = Get-Item -LiteralPath $expected
     } else {
@@ -109,7 +109,7 @@ try {
 
     $outDir = Join-Path $root 'build\windows'
     if (-not (Test-Path -LiteralPath $outDir)) { New-Item -ItemType Directory -Force -Path $outDir | Out-Null }
-    $clean = Join-Path $outDir "SoundWave-$version-x64-es-ES.msi"
+    $clean = Join-Path $outDir "OpenWave-$version-x64-es-ES.msi"
     Copy-Item -LiteralPath $msi.FullName -Destination $clean -Force
 
     $size = (Get-Item -LiteralPath $clean).Length

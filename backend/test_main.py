@@ -138,12 +138,133 @@ class TestHealth:
         assert resp.status_code == 200
 
     def test_health_response_structure(self, client):
-        """Health check debe tener status ok y service SoundWave."""
+        """Health check debe tener status ok y service OpenWave."""
         resp = client.get("/health")
         data = resp.json()
-        assert data == {"status": "ok", "service": "SoundWave"}
+        assert data == {"status": "ok", "service": "OpenWave"}
 
     def test_health_response_method(self, client):
         """Solo GET debe funcionar, no POST."""
         resp = client.post("/health")
         assert resp.status_code == 405
+        # Fuera del mapa de códigos: un 4xx tampoco se queda sin `code`
+        assert resp.json()["code"] == "E-REQ-01"
+
+
+class TestErroresConCodigo:
+    """Tests de los handlers globales: todo error lleva un `code` estable.
+
+    El frontend muestra ese código (p. ej. E-INT-00) y el usuario lo cita al
+    reportar el fallo, sin copiar mensajes ni estados HTTP. El `detail` de
+    siempre se mantiene. Se usan rutas SIN rate limit para no consumir
+    presupuesto de otros tests.
+    """
+
+    def test_error_400_lleva_code(self, client):
+        """HTTPException(400) → detail + code E-REQ-01."""
+        resp = client.get("/stream/archivo.txt")
+        assert resp.status_code == 400
+        data = resp.json()
+        assert "detail" in data
+        assert data["code"] == "E-REQ-01"
+
+    def test_error_404_lleva_code(self, client):
+        """HTTPException(404) → detail + code E-REQ-03."""
+        resp = client.get("/stream/nonexistent")
+        assert resp.status_code == 404
+        data = resp.json()
+        assert "detail" in data
+        assert data["code"] == "E-REQ-03"
+
+    def test_error_500_lleva_code(self, client):
+        """HTTPException(500) de una ruta → detail + code E-INT-00."""
+        resp = client.get("/stream-url/nonexistent")
+        assert resp.status_code == 500
+        data = resp.json()
+        assert "detail" in data
+        assert data["code"] == "E-INT-00"
+
+    def test_mapa_de_codigos_nunca_deja_un_error_sin_code(self):
+        """El mapa fija los códigos y el resto cae en un genérico."""
+        from main import CODIGOS_ERROR, _codigo_error
+
+        assert CODIGOS_ERROR == {
+            400: "E-REQ-01",
+            401: "E-REQ-02",
+            403: "E-REQ-02",
+            404: "E-REQ-03",
+            429: "E-REQ-04",
+            500: "E-INT-00",
+            502: "E-SRV-01",
+            503: "E-SRV-01",
+        }
+        assert _codigo_error(422) == "E-REQ-01"  # fuera del mapa → genérico 4xx
+        assert _codigo_error(504) == "E-SRV-01"  # fuera del mapa → genérico 5xx
+
+    def test_excepcion_no_controlada_responde_500_con_code(self):
+        """El handler global de `Exception` también contesta con `code`."""
+        from fastapi.testclient import TestClient
+        from main import app
+
+        async def _boom():
+            raise RuntimeError("fallo interno simulado")
+
+        app.add_api_route("/__test_boom", _boom, methods=["GET"])
+        try:
+            # raise_server_exceptions=False: Starlette re-lanza siempre la
+            # excepción tras mandar la respuesta; aquí nos interesa ésta.
+            resp = TestClient(app, raise_server_exceptions=False).get(
+                "/__test_boom", headers={"Origin": "http://localhost:1420"}
+            )
+            assert resp.status_code == 500
+            data = resp.json()
+            assert data["code"] == "E-INT-00"
+            assert "detail" in data
+            # El detalle interno NO se filtra al cliente
+            assert "fallo interno simulado" not in data["detail"]
+            # Este 500 nace FUERA de CORSMiddleware: sin repetir la cabecera
+            # el webview no podría leer el cuerpo (ni el `code`).
+            assert resp.headers["access-control-allow-origin"] == "http://localhost:1420"
+        finally:
+            app.router.routes = [
+                r
+                for r in app.router.routes
+                if getattr(r, "path", None) != "/__test_boom"
+            ]
+
+    async def test_rate_limit_429_lleva_code(self, mocker):
+        """El 429 de slowapi conserva su payload y solo gana el `code`."""
+        import json
+
+        import main
+        from fastapi import Request
+        from fastapi.responses import JSONResponse
+
+        original = JSONResponse(
+            {"error": "Rate limit exceeded: 5 per 1 minute"},
+            status_code=429,
+            headers={"Retry-After": "42"},
+        )
+        mocker.patch.object(
+            main, "_rate_limit_exceeded_handler", return_value=original
+        )
+        request = Request(
+            {
+                "type": "http",
+                "method": "GET",
+                "scheme": "http",
+                "server": ("testserver", 80),
+                "path": "/health",
+                "query_string": b"",
+                "headers": [],
+                "root_path": "",
+            }
+        )
+        resp = await main._manejo_rate_limit(request, RuntimeError("se ignora"))
+        data = json.loads(resp.body)
+        assert resp.status_code == 429
+        assert data["code"] == "E-REQ-04"
+        assert data["error"] == "Rate limit exceeded: 5 per 1 minute"
+        assert resp.headers["Retry-After"] == "42"
+        # content-length recalculado con el cuerpo nuevo
+        assert int(resp.headers["content-length"]) == len(resp.body)

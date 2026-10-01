@@ -1,4 +1,4 @@
-"""SoundWave Backend — Cachés del reproductor (stats + limpieza)."""
+"""OpenWave Backend — Cachés del reproductor (stats + limpieza)."""
 
 from cache import api_cache, save_url_cache, stream_cache, url_disk_cache
 from config import URL_CACHE_FILE

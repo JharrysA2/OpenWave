@@ -1,7 +1,7 @@
 /**
- * SoundWave Lumina — Design System Tokens
+ * OpenWave Lumina — Design System Tokens
  *
- * Basado en DESIGN.md — SoundWave Lumina Design System.
+ * Basado en DESIGN.md — OpenWave Lumina Design System.
  * Todos los componentes deben importar estos tokens en lugar de
  * valores hardcodeados.
  *
@@ -85,7 +85,7 @@ const PALETTE = {
   // Variants
   surfaceVariant: "#333535",
 
-  // Especiales SoundWave
+  // Especiales OpenWave
   bgPlayer: "#05050a",
   accentFallback: "#7c3aed",
   cardOverlay: "rgba(255, 255, 255, 0.04)",

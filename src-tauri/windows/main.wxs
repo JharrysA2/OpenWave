@@ -12,7 +12,7 @@
 <?endif?>
 
 <!--
-    Plantilla MSI de SoundWave: copia de la por defecto de Tauri (tauri-cli
+    Plantilla MSI de OpenWave: copia de la por defecto de Tauri (tauri-cli
     bundler/wix/main.wxs) con estos cambios:
 
     1. Flujo de diálogos: ... InstallDirDlg -> OptionsDlg -> VerifyReadyDlg.
@@ -113,6 +113,12 @@
              match wins. We list the NSIS default-key search first and the MSI InstallDir
              search second so that the MSI-specific path takes priority when both keys exist. -->
         <Property Id="INSTALLDIR">
+          <!-- Legacy: instalaciones previas con el nombre antiguo del producto
+               escribieron la clave bajo "SoundWave"; se busca la PRIMERA para
+               que, si existe, las busquedas siguientes (prioritarias) la pisen. -->
+          <RegistrySearch Id="PrevInstallDirLegacyNoName" Root="HKCU" Key="Software\\{{manufacturer}}\\SoundWave" Type="raw" />
+          <RegistrySearch Id="PrevInstallDirLegacyWithName" Root="HKCU" Key="Software\\{{manufacturer}}\\SoundWave" Name="InstallDir" Type="raw" />
+
           <!-- First attempt: Search for the default key value (this is how the nsis installer stores the path) -->
           <RegistrySearch Id="PrevInstallDirNoName" Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Type="raw" />
 

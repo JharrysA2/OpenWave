@@ -159,4 +159,32 @@ describe("HomeView", () => {
     expect(card).toBeTruthy();
     expect(card.style.backdropFilter ?? "").toBe("");
   });
+
+  // ── Estados: loading / error / ready ──────────────────────────────────
+
+  it("should show skeletons while status is 'loading' (nunca contenido)", () => {
+    renderHome({ status: "loading", history: [song("1")] });
+    expect(screen.queryAllByText("Song 1")).toHaveLength(0);
+    expect(screen.queryByText("Busca tu primera canción")).not.toBeInTheDocument();
+    expect(document.querySelectorAll(".skeleton").length).toBeGreaterThan(0);
+  });
+
+  it("should show an error state with a reportable code when status is 'error'", () => {
+    const onRetry = vi.fn();
+    renderHome({ status: "error", errorCode: "E-CNX-01", onRetry });
+
+    expect(screen.getByTestId("status-state")).toBeInTheDocument();
+    expect(screen.getByTestId("error-code")).toHaveTextContent("E-CNX-01");
+    expect(screen.queryByText("Busca tu primera canción")).not.toBeInTheDocument();
+    expect(document.querySelectorAll(".skeleton")).toHaveLength(0);
+
+    fireEvent.click(screen.getByTestId("status-retry"));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("should default to 'ready' so the empty state renders without props", () => {
+    renderHome();
+    expect(screen.getByText("Busca tu primera canción")).toBeInTheDocument();
+    expect(screen.queryByTestId("status-state")).not.toBeInTheDocument();
+  });
 });

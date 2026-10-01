@@ -1,4 +1,4 @@
-"""Configuración global de pytest para el backend SoundWave."""
+"""Configuración global de pytest para el backend OpenWave."""
 
 import os
 import tempfile
@@ -12,17 +12,19 @@ TMP_DIR = Path(tempfile.mkdtemp(prefix="sw_test_"))
 
 # Los datos (downloads, db, log, stream_cache) van a un dir temporal ANTES de
 # importar config: además de no ensuciar el repo, cubre la ruta de datos
-# "heredada" (SOUNDWAVE_DATA_DIR) que usa la app instalada en Program Files.
-os.environ.setdefault("SOUNDWAVE_DATA_DIR", str(TMP_DIR))
+# "heredada" (OPENWAVE_DATA_DIR) que usa la app instalada en Program Files.
+os.environ.setdefault("OPENWAVE_DATA_DIR", str(TMP_DIR))
 
-# Sobrescribir paths de config antes de cualquier import del backend
+# Sobrescribir paths de config antes de cualquier import del backend.
+# El layout replica el real: covers van en downloads/covers (sirve /music) y
+# las letras en lyrics/, junto a los datos (no dentro de downloads).
 import config as cfg  # noqa: E402
 
 cfg.BASE_DIR = TMP_DIR
 cfg.MUSIC_DIR = TMP_DIR / "downloads"
-cfg.COVERS_DIR = TMP_DIR / "downloads" / "covers"
-cfg.LYRICS_DIR = TMP_DIR / "downloads" / "lyrics"
-cfg.DB_FILE = TMP_DIR / "soundwave.db"
+cfg.COVERS_DIR = cfg.MUSIC_DIR / "covers"
+cfg.LYRICS_DIR = TMP_DIR / "lyrics"
+cfg.DB_FILE = TMP_DIR / "openwave.db"
 cfg.URL_CACHE_FILE = TMP_DIR / "url_cache.json"
 cfg.MUSIC_DIR.mkdir(parents=True, exist_ok=True)
 cfg.COVERS_DIR.mkdir(parents=True, exist_ok=True)

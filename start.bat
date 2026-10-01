@@ -1,11 +1,11 @@
 @echo off
 setlocal
-title SoundWave
+title OpenWave
 cd /d "%~dp0"
 
 echo.
 echo  ================================================
-echo   SoundWave - Iniciando...
+echo   OpenWave - Iniciando...
 echo  ================================================
 echo.
 
@@ -35,7 +35,7 @@ if not errorlevel 1 (
   echo.
 ) else (
   echo  [1/2] Iniciando backend con Python...
-  start "SoundWave Backend (Python)" /min cmd /k "cd /d ""%~dp0"" && call venv\Scripts\activate && cd backend && python main.py"
+  start "OpenWave Backend (Python)" /min cmd /k "cd /d ""%~dp0"" && call venv\Scripts\activate && cd backend && python main.py"
   set "STARTED_BACKEND=1"
   timeout /t 5 /nobreak >nul
   curl -s http://127.0.0.1:8765/health >nul 2>&1

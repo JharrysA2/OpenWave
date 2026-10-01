@@ -1,4 +1,4 @@
-"""SoundWave Backend — Lógica de descarga con yt-dlp."""
+"""OpenWave Backend — Lógica de descarga con yt-dlp."""
 
 import asyncio
 import json
@@ -8,7 +8,14 @@ from pathlib import Path
 
 import yt_dlp
 from cache import download_progress
-from config import BASE_DIR, COVERS_DIR, LYRICS_DIR, MUSIC_DIR, PROJECT_DIR
+from config import (
+    BASE_DIR,
+    COVERS_DIR,
+    LYRICS_DIR,
+    MUSIC_DIR,
+    PROJECT_DIR,
+    YT_DLP_CACHE_DIR,
+)
 from db import _db_lock, get_db
 from logging_config import get_logger
 
@@ -86,6 +93,9 @@ def do_download(
             "progress_hooks": [_hook],
             "quiet": True,
             "no_warnings": True,
+            # Caché de yt-dlp dentro del directorio de datos de la app
+            # (si no, cae en %USERPROFILE%\.cache\yt-dlp).
+            "cachedir": str(YT_DLP_CACHE_DIR),
         }
         if _ffmpeg_dir:
             _ydl_opts["ffmpeg_location"] = _ffmpeg_dir

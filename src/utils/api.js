@@ -1,5 +1,5 @@
 /**
- * SoundWave — Cliente API centralizado
+ * OpenWave — Cliente API centralizado
  *
  * Maneja todas las llamadas HTTP al backend con:
  * - Timeouts automáticos (10s por defecto)
@@ -12,6 +12,7 @@
 
 import { withHDThumbnails } from "./thumbnails";
 import { markOffline, markOnline } from "./backendHealth";
+import { codeForHttp, formatErrorCode } from "./errorCodes";
 
 const API_BASE = "http://127.0.0.1:8765";
 const DEFAULT_TIMEOUT = 10_000;
@@ -20,11 +21,17 @@ const JSON_HEADERS = { "Content-Type": "application/json" };
 
 // ── Tipos de error ────────────────────────────────────────────────────────────
 
-class ApiError extends Error {
-  constructor(message, status = 0) {
+/**
+ * Error de la API con `status` (HTTP, 0 si es de red) y `code`
+ * (catálogo de `utils/errorCodes`, p.ej. "E-CNX-01") para que el usuario
+ * pueda reportarlo.
+ */
+export class ApiError extends Error {
+  constructor(message, status = 0, code = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -126,6 +133,7 @@ async function _fetch(path, options = {}) {
       throw new ApiError(
         body ? `[${resp.status}] ${body.slice(0, 120)}` : `HTTP ${resp.status}`,
         resp.status,
+        codeForHttp(resp.status, body),
       );
     }
 
@@ -140,10 +148,11 @@ async function _fetch(path, options = {}) {
 
     // Error de red / timeout => el backend no está accesible.
     const timedOut = err.name === "AbortError";
-    markOffline(timedOut ? "Timeout" : err.message || "Error de conexión");
+    const code = timedOut ? "E-CNX-02" : "E-CNX-01";
+    markOffline(timedOut ? "Timeout" : err.message || "Error de conexión", code);
 
-    if (timedOut) throw new ApiError("Timeout");
-    throw new ApiError(err.message || "Error de conexión");
+    if (timedOut) throw new ApiError("Timeout", 0, code);
+    throw new ApiError(err.message || "Error de conexión", 0, code);
   } finally {
     clearTimeout(timer);
   }
@@ -152,11 +161,12 @@ async function _fetch(path, options = {}) {
 // ── Toast helper ──────────────────────────────────────────────────────────────
 
 function _handleError(err, toast) {
-  const msg = err.status
-    ? `Error del servidor (${err.status})`
-    : "Error de conexión con el servidor";
+  const code = formatErrorCode(err?.code);
+  const msg = err?.status
+    ? `Error del servidor (${err.status}) ${code}`.trim()
+    : `Error de conexión con el servidor ${code}`.trim();
   toast?.(msg, "error");
-  console.warn("[API]", err.message);
+  console.warn("[API]", err.message, err.code ? `[${err.code}]` : "");
 }
 
 // ── API Pública ───────────────────────────────────────────────────────────────
@@ -255,7 +265,7 @@ export const api = {
 
   // ── Playlists ───────────────────────────────────────────────────────────────
 
-  fetchPlaylists: () =>
+  fetchPlaylists: (toast) =>
     api
       .get("/playlists", { _skipCache: true })
       .then((d) => {
@@ -270,6 +280,9 @@ export const api = {
         }));
       })
       .catch((err) => {
+        // Sin toast no hay nadie a quien avisar: el error se PROPAGA para que
+        // el llamante (useLibrary) pueda mostrar estado de error + código.
+        if (!toast) throw err;
         _handleError(err, toast);
         return [];
       }),
@@ -373,6 +386,8 @@ export const api = {
       .get("/downloads")
       .then((d) => d || [])
       .catch((err) => {
+        // Ver comentario de fetchPlaylists: sin toast se propaga el error.
+        if (!toast) throw err;
         _handleError(err, toast);
         return [];
       }),
@@ -382,6 +397,8 @@ export const api = {
       .get("/history")
       .then((d) => d || [])
       .catch((err) => {
+        // Ver comentario de fetchPlaylists: sin toast se propaga el error.
+        if (!toast) throw err;
         _handleError(err, toast);
         return [];
       }),

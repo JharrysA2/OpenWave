@@ -1,11 +1,11 @@
-"""SoundWave Backend — Rutas de gestión de descargas."""
+"""OpenWave Backend — Rutas de gestión de descargas."""
 
 import asyncio
 import json
 import threading
 
 from cache import download_progress
-from config import BASE_DIR, COVERS_DIR, LYRICS_DIR, MUSIC_DIR
+from config import COVERS_DIR, LYRICS_DIR, MUSIC_DIR
 from db import _parse_thumbs_json, get_db
 from downloads import do_download, get_mp3_path
 from fastapi import APIRouter, HTTPException, Request
@@ -246,11 +246,11 @@ async def delete_download(request: Request, video_id: str):
     if mp3_path.exists():
         mp3_path.unlink()
     # Eliminar cover
-    cover = BASE_DIR / "downloads" / "covers" / f"{video_id}.jpg"
+    cover = COVERS_DIR / f"{video_id}.jpg"
     if cover.exists():
         cover.unlink()
     # Eliminar lyrics
-    lrc = BASE_DIR / "downloads" / "lyrics" / f"{video_id}.lrc"
+    lrc = LYRICS_DIR / f"{video_id}.lrc"
     if lrc.exists():
         lrc.unlink()
     # Eliminar metadata
@@ -273,10 +273,10 @@ async def delete_selected_downloads(request: Request):
         mp3 = get_mp3_path(vid)
         if mp3.exists():
             mp3.unlink()
-        cover = BASE_DIR / "downloads" / "covers" / f"{vid}.jpg"
+        cover = COVERS_DIR / f"{vid}.jpg"
         if cover.exists():
             cover.unlink()
-        lrc = BASE_DIR / "downloads" / "lyrics" / f"{vid}.lrc"
+        lrc = LYRICS_DIR / f"{vid}.lrc"
         if lrc.exists():
             lrc.unlink()
     with get_db() as conn:

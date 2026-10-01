@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FONT } from "../constants";
 import { api } from "../utils/api";
+import { codeFromReason } from "../utils/errorCodes";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { fmtTime } from "../utils/formatTime";
@@ -19,6 +20,7 @@ import {
 import { SkeletonArtistView } from "./SkeletonLoader";
 import AlbumCardRow from "./AlbumCardRow";
 import ArtistCardPill from "./ArtistCardPill";
+import { StatusState } from "./StatusState";
 
 export default function ArtistView({
   browseId,
@@ -36,6 +38,8 @@ export default function ArtistView({
   openEntityOptions,
 }) {
   const [artist, setArtist] = useState(null);
+  // Código reportable del último fallo de carga (utils/errorCodes).
+  const [loadError, setLoadError] = useState(null);
 
   // ── Seguir / Dejar de seguir ────────────────────────────────────
   const following = !!isArtistFollowed?.({ browseId, name: artist?.name });
@@ -69,6 +73,7 @@ export default function ArtistView({
     if (!browseId) return;
     setLoading(true);
     setArtist(null);
+    setLoadError(null);
     setShowAllSongs(false);
     api
       .get(`/artist/${encodeURIComponent(browseId)}`)
@@ -76,7 +81,10 @@ export default function ArtistView({
         setArtist(d);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setLoadError(err?.code || codeFromReason(err?.message));
+        setLoading(false);
+      });
     api
       .get(`/artist/related/${encodeURIComponent(browseId)}`)
       .then((d) => setRelatedArtists(d?.results || []))
@@ -89,39 +97,13 @@ export default function ArtistView({
 
   if (!artist) {
     return (
-      <div
-        style={{
-          padding: SPACING.content.pad,
-          fontFamily: FONT,
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "12px",
-        }}
-      >
-        <div style={{ fontSize: "14px", fontWeight: "600", color: COLORS.textMuted }}>
-          No se pudo cargar el artista
-        </div>
-        <button
-          onClick={onBack}
-          style={{
-            padding: "8px 18px",
-            borderRadius: RADIUS.pill,
-            border: "none",
-            background: accentColor,
-            // Acento de fondo → primer plano dinámico (nunca negro fijo)
-            color: "var(--neon-fg)",
-            fontWeight: "800",
-            fontSize: "12px",
-            cursor: "pointer",
-            fontFamily: FONT,
-          }}
-        >
-          Volver
-        </button>
-      </div>
+      <StatusState
+        code={loadError}
+        title="No se pudo cargar el artista"
+        actionLabel="Volver"
+        onAction={onBack}
+        accentColor={accentColor}
+      />
     );
   }
 

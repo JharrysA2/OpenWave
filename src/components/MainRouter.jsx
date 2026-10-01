@@ -57,12 +57,18 @@ export const MainRouter = React.memo(function MainRouter({
   videoResults,
   videoLoading,
   videoError,
+  videoErrorCode,
+  searchError,
+  onRetrySearch,
   searchInputRef,
   likedSongs,
   selectedPlaylist,
   onPlaylistBack,
   onPlaylistUpdated,
   refreshPlaylists,
+  libraryStatus,
+  libraryErrorCode,
+  onRetryLibrary,
   likedAlbums,
   followedArtists,
   isAlbumLiked,
@@ -173,6 +179,9 @@ export const MainRouter = React.memo(function MainRouter({
             isPlaying={isPlaying}
             playSong={playSong}
             history={historyItems}
+            status={libraryStatus}
+            errorCode={libraryErrorCode}
+            onRetry={onRetryLibrary}
             accentColor={neonColor}
             onSearch={onHomeSearch}
             openOptions={(song) => song && openOptions(song)}
@@ -197,6 +206,9 @@ export const MainRouter = React.memo(function MainRouter({
             videoResults={videoResults}
             videoLoading={videoLoading}
             videoError={videoError}
+            videoErrorCode={videoErrorCode}
+            searchError={searchError}
+            onRetrySearch={onRetrySearch}
             currentSong={currentSong}
             accentColor={neonColor}
             playSong={playSong}

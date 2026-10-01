@@ -18,6 +18,7 @@ const mockSetLiked = vi.fn();
 const mockSetSongsVisible = vi.fn();
 const mockSetSearchTab = vi.fn();
 const mockRefreshPlaylists = vi.fn();
+const mockRefreshLibrary = vi.fn();
 const mockSetLyricsOpen = vi.fn();
 const mockSetCrossfadeDuration = vi.fn();
 const mockSetShuffleActive = vi.fn();
@@ -90,6 +91,8 @@ vi.mock("./hooks/useSearch", () => ({
     videoResults: [],
     videoLoading: false,
     videoError: null,
+    videoErrorCode: null,
+    searchError: null,
     searchInputRef: { current: null },
     handleSearchChange: mockHandleSearchChange,
   }),
@@ -108,6 +111,9 @@ vi.mock("./hooks/useLibrary", () => ({
     toggleLike: mockToggleLike,
     mostPlayed: [],
     refreshPlaylists: mockRefreshPlaylists,
+    status: "ready",
+    error: null,
+    refreshLibrary: mockRefreshLibrary,
   }),
 }));
 
@@ -250,6 +256,17 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   api.clearCache();
+  // El chequeo de salud es INMEDIATO al arrancar: sin este stub, el fetch
+  // real (colgado o rechazado) dejaba `checking` en vuelo y el banner /
+  // BootScreen dependían del azar. Siempre "backend caído" y determinista.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════
@@ -269,9 +286,9 @@ describe("App — Componente principal", () => {
     expect(screen.getByTestId("error-boundary")).toBeInTheDocument();
   });
 
-  it("should render the SoundWave brand name", () => {
+  it("should render the OpenWave brand name", () => {
     render(<App />);
-    const found = screen.getAllByText("SoundWave");
+    const found = screen.getAllByText("OpenWave");
     expect(found.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -423,7 +440,7 @@ describe("App — Componente principal", () => {
 
   // ── Icons ───────────────────────────────────────────────────────────────────
 
-  it("should render the SoundWave wave icon", () => {
+  it("should render the OpenWave wave icon", () => {
     render(<App />);
     expect(screen.getByTestId("wave-icon")).toBeInTheDocument();
   });
@@ -505,9 +522,12 @@ describe("App — conexión con el backend", () => {
     expect(screen.queryByTestId("connection-banner")).not.toBeInTheDocument();
   });
 
-  it("muestra el banner cuando se pierde la conexión", () => {
+  it("muestra el banner cuando se pierde la conexión", async () => {
     render(<App />);
 
+    // El chequeo inicial rechaza (backend caído): se asienta antes de actuar
+    // para no depender del orden de los microtasks.
+    await act(async () => {});
     act(() => {
       markOffline("ECONNREFUSED");
     });
@@ -515,23 +535,36 @@ describe("App — conexión con el backend", () => {
     expect(screen.getByTestId("connection-banner")).toHaveTextContent(
       "Sin conexión con el servidor",
     );
+    // Código reportable visible en el banner (no hace falta copiar mensajes)
+    expect(screen.getByTestId("connection-code")).toHaveTextContent("E-CNX-01");
   });
 
-  it("al reconectar limpia la caché, refresca playlists y avisa al usuario", () => {
+  it("al reconectar limpia la caché, refresca la biblioteca y avisa al usuario", async () => {
     const clearCache = vi.spyOn(api, "clearCache");
     render(<App />);
 
-    act(() => {
-      markOffline("down");
-    });
+    await act(async () => {}); // primer chequeo fallido → offline
     act(() => {
       markOnline();
     });
 
     expect(clearCache).toHaveBeenCalled();
-    expect(mockRefreshPlaylists).toHaveBeenCalledTimes(1);
+    expect(mockRefreshLibrary).toHaveBeenCalledTimes(1);
     expect(mockToast).toHaveBeenCalledWith("Conexión restablecida", "success");
     expect(screen.queryByTestId("connection-banner")).not.toBeInTheDocument();
+  });
+
+  it("con el backend caído muestra la pantalla de inicio con error + código", async () => {
+    render(<App />);
+    // Arranque: splash → BootScreen en estado "Iniciando…"
+    expect(screen.getByTestId("boot-screen")).toBeInTheDocument();
+
+    // El primer chequeo falla → estado de error con código reportable
+    await act(async () => {});
+    expect(screen.getByTestId("status-state")).toBeInTheDocument();
+    expect(screen.getByTestId("error-code")).toHaveTextContent("E-CNX-01");
+    expect(screen.getByText("Reintentar")).toBeInTheDocument();
+    expect(screen.getByText("Continuar sin conexión")).toBeInTheDocument();
   });
 });
 

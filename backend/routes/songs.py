@@ -1,4 +1,4 @@
-"""SoundWave Backend — Rutas de canciones, álbumes, artistas y cola."""
+"""OpenWave Backend — Rutas de canciones, álbumes, artistas y cola."""
 
 import asyncio
 

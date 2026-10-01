@@ -1,4 +1,4 @@
-"""SoundWave Backend — Rutas de letras."""
+"""OpenWave Backend — Rutas de letras."""
 
 from fastapi import APIRouter, Request
 from lyrics import get_local_lyrics, search_lyrics, search_lyrics_multi

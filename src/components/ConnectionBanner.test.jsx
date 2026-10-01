@@ -40,6 +40,18 @@ describe("ConnectionBanner", () => {
     expect(screen.getByTestId("connection-banner")).toHaveAttribute("title", "Timeout");
   });
 
+  it("muestra el código de error reportable junto al aviso", () => {
+    markOffline("ECONNREFUSED");
+    renderWithSettings(<ConnectionBanner />);
+    expect(screen.getByTestId("connection-code")).toHaveTextContent("E-CNX-01");
+  });
+
+  it("el código del tooltip de timeout es E-CNX-02", () => {
+    markOffline("Timeout");
+    renderWithSettings(<ConnectionBanner />);
+    expect(screen.getByTestId("connection-code")).toHaveTextContent("E-CNX-02");
+  });
+
   it("cambia a 'reconectando' mientras hay un chequeo en vuelo", async () => {
     let resolveFetch;
     vi.stubGlobal(

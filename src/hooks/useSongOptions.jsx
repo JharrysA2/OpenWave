@@ -38,7 +38,12 @@ export function useSongOptions({
       song={optionsSong}
       open={showOptions}
       onClose={closeOptions}
-      onDownload={() => api.fetchDownloads().then(setDownloads)}
+      onDownload={() =>
+        api
+          .fetchDownloads()
+          .then(setDownloads)
+          .catch(() => {})
+      }
       onDownloadStart={(song) => {
         setDownloads((prev) => {
           if (prev.find((d) => (d.videoId || d.video_id) === song.videoId)) return prev;

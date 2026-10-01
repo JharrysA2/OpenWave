@@ -1,19 +1,19 @@
-TÉRMINOS Y CONDICIONES DE USO DE SOUNDWAVE
+TÉRMINOS Y CONDICIONES DE USO DE OPENWAVE
 Última actualización: 30 de septiembre de 2026
 
 1. ACEPTACIÓN DE LOS TÉRMINOS
-Al instalar y utilizar SoundWave usted acepta los presentes Términos y
+Al instalar y utilizar OpenWave usted acepta los presentes Términos y
 Condiciones en su totalidad. Si no está de acuerdo con alguno de ellos, no
 instale el programa y elimine este instalador y cualquier copia del mismo.
 
-2. QUÉ ES SOUNDWAVE
-SoundWave es una aplicación de escritorio de código abierto que permite
+2. QUÉ ES OPENWAVE
+OpenWave es una aplicación de escritorio de código abierto que permite
 descubrir, organizar, reproducir y descargar música desde fuentes públicas de
 Internet. Es software libre: su código fuente puede consultarse, copiarse y
 modificarse conforme a la licencia indicada en el punto 7.
 
 3. USO PERSONAL Y NO COMERCIAL
-Usted se compromete a utilizar SoundWave para uso personal y privado. No está
+Usted se compromete a utilizar OpenWave para uso personal y privado. No está
 permitido:
   a) Revender, alquilar, sublicenciar o distribuir el programa con ánimo de
      lucro.
@@ -23,7 +23,7 @@ permitido:
      derechos de terceros.
 
 4. SERVICIOS DE TERCEROS
-SoundWave consulta contenido a través de YouTube y de YouTube Music. La
+OpenWave consulta contenido a través de YouTube y de YouTube Music. La
 aplicación NO está afiliada, patrocinada, respaldada ni desarrollada por
 Google LLC ni por YouTube; «YouTube» y «YouTube Music» son marcas de Google
 LLC. El acceso a dichos servicios queda sujeto a las Condiciones de Servicio
@@ -32,17 +32,18 @@ como usuario final. La disponibilidad del contenido depende de terceros y
 puede variar o interrumpirse sin aviso.
 
 5. DATOS, PRIVACIDAD Y ALMACENAMIENTO LOCAL
-SoundWave no recopila, no transmite y no vende datos personales. Toda la
+OpenWave no recopila, no transmite y no vende datos personales. Toda la
 información que genera la aplicación (base de datos, listas, preferencias,
 canciones descargadas y ficheros de registro) se guarda únicamente en su
-equipo, en el directorio de datos del usuario («%LOCALAPPDATA%\SoundWave» en
-Windows) o en la carpeta de desarrollo del proyecto. La aplicación necesita
+equipo, en la carpeta de datos de la aplicación («C:\ProgramData\OpenWave»
+en Windows) y en el perfil de usuario del propio equipo (preferencias y
+listas), o en la carpeta de desarrollo del proyecto. La aplicación necesita
 conexión a Internet únicamente para buscar y descargar contenido multimedia;
 las direcciones IP o identificadores que pudiesen observarse corresponden a
-los servicios de terceros mencionados en el punto 4, no a SoundWave.
+los servicios de terceros mencionados en el punto 4, no a OpenWave.
 
 6. SIN GARANTÍAS Y LIMITACIÓN DE RESPONSABILIDAD
-SoundWave se distribuye «TAL CUAL», SIN GARANTÍA DE NINGÚN EXPRESO NI
+OpenWave se distribuye «TAL CUAL», SIN GARANTÍA DE NINGÚN EXPRESO NI
 IMPLÍCITO, incluidos, a título meramente enunciativo, los garantías de
 COMERCIALIZACIÓN, IDONEIDAD PARA UN FIN DETERMINADO O NO INFRACCIÓN. En
 ningún caso los autores, colaboradores o mantenedores del proyecto serán
@@ -51,7 +52,7 @@ consecuentes derivados del uso o de la imposibilidad de uso del programa o
 de los servicios de terceros descritos en el punto 4.
 
 7. LICENCIA DEL CÓDIGO
-El código fuente de SoundWave se distribuye bajo los términos de la GNU
+El código fuente de OpenWave se distribuye bajo los términos de la GNU
 GENERAL PUBLIC LICENSE, versión 3 o (a su elección) cualquier versión
 posterior (GPL-3.0-or-later). Puede consultar el repositorio y descargar el
 código fuente en:

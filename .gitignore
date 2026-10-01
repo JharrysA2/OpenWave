@@ -25,9 +25,12 @@ backend/__pycache__/
 
 # ── Backend runtime data ──────────────────────────────
 backend/downloads/
+backend/openwave.db
 backend/soundwave.db
 backend/htmlcov/
+backend/openwave.db-shm
 backend/soundwave.db-shm
+backend/openwave.db-wal
 backend/soundwave.db-wal
 backend/url_cache.json
 backend/stream_cache/
@@ -61,3 +64,5 @@ playwright-report/
 
 # ── Logs genéricos ────────────────────────────────────
 *.log
+.coverage
+.migrated.json

@@ -1,6 +1,6 @@
 import React from "react";
 import { FONT } from "../constants";
-import { RADIUS } from "../utils/theme";
+import { RADIUS, TYPOGRAPHY } from "../utils/theme";
 import { useSettings } from "../contexts/useSettings";
 import { useBackendStatus } from "../hooks/useBackendStatus";
 
@@ -12,6 +12,10 @@ const AMBER = "#f59e0b";
  *
  * - `aria-live="polite"` para que un lector de pantalla anuncie el cambio.
  * - Sin `pointerEvents` para no bloquear la UI que hay debajo.
+ * - Tipografía SIEMPRE desde `TYPOGRAPHY` (DM Sans empaquetada local): antes
+ *   traía un `fontSize`/`fontWeight` suelto que no coincidía con el resto.
+ * - Muestra el CÓDIGO reportable (utils/errorCodes) para que el usuario
+ *   pueda indicarlo al reportar el fallo.
  * - Sin `backdrop-filter`: es un chip opaco (.86) y transitorio, y detrás no
  *   hay animación que difuminar (presupuesto: blur solo con movimiento detrás
  *   o en superficies de modal, ver docs/PERFORMANCE.md §1/§7).
@@ -19,7 +23,7 @@ const AMBER = "#f59e0b";
  */
 export function ConnectionBanner() {
   const { t } = useSettings();
-  const { online, checking, error } = useBackendStatus();
+  const { online, checking, error, code } = useBackendStatus();
 
   if (online) return null;
 
@@ -43,8 +47,6 @@ export function ConnectionBanner() {
         padding: "7px 14px",
         borderRadius: RADIUS.card,
         fontFamily: FONT,
-        fontSize: "12.5px",
-        fontWeight: 600,
         color: "#fcd34d",
         background: "rgba(45,28,4,.86)",
         border: `1px solid ${AMBER}66`,
@@ -64,7 +66,25 @@ export function ConnectionBanner() {
           flexShrink: 0,
         }}
       />
-      {label}
+      <span style={{ ...TYPOGRAPHY.caption, fontWeight: 600 }}>{label}</span>
+      {code && (
+        <span
+          data-testid="connection-code"
+          style={{
+            ...TYPOGRAPHY.metadata,
+            letterSpacing: "0.06em",
+            fontVariantNumeric: "tabular-nums",
+            fontFeatureSettings: '"tnum"',
+            padding: "2px 7px",
+            borderRadius: RADIUS.pill,
+            background: "rgba(245,158,11,.16)",
+            border: "1px solid rgba(245,158,11,.45)",
+            color: "#fcd34d",
+          }}
+        >
+          {code}
+        </span>
+      )}
     </div>
   );
 }

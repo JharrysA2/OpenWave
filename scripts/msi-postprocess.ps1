@@ -22,7 +22,7 @@
 
 .EXAMPLE
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\msi-postprocess.ps1 `
-    -MsiPath build\...\SoundWave_1.0.0_x64_en-US.msi
+    -MsiPath build\...\OpenWave_1.0.0_x64_en-US.msi
 #>
 param(
     [Parameter(Mandatory = $true)]

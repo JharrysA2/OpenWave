@@ -1,4 +1,4 @@
-"""SoundWave Backend — Cliente YTMusic singleton."""
+"""OpenWave Backend — Cliente YTMusic singleton."""
 
 import threading
 

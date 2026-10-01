@@ -161,7 +161,7 @@ if (-not (Test-RequiresRebuild)) {
     return
 }
 
-Write-Host '== SoundWave: preparacion del runtime embebido =='
+Write-Host '== OpenWave: preparacion del runtime embebido =='
 
 # ── 1. Descargas con hash ────────────────────────────────────────────────────
 Write-Host '[1/7] Descargas (build\cache)'
@@ -200,7 +200,7 @@ Lib\site-packages
 
 # ── 4. ffmpeg ────────────────────────────────────────────────────────────────
 Write-Host "[4/7] ffmpeg $FfmpegVersion -> build\staging\ffmpeg"
-$ffmpegTmp = Join-Path $env:TEMP ("soundwave-ffmpeg-" + [guid]::NewGuid().ToString('N'))
+$ffmpegTmp = Join-Path $env:TEMP ("openwave-ffmpeg-" + [guid]::NewGuid().ToString('N'))
 [System.IO.Compression.ZipFile]::ExtractToDirectory($ffmpegZip, $ffmpegTmp)
 try {
     $ff = Get-ChildItem -Path $ffmpegTmp -Recurse -File -Filter 'ffmpeg.exe' | Select-Object -First 1
@@ -272,9 +272,9 @@ if (-not $KeepPip) {
 # ── 7. Smoke test contra el staging ──────────────────────────────────────────
 Write-Host '[7/7] Smoke test (arranca el backend igual que la app instalada)'
 $smokeId = [guid]::NewGuid().ToString('N')
-$smokeDir = Join-Path $env:TEMP "soundwave-smoke-$smokeId"
-$smokeErr = Join-Path $env:TEMP "soundwave-smoke-$smokeId.err.log"
-$smokeOut = Join-Path $env:TEMP "soundwave-smoke-$smokeId.out.log"
+$smokeDir = Join-Path $env:TEMP "openwave-smoke-$smokeId"
+$smokeErr = Join-Path $env:TEMP "openwave-smoke-$smokeId.err.log"
+$smokeOut = Join-Path $env:TEMP "openwave-smoke-$smokeId.out.log"
 New-Item -ItemType Directory -Force -Path $smokeDir | Out-Null
 
 # La app instalada arranca el backend exactamente asi:
@@ -288,11 +288,11 @@ New-Item -ItemType Directory -Force -Path $smokeDir | Out-Null
 # Con comillas alrededor: Start-Process no comilla los argumentos y una ruta
 # de destino con espacios (C:\Program Files\...) se partiria en dos.
 $smokeMain = '"\\?\' + (Join-Path $backendDst 'main.py') + '"'
-$env:SOUNDWAVE_DATA_DIR = $smokeDir
+$env:OPENWAVE_DATA_DIR = $smokeDir
 $smokeProc = $null
 try {
     if (Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue) {
-        throw 'El puerto 8765 ya esta en uso: cierra SoundWave antes de empaquetar (el smoke test arranca el backend).'
+        throw 'El puerto 8765 ya esta en uso: cierra OpenWave antes de empaquetar (el smoke test arranca el backend).'
     }
     $smokeProc = Start-Process -FilePath $py -ArgumentList $smokeMain -WorkingDirectory $env:TEMP -RedirectStandardError $smokeErr -RedirectStandardOutput $smokeOut -PassThru -WindowStyle Hidden
     $up = $false
@@ -301,7 +301,7 @@ try {
         if ($smokeProc.HasExited) { break }
         try {
             $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8765/health' -UseBasicParsing -TimeoutSec 2
-            if ($r.StatusCode -eq 200 -and $r.Content -match 'SoundWave') { $up = $true }
+            if ($r.StatusCode -eq 200 -and $r.Content -match 'OpenWave') { $up = $true }
         } catch { }
     }
     if (-not $up) {
@@ -314,7 +314,7 @@ try {
         Stop-Process -Id $smokeProc.Id -Force -ErrorAction SilentlyContinue
         Start-Sleep -Milliseconds 800
     }
-    Remove-Item -LiteralPath 'Env:\SOUNDWAVE_DATA_DIR' -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath 'Env:\OPENWAVE_DATA_DIR' -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force -LiteralPath $smokeDir -ErrorAction SilentlyContinue
     Remove-Item -Force -LiteralPath $smokeErr, $smokeOut -ErrorAction SilentlyContinue
 }
@@ -327,7 +327,7 @@ Get-ChildItem -Path $backendDst -Recurse -Directory -Filter '__pycache__' -Error
 
 # Nada de datos de desarrollo en el paquete.
 Get-ChildItem -Path $backendDst -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -like 'url_cache.json' -or $_.Name -like '*.log' -or $_.Name -like 'soundwave.db*' -or $_.Name -like '.coverage' } |
+    Where-Object { $_.Name -like 'url_cache.json' -or $_.Name -like '*.log' -or $_.Name -like 'openwave.db*' -or $_.Name -like '.coverage' } |
     ForEach-Object { Remove-Item -Force -LiteralPath $_.FullName }
 
 # ── Marcador ─────────────────────────────────────────────────────────────────

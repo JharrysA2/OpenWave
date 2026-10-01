@@ -302,3 +302,91 @@ describe("useLibrary", () => {
     expect(result.current.history).toEqual(songs);
   });
 });
+
+// ── status / error / refreshLibrary ────────────────────────────────────────
+//  Sin esto la Home no distingue "cargando" de "vacío": los skeletons se
+//  quedaban eternos con el backend caído.
+
+describe("useLibrary — status", () => {
+  it("should start in 'loading' and move to 'ready' when the fetches resolve", async () => {
+    const mockFetch = vi.spyOn(globalThis, "fetch").mockImplementation(() => mockApiResponse([]));
+
+    const { result } = renderHook(() => useLibrary());
+    expect(result.current.status).toBe("loading");
+    expect(result.current.error).toBeNull();
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.error).toBeNull();
+
+    mockFetch.mockRestore();
+  });
+
+  it("should move to 'error' with a reportable code when ALL fetches fail", async () => {
+    const mockFetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const { result } = renderHook(() => useLibrary());
+
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(result.current.error).toBeTruthy();
+    expect(result.current.error.message).toBeTruthy();
+    // Código del catálogo (red caída → E-CNX-01)
+    expect(result.current.error.code).toBe("E-CNX-01");
+
+    mockFetch.mockRestore();
+  });
+
+  it("should stay 'ready' (datos parciales) si solo FALLA UNA de las tres", async () => {
+    const mockFetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new TypeError("boom"))
+      .mockImplementation(() => mockApiResponse([]));
+
+    const { result } = renderHook(() => useLibrary());
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.error).toBeNull();
+
+    mockFetch.mockRestore();
+  });
+
+  it("refreshLibrary should recover from 'error' to 'ready' when the backend returns", async () => {
+    const mockFetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("down"));
+
+    const { result } = renderHook(() => useLibrary());
+    await waitFor(() => expect(result.current.status).toBe("error"));
+
+    // El backend "vuelve"
+    mockFetch.mockImplementation(() => mockApiResponse([]));
+    await act(async () => {
+      await result.current.refreshLibrary();
+    });
+
+    expect(result.current.status).toBe("ready");
+    expect(result.current.error).toBeNull();
+
+    mockFetch.mockRestore();
+  });
+
+  it("refreshLibrary (silencioso) NO vuelve a 'loading' — sin flash de skeletons", async () => {
+    const mockFetch = vi.spyOn(globalThis, "fetch").mockImplementation(() => mockApiResponse([]));
+
+    const { result } = renderHook(() => useLibrary());
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+
+    let pending;
+    act(() => {
+      pending = result.current.refreshLibrary();
+    });
+    // Sincrónico: el refresco en caliente jamás vacía la UI con skeletons
+    expect(result.current.status).toBe("ready");
+
+    await act(async () => {
+      await pending;
+    });
+    expect(result.current.status).toBe("ready");
+
+    mockFetch.mockRestore();
+  });
+});

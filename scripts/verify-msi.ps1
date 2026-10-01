@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Verificacion estatica del MSI de SoundWave sin instalarlo (47 comprobaciones).
+    Verificacion estatica del MSI de OpenWave sin instalarlo (49 comprobaciones).
 
 .DESCRIPTION
     Lee las tablas del .msi con el objeto COM WindowsInstaller.Installer y
@@ -24,7 +24,7 @@
 
 .PARAMETER MsiPath
     Ruta del .msi a comprobar. Por defecto, el mas reciente de
-    build\windows\SoundWave-*.msi.
+    build\windows\OpenWave-*.msi.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\verify-msi.ps1
@@ -34,9 +34,9 @@ $ErrorActionPreference = 'Stop'
 
 if (-not $MsiPath) {
     $dir = Join-Path (Split-Path -Parent $PSScriptRoot) 'build\windows'
-    $found = @(Get-ChildItem -Path $dir -Filter 'SoundWave-*.msi' -ErrorAction SilentlyContinue |
+    $found = @(Get-ChildItem -Path $dir -Filter 'OpenWave-*.msi' -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending)
-    if ($found.Count -eq 0) { throw "No hay ningun SoundWave-*.msi en $dir; compila antes con scripts\package-windows.ps1" }
+    if ($found.Count -eq 0) { throw "No hay ningun OpenWave-*.msi en $dir; compila antes con scripts\package-windows.ps1" }
     $MsiPath = $found[0].FullName
 }
 if (-not (Test-Path -LiteralPath $MsiPath)) { throw "No existe $MsiPath" }
@@ -251,7 +251,7 @@ $checks = [ordered]@{
         [bool]($optControls | Where-Object { $_[2] -eq 'CheckBox' -and $_[8] -eq 'INSTALL_STARTUP' })
     'Textos de casillas en espanol' =
         [bool]($optControls | Where-Object { $_[9] -like 'Crear un acceso*' }) -and
-        [bool]($optControls | Where-Object { $_[9] -eq 'Iniciar SoundWave con Windows' })
+        [bool]($optControls | Where-Object { $_[9] -eq 'Iniciar OpenWave con Windows' })
     'Feature StartMenuShortcut Level 1' =
         [bool]($features | Where-Object { $_[0] -eq 'StartMenuShortcut' -and $_[5] -eq '1' })
     'Feature DesktopShortcut Level 1' =
@@ -268,7 +268,7 @@ $checks = [ordered]@{
         ([regex]::Matches($licText, '\{\\rtf1').Count -eq 1) -and $licText.StartsWith('{\rtf1')
     'Licencia: terminos + GPL-3.0 completos en el texto' =
         $licText.Contains('GNU GENERAL PUBLIC LICENSE') -and
-        $licText.Contains('SoundWave') -and
+        $licText.Contains('OpenWave') -and
         $licText.Contains('END OF TERMS AND CONDITIONS')
     'Licencia: llaves RTF balanceadas' =
         ([regex]::Matches($licText, '\{').Count -eq [regex]::Matches($licText, '\}').Count)
@@ -282,6 +282,10 @@ $checks = [ordered]@{
         [bool]($rfile | Where-Object { $_[1] -eq 'ApplicationShortcutDesktop' -and $_[3] -eq 'DesktopFolder' }) -and
         [bool]($rfile | Where-Object { $_[1] -eq 'ApplicationShortcut' -and $_[3] -eq 'ApplicationProgramsFolder' })
     'Payload con mas de 5000 ficheros' = ($files.Count -gt 5000)
+    'Binario OpenWave.exe en la tabla File' =
+        [bool]($files | Where-Object { ([string]$_[2]) -like '*OpenWave.exe*' })
+    'Carpeta de instalacion OpenWave (Directory INSTALLDIR)' =
+        [bool]($dirs | Where-Object { $_[0] -eq 'INSTALLDIR' -and ([string]$_[2]) -like '*OpenWave*' })
     'Payload: backend empaquetado (backend\main.py)' = ($payBackend.Count -eq 1)
     'Payload: main.py del MSI identico al staging (sin backend viejo)' = $payBackendFresh
     'Payload: Python embebido (runtime\python.exe)' = ($payPython.Count -eq 1)

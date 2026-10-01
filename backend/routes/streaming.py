@@ -1,4 +1,4 @@
-"""SoundWave Backend — Rutas de streaming de audio."""
+"""OpenWave Backend — Rutas de streaming de audio."""
 
 import asyncio
 

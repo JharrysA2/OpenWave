@@ -16,6 +16,7 @@ import {
 } from "../utils/theme";
 import { SkeletonGrid, SkeletonSongRow } from "./SkeletonLoader";
 import { SearchBar } from "./SearchBar";
+import { StatusState } from "./StatusState";
 
 /** Devuelve un saludo según la hora del día */
 const getGreeting = () => {
@@ -43,6 +44,13 @@ export default function HomeView({
   accentColor = "#a78bfa",
   onSearch,
   openOptions,
+  // ── Estado de la biblioteca (useLibrary) ──────────────────────────────────
+  // "loading" → skeleton; "error" → estado con código + Reintentar; "ready" →
+  // contenido. Antes se deducía de "history vacío" y el skeleton convivía con
+  // el estado vacío (y quedaba eterno con el backend caído).
+  status = "ready",
+  errorCode,
+  onRetry,
 }) {
   // Quick picks from history
   const quickPicks = history.slice(0, 6);
@@ -125,8 +133,13 @@ export default function HomeView({
         />
       </div>
 
-      {/* Skeleton loading state — shows when no data yet */}
-      {quickPicks.length === 0 && (
+      {/* ── Estado de error: código reportable + Reintentar ────────────── */}
+      {status === "error" && (
+        <StatusState code={errorCode} onRetry={onRetry} accentColor={accentColor} />
+      )}
+
+      {/* Skeleton — SOLO mientras la biblioteca carga (nunca con datos) */}
+      {status === "loading" && (
         <div style={{ ...ANIMATIONS.fadeIn(100) }}>
           <div style={{ ...ANIMATIONS.fadeSlideUp(120), marginBottom: SPACING.gap.wide }}>
             <div
@@ -147,7 +160,7 @@ export default function HomeView({
         </div>
       )}
 
-      {quickPicks.length > 0 && (
+      {status === "ready" && quickPicks.length > 0 && (
         <>
           <div
             style={{
@@ -352,7 +365,7 @@ export default function HomeView({
         </>
       )}
 
-      {forYou.length > 0 && (
+      {status === "ready" && forYou.length > 0 && (
         <>
           <div
             style={{
@@ -543,7 +556,7 @@ export default function HomeView({
         </>
       )}
 
-      {quickPicks.length === 0 && forYou.length === 0 && (
+      {status === "ready" && quickPicks.length === 0 && forYou.length === 0 && (
         <div
           style={{
             ...ANIMATIONS.fadeIn(200),

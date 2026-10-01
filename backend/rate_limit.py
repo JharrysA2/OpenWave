@@ -1,5 +1,5 @@
 """
-SoundWave Backend — Configuración de Rate Limiting con SlowAPI.
+OpenWave Backend — Configuración de Rate Limiting con SlowAPI.
 Centraliza el limiter y la key function para usar en toda la app.
 """
 

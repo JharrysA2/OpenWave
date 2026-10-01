@@ -1,4 +1,4 @@
-"""SoundWave Backend — Funciones auxiliares."""
+"""OpenWave Backend — Funciones auxiliares."""
 
 import re
 from pathlib import Path

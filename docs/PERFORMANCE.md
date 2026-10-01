@@ -1,4 +1,4 @@
-# Presupuesto de rendimiento — SoundWave
+# Presupuesto de rendimiento — OpenWave
 
 > Contexto: **Tauri + Rust** (`src-tauri/`, vibrancy nativo del titleBar) +
 > **React/Vite** en **WebView2** + backend Python sidecar (8765).

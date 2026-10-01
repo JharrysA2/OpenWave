@@ -1,4 +1,4 @@
-"""SoundWave Backend — Configuración centralizada de logging."""
+"""OpenWave Backend — Configuración centralizada de logging."""
 
 import logging
 import os
@@ -11,11 +11,12 @@ from config import DATA_DIR
 _LOG_FORMAT = "[%(levelname)s] %(asctime)s %(name)s → %(message)s"
 _DATE_FORMAT = "%H:%M:%S"
 
-# En desarrollo el log sigue en `backend/soundwave.log`; en la instalación
-# (código en Program Files, no escribible) cae en `%LOCALAPPDATA%\SoundWave`.
-# `SOUNDWAVE_LOG_FILE` permite redirigirlo (depuración, tests, portable).
-_env_log = os.environ.get("SOUNDWAVE_LOG_FILE")
-LOG_FILE = Path(_env_log) if _env_log else DATA_DIR / "soundwave.log"
+# En desarrollo el log sigue en `backend/openwave.log`; en la instalación
+# (código en Program Files, no escribible) cae en «Datos de Programas»
+# (`%PROGRAMDATA%\OpenWave`, con fallback en `%LOCALAPPDATA%\OpenWave`).
+# `OPENWAVE_LOG_FILE` permite redirigirlo (depuración, tests, portable).
+_env_log = os.environ.get("OPENWAVE_LOG_FILE")
+LOG_FILE = Path(_env_log) if _env_log else DATA_DIR / "openwave.log"
 
 _LOGGERS: dict[str, logging.Logger] = {}
 

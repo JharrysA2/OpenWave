@@ -1,5 +1,5 @@
 ---
-name: SoundWave Lumina
+name: OpenWave Lumina
 colors:
   surface: '#121414'
   surface-dim: '#121414'

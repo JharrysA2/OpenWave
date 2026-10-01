@@ -1,4 +1,4 @@
-"""SoundWave Backend — Sistema de caché en memoria y disco."""
+"""OpenWave Backend — Sistema de caché en memoria y disco."""
 
 import json
 import threading

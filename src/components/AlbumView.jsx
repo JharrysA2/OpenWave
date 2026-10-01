@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FONT } from "../constants";
 import { api } from "../utils/api";
+import { codeFromReason } from "../utils/errorCodes";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { fmtTime } from "../utils/formatTime";
@@ -9,7 +10,6 @@ import { TransferModal } from "./TransferModal";
 import {
   COLORS,
   RADIUS,
-  SPACING,
   TRANSITIONS,
   GLASS,
   withAlpha,
@@ -17,6 +17,7 @@ import {
   safeAccentText,
 } from "../utils/theme";
 import { SkeletonAlbumView } from "./SkeletonLoader";
+import { StatusState } from "./StatusState";
 
 export default function AlbumView({
   browseId,
@@ -37,6 +38,9 @@ export default function AlbumView({
   downloadAlbum,
 }) {
   const [album, setAlbum] = useState(null);
+  // Código reportable del último fallo de carga (utils/errorCodes) — se
+  // muestra en el estado de error para que el usuario pueda reportarlo.
+  const [loadError, setLoadError] = useState(null);
 
   // Hover declarativo de los botones de acción: los estilos se recalculan en
   // render (nunca quedan "pegados") y respetan el estado (♥/Seleccionar).
@@ -86,6 +90,7 @@ export default function AlbumView({
     if (!browseId) return;
     setLoading(true);
     setAlbum(null);
+    setLoadError(null);
     resetSelect();
     api
       .get(`/album/${encodeURIComponent(browseId)}`)
@@ -93,7 +98,10 @@ export default function AlbumView({
         setAlbum(d);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setLoadError(err?.code || codeFromReason(err?.message));
+        setLoading(false);
+      });
   }, [browseId, resetSelect]);
 
   // ── Transfer selected to another playlist ──
@@ -127,39 +135,13 @@ export default function AlbumView({
 
   if (!album) {
     return (
-      <div
-        style={{
-          padding: SPACING.content.pad,
-          fontFamily: FONT,
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "12px",
-        }}
-      >
-        <div style={{ fontSize: "14px", fontWeight: "600", color: COLORS.textMuted }}>
-          No se pudo cargar el álbum
-        </div>
-        <button
-          onClick={onBack}
-          style={{
-            padding: "8px 18px",
-            borderRadius: RADIUS.pill,
-            border: "none",
-            background: accentColor,
-            // Acento de fondo → primer plano dinámico (nunca negro fijo)
-            color: "var(--neon-fg)",
-            fontWeight: "800",
-            fontSize: "12px",
-            cursor: "pointer",
-            fontFamily: FONT,
-          }}
-        >
-          Volver
-        </button>
-      </div>
+      <StatusState
+        code={loadError}
+        title="No se pudo cargar el álbum"
+        actionLabel="Volver"
+        onAction={onBack}
+        accentColor={accentColor}
+      />
     );
   }
 

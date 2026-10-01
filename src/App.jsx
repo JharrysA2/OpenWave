@@ -22,6 +22,7 @@ import { PlayerBar } from "./components/PlayerBar";
 import { CreatePlaylistModal } from "./components/CreatePlaylistModal";
 import { Toasts } from "./components/Toast";
 import { ConnectionBanner } from "./components/ConnectionBanner";
+import { BootScreen } from "./components/BootScreen";
 import { TitleBar } from "./components/TitleBar";
 import { Sidebar } from "./components/Sidebar";
 import { DynamicBackground } from "./components/DynamicBackground";
@@ -58,6 +59,8 @@ function AppInner() {
     videoResults,
     videoLoading,
     videoError,
+    videoErrorCode,
+    searchError,
     searchLoading,
     searchInputRef,
     handleSearchChange,
@@ -82,6 +85,9 @@ function AppInner() {
     toggleLike,
     mostPlayed,
     refreshPlaylists,
+    status: libraryStatus,
+    error: libraryError,
+    refreshLibrary,
   } = useLibrary();
 
   // Ids de canciones descargadas — PlaylistView los usa para marcar
@@ -241,12 +247,13 @@ function AppInner() {
     () =>
       subscribeReconnect(() => {
         // La caché pudo llenarse con respuestas inválidas mientras el backend
-        // estaba caído (o quedar obsoleta): se limpia y se refresca la biblioteca.
+        // estaba caído (o quedar obsoleta): se limpia y se refresca la
+        // biblioteca COMPLETA (playlists, descargas e historial).
         api.clearCache();
-        refreshPlaylists();
+        refreshLibrary();
         toast(t.reconnected, "success");
       }),
-    [refreshPlaylists, toast, t],
+    [refreshLibrary, toast, t],
   );
 
   // ── Dynamic theme: color de portada + CSS vars (--neon, overlay) ──
@@ -470,6 +477,13 @@ function AppInner() {
     [setQuery, setTab, doSearch, doSearchVideos],
   );
 
+  // ── Reintento de búsqueda (estado de error con código) ────────────────────
+  const handleRetrySearch = useCallback(() => {
+    if (!query.trim()) return;
+    doSearch(query);
+    doSearchVideos(query);
+  }, [query, doSearch, doSearchVideos]);
+
   // ── Callbacks estables para MainRouter y PlayerBar ─────────────────────────
   //    Ambos son React.memo: con lambdas inline, CADA render de App
   //    (mousemove del slider de volumen, play/pause, toasts, abrir/cerrar
@@ -559,6 +573,9 @@ function AppInner() {
       {/* ── Aviso de desconexión con el backend ───────────────────────── */}
       <ConnectionBanner />
 
+      {/* ── Pantalla de arranque: logo → primer health-check → lista ──── */}
+      <BootScreen />
+
       {/* ── Custom Title Bar — glassmorphism ──── */}
       <TitleBar />
 
@@ -611,6 +628,9 @@ function AppInner() {
               toggleLike={handleToggleLike}
               openOptions={openOptions}
               historyItems={mostPlayed}
+              libraryStatus={libraryStatus}
+              libraryErrorCode={libraryError?.code}
+              onRetryLibrary={refreshLibrary}
               onHomeSearch={handleHomeSearch}
               query={query}
               onQueryChange={handleSearchChange}
@@ -625,6 +645,9 @@ function AppInner() {
               videoResults={videoResults}
               videoLoading={videoLoading}
               videoError={videoError}
+              videoErrorCode={videoErrorCode}
+              searchError={searchError}
+              onRetrySearch={handleRetrySearch}
               searchInputRef={searchInputRef}
               likedSongs={likedSongs}
               selectedPlaylist={selectedPlaylist}

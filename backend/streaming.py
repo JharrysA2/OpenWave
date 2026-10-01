@@ -1,4 +1,4 @@
-"""SoundWave Backend — Extracción de URLs de audio con yt-dlp."""
+"""OpenWave Backend — Extracción de URLs de audio con yt-dlp."""
 
 import asyncio
 import contextlib
@@ -19,7 +19,7 @@ from cache import (
     in_flight,
     in_flight_lock,
 )
-from config import STREAM_CACHE_DIR, STREAM_CACHE_MAX_BYTES
+from config import STREAM_CACHE_DIR, STREAM_CACHE_MAX_BYTES, YT_DLP_CACHE_DIR
 from logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -74,7 +74,7 @@ def lowq_path(video_id: str):
 def _bundle_dir(name: str) -> Path | None:
     """Directorio `name` empaquetado junto a la app (raíz de la instalación).
 
-    En el MSI la app vive en `Program Files\\SoundWave` con `runtime\\` y
+    En el MSI la app vive en `Program Files\\OpenWave` con `runtime\\` y
     `ffmpeg\\` al lado del `.exe`; en desarrollo el mismo layout puede
     existir bajo `build/staging/` (lo crea scripts/prepare-runtime.ps1).
     """
@@ -171,6 +171,10 @@ def _build_low_quality(video_id: str) -> None:
             "18/bestaudio",
             "--extractor-args",
             "youtube:player_client=android",
+            # Caché de yt-dlp dentro del directorio de datos de la app (si
+            # no, cae en %USERPROFILE%\.cache\yt-dlp).
+            "--cache-dir",
+            str(YT_DLP_CACHE_DIR),
             "-o",
             str(src_template),
             "--quiet",
@@ -298,6 +302,8 @@ def _ydl_get_url(video_id: str, client: str = "", quality: str = "standard") -> 
         "retries": 0,
         "extractor_retries": 0,
         "extractor_args": {"youtube": {"player_client": [client or "android"]}},
+        # Caché de yt-dlp dentro del directorio de datos de la app
+        "cachedir": str(YT_DLP_CACHE_DIR),
     }
 
     with (
@@ -353,6 +359,8 @@ def _ydl_get_url_with_cookies(video_id: str) -> tuple:
                         "retries": 1,
                         "extractor_retries": 1,
                         "cookiesfrombrowser": (browser,),
+                        # Caché de yt-dlp dentro del directorio de datos
+                        "cachedir": str(YT_DLP_CACHE_DIR),
                     }
                 ) as ydl,
             ):
@@ -631,6 +639,8 @@ def _extract_with_cookies_sync(video_id: str) -> tuple:
                         "no_warnings": True,
                         "socket_timeout": 10,
                         "cookiesfrombrowser": (browser,),
+                        # Caché de yt-dlp dentro del directorio de datos
+                        "cachedir": str(YT_DLP_CACHE_DIR),
                     }
                 ) as ydl,
             ):

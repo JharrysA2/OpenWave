@@ -12,7 +12,7 @@
 #   scripts/sync-windows <rama>       # otra rama (admitido con --check)
 set -euo pipefail
 
-WIN_DIR="${SOUNDWAVE_WIN_DIR:-/mnt/c/Users/jharrys/Desktop/OpenWave}"
+WIN_DIR="${OPENWAVE_WIN_DIR:-/mnt/c/Users/jharrys/Desktop/OpenWave}"
 BRANCH="master"
 CHECK=0
 for arg in "$@"; do
@@ -24,7 +24,7 @@ done
 
 if [[ ! -d "$WIN_DIR/.git" && ! -f "$WIN_DIR/.git" ]]; then
   echo "No existe el checkout Windows: $WIN_DIR" >&2
-  echo "(define SOUNDWAVE_WIN_DIR si está en otra ruta)" >&2
+  echo "(define OPENWAVE_WIN_DIR si está en otra ruta)" >&2
   exit 1
 fi
 

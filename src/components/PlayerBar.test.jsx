@@ -62,7 +62,7 @@ describe("PlayerBar", () => {
 
   it("should show default title when no song", () => {
     renderBar();
-    expect(screen.getByText("SoundWave")).toBeInTheDocument();
+    expect(screen.getByText("OpenWave")).toBeInTheDocument();
   });
 
   it("should render song title and artist when song is provided", () => {

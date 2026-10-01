@@ -1,4 +1,4 @@
-# 🎵 SoundWave — App de Música
+# 🎵 OpenWave — App de Música
 
 App de música para PC usando **Tauri + React + FastAPI + ytmusicapi**.
 
@@ -84,7 +84,7 @@ aceptación): **[docs/instalador/README.md](docs/instalador/README.md)**.
 ## 🗂️ Estructura del proyecto
 
 ```
-soundwave/
+openwave/
 ├── .github/workflows/
 │   └── ci.yml                 ← CI: lint + format + build + tests (frontend) y ruff + pytest (backend)
 ├── .husky/

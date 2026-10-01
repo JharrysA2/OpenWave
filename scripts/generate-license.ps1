@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Genera el texto de licencia que muestra el instalador MSI de SoundWave.
+  Genera el texto de licencia que muestra el instalador MSI de OpenWave.
 
 .DESCRIPTION
   Concatena docs/instalador/TERMINOS.txt (español) + LICENSE (GPL-3.0) y
@@ -109,7 +109,7 @@ foreach ($check in @($TxtFile, $RtfFile)) {
 # 2) RTF completo para revision manual antes de compilar. Usa el mismo cuerpo
 #    que incrustara Tauri (mismo \sa0/\sa160/\fs18), con su propia cabecera.
 $rtf = "{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1034{\fonttbl{\f0\fnil\fcharset0 Calibri;}}`n" +
-       "{\*\generator soundwave-generate-license}\viewkind4\uc1`n" +
+       "{\*\generator openwave-generate-license}\viewkind4\uc1`n" +
        $fragment +
        "`n}"
 [System.IO.File]::WriteAllText($RtfFile, $rtf, [System.Text.Encoding]::ASCII)

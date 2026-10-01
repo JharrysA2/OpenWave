@@ -4,6 +4,7 @@ import {
   ONLINE_INTERVAL_MS,
   HIDDEN_ONLINE_INTERVAL_MS,
   HIDDEN_OFFLINE_INTERVAL_MS,
+  BOOT_TIMEOUT_MS,
   __resetHealth,
   checkHealth,
   getHealthState,
@@ -73,6 +74,20 @@ describe("backendHealth — estado", () => {
     expect(getHealthState().online).toBe(false);
     expect(getHealthState().error).toBe("ECONNREFUSED");
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("markOffline deriva siempre un código reportable del motivo", () => {
+    markOffline("ECONNREFUSED");
+    expect(getHealthState().code).toBe("E-CNX-01");
+
+    markOffline("Timeout");
+    expect(getHealthState().code).toBe("E-CNX-02");
+
+    markOffline("HTTP 503");
+    expect(getHealthState().code).toBe("E-INT-00");
+
+    markOffline("HTTP 404");
+    expect(getHealthState().code).toBe("E-CNX-03");
   });
 
   it("markOffline is idempotent but updates the reason", () => {
@@ -146,6 +161,10 @@ describe("backendHealth — checkHealth", () => {
     await expect(checkHealth()).resolves.toBe(false);
     expect(getHealthState().online).toBe(false);
     expect(getHealthState().error).toBe("HTTP 503");
+    expect(getHealthState().code).toBe("E-INT-00");
+    // Primer chequeo terminado → fin del arranque (la pantalla de inicio
+    // puede salir del estado "Iniciando…" con el resultado real).
+    expect(getHealthState().booting).toBe(false);
   });
 
   it("marks offline when the network is down", async () => {
@@ -154,6 +173,8 @@ describe("backendHealth — checkHealth", () => {
     await expect(checkHealth()).resolves.toBe(false);
     expect(getHealthState().online).toBe(false);
     expect(getHealthState().error).toBe("Error de conexión");
+    expect(getHealthState().code).toBe("E-CNX-01");
+    expect(getHealthState().booting).toBe(false);
   });
 
   it("marks offline with 'Timeout' when the check aborts", async () => {
@@ -223,14 +244,16 @@ describe("backendHealth — heartbeat", () => {
 
     startHeartbeat();
     expect(isHeartbeatRunning()).toBe(true);
-    expect(fetchMock).not.toHaveBeenCalled();
+    // El PRIMER chequeo es INMEDIATO (arranque): sin él el estado seguía
+    // siendo "optimista" 20 s y la UI de inicio no se resolvía.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(getHeartbeatInterval()).toBe(ONLINE_INTERVAL_MS);
 
     await vi.advanceTimersByTimeAsync(ONLINE_INTERVAL_MS);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
     await vi.advanceTimersByTimeAsync(ONLINE_INTERVAL_MS);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("retries fast while offline and reconnects automatically", async () => {
@@ -259,13 +282,14 @@ describe("backendHealth — heartbeat", () => {
     fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
 
     startHeartbeat();
+    expect(fetchMock).toHaveBeenCalledTimes(1); // chequeo inmediato de arranque
     // El backend se cae antes del primer latido (lo detecta api.js, no el heartbeat)
     markOffline("ECONNREFUSED");
     expect(getHeartbeatInterval()).toBe(OFFLINE_INTERVAL_MS);
 
     // Reintenta a los 3s, no a los 20s
     await vi.advanceTimersByTimeAsync(OFFLINE_INTERVAL_MS);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("vuelve al intervalo lento tras recuperarse", async () => {
@@ -289,11 +313,12 @@ describe("backendHealth — heartbeat", () => {
     fetchMock.mockResolvedValue(okJson());
 
     startHeartbeat();
+    const afterStart = fetchMock.mock.calls.length; // 1: el chequeo inmediato
     stopHeartbeat();
     expect(isHeartbeatRunning()).toBe(false);
 
     await vi.advanceTimersByTimeAsync(ONLINE_INTERVAL_MS * 3);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(afterStart);
   });
 
   it("startHeartbeat is idempotent", async () => {
@@ -302,9 +327,35 @@ describe("backendHealth — heartbeat", () => {
 
     startHeartbeat();
     startHeartbeat();
+    expect(fetchMock).toHaveBeenCalledTimes(1); // un solo chequeo inmediato
 
     await vi.advanceTimersByTimeAsync(ONLINE_INTERVAL_MS);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2); // + un latido del intervalo
+  });
+
+  it("el primer chequeo usa el timeout corto de arranque (BOOT_TIMEOUT_MS)", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockImplementation(
+      (_url, opts) =>
+        new Promise((_resolve, reject) => {
+          opts.signal.addEventListener("abort", () => {
+            const err = new Error("aborted");
+            err.name = "AbortError";
+            reject(err);
+          });
+        }),
+    );
+
+    startHeartbeat();
+    expect(getHealthState().booting).toBe(true);
+
+    // Sin backend: se aborta a los 3 s (no a los 4 s del chequeo normal ni
+    // a los 20 s del primer latido) → la pantalla de inicio se resuelve.
+    await vi.advanceTimersByTimeAsync(BOOT_TIMEOUT_MS);
+    expect(getHealthState().online).toBe(false);
+    expect(getHealthState().error).toBe("Timeout");
+    expect(getHealthState().code).toBe("E-CNX-02");
+    expect(getHealthState().booting).toBe(false);
   });
 });
 
@@ -332,6 +383,8 @@ describe("backendHealth — ventana oculta", () => {
     setVisibility("hidden");
     startHeartbeat();
     expect(getHeartbeatInterval()).toBe(HIDDEN_ONLINE_INTERVAL_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // chequeo inmediato de arranque
+    fetchMock.mockClear();
 
     await vi.advanceTimersByTimeAsync(HIDDEN_ONLINE_INTERVAL_MS - 1);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -346,12 +399,16 @@ describe("backendHealth — ventana oculta", () => {
     setVisibility("hidden");
     startHeartbeat();
 
-    await vi.advanceTimersByTimeAsync(HIDDEN_ONLINE_INTERVAL_MS);
+    // El chequeo inmediato ya asentó el estado (offline + arranque terminado)
+    await vi.advanceTimersByTimeAsync(0);
     expect(getHealthState().online).toBe(false);
     expect(getHeartbeatInterval()).toBe(HIDDEN_OFFLINE_INTERVAL_MS);
 
-    await vi.advanceTimersByTimeAsync(HIDDEN_OFFLINE_INTERVAL_MS);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    fetchMock.mockClear();
+    await vi.advanceTimersByTimeAsync(HIDDEN_OFFLINE_INTERVAL_MS - 1);
+    expect(fetchMock).not.toHaveBeenCalled(); // nunca en el intervalo corto (3s)
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("ocultar en caliente reprograma el latido pendiente al intervalo largo", async () => {

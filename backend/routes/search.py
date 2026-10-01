@@ -1,4 +1,4 @@
-"""SoundWave Backend — Rutas de búsqueda, tendencias y home."""
+"""OpenWave Backend — Rutas de búsqueda, tendencias y home."""
 
 import asyncio
 import random

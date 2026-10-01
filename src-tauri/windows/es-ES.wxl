@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Localización es-ES del instalador MSI de SoundWave.
+  Localización es-ES del instalador MSI de OpenWave.
 
   Referenciado desde bundle.wix.language en src-tauri/tauri.conf.json (la ruta
   se resuelve contra src-tauri/ porque el bundler cambia el cwd a esa carpeta).
@@ -23,15 +23,15 @@
     <!-- Identificadores por defecto de Tauri -->
     <String Id="TauriLanguage">3082</String>
     <String Id="TauriCodepage">1252</String>
-    <String Id="LaunchApp">Iniciar SoundWave al terminar la instalación</String>
-    <String Id="DowngradeErrorMessage">Ya está instalada una versión más reciente de SoundWave. Desinstálala para poder continuar.</String>
-    <String Id="InstallAppFeature">Instala SoundWave en el equipo.</String>
-    <String Id="PathEnvVarFeature">Añade la carpeta de instalación de SoundWave a la variable de entorno PATH del sistema, para poder lanzarlo desde cualquier ubicación.</String>
+    <String Id="LaunchApp">Iniciar OpenWave al terminar la instalación</String>
+    <String Id="DowngradeErrorMessage">Ya está instalada una versión más reciente de OpenWave. Desinstálala para poder continuar.</String>
+    <String Id="InstallAppFeature">Instala OpenWave en el equipo.</String>
+    <String Id="PathEnvVarFeature">Añade la carpeta de instalación de OpenWave a la variable de entorno PATH del sistema, para poder lanzarlo desde cualquier ubicación.</String>
 
     <!-- Titulos de las features opcionales del OptionsDlg -->
     <String Id="FeatureStartMenu">Acceso directo en el menú inicio</String>
     <String Id="FeatureDesktop">Acceso directo en el escritorio</String>
-    <String Id="FeatureStartup">Iniciar SoundWave con Windows</String>
+    <String Id="FeatureStartup">Iniciar OpenWave con Windows</String>
 
     <!-- Diálogo OptionsDlg (src-tauri/windows/main.wxs) -->
     <String Id="OptionsDlg_Title">Opciones de instalación de [ProductName]</String>
@@ -40,8 +40,8 @@
     <String Id="OptionsDlgBannerBitmap">WixUI_Bmp_Banner</String>
     <String Id="OptionsDlgStartMenu">Crear un acceso directo en el menú inicio</String>
     <String Id="OptionsDlgDesktop">Crear un acceso directo en el escritorio</String>
-    <String Id="OptionsDlgStartup">Iniciar SoundWave con Windows</String>
+    <String Id="OptionsDlgStartup">Iniciar OpenWave con Windows</String>
     <String Id="OptionsDlgStartupHint">Solo para este usuario. Puede desactivarlo más adelante en Configuración de Windows &gt; Aplicaciones de inicio.</String>
-    <String Id="OptionsDlgNote">La música descargada, la base de datos y los registros se guardan en %LOCALAPPDATA%\SoundWave, no en Archivos de programa.</String>
+    <String Id="OptionsDlgNote">La música descargada, la base de datos y las copias de seguridad se guardan en C:\ProgramData\OpenWave, no en Archivos de programa.</String>
 
 </WixLocalization>

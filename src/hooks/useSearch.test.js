@@ -1,7 +1,15 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useSearch } from "./useSearch";
+import { api } from "../utils/api";
 import { mockApiResponse } from "../test-utils";
+
+// La caché de api es module-level: sin limpiarla, la búsqueda de un test
+// anterior (éxito cacheado) tapa el error que se quiere probar después.
+beforeEach(() => {
+  api.clearCache();
+  localStorage.clear();
+});
 
 // ── Tests que NO necesitan fake timers ─────────────────────────────────────
 
@@ -214,5 +222,133 @@ describe("useSearch - handleSearchChange (debounce 300ms)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// ── Errores con código reportable ──────────────────────────────────────────
+
+describe("useSearch — searchError (búsqueda de canciones)", () => {
+  it("should start with searchError null", () => {
+    const { result } = renderHook(() => useSearch());
+    expect(result.current.searchError).toBeNull();
+  });
+
+  it("should expose message + reportable code when the search fails", async () => {
+    const mockFetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const { result } = renderHook(() => useSearch());
+    await act(async () => {
+      await result.current.doSearch("test");
+    });
+
+    expect(result.current.searchError).toBeTruthy();
+    expect(result.current.searchError.message).toBeTruthy();
+    expect(result.current.searchError.code).toBe("E-CNX-01");
+    // Sin datos fiables: no convive con resultados viejos
+    expect(result.current.results).toEqual([]);
+
+    mockFetch.mockRestore();
+  });
+
+  it("should clear searchError on a successful search", async () => {
+    const mockFetch = vi.spyOn(globalThis, "fetch");
+    mockFetch.mockRejectedValueOnce(new TypeError("boom"));
+    mockFetch.mockResolvedValue(mockApiResponse({ results: [{ videoId: "ok" }] }));
+
+    const { result } = renderHook(() => useSearch());
+    await act(async () => {
+      await result.current.doSearch("test");
+    });
+    expect(result.current.searchError).toBeTruthy();
+
+    await act(async () => {
+      await result.current.doSearch("test again");
+    });
+    expect(result.current.searchError).toBeNull();
+    expect(result.current.results).toHaveLength(1);
+
+    mockFetch.mockRestore();
+  });
+
+  it("should clear searchError when the query is emptied", async () => {
+    const mockFetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("down"));
+
+    const { result } = renderHook(() => useSearch());
+    await act(async () => {
+      await result.current.doSearch("test");
+    });
+    expect(result.current.searchError).toBeTruthy();
+
+    await act(async () => {
+      await result.current.doSearch("");
+    });
+    expect(result.current.searchError).toBeNull();
+
+    mockFetch.mockRestore();
+  });
+});
+
+describe("useSearch — videoErrorCode (búsqueda de videos)", () => {
+  it("should start with videoErrorCode null", () => {
+    const { result } = renderHook(() => useSearch());
+    expect(result.current.videoErrorCode).toBeNull();
+  });
+
+  it("maps a YTMusic body error to E-YTM-01", async () => {
+    const mockFetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockApiResponse({ error: "YTMusic no disponible" }));
+
+    const { result } = renderHook(() => useSearch());
+    await act(async () => {
+      await result.current.doSearchVideos("test");
+    });
+
+    expect(result.current.videoError).toBe("YTMusic no disponible");
+    expect(result.current.videoErrorCode).toBe("E-YTM-01");
+
+    mockFetch.mockRestore();
+  });
+
+  it("maps an unknown body error to the default code (E-UI-00)", async () => {
+    const mockFetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockApiResponse({ error: "API Error" }));
+
+    const { result } = renderHook(() => useSearch());
+    await act(async () => {
+      await result.current.doSearchVideos("test");
+    });
+
+    expect(result.current.videoErrorCode).toBe("E-UI-00");
+
+    mockFetch.mockRestore();
+  });
+
+  it("keeps the ApiError code on a failed fetch", async () => {
+    const mockFetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const { result } = renderHook(() => useSearch());
+    await act(async () => {
+      await result.current.doSearchVideos("test");
+    });
+
+    expect(result.current.videoErrorCode).toBe("E-CNX-01");
+    expect(result.current.videoResults).toEqual([]);
+
+    mockFetch.mockRestore();
+  });
+
+  it("clears videoErrorCode for an empty query", async () => {
+    const { result } = renderHook(() => useSearch());
+    act(() => result.current.setVideoResults([{ videoId: "old" }]));
+    await act(async () => {
+      await result.current.doSearchVideos("");
+    });
+    expect(result.current.videoErrorCode).toBeNull();
   });
 });

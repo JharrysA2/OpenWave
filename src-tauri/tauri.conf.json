@@ -1,6 +1,6 @@
 {
-  "productName": "SoundWave",
-  "mainBinaryName": "SoundWave",
+  "productName": "OpenWave",
+  "mainBinaryName": "OpenWave",
   "version": "1.0.0",
   "identifier": "com.soundwave.app",
   "build": {
@@ -15,7 +15,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "SoundWave",
+        "title": "OpenWave",
         "width": 1100,
         "height": 720,
         "minWidth": 800,
@@ -51,6 +51,7 @@
       "webviewInstallMode": { "type": "embedBootstrapper" },
       "wix": {
         "template": "windows/main.wxs",
+        "upgradeCode": "25B18CFC-CFEF-5B7B-B931-92523BC6F856",
         "bannerPath": "../build/windows/banner.bmp",
         "dialogImagePath": "../build/windows/dialog.bmp",
         "language": {

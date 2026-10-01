@@ -438,7 +438,7 @@ export const PlayerBar = memo(function PlayerBar({
                 textAlign: infoAlign,
               }}
             >
-              {song?.title || "SoundWave"}
+              {song?.title || "OpenWave"}
             </div>
             <div
               style={{

@@ -1,4 +1,4 @@
-# OpenWave / SoundWave - baseline de rendimiento (CPU/GPU) en Windows.
+# OpenWave / OpenWave - baseline de rendimiento (CPU/GPU) en Windows.
 # Muestrea contadores por proceso durante N segundos y resume avg/p95/max.
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\measure-perf.ps1 `
@@ -20,7 +20,7 @@
 #     raster/composicion de la UI, VideoDecode = decodificacion de video,
 #     Copy/Compute/Overlay = transferencias y calculo. Sirve para atribuir
 #     el consumo a una superficie concreta.
-#   - WebView2: solo procesos descendientes de soundwave.exe (excluye
+#   - WebView2: solo procesos descendientes de openwave.exe (excluye
 #     huérfanos de otras apps de Windows).
 param(
   [int]$Seconds = 60,
@@ -46,7 +46,7 @@ $series = @{
 $gpuTypeSum = @{}
 $gpuTypeMax = @{}
 
-# Descendientes msedgewebview2 de soundwave.exe (la app Tauri es la raiz)
+# Descendientes msedgewebview2 de openwave.exe (la app Tauri es la raiz)
 function Get-AppWebviewPids([int[]]$roots) {
   if (-not $roots -or $roots.Count -eq 0) { return @() }
   $procs = Get-CimInstance Win32_Process
@@ -76,7 +76,7 @@ Start-Sleep -Seconds 2
 for ($s = 0; $s -lt $Seconds; $s++) {
   # WebView2 se resuelve en CADA muestra: los renderers van y vienen y los pids
   # liberados se reutilizan enseguida (un pid cacheado contaria procesos ajenos).
-  $tauriPids = @((Get-Process -Name "soundwave" -ErrorAction SilentlyContinue | ForEach-Object { $_.Id }))
+  $tauriPids = @((Get-Process -Name "openwave" -ErrorAction SilentlyContinue | ForEach-Object { $_.Id }))
   $pyPids = @((Get-Process -Name "python" -ErrorAction SilentlyContinue | ForEach-Object { $_.Id }))
   $wvPids = Get-AppWebviewPids $tauriPids
 
@@ -87,7 +87,7 @@ for ($s = 0; $s -lt $Seconds; $s++) {
     if ($v -le 0) { continue }
     $n = [string]$r.Name
     if ($n -like "python*") { $py += $v }
-    elseif ($n -like "soundwave*") { $tauri += $v }
+    elseif ($n -like "openwave*") { $tauri += $v }
     elseif ($n -like "node*") { $nd += $v }
     if ($wvPids -contains [int]$r.IDProcess) { $wv += $v }
   }
@@ -143,14 +143,14 @@ function Stats([System.Collections.Generic.List[double]]$l) {
 }
 
 $found = @()
-foreach ($n in @("python", "soundwave", "node", "msedgewebview2")) {
+foreach ($n in @("python", "openwave", "node", "msedgewebview2")) {
   $c = (Get-Process -Name $n -ErrorAction SilentlyContinue | Measure-Object).Count
   if ($c -gt 0) { $found += "$n x$c" }
 }
 
 Write-Output "=== [$Label] ${Seconds}s | cores=$cores | procesos: $($found -join ', ') ==="
 Write-Output ("  python.exe   CPU : " + (Stats $series.pythonCpu))
-Write-Output ("  soundwave    CPU : " + (Stats $series.tauriCpu))
+Write-Output ("  openwave    CPU : " + (Stats $series.tauriCpu))
 Write-Output ("  webview2     CPU : " + (Stats $series.webviewCpu))
 Write-Output ("  node (vite)  CPU : " + (Stats $series.nodeCpu))
 Write-Output ("  sistema      CPU : " + (Stats $series.sysCpu))

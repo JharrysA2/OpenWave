@@ -366,7 +366,7 @@ class TestDeleteSelectedDownloads:
 
     def test_delete_selected_specific(self, client):
         """Eliminar seleccionados debe borrar solo los especificados."""
-        from config import BASE_DIR, MUSIC_DIR
+        from config import COVERS_DIR, LYRICS_DIR, MUSIC_DIR
         from db import get_db
 
         vid_to_delete = "del_spec_vid"
@@ -392,14 +392,13 @@ class TestDeleteSelectedDownloads:
             )
 
         # Crear archivos en las rutas exactas que usa el endpoint:
-        # mp3  → MUSIC_DIR / f"{vid}.mp3"  (via get_mp3_path)
-        # cover → BASE_DIR / "downloads" / "covers" / f"{vid}.jpg"
-        # lrc   → BASE_DIR / "downloads" / "lyrics" / f"{vid}.lrc"
-        base = BASE_DIR
+        # mp3   → MUSIC_DIR / f"{vid}.mp3"  (via get_mp3_path)
+        # cover → COVERS_DIR / f"{vid}.jpg"
+        # lrc   → LYRICS_DIR / f"{vid}.lrc"
         keep_mp3 = MUSIC_DIR / f"{vid_to_keep}.mp3"
         del_mp3 = MUSIC_DIR / f"{vid_to_delete}.mp3"
-        del_cover = base / "downloads" / "covers" / f"{vid_to_delete}.jpg"
-        del_lrc = base / "downloads" / "lyrics" / f"{vid_to_delete}.lrc"
+        del_cover = COVERS_DIR / f"{vid_to_delete}.jpg"
+        del_lrc = LYRICS_DIR / f"{vid_to_delete}.lrc"
 
         for p in [keep_mp3, del_mp3]:
             p.parent.mkdir(parents=True, exist_ok=True)

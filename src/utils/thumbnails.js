@@ -1,5 +1,5 @@
 /**
- * SoundWave — Fuente única de verdad para thumbnails HD
+ * OpenWave — Fuente única de verdad para thumbnails HD
  *
  * Antes esta lógica estaba duplicada en TRES lugares:
  *   • `utils/api.js`         → generateThumbsHD()

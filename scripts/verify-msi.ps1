@@ -1,12 +1,14 @@
 <#
 .SYNOPSIS
-    Verificacion estatica del MSI de SoundWave sin instalarlo (36 comprobaciones).
+    Verificacion estatica del MSI de SoundWave sin instalarlo (45 comprobaciones).
 
 .DESCRIPTION
     Lee las tablas del .msi con el objeto COM WindowsInstaller.Installer y
-    comprueba el flujo del asistente, los valores por defecto de las casillas,
-    la licencia embebida y la limpieza de la carpeta de instalacion. Sale con
-    codigo 0 si todo pasa y 1 si algo falla.
+    comprueba el flujo del asistente (incluido el modo mantenimiento), los
+    valores por defecto de las casillas, la licencia embebida, los textos de
+    progreso (ActionText), la tipografia (TextStyle), los graficos de marca
+    (banner/dialogo, via dark.exe) y la limpieza de la carpeta de instalacion.
+    Sale con codigo 0 si todo pasa y 1 si algo falla.
 
     Notas de implementacion (probadas):
       - Solo consultas SELECT *: MSI SQL rechaza en OpenView varias listas de
@@ -95,6 +97,10 @@ $rfile    = @(Invoke-MsiQuery $db 'SELECT * FROM RemoveFile')   # 0 RemoveFile 1
 $files    = @(Invoke-MsiQuery $db 'SELECT * FROM File')
 $comps    = @(Invoke-MsiQuery $db 'SELECT * FROM Component')  # 0 Component 1 ComponentId 2 Directory_
 $dirs     = @(Invoke-MsiQuery $db 'SELECT * FROM Directory')  # 0 Directory 1 Directory_Parent 2 DefaultDir
+# Tipografia del wizard (WixUI_Font_*): 0 Nombre 1 Fuente 2 Tamano 4 StyleBits
+$textsty  = @(Invoke-MsiQuery $db 'SELECT * FROM TextStyle')
+# Textos de estado del ProgressDlg: 0 Action 1 Description 2 Template
+$actext   = @(Invoke-MsiQuery $db 'SELECT * FROM ActionText')
 
 # Rutas instaladas: File -> Component -> Directory (para poder exigir que el
 # backend, el Python embebido y ffmpeg vayan DENTRO del MSI y no solo en el
@@ -145,7 +151,7 @@ if (Test-Path -LiteralPath $stagingMain) {
 
 $dialogNames = @($dialogs | ForEach-Object { $_[0] })
 $optControls = @($controls | Where-Object { $_[0] -eq 'OptionsDlg' })
-$flow = @($events | Where-Object { $_[0] -in @('InstallDirDlg', 'VerifyReadyDlg', 'OptionsDlg', 'WelcomeDlg', 'LicenseAgreementDlg') })
+$flow = @($events | Where-Object { $_[0] -in @('InstallDirDlg', 'VerifyReadyDlg', 'OptionsDlg', 'WelcomeDlg', 'LicenseAgreementDlg', 'MaintenanceWelcomeDlg', 'MaintenanceTypeDlg') })
 
 # Texto RTF de la licencia: light inyecta el contenido de LICENSE.rtf (generado
 # por Tauri a partir de build/windows/licencia.txt) en el control LicenseText.
@@ -153,9 +159,41 @@ $licRow = @($controls | Where-Object { $_[0] -eq 'LicenseAgreementDlg' -and $_[1
 $licText = ''
 if ($licRow.Count -gt 0) { $licText = [string]$licRow[0][9] }
 
+# Graficos de marca: se extraen los bitmaps embebidos con dark.exe y se
+# comparan, fichero a fichero, con los que genera generate-installer-art.ps1.
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$artBannerOk = $false
+$artDialogOk = $false
+$dark = Join-Path $env:LOCALAPPDATA 'tauri\WixTools314\dark.exe'
+$refBanner = Join-Path $repoRoot 'build\windows\banner.bmp'
+$refDialog = Join-Path $repoRoot 'build\windows\dialog.bmp'
+if ((Test-Path -LiteralPath $dark) -and (Test-Path -LiteralPath $refBanner) -and (Test-Path -LiteralPath $refDialog)) {
+    $tmp = Join-Path $env:TEMP ('swverify-' + [Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'   # dark.exe avisa (DARK1059) por stderr
+    try {
+        & $dark $MsiPath -x $tmp | Out-Null
+        $ErrorActionPreference = $prevEap
+        $embBanner = Join-Path $tmp 'Binary\WixUI_Bmp_Banner'
+        $embDialog = Join-Path $tmp 'Binary\WixUI_Bmp_Dialog'
+        if (Test-Path -LiteralPath $embBanner) {
+            $artBannerOk = ((Get-FileHash -LiteralPath $embBanner).Hash -eq (Get-FileHash -LiteralPath $refBanner).Hash)
+        }
+        if (Test-Path -LiteralPath $embDialog) {
+            $artDialogOk = ((Get-FileHash -LiteralPath $embDialog).Hash -eq (Get-FileHash -LiteralPath $refDialog).Hash)
+        }
+    } finally {
+        $ErrorActionPreference = $prevEap
+        Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+    }
+}
+
 Show 'Dialog' $dialogNames 30
-Show 'ControlEvent del flujo' $flow 40 @(0, 1, 2, 3, 4, 5)
+Show 'ControlEvent del flujo' $flow 50 @(0, 1, 2, 3, 4, 5)
 Show 'Control de OptionsDlg' $optControls 20 @(0, 1, 2, 8, 9)
+Show 'TextStyle (tipografia)' $textsty 8 @(0, 1, 2, 4)
+Show 'ActionText (progreso)' $actext 6 @(0, 1, 2)
 Show 'Feature' $features 10 @(0, 2, 5)
 Show 'Registry' $reg 8 @(0, 1, 2, 3, 4)
 Show 'RemoveFile' $rfile 8
@@ -168,6 +206,13 @@ function Ev([string]$dlg, [string]$ctl, [string]$evt) {
 }
 $propOf = @{}
 foreach ($p in $props) { $propOf[[string]$p[0]] = [string]$p[1] }
+
+# Derivados de las nuevas tablas (si una tabla no existe, la consulta devuelve
+# vacio y las comprobaciones correspondientes fallan).
+$titleStyle      = @($textsty | Where-Object { $_[0] -eq 'WixUI_Font_Title' })
+$bigStyle        = @($textsty | Where-Object { $_[0] -eq 'WixUI_Font_Bigger' })
+$installFilesTxt = @($actext  | Where-Object { $_[0] -eq 'InstallFiles' })
+$maintControls   = @($controls | Where-Object { $_[0] -eq 'MaintenanceTypeDlg' })
 
 $checks = [ordered]@{
     'Dialogos WixUI (Welcome, License, InstallDir, VerifyReady, Exit)' =
@@ -241,6 +286,30 @@ $checks = [ordered]@{
     'Payload: main.py del MSI identico al staging (sin backend viejo)' = $payBackendFresh
     'Payload: Python embebido (runtime\python.exe)' = ($payPython.Count -eq 1)
     'Payload: ffmpeg (ffmpeg\ffmpeg.exe)' = ($payFfmpeg.Count -eq 1)
+    'Mantenimiento: bienvenida y seleccion (MaintenanceWelcome/TypeDlg)' =
+        ('MaintenanceWelcomeDlg' -in $dialogNames) -and ('MaintenanceTypeDlg' -in $dialogNames)
+    'Mantenimiento: tres botones Cambiar / Reparar / Quitar' =
+        (@($maintControls | Where-Object { $_[1] -eq 'ChangeButton' }).Count -eq 1) -and
+        (@($maintControls | Where-Object { $_[1] -eq 'RepairButton' }).Count -eq 1) -and
+        (@($maintControls | Where-Object { $_[1] -eq 'RemoveButton' }).Count -eq 1)
+    'Mantenimiento: ChangeButton navega a OptionsDlg (Order 2)' =
+        [bool](Ev 'MaintenanceTypeDlg' 'ChangeButton' 'NewDialog' | Where-Object { $_[3] -eq 'OptionsDlg' -and $_[5] -eq '2' })
+    'Progreso: tabla ActionText con textos de estado (>= 60 filas)' =
+        ($actext.Count -ge 60)
+    'Progreso: InstallFiles con descripcion y plantilla con [1]/[9]/[6]' =
+        [bool]($installFilesTxt | Where-Object {
+            $_[1] -and ([string]$_[1]).Length -gt 5 -and ([string]$_[2]) -like '*[[]1[]]*'
+        })
+    'Progreso: textos de estado en espanol' =
+        [bool]($installFilesTxt | Where-Object { ([string]$_[1]) -like '*opiand*' })
+    'Tipografia: WixUI_Font_Title sin negrita (StyleBits vacio)' =
+        [bool]($titleStyle | Where-Object { [string]$_[4] -eq '' })
+    'Tipografia: WixUI_Font_Bigger a 11 pt' =
+        [bool]($bigStyle | Where-Object { $_[2] -eq '11' })
+    'Licencia: texto a 9 pt y compacto (\fs18, cierres de parrafo \sa160)' =
+        $licText.Contains('\fs18') -and $licText.Contains('\sa160')
+    'Grafico banner 493x58 de marca (hash == build\windows\banner.bmp)' = $artBannerOk
+    'Grafico dialogo 493x312 de marca (hash == build\windows\dialog.bmp)' = $artDialogOk
 }
 
 Write-Host ''

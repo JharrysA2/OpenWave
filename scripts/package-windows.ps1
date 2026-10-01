@@ -5,9 +5,13 @@
 .DESCRIPTION
   1. scripts\generate-license.ps1 -> build\windows\licencia.txt (texto del
      diálogo de licencia) + licencia.rtf (para revisión).
+  1b. scripts\generate-installer-art.ps1 -> build\windows\banner.bmp y
+     dialog.bmp (gráficos de marca del asistente).
   2. scripts\prepare-runtime.ps1  -> build\staging con Python embebido,
      dependencias y ffmpeg (se salta si el marcador .ready está vigente).
   3. npx tauri build --bundles msi.
+  3b. scripts\msi-postprocess.ps1 -> ajustes de tipografía del MSI enlazado
+     (sin negrita en los títulos; WixUI_Font_Bigger a 11 pt).
   4. Copia el MSI a build\windows con un nombre limpio y muestra hash/tamaño.
 
 .USO
@@ -61,6 +65,14 @@ try {
         throw "No existe ${licenseTxt}: ejecuta scripts\\generate-license.ps1 (o quita -SkipLicense)."
     }
 
+    # ── 1b. Graficos del asistente ──────────────────────────────────────────
+    # banner.bmp (493x58) y dialog.bmp (493x312) que tauri.conf.json inyecta
+    # como WixUIBannerBmp/WixUIDialogBmp. Se regeneran siempre: es rapido y
+    # el script es el unico dueno de esos ficheros.
+    Write-Host ''
+    Write-Host '--- Graficos del asistente ---'
+    & (Join-Path $root 'scripts\generate-installer-art.ps1')
+
     # ── 2. Runtime embebido ──────────────────────────────────────────────────
     if (-not $SkipRuntime) {
         Write-Host ''
@@ -79,7 +91,7 @@ try {
     & $tauriCli build --bundles msi
     if ($LASTEXITCODE -ne 0) { throw "tauri build ha fallado (codigo $LASTEXITCODE)." }
 
-    # ── 4. Resultado ─────────────────────────────────────────────────────────
+    # ── 4. Post-proceso y resultado ──────────────────────────────────────────
     $msiDir = Join-Path $root "src-tauri\target\release\bundle\msi"
     $expected = Join-Path $msiDir "SoundWave_${version}_x64_es-ES.msi"
     if (Test-Path -LiteralPath $expected) {
@@ -89,6 +101,11 @@ try {
                Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if (-not $msi) { throw "No se ha generado ningun MSI en $msiDir" }
     }
+
+    # Tipografia (quita la negrita de los titulos, 12 -> 11 pt en los titulos
+    # grandes): UPDATE directo sobre las tablas del MSI ya enlazado.
+    Write-Host ''
+    & (Join-Path $root 'scripts\msi-postprocess.ps1') -MsiPath $msi.FullName
 
     $outDir = Join-Path $root 'build\windows'
     if (-not (Test-Path -LiteralPath $outDir)) { New-Item -ItemType Directory -Force -Path $outDir | Out-Null }

@@ -51,6 +51,8 @@
       "webviewInstallMode": { "type": "embedBootstrapper" },
       "wix": {
         "template": "windows/main.wxs",
+        "bannerPath": "../build/windows/banner.bmp",
+        "dialogImagePath": "../build/windows/dialog.bmp",
         "language": {
           "es-ES": { "localePath": "windows/es-ES.wxl" }
         }

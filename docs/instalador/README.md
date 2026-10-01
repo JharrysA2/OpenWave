@@ -43,9 +43,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass \
 | Paso | Script | Qué hace |
 |------|--------|----------|
 | 1 | `scripts/generate-license.ps1` | `build/windows/licencia.txt` + `licencia.rtf` |
+| 1b | `scripts/generate-installer-art.ps1` | `build/windows/banner.bmp` (493×58) + `dialog.bmp` (493×312) |
 | 2 | `scripts/prepare-runtime.ps1` | `build/staging/{backend,runtime,ffmpeg}` |
 | 3 | `npx tauri build --bundles msi` | Compila y enlaza el MSI |
-| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (36 checks) |
+| 3b | `scripts/msi-postprocess.ps1` | Tipografía del MSI enlazado: títulos sin negrita, `WixUI_Font_Bigger` a 11 pt |
+| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (45 checks) |
 
 `prepare-runtime.ps1` es idempotente: deja `build/staging/.ready` y solo se
 vuelve a ejecutar si cambia `backend/requirements-runtime.txt` o con `-Force`.
@@ -80,15 +82,17 @@ con el hash esperado y el obtenido para que se actualice el pin.
 
 | Fichero | Papel |
 |---------|-------|
-| `src-tauri/tauri.conf.json` | `targets: ["msi"]`, `wix.template`, `wix.language`, `licenseFile` |
-| `src-tauri/windows/main.wxs` | Plantilla WiX: diálogo **OptionsDlg**, accesos directos, clave de inicio, limpieza de INSTALLDIR |
+| `src-tauri/tauri.conf.json` | `targets: ["msi"]`, `wix.template`, `wix.language`, `wix.bannerPath`/`dialogImagePath`, `licenseFile` |
+| `src-tauri/windows/main.wxs` | Plantilla WiX: diálogo **OptionsDlg**, accesos directos, clave de inicio, limpieza de INSTALLDIR, textos de progreso (`WixUI_ErrorProgressText`) y navegación de «Cambiar» |
 | `src-tauri/windows/es-ES.wxl` | Strings propios en español (Tauri + OptionsDlg); el resto lo aporta WixUIExtension |
 | `docs/instalador/TERMINOS.txt` | Términos en español (se muestran antes de la GPL) |
 | `LICENSE` | GPL-3.0-or-later |
-| `scripts/generate-license.ps1` | Compone ambos textos en `build/windows/licencia.txt` |
+| `scripts/generate-license.ps1` | Compone ambos textos en `build/windows/licencia.txt` (9 pt, interlineado compacto) |
+| `scripts/generate-installer-art.ps1` | Gráficos de marca del asistente: `banner.bmp` + `dialog.bmp` |
 | `scripts/prepare-runtime.ps1` | Python embebido + deps + ffmpeg → `build/staging/` |
-| `scripts/package-windows.ps1` | Orquesta todo y renombra el MSI |
-| `scripts/verify-msi.ps1` | Lee las tablas del MSI por COM y ejecuta las 36 comprobaciones |
+| `scripts/msi-postprocess.ps1` | UPDATE de `TextStyle` en el MSI ya enlazado (sin negrita en títulos) |
+| `scripts/package-windows.ps1` | Orquesta todo, post-procesa y renombra el MSI |
+| `scripts/verify-msi.ps1` | Lee las tablas del MSI por COM y ejecuta las 45 comprobaciones |
 
 ### Estructura instalada
 
@@ -164,6 +168,43 @@ El stderr del backend (arranques, tracebacks, warmup) cae en
 - **`INSTALL_STARTUP` empieza vacío** (desmarcado por defecto);
   `INSTALL_STARTMENU` y `INSTALL_DESKTOP` vienen con `1`.
 
+- **La página de progreso necesita `<UIRef Id="WixUI_ErrorProgressText" />`.**
+  Ese fragmento de la librería WixUI aporta la tabla `ActionText` («Copiando
+  archivos nuevos», «Archivo: [1], directorio: [9], tamaño: [6]», …). Sin la
+  tabla, el `EventMapping` del `ProgressDlg` no encuentra texto y la línea
+  «Estado:» se queda muda toda la instalación. Las cadenas existen en español
+  dentro de `WixUIExtension.dll` (sección `Culture="es-es"`); `verify-msi.ps1`
+  exige que salgan en español, así que si alguna vez resolvieran en inglés hay
+  que añadir las `String Id="ProgressText*"` a `src-tauri/windows/es-ES.wxl`
+  (son `Overridable="yes"` y nuestro `-loc` gana).
+
+- **«Cambiar» del modo mantenimiento venía muerto en WixUI_InstallDir.**
+  `MaintenanceTypeDlg.ChangeButton` solo publicaba la propiedad
+  `[WixUI_InstallMode]=Change` (Order 1) y **no** navegaba: los sabores Mondo y
+  FeatureTree sí publican `NewDialog CustomizeDlg`, pero InstallDir no publica
+  ningún `NewDialog`. El fix es un `<Publish>` con `Event="NewDialog"
+  Value="OptionsDlg" Order="2">` en `main.wxs`; OptionsDlg ya publica las
+  casillas con `AddLocal`/`Remove`, que el ejecutor procesa en modo Change
+  (condición `ALLUSERS AND (ADDLOCAL OR REMOVE)` del propio WixUI).
+
+- **La tipografía se corrige con UPDATE, no con WiX.** `<TextStyle>` solo
+  acepta `FaceName/Size/Bold/Italic/Color` y **no se puede redefinir** una
+  `TextStyle` que ya trae WixUI (clave duplicada en `light`). En cambio la
+  tabla `TextStyle` del MSI resultante sí admite `UPDATE` por COM:
+  `scripts/msi-postprocess.ps1` pone `WixUI_Font_Title.StyleBits = NULL`
+  (el bit 1 = negrita; los títulos de página dejaban de verse en bold) y
+  `WixUI_Font_Bigger.Size = 11` (bienvenida/salida, antes 12). Atención: la
+  base hay que abrirla en **modo lectura/escritura (1)**; el 0 es de solo
+  lectura y todo `UPDATE` falla en `Execute`.
+
+- **Los gráficos del asistente son nuestros** (`wix.bannerPath` /
+  `wix.dialogImagePath` → `build/windows/{banner,dialog}.bmp`, que genera
+  `scripts/generate-installer-art.ps1` en el paso 1b): banda clara a la
+  izquierda para que el título negro de WixUI se lea, marca (barras de
+  ecualizador) solo en `x ≥ 412`, y panel violeta con logotipo en la columna
+  izquierda de la imagen de diálogo (los controles de texto arrancan en
+  `x = 180 px`), dejando libre la zona blanca de la derecha.
+
 ---
 
 ## ✅ Checklist de aceptación
@@ -173,49 +214,69 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 ### Asistente
 
 1. Doble clic en el MSI → diálogo de Control de cuentas de usuario (Sí).
-2. **Bienvenida** en español.
-3. **Términos y licencia**: aparece `TERMINOS.txt` y después la GPL en español;
-   el botón «Siguiente» está **deshabilitado** hasta marcar «Acepto los
-   términos».
+2. **Bienvenida** en español, con la imagen de marca de SoundWave (panel
+   violeta con el logotipo) a la izquierda.
+3. **Términos y licencia**: aparece `TERMINOS.txt` y después la GPL en español,
+   a 9 pt y con interlineado compacto (sin el salto enorme de versiones
+   anteriores); el botón «Siguiente» está **deshabilitado** hasta marcar
+   «Acepto los términos».
 4. **Carpeta de destino**: `C:\Program Files\SoundWave`, con botón
    `Examinar...` que abre el diálogo de selección de carpeta.
 5. **Opciones de instalación**: tres casillas
    - [x] Crear un acceso directo en el menú inicio
    - [x] Crear un acceso directo en el escritorio
    - [ ] Iniciar SoundWave con Windows  ← **desmarcado por defecto**
-6. **Listo para instalar** → «Instalar» (barra de progreso).
+6. **Listo para instalar** → «Instalar»: la página de progreso muestra
+   **textos de estado** («Copiando archivos nuevos», «Archivo: …, directorio:
+   …») sobre la barra, no solo la barra.
 7. **Finalizar**: casilla «Iniciar SoundWave al terminar la instalación»
    marcada por defecto.
+8. Los títulos de cada página se ven **sin negrita** y a un tamaño
+   proporcionado (tipografía corregida con `msi-postprocess.ps1`).
 
 ### Post-instalación
 
-8. La app arranca y la ventana carga sin errores de backend.
-9. Accesos directos creados en el escritorio y en
-   `Inicio ▸ SoundWave`, ambos apuntando al `.exe` instalado.
-10. Con la tercera casilla marcada: aparece
+9. La app arranca y la ventana carga sin errores de backend.
+10. Accesos directos creados en el escritorio y en
+    `Inicio ▸ SoundWave`, ambos apuntando al `.exe` instalado.
+11. Con la tercera casilla marcada: aparece
     `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\SoundWave` y la app
     arranca tras reiniciar. Sin marcar: la clave no existe.
-11. **Descarga MP3** y **calidad «Baja»** funcionan (usa `ffmpeg\ffmpeg.exe`).
-12. Los datos aparecen en `%LOCALAPPDATA%\SoundWave` y **no** en
+12. **Descarga MP3** y **calidad «Baja»** funcionan (usa `ffmpeg\ffmpeg.exe`).
+13. Los datos aparecen en `%LOCALAPPDATA%\SoundWave` y **no** en
     `Program Files\SoundWave` (ni `soundwave.db`, ni `downloads\`).
-13. Desinstalar desde «Aplicaciones» de Windows:
+14. Desinstalar desde «Aplicaciones» de Windows:
     - desaparecen los accesos directos,
     - se borra `C:\Program Files\SoundWave` (INCLUIDA la carpeta),
     - se borra la clave de inicio con Windows si se creó,
     - **queda** `%LOCALAPPDATA%\SoundWave` (los datos no se pierden).
-14. Reinstalar por encima (misma versión) funciona; instalar una versión
+15. Reinstalar por encima (misma versión) funciona; instalar una versión
     **inferior** sobre una superior debe mostrar el mensaje de error de
     actualización en español.
+
+### Modo mantenimiento (re-ejecutar el mismo MSI)
+
+16. Re-ejecutar el MSI ya instalado **no reinstala**: aparece la bienvenida de
+    mantenimiento y la página con **tres opciones**: «Cambiar», «Reparar» y
+    «Quitar».
+17. **Cambiar** abre «Opciones de instalación» (las tres casillas de accesos
+    directos); «Siguiente» lleva a «Listo para instalar» y los cambios se
+    aplican. En WixUI_InstallDir ese botón venía **sin cablear** (solo publicaba
+    `WixUI_InstallMode=Change` y no navegaba): el `NewDialog` a `OptionsDlg`
+    está publicado en `main.wxs`.
+18. **Reparar** y **Quitar** van a «Listo para instalar» con el modo elegido.
+    Cancelar en esas pantallas no toca la instalación.
 
 ### Regresión rápida tras cada cambio
 
 - `ruff check backend/ && python -m pytest` en `backend/` (337 tests).
 - `npm test` (frontend).
 - Tras recompilar: `powershell -ExecutionPolicy Bypass -File scripts\verify-msi.ps1`
-  → 36 comprobaciones sobre las tablas del MSI (flujo del asistente, valores
-  por defecto de las casillas, licencia embebida, limpieza de INSTALLDIR,
-  payload: backend + Python embebido + ffmpeg y `main.py` al día),
-  sin instalar nada.
+  → 45 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
+  el modo mantenimiento, valores por defecto de las casillas, licencia embebida,
+  textos de progreso de `ActionText`, tipografía de `TextStyle`, gráficos de
+  marca, limpieza de INSTALLDIR, payload: backend + Python embebido + ffmpeg y
+  `main.py` al día), sin instalar nada.
 
 ---
 
@@ -292,7 +353,9 @@ También conviene saberlo al leer la plantilla: **no existe la tabla
 
 - **Firma de código** (Authenticode): sin ella, SmartScreen avisará en la
   primera ejecución. Requiere certificado.
-- **Banner de 493×64** en el diálogo de bienvenida (ahora usa el de WixUI).
+- Los gráficos de marca son **493×58** (banner) y **493×312** (imagen de
+  diálogo); con DPI alto `msiexec` escala los diálogos y los bitmap se
+  estiran (los tamaños de letra más pequeños mitigan el efecto).
 - **NSIS** deshabilitado (`targets: ["msi"]`); si se re-habilita hay que
   revisar `bundle.licenseFile`, que NSIS usa de otra manera.
 - **Compresión del cabinet** y CI en Windows: aún no.

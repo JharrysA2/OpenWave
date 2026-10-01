@@ -164,6 +164,20 @@
                      Value="OptionsDlg"
                      Order="3">NOT Installed</Publish>
 
+            <!-- "Cambiar" (modo mantenimiento): WixUI_InstallDir solo publica
+                 WixUI_InstallMode=Change (Order 1) y NO navega (los sabores
+                 Mondo/FeatureTree van a CustomizeDlg; aquí nadie publica el
+                 NewDialog), así que el botón quedaba muerto. Lo mandamos a
+                 OptionsDlg (Order 2, tras fijar el modo): desde ahí Next vuelve
+                 a VerifyReadyDlg y las casillas publican AddLocal/Remove, que el
+                 ejecutor procesa en modo Change (condición ALLUSERS AND
+                 ADDLOCAL OR REMOVE del propio WixUI). -->
+            <Publish Dialog="MaintenanceTypeDlg"
+                     Control="ChangeButton"
+                     Event="NewDialog"
+                     Value="OptionsDlg"
+                     Order="2">1</Publish>
+
             <!-- ── Diálogo OptionsDlg: accesos directos ────────────────────── -->
             <Dialog Id="OptionsDlg" Width="370" Height="270" Title="!(loc.OptionsDlg_Title)">
                 <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.OptionsDlgDescription)" />
@@ -206,6 +220,12 @@
         </UI>
 
         <UIRef Id="WixUI_InstallDir" />
+
+        <!-- Textos de estado de la pagina de progreso: aporta la tabla
+             ActionText («Copiando archivos nuevos», «Archivo: [1], directorio:
+             [9], tamano: [6]»...) sin la cual la linea "Estado:" del
+             ProgressDlg se queda vacia durante la instalacion. -->
+        <UIRef Id="WixUI_ErrorProgressText" />
 
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="DesktopFolder" Name="Desktop">

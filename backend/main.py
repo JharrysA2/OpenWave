@@ -63,7 +63,16 @@ logger = get_logger(__name__)
 
 # Orígenes permitidos (webview de Tauri + dev server de Vite). En un solo
 # sitio: lo usa el middleware CORS y el handler de errores internos (ver abajo).
+#
+# CRÍTICO: la app EMPAQUETADA en Windows corre en WebView2 sobre
+# `http://tauri.localhost` (visible en el perfil: Local Storage leveldb usa
+# `_http://tauri.localhost`). Sin ese origen el fetch SÍ llega al backend y
+# contesta 200, pero el navegador bloquea la lectura de la respuesta →
+# TypeError en api.js → siempre «E-CNX-01» CON el backend en marcha (fallo
+# visto en las dos primeras pruebas del MSI instalado).
 _ORIGENES_CORS = (
+    "http://tauri.localhost",
+    "https://tauri.localhost",
     "tauri://localhost",
     "http://localhost:1420",
     "http://127.0.0.1:1420",

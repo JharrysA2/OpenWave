@@ -151,6 +151,34 @@ class TestHealth:
         assert resp.json()["code"] == "E-REQ-01"
 
 
+class TestCorsOrigenEmpaquetado:
+    """La app EMPAQUETADA corre en WebView2 sobre `http://tauri.localhost`.
+
+    Sin ese origen en la lista CORS el fetch SÍ llega al backend (200), pero
+    el navegador bloquea la lectura de la respuesta: api.js recibía un
+    TypeError y la UI se quedaba en «E-CNX-01» CON el backend en marcha.
+    Reproducido en las dos primeras pruebas reales del MSI.
+    """
+
+    ORIGEN_APP = "http://tauri.localhost"
+
+    def test_health_permite_el_origen_de_la_app_instalada(self, client):
+        resp = client.get("/health", headers={"Origin": self.ORIGEN_APP})
+        assert resp.status_code == 200
+        assert resp.headers.get("access-control-allow-origin") == self.ORIGEN_APP
+
+    def test_error_tambien_lleva_el_origen(self, client):
+        """Las respuestas de error salen por otro handler: también deben poder
+        leerse desde la app instalada."""
+        resp = client.post("/health", headers={"Origin": self.ORIGEN_APP})
+        assert resp.status_code == 405
+        assert resp.headers.get("access-control-allow-origin") == self.ORIGEN_APP
+
+    def test_origen_desconocido_no_se_permite(self, client):
+        resp = client.get("/health", headers={"Origin": "http://evil.example"})
+        assert "access-control-allow-origin" not in resp.headers
+
+
 class TestErroresConCodigo:
     """Tests de los handlers globales: todo error lleva un `code` estable.
 

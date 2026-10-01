@@ -253,6 +253,27 @@ El stderr del backend (arranques, tracebacks, warmup) cae en
   código resultó escribible y los datos acabaron OTRA VEZ en Archivos de
   Programas. Con la regla de layout, instalado → siempre ProgramData,
   escriba o no el código.
+- **La carpeta `C:\ProgramData\OpenWave` la crea EL INSTALADOR, con ACL
+  explícita.** `main.wxs` declara `ProgramDataFolder\OpenWave` con un
+  componente `CreateFolder` + `util:PermissionEx` y DACL **protegida**:
+  `Usuarios` con Modificar (hereda a los ficheros), `CREATOR OWNER` con
+  control total y SYSTEM/Administradores full. Sin esto, la carpeta la creaba
+  la app en su primer arranque y, si ese arranque era el elevado de la última
+  página del instalador, los ficheros heredaban solo «Usuarios: leer y
+  ejecutar» de `C:\ProgramData`: el proceso normal recibía `PermissionError`
+  al abrir `openwave.log` y la base de datos quedaba de solo lectura
+  (reproducido a mano). Los datos **no** se borran al desinstalar:
+  `CreateFolder` solo retira la carpeta si queda vacía.
+- **CORS debe permitir `http://tauri.localhost`.** La app empaquetada corre
+  en WebView2 con ese origen (se comprueba en el perfil: las claves de
+  `Local Storage` usan `_http://tauri.localhost`). Sin él, el fetch llega al
+  backend y contesta 200 pero el navegador bloquea la lectura de la
+  respuesta: `api.js` ve un `TypeError`, `markOffline` lo etiqueta
+  `E-CNX-01` y la UI insiste en «Sin conexión con el servidor» **con el
+  backend en marcha** — exactamente lo visto en las dos primeras pruebas del
+  MSI. Origen real + dev:1420 en `_ORIGENES_CORS` (`backend/main.py`), que
+  usan tanto el middleware como el handler de errores internos; testeado en
+  `TestCorsOrigenEmpaquetado`.
 
 ---
 

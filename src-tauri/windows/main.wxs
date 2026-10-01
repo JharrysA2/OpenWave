@@ -36,7 +36,8 @@
 
     El resto (WebView2, binarios, recursos, upgrade) es literal de Tauri.
 -->
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.wixtoolset.org/schemas/wixUtilExtension">
     <Product
             Id="*"
             Name="{{product_name}}"
@@ -246,6 +247,15 @@
             <Directory Id="ProgramMenuFolder">
                 <Directory Id="ApplicationProgramsFolder" Name="{{product_name}}"/>
             </Directory>
+            <!-- «Datos de Programas»: raíz de datos de la app (base de datos,
+                 descargas, log). La carpeta se CREA AQUÍ con ACL explícita en
+                 CMP_DataDir; si la creara la app en su primer arranque, el
+                 proceso elevado (última página del instalador) dejaría los
+                 ficheros heredando solo «Usuarios: leer y ejecutar» de
+                 C:\ProgramData y el usuario normal no podría escribir. -->
+            <Directory Id="ProgramDataFolder" Name="CommonAppData">
+                <Directory Id="OPENWAVEDATADIR" Name="OpenWave"/>
+            </Directory>
         </Directory>
 
         <DirectoryRef Id="INSTALLDIR">
@@ -341,6 +351,21 @@
            </Component>
         </DirectoryRef>
 
+        <!-- Carpeta de datos + ACL. DACL PROTEGIDA (sin heredar la de
+             C:\ProgramData): Usuarios con Modificar OICI (hereda a los
+             ficheros, luego también los creados por el proceso elevado son
+             escribibles por el usuario normal), CREATOR OWNER con control
+             total sobre lo que cree cada uno, y SYSTEM/Administradores a
+             full. CreateFolder solo retira la carpeta si queda VACÍA en la
+             desinstalación: los datos sobreviven. -->
+        <DirectoryRef Id="OPENWAVEDATADIR">
+            <Component Id="CMP_DataDir" Guid="*" Win64="$(var.Win64)">
+                <CreateFolder>
+                    <util:PermissionEx Sddl="O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;CO)(A;OICI;0x1301bf;;;BU)" />
+                </CreateFolder>
+            </Component>
+        </DirectoryRef>
+
         {{#each merge_modules as |msm| ~}}
         <DirectoryRef Id="TARGETDIR">
             <Merge Id="{{ msm.name }}" SourceFile="{{ msm.path }}" DiskId="1" Language="!(loc.TauriLanguage)" />
@@ -371,6 +396,8 @@
             <!-- El .exe se instala SIEMPRE: las casillas solo añaden o
                  quitan accesos directos, nunca la aplicación. -->
             <ComponentRef Id="Path"/>
+            <!-- Datos en «Datos de Programas» (con su ACL): siempre. -->
+            <ComponentRef Id="CMP_DataDir"/>
 
             {{#each resource_file_ids as |resource_file_id| ~}}
                 <ComponentRef Id="{{ resource_file_id }}"/>

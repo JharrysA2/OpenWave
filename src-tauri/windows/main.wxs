@@ -115,9 +115,11 @@
         <Property Id="INSTALLDIR">
           <!-- Legacy: instalaciones previas con el nombre antiguo del producto
                escribieron la clave bajo "SoundWave"; se busca la PRIMERA para
-               que, si existe, las busquedas siguientes (prioritarias) la pisen. -->
-          <RegistrySearch Id="PrevInstallDirLegacyNoName" Root="HKCU" Key="Software\\{{manufacturer}}\\SoundWave" Type="raw" />
-          <RegistrySearch Id="PrevInstallDirLegacyWithName" Root="HKCU" Key="Software\\{{manufacturer}}\\SoundWave" Name="InstallDir" Type="raw" />
+               que, si existe, las busquedas siguientes (prioritarias) la pisen.
+               La ruta va SIN plantillas: handlebars/Tauri solo colapsan el
+               doble barra pegado a {{var}} y un "\\literal" llega a ICE03. -->
+          <RegistrySearch Id="PrevInstallDirLegacyNoName" Root="HKCU" Key="Software\soundwave\SoundWave" Type="raw" />
+          <RegistrySearch Id="PrevInstallDirLegacyWithName" Root="HKCU" Key="Software\soundwave\SoundWave" Name="InstallDir" Type="raw" />
 
           <!-- First attempt: Search for the default key value (this is how the nsis installer stores the path) -->
           <RegistrySearch Id="PrevInstallDirNoName" Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Type="raw" />

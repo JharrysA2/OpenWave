@@ -116,4 +116,14 @@ describe("app-hidden — reglas CSS de index.html (presupuesto §4)", () => {
     expect(html).toContain('[style*="blur(40px)"]');
     expect(html).toMatch(/:not\(\.perf-blur-off\):not\(\.perf-solid\)/);
   });
+
+  it("«Sombras» apaga también el glow drop-shadow del relleno (paridad box-shadow)", () => {
+    // El glow del player vive en filter: drop-shadow (para que scaleX no lo
+    // aplaste) y ya no es un box-shadow: sin esta regla, perf-shadow-off
+    // («Sombras» de Rendimiento) dejaría el neon encendido.
+    const html = readProjectFile("index.html");
+    expect(html).toMatch(
+      /html\.perf-shadow-off \[style\*="drop-shadow"\]\s*\{\s*filter:\s*none\s*!important/,
+    );
+  });
 });

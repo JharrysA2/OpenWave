@@ -225,6 +225,14 @@
       html.perf-shadow-off *::after {
         box-shadow: none !important;
       }
+      /* El glow del relleno del player es filter: drop-shadow (así no lo
+         aplaste scaleX — ver PlayerBar «progress-fill-glow»). «Sombras»
+         debe apagarlo igual que apagaba su box-shadow anterior.
+         perf-blur-off ya lo mata con filter: none de serie: es un pase de
+         difuminado y ese modo existe justo para eliminarlos. */
+      html.perf-shadow-off [style*="drop-shadow"] {
+        filter: none !important;
+      }
       html.perf-solid [style*="backdrop-filter"] {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;

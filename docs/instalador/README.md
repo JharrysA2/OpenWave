@@ -125,14 +125,25 @@ checks de payload), y no hay nada que arrancar a mano: lo gestiona el propio
 1. **Al abrir la app** (`setup`), si `127.0.0.1:8765` no responde ya, lanza
    en segundo plano `runtime\python.exe backend\main.py` (con consola
    oculta), `OPENWAVE_DATA_DIR=C:\ProgramData\OpenWave` y `runtime\` y
-   `ffmpeg\` delante en `PATH`; después espera hasta 15 s a que
-   `GET /health` conteste `OpenWave` antes de dar por buena la conexión.
+   `ffmpeg\` delante en `PATH`. La espera de `GET /health` (hasta 15 s)
+   corre en un **hilo aparte**: `setup()` no bloquea y la ventana pinta
+   desde el primer frame (antes el bucle de eventos no arrancaba hasta
+   15 s, con la ventana congelada).
 2. **Si el puerto ya responde** (otra instancia abierta, o un backend que
    sobrevivió a un cierre brusco), no lanza otro: reutiliza ese.
 3. **Al cerrar la ventana** (`CloseRequested`) hace `child.kill()` sobre
    *su* proceso hijo: muere `python.exe` y con él uvicorn. Si la app muere
    sin pasar por ese cierre («Finalizar tarea»), el backend se queda vivo y
    el paso 2 lo reutiliza en el siguiente arranque.
+
+**El backend en frío tarda ~15-20 s en servir** (imports de Python +
+escaneo de Defender del runtime recién instalado), así que la pantalla de
+inicio no decide con un solo chequeo: `utils/backendHealth.js` abre una
+**ventana de gracia de 30 s** (`BOOT_GRACE_MS`) reintentando cada 1,5 s
+(`BOOT_RETRY_INTERVAL_MS`) mientras muestra «Iniciando…»; si el backend
+responde, la pantalla se desvanece; si la gracia se agota, aparece el
+estado de error con su código (p. ej. `E-CNX-01`) y, más tarde, el overlay
+se desvanece solo si el backend acaba de subir.
 
 El stderr del backend (arranques, tracebacks, warmup) cae en
 `C:\ProgramData\OpenWave\backend.err.log`.
@@ -235,6 +246,13 @@ El stderr del backend (arranques, tracebacks, warmup) cae en
   antiguos (`%LOCALAPPDATA%\OpenWave` y la carpeta `SoundWave` de versiones
   previas, con `soundwave.db` → `openwave.db`) sin borrar el origen y con
   marcador `.migrated.json`.
+  **La instalación se detecta por el LAYOUT, no por la escritura**
+  (`lib.rs::es_instalado` / `config._es_instalado`: ruta bajo `Program
+  Files` o hermano `runtime\` junto a `backend\`): en la primera prueba
+  real la app se lanzó elevada desde la última página del instalador, el
+  código resultó escribible y los datos acabaron OTRA VEZ en Archivos de
+  Programas. Con la regla de layout, instalado → siempre ProgramData,
+  escriba o no el código.
 
 ---
 
@@ -267,7 +285,11 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 
 ### Post-instalación
 
-9. La app arranca y la ventana carga sin errores de backend.
+9. La app arranca con la pantalla **«Iniciando OpenWave…»** (ventana de
+   gracia de 30 s con reintentos cada 1,5 s): cuando el backend responde
+   (~5-20 s en frío la primera vez), la pantalla se desvanece sola y entra
+   a la app. Con el backend caído de verdad, a los 30 s aparece el error con
+   su **código** (p. ej. `E-CNX-01`) y «Continuar sin conexión».
 10. Accesos directos creados en el escritorio y en
     `Inicio ▸ OpenWave`, ambos apuntando al `.exe` instalado.
 11. Con la tercera casilla marcada: aparece

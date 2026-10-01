@@ -132,8 +132,8 @@ export function BootScreen() {
                   color: COLORS.textMuted,
                   cursor: "pointer",
                   textDecoration: "underline",
-                  padding: SPACING.xs,
-                  marginTop: SPACING.xs,
+                  padding: SPACING.gap.tight,
+                  marginTop: SPACING.gap.tight,
                 }}
               >
                 {t.continueOffline || "Continuar sin conexión"}

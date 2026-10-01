@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Verificacion estatica del MSI de SoundWave sin instalarlo (45 comprobaciones).
+    Verificacion estatica del MSI de SoundWave sin instalarlo (47 comprobaciones).
 
 .DESCRIPTION
     Lee las tablas del .msi con el objeto COM WindowsInstaller.Installer y

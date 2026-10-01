@@ -1,12 +1,15 @@
 <?if $(sys.BUILDARCH)="x86"?>
     <?define Win64 = "no" ?>
     <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+    <?define IcaclsFolderId = "SystemFolder" ?>
 <?elseif $(sys.BUILDARCH)="x64"?>
     <?define Win64 = "yes" ?>
     <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+    <?define IcaclsFolderId = "System64Folder" ?>
 <?elseif $(sys.BUILDARCH)="arm64"?>
     <?define Win64 = "yes" ?>
     <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+    <?define IcaclsFolderId = "System64Folder" ?>
 <?else?>
     <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
 <?endif?>
@@ -257,6 +260,11 @@
             <Directory Id="CommonAppDataFolder" Name="CommonAppData">
                 <Directory Id="OPENWAVEDATADIR" Name="OpenWave"/>
             </Directory>
+            <!-- Carpeta de la SAC FixAcl (icacls): System64Folder/SystemFolder
+                 según BUILDARCH (ambos contienen icacls.exe). Es un directorio
+                 con propiedad estándar: el Name se ignora, la ruta la da la
+                 propiedad (C:\Windows\System32\). -->
+            <Directory Id="$(var.IcaclsFolderId)" Name="System32"/>
         </Directory>
 
         <DirectoryRef Id="INSTALLDIR">
@@ -376,7 +384,7 @@
              scripts/verify-msi.ps1 + el post-install-check). -->
         <CustomAction Id="SetFixAclData" Property="CustomActionData" Value="[CommonAppDataFolder]OpenWave" />
         <CustomAction Id="FixAcl"
-                      Directory="System64Folder"
+                      Directory="$(var.IcaclsFolderId)"
                       ExeCommand="icacls.exe &quot;[CustomActionData]&quot; /grant:r *S-1-5-32-545:(OI)(CI)M /T /C /Q"
                       Execute="deferred" Return="ignore" Impersonate="no" />
         <InstallExecuteSequence>

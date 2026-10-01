@@ -164,8 +164,20 @@ function VolSlider({ visible, volPos, volume, onVolume, accentColor, onMouseEnte
         />
       </div>
 
-      {/* Mini icono mute */}
-      <div style={{ opacity: 0.4, lineHeight: 0, marginTop: "2px" }}>
+      {/* Mini icono mute — color EXPLÍCITO: este bloque se monta vía
+          createPortal en <body>, fuera del árbol del botón de volumen, así
+          que no hereda su color; sin color propio hereedaría el inicial de
+          body (negro) y el icono saldría SIEMPRE negro (bug reportado).
+          Usa la misma lógica de color que el botón: icono activo con
+          volumen, atenuado en silencio. */}
+      <div
+        style={{
+          opacity: 0.4,
+          lineHeight: 0,
+          marginTop: "2px",
+          color: volume > 0 ? COLORS.iconActive : COLORS.iconDimmer,
+        }}
+      >
         {volume > 0 ? Ic.vol(11) : Ic.volMute(11)}
       </div>
     </div>
@@ -211,6 +223,7 @@ export const PlayerBar = memo(function PlayerBar({
     settings.playerBarStyle === "thin" ? 2 : settings.playerBarStyle === "thick" ? 8 : 4;
   const trackHoverH = trackH + 2;
   const trackR = Math.max(1, Math.round(trackH / 2));
+  const trackRHover = Math.max(1, Math.round(trackHoverH / 2));
   // playerBtnTone: color del icono del play — "color" = neón, "blanco" = puro.
   const playBtnColor =
     (settings.playerBtnTone || "color") === "white" ? "#ffffff" : "var(--neon-fg)";
@@ -223,6 +236,31 @@ export const PlayerBar = memo(function PlayerBar({
   // Último valor/duración ya pintados en el DOM → evita escrituras repetidas
   const paintedProgressRef = useRef(null);
   const paintedDurationRef = useRef(null);
+
+  // ── Radio anti-deformación del relleno ───────────────────────────────
+  // Bug: «cuando suena la canción la barra se mira bugueada y no tiene los
+  // bordes redondeados». scaleX COMPRIME el eje X del border-radius del
+  // relleno (width:100% × factor), así que en todo progreso < 100 % las
+  // dos puntas salían achatadas y despareadas con la pista (esquinas
+  // «fantasma» en la unión izquierda). Compensamos el radio horizontal con
+  // r / scaleX para que las puntas se vean pill en CUALQUIER progreso.
+  // El scaleX se cuantiza a pasos del 5 %: la escritura (paint de la región
+  // de la barra) solo ocurre cuando la forma cambia de verdad, no en cada
+  // tick de 200 ms — así se respeta la decisión de «cero layout/repintado»
+  // del relleno por composición pura.
+  const fillScaleRef = useRef(0);
+  const fillScalePaintedRef = useRef(null);
+  const trackHoveredRef = useRef(false);
+  const applyFillRadius = useCallback(() => {
+    const fill = progressFillRef.current;
+    if (!fill) return;
+    const r = trackHoveredRef.current ? trackRHover : trackR;
+    const s = Math.max(0.05, Math.round(fillScaleRef.current * 20) / 20);
+    const key = `${r}/${s}`;
+    if (fillScalePaintedRef.current === key) return; // sin cambios → sin paint
+    fillScalePaintedRef.current = key;
+    fill.style.borderRadius = `${(r / s).toFixed(2)}px / ${r}px`;
+  }, [trackR, trackRHover]);
   const [showVolSlider, setShowVolSlider] = useState(false);
   const volHoverTimerRef = useRef(null);
   const [cfOpen, setCfOpen] = useState(false);
@@ -262,6 +300,9 @@ export const PlayerBar = memo(function PlayerBar({
       // invalida layout ni repinta la región de la barra.
       if (progressFillRef.current) {
         progressFillRef.current.style.transform = `scaleX(${(pct / 100).toFixed(3)})`;
+        // Radio anti-deformación: compensar r/scaleX (solo escribe si cambia)
+        fillScaleRef.current = pct / 100;
+        applyFillRadius();
       }
       // El thumb sigue por right%: es un nodo de 14 px en hover (opacity 0 en
       // reposo), su layout local es de un nodo absoluto; se re-mide si en la
@@ -274,8 +315,14 @@ export const PlayerBar = memo(function PlayerBar({
         }
       }
     },
-    [duration, progressRef],
+    [duration, progressRef, applyFillRadius],
   );
+
+  // Reaplica el radio cuando cambia la base (grosor playerBarStyle) o al
+  // montar — el callback cambia de identidad al cambiar trackR/trackRHover.
+  useEffect(() => {
+    applyFillRadius();
+  }, [applyFillRadius]);
 
   // Loop: 200ms interval while playing — a mitad de camino entre el rAF a
   // 60fps (GPU-heavy en este equipo) y el tick de 1s (el relleno saltaba a
@@ -916,10 +963,19 @@ export const PlayerBar = memo(function PlayerBar({
               transition: "height .15s cubic-bezier(.16,1,.3,1)",
             }}
             onMouseEnter={(e) => {
+              // Hover = variante con altura +2: la pista y el relleno suben
+              // al radio completo (pill) — antes la altura crecía y el radio
+              // quedaba fijo → esquinas cuadradas en hover.
+              trackHoveredRef.current = true;
               e.currentTarget.style.height = `${trackHoverH}px`;
+              e.currentTarget.style.borderRadius = `${trackRHover}px`;
+              applyFillRadius();
             }}
             onMouseLeave={(e) => {
+              trackHoveredRef.current = false;
               e.currentTarget.style.height = `${trackH}px`;
+              e.currentTarget.style.borderRadius = `${trackR}px`;
+              applyFillRadius();
             }}
           >
             {/* Filled portion — paintProgress escribe scaleX (imperativo, capa
@@ -929,6 +985,8 @@ export const PlayerBar = memo(function PlayerBar({
               data-testid="progress-fill"
               style={{
                 height: "100%",
+                // Radio base; applyFillRadius() lo sustituye por el valor
+                // compensado (r/scaleX) según progreso y hover.
                 borderRadius: `${trackR}px`,
                 width: "100%",
                 background: `linear-gradient(90deg, ${neon}, color-mix(in srgb, ${neon} 80%, transparent))`,

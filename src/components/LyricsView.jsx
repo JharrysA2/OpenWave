@@ -2662,27 +2662,14 @@ export function LyricsView({
         </div>
       </div>
 
-      {/* ── Animation keyframes + hover styles ────────────────────────── */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.3; }
-50% { opacity: 0.7; }
-         }
-         @keyframes sw-fade-in {
-           from { opacity: 0; }
-           to { opacity: 1; }
-         }
-         @keyframes sw-modal-in {
-           from { opacity: 0; transform: scale(0.92) translateY(20px); }
-           to { opacity: 1; transform: scale(1) translateY(0); }
-         }
-         /* Rotación lenta del fondo (settings.lyricsRotateBg). La pausa
-            html.perf-anim-off / app-hidden la frena con animation-play-state. */
-         @keyframes sw-bg-spin {
-           from { transform: translate(-50%, -50%) rotate(0deg); }
-           to { transform: translate(-50%, -50%) rotate(360deg); }
-         }
-       `}</style>
+      {/* ── Keyframes (sw-modal-in / sw-bg-spin) → index.html ─────────────
+          ANTES vivían aquí en un elemento style de React. La CSP de Tauri
+          añade un nonce aleatorio por carga a `style-src` (y con nonce se
+          anula 'unsafe-inline'), así que un style runtime quedaba BLOQUEADO
+          con `sheet: null`: sw-bg-spin nunca se parseaba y «el fondo de
+          Letras no giraba» aunque el toggle estuviera activo. Las keyframes
+          están en el bloque de estilos de index.html, que sí recibe el nonce
+          al servirse. Regresión vigilada por LyricsView.test.jsx. */}
     </div>
   );
 }

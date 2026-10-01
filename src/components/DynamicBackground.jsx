@@ -11,7 +11,11 @@ export function DynamicBackground({
   if (!enabled) return null;
   // vignette (0–200 %): multiplicador del oscurecimiento. 100 = actual,
   // 0 = sin velo, 200 = el doble de oscuro.
-  const k = Math.max(0, Math.min(200, Number(vignette) || 100)) / 100;
+  // OJO (bug reportado): `Number(vignette) || 100` convertía el 0 en 100
+  // porque 0 es falsy — «Sin velo» aplicaba justo el velo por defecto. El 0
+  // explícito se respeta; solo null/undefined/no-numérico caen al 100.
+  const num = Number(vignette ?? 100);
+  const k = (Number.isFinite(num) ? Math.min(200, Math.max(0, num)) : 100) / 100;
   return (
     <>
       {/* Vignette: subtle depth overlay */}

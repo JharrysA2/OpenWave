@@ -57,6 +57,36 @@
           opacity: 1;
         }
       }
+      /* ═══════════════════════════════════════════════════════════════════════
+         KEYFRAMES GLOBALES — SOLO aquí, NUNCA en un <style> de React.
+         La CSP de Tauri inyecta un nonce ALEATORIO por carga en `style-src`
+         y, al haber nonce, 'unsafe-inline' queda anulado: un <style> creado
+         en runtime por React no lleva ese nonce y el navegador lo bloquea
+         (su `style.sheet` queda en null y las reglas no se aplican). Este
+         <style> del documento sí recibe el nonce al servirse la página.
+         Bug real: sw-bg-spin/sw-modal-in vivían en LyricsView.jsx → el fondo
+         de Letras NUNCA giraba en la app empaquetada (ver LyricsView.test.jsx).
+         ═══════════════════════════════════════════════════════════════════════ */
+      @keyframes sw-modal-in {
+        from {
+          opacity: 0;
+          transform: scale(0.92) translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+      /* Rotación lenta del fondo de Letras (settings.lyricsRotateBg). La pausa
+         html.perf-anim-off / app-hidden la frena con animation-play-state. */
+      @keyframes sw-bg-spin {
+        from {
+          transform: translate(-50%, -50%) rotate(0deg);
+        }
+        to {
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
       /* Apple Design: reduced motion = gentle cross-fades, not instant cuts */
       @media (prefers-reduced-motion: reduce) {
         *,

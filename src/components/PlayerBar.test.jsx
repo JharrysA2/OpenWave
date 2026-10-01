@@ -264,6 +264,44 @@ describe("PlayerBar", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  VolSlider (popup de volumen) — portal a <body> con color EXPLÍCITO
+//  El popup se monta con createPortal en <body>, FUERA del árbol del botón:
+//  sin color propio el mini icono heredaba el inicial de <body> (negro).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe("VolSlider — popup de volumen", () => {
+  // Abre el popup: onMouseEnter vive en el contenedor del botón (volume[5]);
+  // React sintetiza mouseenter a partir de mouseover.
+  function hoverVolume(props = {}) {
+    renderBar({ song, ...props });
+    const volBtn = screen.getAllByRole("button")[5]; // orden: … volume[5] …
+    fireEvent.mouseOver(volBtn.parentElement);
+    return volBtn;
+  }
+
+  it("el mini icono lleva color EXPLÍCITO (no hereda el negro de <body>)", () => {
+    hoverVolume();
+    // El percent label ("70") confirma que el portal montó; su padre es la
+    // raíz del popup y el último hijo es el mini icono de volumen.
+    const pct = screen.getByText("70");
+    const miniIcon = pct.parentElement.lastElementChild;
+    expect(miniIcon).toBeTruthy();
+    expect(miniIcon.style.color).toBeTruthy(); // color propio, no heredado
+    expect(miniIcon.style.color).toContain("255, 255, 255"); // blanco, no negro
+    expect(miniIcon.style.color).toContain("0.5"); // COLORS.iconActive
+  });
+
+  it("en silencio el mini icono usa el color atenuado (iconDimmer)", () => {
+    hoverVolume({ volume: 0 });
+    const pct = screen.getByText("0");
+    const miniIcon = pct.parentElement.lastElementChild;
+    expect(miniIcon.style.color).toBeTruthy();
+    expect(miniIcon.style.color).toContain("255, 255, 255");
+    expect(miniIcon.style.color).toContain("0.2"); // COLORS.iconDimmer
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  Progreso imperativo — sin setInterval de 200ms ni re-renders
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -423,5 +461,58 @@ describe("PlayerBar — progreso imperativo", () => {
     expect(onSeek).toHaveBeenCalledWith(50);
     expect(screen.getByTestId("progress-time")).toHaveTextContent("0:50");
     expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(0.250)");
+  });
+
+  // ── Radio anti-deformación (bug: «cuando suena no tiene bordes redondeados»)
+  //    scaleX comprime el eje X del border-radius del relleno: sin compensar
+  //    (r / scaleX) las puntas salían achatadas en todo progreso < 100 %.
+
+  it("compensa el radio del relleno contra scaleX (punta pill en cualquier progreso)", () => {
+    renderBar({ song, duration: 100, progressRef: { current: 40 } });
+    const fill = screen.getByTestId("progress-fill");
+    expect(fill.style.transform).toBe("scaleX(0.400)");
+    // estilo line (4px, r=2) y scaleX=0.40 → radio horizontal 2 / 0.40 = 5px
+    expect(fill.style.borderRadius).toBe("5.00px / 2px");
+  });
+
+  it("el radio solo cambia cuando cambia la forma (quantizado al 5 %)", () => {
+    const progressRef = { current: 10 };
+    const { container } = renderBar({ song, duration: 100, progressRef });
+    const fill = screen.getByTestId("progress-fill");
+    expect(fill.style.borderRadius).toBe("20.00px / 2px"); // r=2, s=0.10 → 2/0.10
+
+    const bar = progressBarOf(container);
+    // jsdom devuelve rects de 0: simulamos el de la pista (100 px = 100 s)
+    bar.getBoundingClientRect = () => ({
+      left: 0,
+      right: 100,
+      top: 0,
+      bottom: 26,
+      width: 100,
+      height: 26,
+      x: 0,
+      y: 0,
+    });
+
+    // seek a 12 s → s=0.12, cuantizado a 0.10 → la forma no cambia → no reescribe
+    fireEvent.click(bar, { clientX: 12 });
+    expect(fill.style.borderRadius).toBe("20.00px / 2px");
+    // seek a 15 s → s=0.15 (paso del 5 %) → sí reescribe: 2 / 0.15
+    fireEvent.click(bar, { clientX: 15 });
+    expect(fill.style.borderRadius).toBe("13.33px / 2px");
+  });
+
+  it("en hover la pista y el relleno suben al radio completo (pill)", () => {
+    renderBar({ song, duration: 100, progressRef: { current: 40 } });
+    const fill = screen.getByTestId("progress-fill");
+    const track = fill.parentElement;
+    fireEvent.mouseOver(track);
+    expect(track.style.height).toBe("6px"); // line 4 + 2 de hover
+    expect(track.style.borderRadius).toBe("3px"); // pill de 6px
+    expect(fill.style.borderRadius).toBe("7.50px / 3px"); // 3 / 0.40
+    fireEvent.mouseOut(track);
+    expect(track.style.height).toBe("4px");
+    expect(track.style.borderRadius).toBe("2px");
+    expect(fill.style.borderRadius).toBe("5.00px / 2px"); // vuelve a r=2
   });
 });

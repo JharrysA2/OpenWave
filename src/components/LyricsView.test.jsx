@@ -1,4 +1,6 @@
 import React from "react";
+import { readFileSync, readdirSync } from "fs";
+import { join } from "path";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SettingsProvider } from "../contexts/SettingsContext";
@@ -991,5 +993,53 @@ describe("LyricsView — reloj de karaoke con overlay", () => {
     });
     expect(document.querySelector('[data-testid="lyric-line-2"]').style.opacity).toBe("1");
     expect(calls()).toBe(3);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  CSP con nonce de Tauri — las keyframes SOLO pueden vivir en index.html.
+//
+//  La CSP efectiva de la app empaquetada es
+//      style-src 'self' 'unsafe-inline' 'nonce-<aleatorio por carga>'
+//  (Tauri/wry inyecta el nonce al servir la página y se lo pone a las
+//  etiquetas del HTML original). Con un nonce presente, 'unsafe-inline'
+//  queda ANULADO según la spec: cualquier <style> creado en runtime por
+//  React no lleva el nonce y el navegador lo bloquea → su `style.sheet` es
+//  null y sus reglas NUNCA se aplican (sin error visible en la UI).
+//
+//  Bug real (2026-10-01): sw-bg-spin y sw-modal-in vivían en un <style> de
+//  LyricsView → «el botón de girar el fondo no funciona, no se mueve el
+//  fondo» en la app instalada, con lyricsRotateBg: true y reduced-motion
+//  desactivado. Diagnóstico: CDP mostraba animationName: sw-bg-spin con el
+//  transform congelado porque las keyframes no existían en el CSSOM.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const readProjectFile = (rel) => readFileSync(join(process.cwd(), rel), "utf8");
+
+describe("CSP con nonce — keyframes solo en index.html", () => {
+  it("LyricsView no declara styles runtime ni keyframes propios", () => {
+    const jsx = readProjectFile("src/components/LyricsView.jsx");
+    expect(jsx).not.toMatch(/<style[\s>]/);
+    expect(jsx).not.toContain("@keyframes");
+    // Los usos siguen apuntando a las keyframes ahora globales
+    expect(jsx).toContain('animation: "sw-modal-in');
+    expect(jsx).toContain('animation: "sw-bg-spin');
+  });
+
+  it("barrido: ningún fichero de src inyecta styles en runtime", () => {
+    const files = readdirSync(join(process.cwd(), "src"), { recursive: true })
+      .map(String)
+      .filter((f) => /\.(jsx?|tsx?)$/.test(f) && !/\.test\./.test(f));
+    const offenders = files.filter((f) => {
+      const txt = readFileSync(join(process.cwd(), "src", f), "utf8");
+      return /<style[\s>]/.test(txt) || /createElement\(\s*["'`]style["'`]/.test(txt);
+    });
+    expect(offenders).toEqual([]);
+  });
+
+  it("index.html define sw-modal-in y sw-bg-spin (recibe el nonce al servir)", () => {
+    const html = readProjectFile("index.html");
+    expect(html).toContain("@keyframes sw-modal-in");
+    expect(html).toContain("@keyframes sw-bg-spin");
   });
 });

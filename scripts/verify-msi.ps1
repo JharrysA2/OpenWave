@@ -92,6 +92,9 @@ $controls = @(Invoke-MsiQuery $db 'SELECT * FROM Control')      # 0 Dialog_ 1 Co
 $events   = @(Invoke-MsiQuery $db 'SELECT * FROM ControlEvent') # 0 Dialog_ 1 Control_ 2 Event 3 Argument 4 Condition 5 Ordering
 $features = @(Invoke-MsiQuery $db 'SELECT * FROM Feature')      # 0 Feature 1 FeatureParent 2 Title 4 Display 5 Level
 $props    = @(Invoke-MsiQuery $db 'SELECT * FROM Property')     # 0 Property 1 Value
+$cas      = @(Invoke-MsiQuery $db 'SELECT Action, Type, Source, Target FROM CustomAction') # 0 Action 1 Type 2 Source 3 Target
+$iseq     = @(Invoke-MsiQuery $db 'SELECT Action, Condition FROM InstallExecuteSequence')   # 0 Action 1 Condition
+$featComps= @(Invoke-MsiQuery $db 'SELECT Feature_, Component_ FROM FeatureComponents')     # 0 Feature_ 1 Component_
 $reg      = @(Invoke-MsiQuery $db 'SELECT * FROM Registry')     # 0 Registry 1 Root 2 Key 3 Name_ 4 Value 5 Component_
 $rfile    = @(Invoke-MsiQuery $db 'SELECT * FROM RemoveFile')   # 0 RemoveFile 1 Component_ 2 FileName 3 DirProperty 4 InstallMode
 $files    = @(Invoke-MsiQuery $db 'SELECT * FROM File')
@@ -314,6 +317,18 @@ $checks = [ordered]@{
         $licText.Contains('\fs18') -and $licText.Contains('\sa160')
     'Grafico banner 493x58 de marca (hash == build\windows\banner.bmp)' = $artBannerOk
     'Grafico dialogo 493x312 de marca (hash == build\windows\dialog.bmp)' = $artDialogOk
+    'Datos: Directory CommonAppDataFolder -> OPENWAVEDATADIR OpenWave' =
+        [bool]($dirs | Where-Object { $_[0] -eq 'OPENWAVEDATADIR' -and ([string]$_[1]) -eq 'CommonAppDataFolder' -and ([string]$_[2]) -like '*OpenWave*' })
+    'Datos: CMP_DataDir con Guid explicito (no «*») y en la feature MainProgram' =
+        [bool]($comps | Where-Object { $_[0] -eq 'CMP_DataDir' -and ([string]$_[1]) -match '^\{[0-9A-Fa-f-]{36}\}$' }) -and
+        [bool]($featComps | Where-Object { $_[0] -eq 'MainProgram' -and $_[1] -eq 'CMP_DataDir' })
+    'Datos: SAC FixAcl = icacls con SID *S-1-5-32-545 + /T (locale-proof)' =
+        [bool]($cas | Where-Object { $_[0] -eq 'FixAcl' -and ([string]$_[3]) -like '*icacls*' -and ([string]$_[3]) -like '*S-1-5-32-545*' -and ([string]$_[3]) -like '*/T*' -and ([string]$_[3]) -like '*CustomActionData*' })
+    'Datos: FixAcl diferida+sobre sistema, alimentada por SetFixAclData y salvo REMOVE' =
+        [bool]($cas | Where-Object { $_[0] -eq 'FixAcl' -and (([int]$_[1]) -band 3072) -eq 3072 }) -and
+        [bool]($cas | Where-Object { $_[0] -eq 'SetFixAclData' -and (([string]$_[2]) -eq 'CustomActionData' -or ([string]$_[3]) -eq 'CustomActionData') }) -and
+        [bool]($iseq | Where-Object { $_[0] -eq 'FixAcl' -and ([string]$_[1]) -like '*NOT REMOVE*' }) -and
+        [bool]($iseq | Where-Object { $_[0] -eq 'SetFixAclData' })
 }
 
 Write-Host ''

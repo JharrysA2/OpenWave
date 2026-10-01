@@ -253,17 +253,25 @@ El stderr del backend (arranques, tracebacks, warmup) cae en
   código resultó escribible y los datos acabaron OTRA VEZ en Archivos de
   Programas. Con la regla de layout, instalado → siempre ProgramData,
   escriba o no el código.
-- **La carpeta `C:\ProgramData\OpenWave` la crea EL INSTALADOR, con ACL
-  explícita.** `main.wxs` declara `ProgramDataFolder\OpenWave` con un
-  componente `CreateFolder` + `util:PermissionEx` y DACL **protegida**:
-  `Usuarios` con Modificar (hereda a los ficheros), `CREATOR OWNER` con
-  control total y SYSTEM/Administradores full. Sin esto, la carpeta la creaba
-  la app en su primer arranque y, si ese arranque era el elevado de la última
-  página del instalador, los ficheros heredaban solo «Usuarios: leer y
-  ejecutar» de `C:\ProgramData`: el proceso normal recibía `PermissionError`
-  al abrir `openwave.log` y la base de datos quedaba de solo lectura
-  (reproducido a mano). Los datos **no** se borran al desinstalar:
-  `CreateFolder` solo retira la carpeta si queda vacía.
+- **La carpeta `C:\ProgramData\OpenWave` la crea EL INSTALADOR y una SAC le
+  pone la ACL con `icacls` (SID, locale-proof).** `main.wxs` declara
+  `CommonAppDataFolder\OpenWave` (el Id estándar es `CommonAppDataFolder`;
+  `ProgramDataFolder` no existe y MSI lo resolvía como `C:\CommonAppData` —
+  comprobado con el log de instalación) con componente `CreateFolder` (Guid
+  explícito: un keypath de directorio no admite `«*»`, LGHT0230) y la SAC
+  diferida `FixAcl`:
+  `icacls "…\OpenWave" /grant:r *S-1-5-32-545:(OI)(CI)M /T /C /Q`.
+  El **SID** en vez de «Usuarios»/«Users»: `util:PermissionEx` solo admite
+  nombres de cuenta, que están localizados, y con un SID propio da
+  `failed to get sid for account` → 1603 (las dos variantes probadas a mano);
+  con nombre localizado instalaría en es-ES y fallaría en en-US. `(OI)(CI)`
+  hace que el permiso llegue también a los **ficheros** y `/T` sanea los ya
+  existentes: sin esto, el proceso normal recibía `PermissionError` al abrir
+  `openwave.log` (creado por el arranque elevado) y la base de datos quedaba
+  de solo lectura. `Impersonate=no` + `Execute=deferred`, condición
+  `NOT REMOVE` y `Return=ignore` (no rompe la instalación si icacls falla;
+  el `post-install-check` lo verifica). Los datos **no** se borran al
+  desinstalar: `CreateFolder` solo retira la carpeta si queda vacía.
 - **CORS debe permitir `http://tauri.localhost`.** La app empaquetada corre
   en WebView2 con ese origen (se comprueba en el perfil: las claves de
   `Local Storage` usan `_http://tauri.localhost`). Sin él, el fetch llega al

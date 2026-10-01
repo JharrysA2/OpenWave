@@ -36,8 +36,7 @@
 
     El resto (WebView2, binarios, recursos, upgrade) es literal de Tauri.
 -->
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
-     xmlns:util="http://schemas.wixtoolset.org/schemas/wixUtilExtension">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
     <Product
             Id="*"
             Name="{{product_name}}"
@@ -248,12 +247,14 @@
                 <Directory Id="ApplicationProgramsFolder" Name="{{product_name}}"/>
             </Directory>
             <!-- «Datos de Programas»: raíz de datos de la app (base de datos,
-                 descargas, log). La carpeta se CREA AQUÍ con ACL explícita en
-                 CMP_DataDir; si la creara la app en su primer arranque, el
-                 proceso elevado (última página del instalador) dejaría los
-                 ficheros heredando solo «Usuarios: leer y ejecutar» de
-                 C:\ProgramData y el usuario normal no podría escribir. -->
-            <Directory Id="ProgramDataFolder" Name="CommonAppData">
+                 descargas, log). CommonAppDataFolder = C:\ProgramData (el Id
+                 estándar es ese; «ProgramDataFolder» NO existe y MSI lo
+                 resolvería como C:\CommonAppData). La carpeta se crea aquí
+                 (CMP_DataDir) y la ACL la aplica la SAC FixAcl ver abajo: si
+                 la creara la app en su primer arranque elevado, los ficheros
+                 heredarían solo «Usuarios: leer y ejecutar» y el proceso
+                 normal no podría escribir (PermissionError reproducido). -->
+            <Directory Id="CommonAppDataFolder" Name="CommonAppData">
                 <Directory Id="OPENWAVEDATADIR" Name="OpenWave"/>
             </Directory>
         </Directory>
@@ -351,20 +352,37 @@
            </Component>
         </DirectoryRef>
 
-        <!-- Carpeta de datos + ACL. DACL PROTEGIDA (sin heredar la de
-             C:\ProgramData): Usuarios con Modificar OICI (hereda a los
-             ficheros, luego también los creados por el proceso elevado son
-             escribibles por el usuario normal), CREATOR OWNER con control
-             total sobre lo que cree cada uno, y SYSTEM/Administradores a
-             full. CreateFolder solo retira la carpeta si queda VACÍA en la
-             desinstalación: los datos sobreviven. -->
+        <!-- Carpeta de datos. CreateFolder solo la retira si queda VACÍA en
+             la desinstalación: los datos sobreviven. (Guid explícito: un
+             componente con keypath de directorio no admite «*» — LGHT0230.) -->
         <DirectoryRef Id="OPENWAVEDATADIR">
-            <Component Id="CMP_DataDir" Guid="*" Win64="$(var.Win64)">
-                <CreateFolder>
-                    <util:PermissionEx Sddl="O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;CO)(A;OICI;0x1301bf;;;BU)" />
-                </CreateFolder>
+            <Component Id="CMP_DataDir" Guid="{57F4FEA7-6905-44A6-94CB-751B243D5AD7}" Win64="$(var.Win64)">
+                <CreateFolder />
             </Component>
         </DirectoryRef>
+
+        <!-- ACL de la carpeta de datos, locale-proof. La aplica icacls con
+             SID (*S-1-5-32-545 = BUILTIN\Users): util:PermissionEx solo
+             admite nombres de cuenta y esos están localizados («Usuarios»
+             en es-ES, «Users» en en-US) — y con el SID dentro de
+             PermissionEx da «failed to get sid for account» → 1603. (OI)(CI)
+             hereda el
+             permiso también a los FICHEROS (los creados por un arranque
+             elevado quedaban de solo lectura para el usuario: PermissionError
+             en openwave.log, reproducido) y /T sanear además los ya
+             existentes. SAC diferido, elevado (Impersonate=no), solo en
+             instalación/reparación (NOT REMOVE) y Return=ignore: si icacls
+             fallara, la instalación no se rompe (lo verifica
+             scripts/verify-msi.ps1 + el post-install-check). -->
+        <CustomAction Id="SetFixAclData" Property="CustomActionData" Value="[CommonAppDataFolder]OpenWave" />
+        <CustomAction Id="FixAcl"
+                      Directory="System64Folder"
+                      ExeCommand="icacls.exe &quot;[CustomActionData]&quot; /grant:r *S-1-5-32-545:(OI)(CI)M /T /C /Q"
+                      Execute="deferred" Return="ignore" Impersonate="no" />
+        <InstallExecuteSequence>
+            <Custom Action="SetFixAclData" Before="FixAcl" />
+            <Custom Action="FixAcl" After="CreateFolders">NOT REMOVE</Custom>
+        </InstallExecuteSequence>
 
         {{#each merge_modules as |msm| ~}}
         <DirectoryRef Id="TARGETDIR">

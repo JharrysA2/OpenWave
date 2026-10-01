@@ -69,6 +69,15 @@ describe("DynamicBackground — velo (vignette)", () => {
     expect(el.style.zIndex).toBe("0");
   });
 
+  it("el velo solo oscurece (multiply): nunca aclara los bordes", () => {
+    // Bug medido: el color del borde (color-mix #000 73 % + --neon, lum ≈ 40)
+    // es más claro que un fondo oscuro (lum 9–18) → con blend normal,
+    // «Muy oscuro» ENDECÍA las esquinas (12,7 → 18,5 a vignette 200).
+    // multiply garantiza factor ≤ 1 por canal en cualquier fondo.
+    expect(renderVig({ vignette: 200, hasAccent: true }).style.mixBlendMode).toBe("multiply");
+    expect(renderVig({ vignette: 0 }).style.mixBlendMode).toBe("multiply");
+  });
+
   it("la transición usa la velocidad de crossfade indicada", () => {
     const el = renderVig({ vignette: 100, cfTransitionSpeed: "1.2s" });
     expect(el.style.transition).toContain("1.2s");

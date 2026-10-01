@@ -244,21 +244,30 @@ export const PlayerBar = memo(function PlayerBar({
   // dos puntas salían achatadas y despareadas con la pista (esquinas
   // «fantasma» en la unión izquierda). Compensamos el radio horizontal con
   // r / scaleX para que las puntas se vean pill en CUALQUIER progreso.
-  // El scaleX se cuantiza a pasos del 5 %: la escritura (paint de la región
-  // de la barra) solo ocurre cuando la forma cambia de verdad, no en cada
-  // tick de 200 ms — así se respeta la decisión de «cero layout/repintado»
-  // del relleno por composición pura.
+  // La escritura (paint de la región de la barra) solo ocurre cuando la
+  // forma cambia de verdad: el scaleX se cuantiza a pasos del 1 % y SIEMPRE
+  // hacia ABAJO (floor), nunca hacia arriba. s_cuantizado ≤ s_real implica
+  // que el radio visual (r · s_real/s_cuantizado) queda ≥ r: las puntas
+  // pueden salir un ≤1 % más redondeadas, jamás cuadradas.
+  // Bug corregido («los bordes solo se aplican en hover»): el antiguo
+  // Math.max(0.05, round al 5 %) infracompensaba por debajo del 5 % de
+  // progreso — a 2,2 % la punta visual era 0,88 px en vez de 2 px.
   const fillScaleRef = useRef(0);
-  const fillScalePaintedRef = useRef(null);
   const trackHoveredRef = useRef(false);
   const applyFillRadius = useCallback(() => {
     const fill = progressFillRef.current;
     if (!fill) return;
     const r = trackHoveredRef.current ? trackRHover : trackR;
-    const s = Math.max(0.05, Math.round(fillScaleRef.current * 20) / 20);
+    // Mismo redondeo que el transform (toFixed(3)) → ratio exacto con la
+    // escala que realmente está pintada en pantalla.
+    const sReal = Math.round(fillScaleRef.current * 1000) / 1000;
+    const s = Math.max(0.005, Math.floor(sReal * 100 + 1e-9) / 100);
     const key = `${r}/${s}`;
-    if (fillScalePaintedRef.current === key) return; // sin cambios → sin paint
-    fillScalePaintedRef.current = key;
+    // Caché anidada en el ELEMENTO (no en una ref): si React remonta el
+    // relleno, el nodo nuevo arranca con el radio base y el dataset ausente
+    // fuerza la reescritura en vez de dar un falso «ya pintado».
+    if (fill.dataset.rKey === key) return; // sin cambios → sin paint
+    fill.dataset.rKey = key;
     fill.style.borderRadius = `${(r / s).toFixed(2)}px / ${r}px`;
   }, [trackR, trackRHover]);
   const [showVolSlider, setShowVolSlider] = useState(false);
@@ -953,6 +962,7 @@ export const PlayerBar = memo(function PlayerBar({
           }}
         >
           <div
+            data-testid="progress-track"
             style={{
               width: "100%",
               height: `${trackH}px`,
@@ -979,25 +989,41 @@ export const PlayerBar = memo(function PlayerBar({
             }}
           >
             {/* Filled portion — paintProgress escribe scaleX (imperativo, capa
-                propia; width:100% fijo → cero layout futuro) */}
+                propia; width:100% fijo → cero layout futuro).
+                Glow en un wrapper ESTÁTICO: el box-shadow dentro del relleno
+                vivía en el espacio del elemento y scaleX lo aplastaba
+                (10 px de blur → ~2,5 px horizontales a progreso bajo →
+                «corte vertical brusco» en la punta; el neon no seguía el
+                borde). drop-shadow se rasteriza en espacio de pantalla:
+                sigue la silueta redondeada (ya compensada) sin deformarse,
+                y al ser el wrapper estático solo se repinta si cambia la
+                forma — la misma cadencia que el radio, no cada tick. */}
             <div
-              ref={progressFillRef}
-              data-testid="progress-fill"
+              data-testid="progress-fill-glow"
               style={{
-                height: "100%",
-                // Radio base; applyFillRadius() lo sustituye por el valor
-                // compensado (r/scaleX) según progreso y hover.
-                borderRadius: `${trackR}px`,
-                width: "100%",
-                background: `linear-gradient(90deg, ${neon}, color-mix(in srgb, ${neon} 80%, transparent))`,
-                transition: "transform .15s linear",
-                transformOrigin: "left center",
-                transform: "scaleX(0)",
-                willChange: "transform",
-                position: "relative",
-                boxShadow: `0 0 10px color-mix(in srgb, ${neon} 40%, transparent)`,
+                position: "absolute",
+                inset: 0,
+                pointerEvents: "none",
+                filter: `drop-shadow(0 0 10px color-mix(in srgb, ${neon} 40%, transparent))`,
               }}
-            />
+            >
+              <div
+                ref={progressFillRef}
+                data-testid="progress-fill"
+                style={{
+                  height: "100%",
+                  // Radio base; applyFillRadius() lo sustituye por el valor
+                  // compensado (r/scaleX) según progreso y hover.
+                  borderRadius: `${trackR}px`,
+                  width: "100%",
+                  background: `linear-gradient(90deg, ${neon}, color-mix(in srgb, ${neon} 80%, transparent))`,
+                  transition: "transform .15s linear",
+                  transformOrigin: "left center",
+                  transform: "scaleX(0)",
+                  willChange: "transform",
+                }}
+              />
+            </div>
             {/* Thumb — aparece en hover con escala suave */}
             <div
               ref={progressThumbRef}

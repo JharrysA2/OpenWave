@@ -475,11 +475,11 @@ describe("PlayerBar — progreso imperativo", () => {
     expect(fill.style.borderRadius).toBe("5.00px / 2px");
   });
 
-  it("el radio solo cambia cuando cambia la forma (quantizado al 5 %)", () => {
-    const progressRef = { current: 10 };
+  it("el radio solo cambia cuando cambia la forma (quantizado al 1 %)", () => {
+    const progressRef = { current: 12 };
     const { container } = renderBar({ song, duration: 100, progressRef });
     const fill = screen.getByTestId("progress-fill");
-    expect(fill.style.borderRadius).toBe("20.00px / 2px"); // r=2, s=0.10 → 2/0.10
+    expect(fill.style.borderRadius).toBe("16.67px / 2px"); // r=2, s=0.12 → 2/0.12
 
     const bar = progressBarOf(container);
     // jsdom devuelve rects de 0: simulamos el de la pista (100 px = 100 s)
@@ -494,18 +494,19 @@ describe("PlayerBar — progreso imperativo", () => {
       y: 0,
     });
 
-    // seek a 12 s → s=0.12, cuantizado a 0.10 → la forma no cambia → no reescribe
-    fireEvent.click(bar, { clientX: 12 });
-    expect(fill.style.borderRadius).toBe("20.00px / 2px");
-    // seek a 15 s → s=0.15 (paso del 5 %) → sí reescribe: 2 / 0.15
-    fireEvent.click(bar, { clientX: 15 });
-    expect(fill.style.borderRadius).toBe("13.33px / 2px");
+    // seek a 12,4 s → s=0.124, cuantizado (floor) a 0.12 → la forma no
+    // cambia → no reescribe
+    fireEvent.click(bar, { clientX: 12.4 });
+    expect(fill.style.borderRadius).toBe("16.67px / 2px");
+    // seek a 13 s → s=0.13 (paso del 1 %) → sí reescribe: 2 / 0.13
+    fireEvent.click(bar, { clientX: 13 });
+    expect(fill.style.borderRadius).toBe("15.38px / 2px");
   });
 
   it("en hover la pista y el relleno suben al radio completo (pill)", () => {
     renderBar({ song, duration: 100, progressRef: { current: 40 } });
     const fill = screen.getByTestId("progress-fill");
-    const track = fill.parentElement;
+    const track = screen.getByTestId("progress-track");
     fireEvent.mouseOver(track);
     expect(track.style.height).toBe("6px"); // line 4 + 2 de hover
     expect(track.style.borderRadius).toBe("3px"); // pill de 6px
@@ -514,5 +515,32 @@ describe("PlayerBar — progreso imperativo", () => {
     expect(track.style.height).toBe("4px");
     expect(track.style.borderRadius).toBe("2px");
     expect(fill.style.borderRadius).toBe("5.00px / 2px"); // vuelve a r=2
+  });
+
+  it("nunca infracompensa: la punta visual queda ≥ pill en cualquier progreso", () => {
+    // Bug «los bordes solo se aplican en hover»: el clamp anterior al 5 %
+    // hacía que a 2,2 % de canción la punta visual fuera 0,88 px (≈ cuadrada).
+    // La cuantización floor garantiza r_visual = rx · s ≥ r siempre.
+    for (const sec of [1, 2.2, 4.9, 7.6, 12.9, 49.9, 97.3]) {
+      const { unmount } = renderBar({ song, duration: 100, progressRef: { current: sec } });
+      const fill = screen.getByTestId("progress-fill");
+      const [rx, ry] = fill.style.borderRadius.split("/").map((v) => parseFloat(v));
+      const s = Number((sec / 100).toFixed(3)); // misma cuantización del transform
+      expect(rx * s).toBeGreaterThanOrEqual(ry - 1e-9);
+      unmount();
+    }
+  });
+
+  it("el glow vive en un wrapper estático (drop-shadow sin scaleX que lo aplaste)", () => {
+    renderBar({ song, duration: 100, progressRef: { current: 40 } });
+    const glow = screen.getByTestId("progress-fill-glow");
+    // drop-shadow en el wrapper: la silueta se rasteriza en espacio de
+    // pantalla → halo uniforme que sigue la punta redondeada.
+    expect(glow.style.filter).toContain("drop-shadow(0 0 10px");
+    // el wrapper no se transforma (por eso el halo no se deforma)
+    expect(glow.style.transform).toBe("");
+    // el relleno ya no lleva box-shadow: dentro del transform se aplastaba
+    // (10 px → ~2,5 px horizontales = «corte vertical brusco»)
+    expect(screen.getByTestId("progress-fill").style.boxShadow).toBe("");
   });
 });

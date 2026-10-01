@@ -18,7 +18,14 @@ export function DynamicBackground({
   const k = (Number.isFinite(num) ? Math.min(200, Math.max(0, num)) : 100) / 100;
   return (
     <>
-      {/* Vignette: subtle depth overlay */}
+      {/* Vignette: velo de profundidad.
+          mixBlendMode: multiply garantiza que SOLO oscurezca. El borde del
+          gradiente es color-mix(#000 73 %, --neon) (luminancia ≈ 40) y con
+          fondos oscuros típicos (luminancia 9–18) el blend normal ENDECÍA
+          las esquinas: medido en vivo, esquinas 12,7 → 18,5 a vignette 200
+          («en "Muy oscuro" se pone claro»). Con multiply el factor por
+          canal es ≤ 1 para cualquier fondo: 0 → sin cambio, 200 → bordes
+          ×0,42 con acento y ×0,84 sin él — dirección correcta siempre. */}
       <div
         style={{
           position: "absolute",
@@ -27,6 +34,7 @@ export function DynamicBackground({
           pointerEvents: "none",
           background: vignetteOverlay(),
           opacity: (hasAccent ? 0.35 : 0.1) * k,
+          mixBlendMode: "multiply",
           transition: `opacity ${cfTransitionSpeed} cubic-bezier(.16,1,.3,1)`,
         }}
       />

@@ -7,7 +7,6 @@ import {
   withAlpha,
   getLuminance,
   safeAccentText,
-  vignetteOverlay,
   sidebarBgGradient,
 } from "./theme";
 
@@ -130,7 +129,6 @@ describe("theme — helpers de color", () => {
   });
 
   it("los gradientes usan la CSS var --neon (tema dinámico)", () => {
-    expect(vignetteOverlay()).toContain("--neon");
     expect(sidebarBgGradient()).toContain("--neon");
   });
 });

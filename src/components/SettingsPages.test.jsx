@@ -238,10 +238,10 @@ describe("PageApariencia", () => {
     expect(screen.getAllByText("Centro").length).toBeGreaterThanOrEqual(2);
   });
 
-  it("should render vignette slider row", () => {
+  it("should NOT render the removed vignette (background dimming) row", () => {
     renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
-    expect(screen.getByText("Oscurecimiento de fondo")).toBeInTheDocument();
-    expect(screen.getByText(/100%\)/)).toBeInTheDocument();
+    // Velo/vignette eliminado por petición: la fila ya no existe.
+    expect(screen.queryByText("Oscurecimiento de fondo")).not.toBeInTheDocument();
   });
 
   it("should render lyrics section with all options", () => {

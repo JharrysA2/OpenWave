@@ -682,9 +682,9 @@ export function usePlayer(
               proxyRetryRef.current = false;
             }, 2000);
           } else {
-            // Segundo intento también falló
+            // Segundo intento también falló — sin aviso al usuario (petición):
+            // el error queda solo en consola.
             console.error("Play error (both attempts):", e);
-            toast?.("Error al reproducir", "error");
             setIsPlaying(false);
           }
         } finally {
@@ -697,7 +697,7 @@ export function usePlayer(
       //    playSong está configurando el audio (race window B3).
       crossfadePendingRef.current = false;
     },
-    [toast, normalizeThumbnails, isPlaying, currentSong, ensureDownloaded, appendRecommendations],
+    [normalizeThumbnails, isPlaying, currentSong, ensureDownloaded, appendRecommendations],
   );
 
   const togglePlay = useCallback(() => {

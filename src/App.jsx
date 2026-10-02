@@ -25,7 +25,6 @@ import { ConnectionBanner } from "./components/ConnectionBanner";
 import { BootScreen } from "./components/BootScreen";
 import { TitleBar } from "./components/TitleBar";
 import { Sidebar } from "./components/Sidebar";
-import { DynamicBackground } from "./components/DynamicBackground";
 import { PlaylistPickerModal } from "./components/PlaylistPickerModal";
 import { MainRouter } from "./components/MainRouter";
 import { AudioElements } from "./components/AudioElements";
@@ -258,7 +257,7 @@ function AppInner() {
   );
 
   // ── Dynamic theme: color de portada + CSS vars (--neon, overlay) ──
-  const { neonColor, cfTransitionSpeed, bgStyle, overlayOpacity, hasAccent } = useDynamicTheme({
+  const { neonColor, bgStyle } = useDynamicTheme({
     settings,
     currentSong,
   });
@@ -281,9 +280,11 @@ function AppInner() {
       try {
         if (!e.target.paused && e.target.currentTime > 0) return;
       } catch {}
-      toast("Error de reproducción", "error");
+      // No se muestra NINGÚN error de reproducción al usuario (petición):
+      // se deja solo constancia en consola para diagnóstico.
+      console.warn(`[audio] playback error (code=${code})`);
     },
-    [toast, proxyRetryRef],
+    [proxyRetryRef],
   );
 
   // ── Wrapper de toggleLike que también envía feedback ───────────────────────
@@ -360,6 +361,11 @@ function AppInner() {
       try {
         const d = await api.get(`/song/album/${song.videoId}`);
         if (d?.browseId) {
+          // Aterrizar en la pantalla del álbum DESDE CUALQUIER pantalla:
+          // cierra ajustes y la pantalla de letras, que taparían la vista
+          // de detalle (MainRouter renderiza ajustes por delante).
+          setShowSettingsPanel(false);
+          setLyricsOpen(false);
           setPrevTab(tab);
           setAlbumBrowseId(d.browseId);
           setArtistBrowseId(null);
@@ -386,6 +392,10 @@ function AppInner() {
         const d = await api.get(`/search?q=${encodeURIComponent(song.artist)}&limit=3`);
         const artists = d?.artists || [];
         if (artists.length > 0 && artists[0].browseId) {
+          // Igual que goToAlbumFromSong: navega aunque ajustes o las
+          // letras estén abiertas por encima.
+          setShowSettingsPanel(false);
+          setLyricsOpen(false);
           setPrevTab(tab);
           setArtistBrowseId(artists[0].browseId);
           setAlbumBrowseId(null);
@@ -562,15 +572,6 @@ function AppInner() {
         overflow: "hidden",
       }}
     >
-      {/* ── Vignette del fondo ───────────────────────────────────────── */}
-      <DynamicBackground
-        enabled={settings.dynamicTheme}
-        hasAccent={hasAccent}
-        overlayOpacity={overlayOpacity}
-        cfTransitionSpeed={cfTransitionSpeed}
-        vignette={settings.vignette ?? 100}
-      />
-
       {/* ── Aviso de desconexión con el backend ───────────────────────── */}
       <ConnectionBanner />
 

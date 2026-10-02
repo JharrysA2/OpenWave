@@ -1,5 +1,7 @@
 import React from "react";
-import { act, render, screen, fireEvent } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { api } from "./utils/api";
 import { winCtrl } from "./utils/windowControls";
@@ -41,6 +43,16 @@ const sampleSong = {
 };
 
 const mockResults = [sampleSong];
+
+// Respuesta JSON estándar para los stubs de fetch de los tests de navegación.
+const jsonResponse = (data) =>
+  Promise.resolve({
+    ok: true,
+    status: 200,
+    headers: { get: () => "application/json" },
+    json: () => Promise.resolve(data),
+    text: () => Promise.resolve(JSON.stringify(data)),
+  });
 
 const mockPlayer = {
   currentSong: null,
@@ -134,8 +146,31 @@ vi.mock("./utils/windowControls", () => ({
 // ── Mock child components ─────────────────────────────────────────────────────────
 
 vi.mock("./components/SongOptionsSheet", () => ({
-  SongOptionsSheet: ({ open, onClose, song }) =>
-    open ? <div data-testid="song-options-sheet">Song Options - {song?.title}</div> : null,
+  SongOptionsSheet: ({ open, onClose, song, onGoToAlbum, onGoToArtist }) =>
+    open ? (
+      <div data-testid="song-options-sheet">
+        Song Options - {song?.title}
+        {/* Igual que el componente real: navega y cierra el sheet */}
+        <button
+          data-testid="go-to-album"
+          onClick={() => {
+            onGoToAlbum?.(song);
+            onClose();
+          }}
+        >
+          Ir al álbum
+        </button>
+        <button
+          data-testid="go-to-artist"
+          onClick={() => {
+            onGoToArtist?.(song);
+            onClose();
+          }}
+        >
+          Ir al artista
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock("./components/TrackPickerModal", () => ({
@@ -157,9 +192,18 @@ vi.mock("./components/PlayerBar", () => ({
 }));
 
 vi.mock("./components/HomeView", () => {
-  const HomeView = ({ currentSong, playSong, history, accentColor }) => (
+  const HomeView = ({ currentSong, playSong, history, accentColor, openOptions }) => (
     <div data-testid="home-view">
       HomeView - {currentSong?.title || "No Song"} - {accentColor || "no-color"}
+      {/* Acceso al sheet de 3 puntitos para probar la navegación ir-a-álbum/artista */}
+      <button
+        data-testid="open-song-options"
+        onClick={() =>
+          openOptions?.({ videoId: "vid123", title: "Test Song", artist: "Test Artist" })
+        }
+      >
+        3-puntos
+      </button>
     </div>
   );
   // MainRouter usa React.lazy(() => import(...)) → requiere el export default
@@ -436,6 +480,94 @@ describe("App — Componente principal", () => {
     expect(closeBtn).toBeInTheDocument();
     fireEvent.click(closeBtn);
     expect(winCtrl.close).toHaveBeenCalled();
+  });
+
+  it("la barra de título queda SIEMPRE por encima del splash y del BootScreen", () => {
+    const { container } = render(<App />);
+    const titlebar = container.querySelector(".app-titlebar");
+    expect(titlebar).toBeInTheDocument();
+    const z = Number.parseInt(titlebar.style.zIndex, 10);
+    // #splash usa 2147483000 y el BootScreen de carga 1500000: la barra de
+    // ventana (min/max/cerrar) no puede quedarse nunca debajo.
+    expect(z).toBeGreaterThan(2147483000);
+  });
+
+  // ── 3 puntitos → Ir a álbum/artista desde cualquier pantalla ──────────────────
+
+  it("3 puntitos → Ir al álbum navega aunque Ajustes esté abierto (cierra Ajustes/letras)", async () => {
+    const fetchMock = vi.fn((input) => {
+      const u = String(input);
+      if (u.includes("/song/album/")) return jsonResponse({ browseId: "MPRE_test123" });
+      if (u.includes("/health")) return jsonResponse({ status: "ok" });
+      return jsonResponse({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    // Los 3 puntitos de una canción del Home
+    fireEvent.click(screen.getByTestId("open-song-options"));
+    expect(await screen.findByTestId("song-options-sheet")).toBeInTheDocument();
+    // Ajustes abierto por encima: la navegación debe "atravesarlo"
+    fireEvent.click(screen.getByTestId("settings-btn"));
+    expect(await screen.findByTestId("settings-panel")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("go-to-album"));
+
+    // Sin el fix, Ajustes seguía abierto y tapaba la vista de detalle
+    await waitFor(() =>
+      expect(screen.queryByTestId("settings-panel")).not.toBeInTheDocument(),
+    );
+    expect(
+      fetchMock.mock.calls.some(([u]) => String(u).includes("/song/album/vid123")),
+    ).toBe(true);
+    // La pantalla de letras se cierra para no tapar el detalle
+    expect(mockSetLyricsOpen).toHaveBeenCalledWith(false);
+    // El sheet de opciones se cierra solo
+    expect(screen.queryByTestId("song-options-sheet")).not.toBeInTheDocument();
+  });
+
+  it("3 puntitos → Ir al artista navega desde cualquier pantalla y cierra la pantalla de letras", async () => {
+    const fetchMock = vi.fn((input) => {
+      const u = String(input);
+      if (u.includes("/search?"))
+        return jsonResponse({ artists: [{ browseId: "UC_test", name: "Test Artist" }] });
+      if (u.includes("/health")) return jsonResponse({ status: "ok" });
+      return jsonResponse({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    fireEvent.click(screen.getByTestId("open-song-options"));
+    expect(await screen.findByTestId("song-options-sheet")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("go-to-artist"));
+
+    await waitFor(() => expect(mockSetLyricsOpen).toHaveBeenCalledWith(false));
+    expect(
+      fetchMock.mock.calls.some(([u]) => String(u).includes("/search?q=Test%20Artist")),
+    ).toBe(true);
+  });
+
+  it("no muestra el toast «Error de reproducción» si el audio falla (petición)", () => {
+    const { container } = render(<App />);
+    const audio = container.querySelector("audio");
+    expect(audio).toBeInTheDocument();
+    audio.src = "http://127.0.0.1:8765/song/stream/vid123";
+    Object.defineProperty(audio, "error", {
+      value: { code: 4, message: "MEDIA_ERR_SRC_NOT_SUPPORTED" },
+      configurable: true,
+    });
+    fireEvent.error(audio);
+    expect(mockToast).not.toHaveBeenCalledWith("Error de reproducción", "error");
+    expect(mockToast).not.toHaveBeenCalledWith("Error al reproducir", "error");
+  });
+
+  it("la selección de texto está deshabilitada en toda la app (salvo campos editables)", () => {
+    const html = readFileSync(join(process.cwd(), "index.html"), "utf8");
+    expect(html).toContain("user-select: none;");
+    expect(html).toContain("-webkit-user-select: none;");
+    // Campos editables: la selección sigue habilitada para poder escribir
+    expect(html).toMatch(/input,[\s\S]*?textarea,[\s\S]*?-webkit-user-select: text;/);
   });
 
   // ── Icons ───────────────────────────────────────────────────────────────────

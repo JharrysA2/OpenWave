@@ -304,6 +304,24 @@
         margin: 0;
         padding: 0;
       }
+      /* ═══════════════════════════════════════════════════════════════════════
+         SELECCIÓN DE TEXTO — deshabilitada en TODA la app (estética):
+         nada muestra el subrayado azul al arrastrar (canciones, barras,
+         letras, menús…). Única excepción: campos editables, donde la
+         selección es necesaria para editar (búsquedas, nombres…).
+         ═══════════════════════════════════════════════════════════════════════ */
+      *,
+      *::before,
+      *::after {
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      input,
+      textarea,
+      [contenteditable="true"] {
+        user-select: text;
+        -webkit-user-select: text;
+      }
       html,
       body {
         overflow: hidden !important;

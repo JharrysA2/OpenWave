@@ -967,10 +967,6 @@ export const mutedAccent = (hex) => {
 export const sidebarBgGradient = () =>
   `linear-gradient(165deg, color-mix(in srgb, var(--neon) 40%, #05050a) 0%, color-mix(in srgb, var(--neon) 18%, #05050a) 60%, color-mix(in srgb, var(--neon) 6%, #05050a) 100%)`;
 
-/** Gradiente vignette sutil para dar profundidad al fondo */
-export const vignetteOverlay = () =>
-  `radial-gradient(ellipse at 50% 50%, transparent 45%, color-mix(in srgb, #000 73%, var(--neon)) 100%)`;
-
 // ═══════════════════════════════════════════════════════════════════════════════
 //  ANIMACIONES DE ENTRADA — Apple Design principles
 // ═══════════════════════════════════════════════════════════════════════════════

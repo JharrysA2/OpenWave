@@ -135,10 +135,6 @@ export const TRANSLATIONS = {
     gpuSw: "Software rendering — low-power mode",
     gpuSwDesc: "No usable GPU detected, effects reduce automatically",
     // ── Personalización añadida ────────────────────────────────────────────
-    vignette: "Background dimming",
-    vignetteDesc: "Strength of the veil over the dynamic background",
-    vignetteMin: "No veil",
-    vignetteMax: "Very dark",
     showProgressTimeDesc: "Shows 0:00 at both sides of the bar",
     searchDefaults: "Search",
     defaultSearchTab: "Default search tab",
@@ -290,10 +286,6 @@ export const TRANSLATIONS = {
     gpuSw: "Render por software — modo bajo consumo",
     gpuSwDesc: "Sin GPU usable detectada, los efectos se reducen solos",
     // ── Personalización añadida ────────────────────────────────────────────
-    vignette: "Oscurecimiento de fondo",
-    vignetteDesc: "Intensidad del velo sobre el fondo dinámico",
-    vignetteMin: "Sin velo",
-    vignetteMax: "Muy oscuro",
     showProgressTimeDesc: "Muestra 0:00 a los lados de la barra",
     searchDefaults: "Búsqueda",
     defaultSearchTab: "Pestaña de búsqueda por defecto",

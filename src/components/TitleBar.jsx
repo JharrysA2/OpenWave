@@ -17,7 +17,11 @@ export function TitleBar() {
         userSelect: "none",
         WebkitUserSelect: "none",
         position: "relative",
-        zIndex: 100000,
+        // ⭐ SIEMPRE visible, pase lo que pase por delante: por encima del
+        //    splash (#splash z=2147483000, pre-React), del BootScreen de
+        //    carga (1500000), de modales/hojas (1000000+) y de las letras
+        //    (9999). Es la chrome de ventana: min/max/cerrar nunca se tapa.
+        zIndex: 2147483100,
         ...GLASS.titleBar,
         borderBottom: `1px solid color-mix(in srgb, var(--neon) 25%, rgba(255,255,255,.06))`,
       }}

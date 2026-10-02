@@ -41,9 +41,6 @@ export const DEFAULT_SETTINGS = {
   playerBtnTone: "color",
   // Alineación del bloque título/artista de la barra: "left" | "center".
   playerTextAlign: "left",
-  // Oscurecimiento extra del fondo dinámico (vignette): 0–200 (%),
-  // 100 = comportamiento actual, 0 = sin oscurecer, >100 = más oscuro.
-  vignette: 100,
   // Pestaña inicial de Búsqueda: "music" | "videos".
   defaultSearchTab: "music",
   // Pausar glass/animaciones cuando la app pierde el foco (app-hidden).

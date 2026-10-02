@@ -89,35 +89,6 @@ export function PageApariencia({ neonColor }) {
           }
         />
         <SettingRow
-          icon={Ic.moon}
-          label={t.vignette}
-          desc={`${t.vignetteDesc} (${settings.vignette ?? 100}%)`}
-        />
-        <div
-          style={{
-            padding: "4px 18px 14px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-          }}
-        >
-          <Slider
-            min={0}
-            max={200}
-            step={10}
-            value={settings.vignette ?? 100}
-            onChange={(v) => updateSetting("vignette", v)}
-          />
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
-              {t.vignetteMin}
-            </span>
-            <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
-              {t.vignetteMax}
-            </span>
-          </div>
-        </div>
-        <SettingRow
           border={false}
           icon={Svg.rectangle}
           label={t.blurStyle}

@@ -208,26 +208,44 @@ describe("PagePrivacidad", () => {
 // ── PageApariencia ──────────────────────────────────────────────────────
 
 describe("PageApariencia", () => {
-  it("should render the app color row with a palette of many colors", () => {
+  it("should render the app color row that opens the palette modal", () => {
     renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
     expect(screen.getByText("Color de la app")).toBeInTheDocument();
+    // La paleta NO está desplegada en la página: vive en su modal
+    expect(screen.queryByLabelText(/^Color #/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Color de la app"));
     // Bastantes colores: ≥20 swatches identificables por "Color #hex"
     expect(screen.getAllByLabelText(/^Color #/).length).toBeGreaterThanOrEqual(20);
-    // + selector libre para elegir cualquier color
+    // + selector libre (botón redondo con extractor de color)
     expect(screen.getByLabelText("Color personalizado")).toBeInTheDocument();
+    expect(screen.getByText("Cancelar")).toBeInTheDocument();
   });
 
-  it("clicking a swatch persists the chosen color and moves the selection ring", () => {
+  it("the palette modal selects with a ring, persists and closes via Cancelar", () => {
     renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
+    fireEvent.click(screen.getByText("Color de la app"));
     const azul = screen.getByLabelText("Color #22d3ee");
+    const morado = screen.getByLabelText("Color #a78bfa");
+    // el color por defecto viene anillado…
+    expect(morado.style.boxShadow).toContain("0 0 0 4px");
+    expect(azul.style.boxShadow).not.toContain("0 0 0 4px");
     fireEvent.click(azul);
-    expect(JSON.parse(localStorage.getItem("sw_settings_v1")).appColor).toBe("#22d3ee");
-    // El anillo de seleccionado pasa al color clicado…
+    // …al clicar se anilla el nuevo, se guarda y el modal sigue abierto
+    // (selector de color: se aplica al instante para seguir comparando)
     expect(azul.style.boxShadow).toContain("0 0 0 4px");
-    // …y el resto queda sin anillo (aunque antes fuera el default)
-    expect(screen.getByLabelText("Color #a78bfa").style.boxShadow).not.toContain(
-      "0 0 0 4px",
-    );
+    expect(morado.style.boxShadow).not.toContain("0 0 0 4px");
+    expect(JSON.parse(localStorage.getItem("sw_settings_v1")).appColor).toBe("#22d3ee");
+    fireEvent.click(screen.getByText("Cancelar"));
+    expect(screen.queryByLabelText("Color #22d3ee")).not.toBeInTheDocument();
+  });
+
+  it("the eyedropper applies a custom color", () => {
+    renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
+    fireEvent.click(screen.getByText("Color de la app"));
+    fireEvent.change(screen.getByLabelText("Color personalizado"), {
+      target: { value: "#123456" },
+    });
+    expect(JSON.parse(localStorage.getItem("sw_settings_v1")).appColor).toBe("#123456");
   });
 
   it("should render theme section", () => {

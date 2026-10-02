@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSettings } from "../../contexts/useSettings";
-import { SettingsSection, SettingRow, SegBtn, Slider } from "../SettingsComponents";
+import { SettingsSection, SettingRow, SegBtn, Slider, SettingsToggle } from "../SettingsComponents";
 import { Svg } from "./icons";
 import { Ic } from "../../icons/Icons";
 
@@ -11,8 +11,15 @@ const QUALITY_OPTS = [
   ["320", "320k"],
 ];
 
-export function PageReproductor({ crossfadeDuration, setCrossfadeDuration, sleep, setSleep }) {
-  const { t, settings } = useSettings();
+export function PageReproductor({
+  neonColor,
+  crossfadeDuration,
+  setCrossfadeDuration,
+  sleep,
+  setSleep,
+}) {
+  const { t, settings, updateSetting } = useSettings();
+  const accent = neonColor || "#a78bfa";
   const [localCf, setLocalCf] = useState(crossfadeDuration);
 
   // ── Temporizador de apagado ──────────────────────────────────────────────
@@ -118,6 +125,22 @@ export function PageReproductor({ crossfadeDuration, setCrossfadeDuration, sleep
               options={QUALITY_OPTS}
               settingKey="downloadQuality"
               current={settings.downloadQuality || "192"}
+            />
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection title={t.queueSection}>
+        <SettingRow
+          icon={Ic.music}
+          label={t.queueRecommendations}
+          desc={t.queueRecommendationsDesc}
+          border={false}
+          right={
+            <SettingsToggle
+              value={settings.queueRecommendations ?? false}
+              onChange={(v) => updateSetting("queueRecommendations", v)}
+              accent={accent}
             />
           }
         />

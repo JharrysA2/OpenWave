@@ -89,6 +89,36 @@ describe("PageReproductor", () => {
     expect(screen.getByText("Estándar")).toBeInTheDocument();
     expect(screen.getByText("Alta")).toBeInTheDocument();
   });
+
+  it("should render the queue recommendations toggle (off by default)", () => {
+    localStorage.removeItem("sw_settings_v1");
+    renderWithSettings(
+      <PageReproductor neonColor="#a78bfa" crossfadeDuration={0} setCrossfadeDuration={() => {}} />,
+    );
+    expect(screen.getByText("Cola")).toBeInTheDocument();
+    expect(screen.getByText("Recomendar canciones similares")).toBeInTheDocument();
+    expect(
+      screen.getByText("Añade canciones parecidas al final de la cola (como el autoplay)"),
+    ).toBeInTheDocument();
+    // Por defecto desactivado: nada persistido con el toggle encendido
+    const stored = JSON.parse(localStorage.getItem("sw_settings_v1") || "{}");
+    expect(stored.queueRecommendations).not.toBe(true);
+  });
+
+  it("should persist queue recommendations when toggled", () => {
+    localStorage.removeItem("sw_settings_v1");
+    renderWithSettings(
+      <PageReproductor neonColor="#a78bfa" crossfadeDuration={0} setCrossfadeDuration={() => {}} />,
+    );
+    // Mismo patrón que el test de "Tema dinámico": el toggle vive dos
+    // niveles por encima del label (SettingRow > fila > div cursor:pointer)
+    const label = screen.getByText("Recomendar canciones similares");
+    const toggle = label.parentElement.parentElement.querySelector("div[style*='cursor']");
+    expect(toggle).toBeInTheDocument();
+    fireEvent.click(toggle);
+    const stored = JSON.parse(localStorage.getItem("sw_settings_v1") || "{}");
+    expect(stored.queueRecommendations).toBe(true);
+  });
 });
 
 // ── PageAlmacenamiento ─────────────────────────────────────────────────────

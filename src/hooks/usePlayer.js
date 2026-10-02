@@ -83,6 +83,7 @@ export function usePlayer(
   initialCrossfade = 0,
   initialQuality = "standard",
   initialDownloadQuality = "192",
+  queueRecommendations = false,
 ) {
   const [currentSong, setCurrentSong] = useState(null);
   const [queue, setQueue] = useState(() => loadPersistedQueue().queue);
@@ -115,6 +116,17 @@ export function usePlayer(
   queueIndexRef.current = queueIndex;
   const queueRef = useRef(queue);
   queueRef.current = queue;
+  // Contexto de la cola: ids (en orden) del álbum/playlist que la originó.
+  // null = cola sin contexto (reconstruida desde una canción suelta).
+  // Se compara al volver a reproducir desde la misma pantalla para NO
+  // resetear la cola si el usuario la reordenó o le añadió cosas.
+  const queueContextRef = useRef(null);
+  // Guard de obsolez de las recomendaciones: id de la canción que originó
+  // la cola actual; respuestas de contextos anteriores se descartan.
+  const queueRecsIdRef = useRef(null);
+  // Ref de la setting para que playSong no se re-cree al cambiar el toggle.
+  const queueRecsEnabledRef = useRef(queueRecommendations);
+  queueRecsEnabledRef.current = queueRecommendations;
   const fetchSongIdRef = useRef(null); // Para ignorar respuestas API de canciones anteriores
 
   // ── Pre-cache: stream URLs, lyrics, thumbnails de las siguientes canciones ──
@@ -460,6 +472,30 @@ export function usePlayer(
   //    limpió los refs. La solución: un mutex flag (crossfadePendingRef) que hace
   //    que performCrossfade se aborte si detecta que playSong está active.
 
+  // ── appendRecommendations: canciones relacionadas al FINAL de la cola ────
+  //    Solo con el ajuste "queueRecommendations" activo. Nunca reemplaza ni
+  //    mueve nada: deduplica contra la cola viva y AÑADE por debajo (como el
+  //    Autoplay de Spotify/YouTube Music). Si el usuario cambia de contexto
+  //    antes de que responda, queueRecsIdRef invalida la respuesta vieja.
+  const appendRecommendations = useCallback((song) => {
+    if (!queueRecsEnabledRef.current || !song?.videoId) return;
+    api
+      .get(`/queue/${song.videoId}?limit=15&artist=${encodeURIComponent(song.artist || "")}`)
+      .then((data) => {
+        if (queueRecsIdRef.current !== song.videoId) return; // contexto nuevo
+        const tracks = data?.tracks;
+        if (!tracks?.length) return;
+        setQueue((q) => {
+          const seen = new Set(q.map((s) => s?.videoId));
+          const extra = tracks.filter((t) => t?.videoId && !seen.has(t.videoId)).slice(0, 10);
+          if (extra.length === 0) return q;
+          console.info(`[Queue] Recommendations appended below: ${extra.length} tracks`);
+          return [...q, ...extra];
+        });
+      })
+      .catch((err) => console.warn("[Queue] Recommendations fetch failed:", err?.message));
+  }, []);
+
   const playSong = useCallback(
     async (song, startFrom = 0, fromQueue = false, initialQueue = null) => {
       if (!song || !song.videoId) return;
@@ -506,48 +542,65 @@ export function usePlayer(
       setStreamLoading(true);
 
       // ═══ MANEJO DE COLA ═══════════════════════════════════════════════════
-      //    initialQueue != null: usar cola proporcionada (ej: canciones del álbum)
-      //    fromQueue = true: la canción viene de la cola → NO tocar la cola
-      //    fromQueue = false: canción externa → rebuildear cola (siempre, aunque ya esté)
+      //    Regla única (como Spotify / YouTube Music):
+      //    - initialQueue (pantalla de contexto: álbum, playlist, favoritos,
+      //      descargas) → la cola ES ese contexto. Si la cola ya es ese
+      //      mismo contexto, NO se resetea (conserva reordenos, añadidos y
+      //      recomendaciones): solo salta el índice a la pista clickeada.
+      //    - fromQueue = true → la cola no se toca; el índice lo pone el
+      //      caller (handleNext, handlePrev, repetición...).
+      //    - Sin contexto: si la canción YA está en la cola actual → solo
+      //      mueve el índice (permanece en su lugar, sin reconstruir).
+      //      Si está FUERA de la cola → contexto nuevo.
+      //    - Recomendaciones opcionales (ajuste "queueRecommendations"):
+      //      solo se AÑADEN AL FINAL, nunca reemplazan ni mueven nada.
 
       if (initialQueue && Array.isArray(initialQueue) && initialQueue.length > 0) {
-        // Cola proporcionada (ej: desde AlbumView con las canciones del álbum)
-        console.info(`[Queue] Using provided initialQueue with ${initialQueue.length} tracks`);
-        setQueue(initialQueue);
-        setQueueIndex(0);
-        fetchSongIdRef.current = song.videoId;
-      } else if (!fromQueue) {
-        // Canción externa — siempre rebuildear cola (incluso si ya estaba en la cola)
-        const qIdx = populateQueueFromResults(song, resultsRef.current, setQueue);
-        setQueueIndex(qIdx);
+        const contextIds = initialQueue.map((s) => s?.videoId);
+        const sameContext =
+          queueContextRef.current != null &&
+          queueContextRef.current.length === contextIds.length &&
+          queueContextRef.current.every((id, i) => id === contextIds[i]);
+        const liveIdx = queueRef.current.findIndex((s) => s?.videoId === song.videoId);
 
-        // ── Poblar cola DESDE API DE RELACIONADOS (async, ignorar si stale) ──
+        if (sameContext && liveIdx >= 0) {
+          // Mismo álbum/playlist con la cola ya montada: NO la resetea,
+          // solo marca la posición de la pista clickeada en la cola viva.
+          setQueueIndex(liveIdx);
+        } else {
+          console.info(`[Queue] Context queue: ${initialQueue.length} tracks`);
+          setQueue(initialQueue);
+          setQueueIndex(Math.max(0, initialQueue.findIndex((s) => s?.videoId === song.videoId)));
+          queueContextRef.current = contextIds;
+        }
+        queueRecsIdRef.current = song.videoId;
         fetchSongIdRef.current = song.videoId;
-        api
-          .get(`/queue/${song.videoId}?limit=15&artist=${encodeURIComponent(song.artist || "")}`)
-          .then((data) => {
-            // Si el usuario ya cambió a otra canción, ignorar esta respuesta
-            if (fetchSongIdRef.current !== song.videoId) return;
-            if (data?.tracks?.length > 0) {
-              const filtered = data.tracks
-                .filter((t) => t.videoId && t.videoId !== song.videoId)
-                .slice(0, 10);
-              if (filtered.length > 0) {
-                console.info(`[Queue] Auto-populated from API: ${filtered.length} tracks`);
-                // La canción actual va PRIMERA (index 0), seguidas de las relacionadas
-                setQueue([normalizedSong, ...filtered]);
-                setQueueIndex(0);
-              }
-            }
-          })
-          .catch((err) => {
-            console.warn("[Queue] API fetch failed, using search results fallback:", err?.message);
-          });
+        appendRecommendations(song);
+      } else if (fromQueue) {
+        // fromQueue=true: la canción viene de la cola — NO tocar la cola
+        // ni el índice (ya lo gestionó el caller), pero SÍ actualizar
+        // fetchSongIdRef para ignorar respuestas de la canción anterior.
+        fetchSongIdRef.current = song.videoId;
       } else {
-        // fromQueue=true: la canción viene de la cola — NO tocar la cola,
-        // pero SÍ actualizar fetchSongIdRef para ignorar API responses
-        // de la canción anterior que pudieran llegar después.
-        fetchSongIdRef.current = song.videoId;
+        const inQueueIdx = queueRef.current.findIndex((s) => s?.videoId === song.videoId);
+        if (inQueueIdx >= 0) {
+          // Ya está en la cola → NO cambiar la cola: solo marcar su
+          // posición (la canción permanece en su lugar).
+          setQueueIndex(inQueueIdx);
+          fetchSongIdRef.current = song.videoId;
+        } else {
+          // Fuera de la cola → contexto nuevo.
+          const qIdx = populateQueueFromResults(song, resultsRef.current, setQueue);
+          if (qIdx < 0) {
+            // Sin resultados de búsqueda: cola mínima con la canción.
+            setQueue([normalizedSong]);
+          }
+          setQueueIndex(0);
+          queueContextRef.current = null;
+          queueRecsIdRef.current = song.videoId;
+          fetchSongIdRef.current = song.videoId;
+          appendRecommendations(song);
+        }
       }
 
       // ═══ CALIDAD ALTA: reproducir a la calidad de descarga ═══════════
@@ -644,7 +697,7 @@ export function usePlayer(
       //    playSong está configurando el audio (race window B3).
       crossfadePendingRef.current = false;
     },
-    [toast, normalizeThumbnails, isPlaying, currentSong, ensureDownloaded],
+    [toast, normalizeThumbnails, isPlaying, currentSong, ensureDownloaded, appendRecommendations],
   );
 
   const togglePlay = useCallback(() => {

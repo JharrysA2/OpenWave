@@ -32,8 +32,10 @@ function createMockAudio(duration = 200, playSucceeds = true) {
  * Mockea fetch para que /stream-url/* devuelva una URL reproducible.
  * Sin esto, el crossfade aborta al no poder obtener el stream de la
  * siguiente canción. Devuelve el spy para poder restaurarlo.
+ * `queueTracks` (opcional) es lo que responde GET /queue/{id}: las
+ * canciones relacionadas que appendRecommendations añade bajo la cola.
  */
-function mockStreamFetch() {
+function mockStreamFetch(queueTracks = []) {
   return vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
     const u = String(url);
     if (u.includes("/stream-url/")) {
@@ -50,7 +52,25 @@ function mockStreamFetch() {
         text: () => Promise.resolve(""),
       });
     }
-    // Resto de endpoints (queue, lyrics, feedback) → respuesta vacía válida
+    if (u.includes("/queue/feedback")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: () => "application/json" },
+        json: () => Promise.resolve({}),
+        text: () => Promise.resolve("{}"),
+      });
+    }
+    if (u.includes("/queue/")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: () => "application/json" },
+        json: () => Promise.resolve({ tracks: queueTracks }),
+        text: () => Promise.resolve(""),
+      });
+    }
+    // Resto de endpoints (lyrics, feedback) → respuesta vacía válida
     return Promise.resolve({
       ok: true,
       status: 200,
@@ -938,6 +958,174 @@ describe("usePlayer", () => {
 
     audioA.removeEventListener("timeupdate", onTimeUpdateA);
     audioB.removeEventListener("timeupdate", onTimeUpdateA);
+    mockFetch.mockRestore();
+  });
+
+  // ── Reglas de cola: contexto vs canción dentro/fuera de la cola ──────────
+
+  it("playSong on a song already in the queue keeps the queue and jumps in place", async () => {
+    const mockFetch = mockStreamFetch();
+    const audio = createMockAudio();
+
+    const { result } = renderHook(() => usePlayer());
+    result.current.audioRef.current = audio;
+
+    act(() => {
+      result.current.setQueue([
+        { videoId: "s1", title: "S1" },
+        { videoId: "s2", title: "S2" },
+        { videoId: "s3", title: "S3" },
+      ]);
+      result.current.setQueueIndex(0);
+      result.current.setCurrentSong({ videoId: "s1", title: "S1" });
+    });
+
+    await act(async () => {
+      await result.current.playSong({ videoId: "s2", title: "S2" });
+    });
+
+    // La cola NO cambia: mismas canciones, mismo orden (en su lugar)
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["s1", "s2", "s3"]);
+    expect(result.current.queueIndex).toBe(1);
+    expect(result.current.currentSong?.videoId).toBe("s2");
+
+    // Sin fetch de recomendaciones (ajuste apagado por defecto)
+    const recsCalls = mockFetch.mock.calls.filter(
+      ([u]) => String(u).includes("/queue/") && !String(u).includes("feedback"),
+    );
+    expect(recsCalls).toHaveLength(0);
+    mockFetch.mockRestore();
+  });
+
+  it("playSong outside the current queue rebuilds it as a new context", async () => {
+    const mockFetch = mockStreamFetch();
+    const audio = createMockAudio();
+
+    const { result } = renderHook(() => usePlayer());
+    result.current.audioRef.current = audio;
+
+    act(() => {
+      result.current.setQueue([
+        { videoId: "s1", title: "S1" },
+        { videoId: "s2", title: "S2" },
+      ]);
+      result.current.setQueueIndex(1);
+      result.current.setCurrentSong({ videoId: "s2", title: "S2" });
+    });
+
+    await act(async () => {
+      await result.current.playSong({ videoId: "outside1", title: "O" });
+    });
+
+    // Canción fuera de la cola → contexto nuevo (cola mínima sin recs)
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["outside1"]);
+    expect(result.current.queueIndex).toBe(0);
+    mockFetch.mockRestore();
+  });
+
+  it("initialQueue: queueIndex points at the clicked track, not 0", async () => {
+    const mockFetch = mockStreamFetch();
+    const audio = createMockAudio();
+    const ctx = [
+      { videoId: "t0", title: "T0" },
+      { videoId: "t1", title: "T1" },
+      { videoId: "t2", title: "T2" },
+    ];
+
+    const { result } = renderHook(() => usePlayer());
+    result.current.audioRef.current = audio;
+
+    await act(async () => {
+      await result.current.playSong(ctx[1], 0, false, ctx);
+    });
+
+    // La cola es solo el álbum y el índice apunta a la pista clickeada
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["t0", "t1", "t2"]);
+    expect(result.current.queueIndex).toBe(1);
+    mockFetch.mockRestore();
+  });
+
+  it("re-selecting from the same album keeps the user's queue edits", async () => {
+    const mockFetch = mockStreamFetch();
+    const audio = createMockAudio();
+    const ctx = [
+      { videoId: "t0", title: "T0" },
+      { videoId: "t1", title: "T1" },
+      { videoId: "t2", title: "T2" },
+    ];
+
+    const { result } = renderHook(() => usePlayer());
+    result.current.audioRef.current = audio;
+
+    // 1) Monta el contexto del álbum
+    await act(async () => {
+      await result.current.playSong(ctx[0], 0, false, ctx);
+    });
+    expect(result.current.queue).toHaveLength(3);
+
+    // 2) El usuario quita t1 de la cola (edición manual)
+    act(() => {
+      result.current.setQueue([ctx[0], ctx[2]]);
+    });
+
+    // 3) Clic en t2 desde la pantalla del álbum → la cola NO se resetea
+    await act(async () => {
+      await result.current.playSong(ctx[2], 0, false, ctx);
+    });
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["t0", "t2"]);
+    expect(result.current.queueIndex).toBe(1);
+
+    // 4) Clic en t1 (fuera de la cola viva) → sí reconstruye el contexto
+    await act(async () => {
+      await result.current.playSong(ctx[1], 0, false, ctx);
+    });
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["t0", "t1", "t2"]);
+    expect(result.current.queueIndex).toBe(1);
+    mockFetch.mockRestore();
+  });
+
+  it("queueRecommendations ON appends related songs below the queue", async () => {
+    const mockFetch = mockStreamFetch([
+      { videoId: "rec1", title: "R1" },
+      { videoId: "rec2", title: "R2" },
+      { videoId: "outside1", title: "dup" }, // duplicado de la actual → se filtra
+    ]);
+    const audio = createMockAudio();
+
+    const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", true));
+    result.current.audioRef.current = audio;
+
+    await act(async () => {
+      await result.current.playSong({ videoId: "outside1", title: "O" });
+    });
+    await waitFor(() => expect(result.current.queue).toHaveLength(3));
+
+    // Añadidas DEBAJO, sin mover la canción actual de su sitio
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["outside1", "rec1", "rec2"]);
+    expect(result.current.queueIndex).toBe(0);
+    mockFetch.mockRestore();
+  });
+
+  it("queueRecommendations ON appends below an album context without moving the index", async () => {
+    const mockFetch = mockStreamFetch([{ videoId: "recX", title: "RX" }]);
+    const audio = createMockAudio();
+    const ctx = [
+      { videoId: "t0", title: "T0" },
+      { videoId: "t1", title: "T1" },
+      { videoId: "t2", title: "T2" },
+    ];
+
+    const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", true));
+    result.current.audioRef.current = audio;
+
+    await act(async () => {
+      await result.current.playSong(ctx[1], 0, false, ctx);
+    });
+    await waitFor(() => expect(result.current.queue).toHaveLength(4));
+
+    // Cola = álbum + recomendaciones por debajo; índice intacto en la pista
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["t0", "t1", "t2", "recX"]);
+    expect(result.current.queueIndex).toBe(1);
     mockFetch.mockRestore();
   });
 });

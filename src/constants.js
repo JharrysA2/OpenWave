@@ -48,4 +48,8 @@ export const DEFAULT_SETTINGS = {
   defaultSearchTab: "music",
   // Pausar glass/animaciones cuando la app pierde el foco (app-hidden).
   pauseEffectsHidden: true,
+  // Recomendar canciones similares al FINAL de la cola (como el Autoplay de
+  // Spotify/YTM). Solo AÑADE debajo, nunca reemplaza ni mueve la cola.
+  // Por defecto apagado: la cola queda "pura" (solo el contexto elegido).
+  queueRecommendations: false,
 };

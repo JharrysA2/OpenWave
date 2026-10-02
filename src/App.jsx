@@ -102,6 +102,7 @@ function AppInner() {
     settings.crossfade || 0,
     settings.playbackQuality || "standard",
     settings.downloadQuality || "192",
+    settings.queueRecommendations ?? false,
   );
   const {
     currentSong,

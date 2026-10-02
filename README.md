@@ -9,7 +9,7 @@ App de música para PC usando **Tauri + React + FastAPI + ytmusicapi**.
 - ✅ Vistas de **Álbum, Artista y Playlist**, historial y likes
 - ✅ Descarga offline con yt-dlp
 - ✅ UI oscura con glassmorphism (True Liquid Glass)
-- ✅ Instalador .exe para Windows con NSIS (~40MB RAM en reposo)
+- ✅ Instalador .MSI para Windows
 - ✅ Suite de **tests**: 552 tests unitarios (Vitest) + e2e (Playwright) + Pytest
 
 ---

@@ -276,8 +276,11 @@
                      se agrupan como «OpenWave» (con su icono) en el
                      Administrador de Tareas y en la barra de tareas. El
                      AUMID del proceso (com.soundwave.app) lo pone la app al
-                     arrancar; aquí queda el nombre/icono visible. -->
-                <RegistryKey Root="HKCU" Key="Software\Classes\AppUserModelId\{{bundle_id}}">
+                     arrancar; aquí queda el nombre/icono visible. La clave
+                     va en literal porque {{bundle_id}} NO existe en el
+                     contexto handlebars de Tauri (quedaría sin interpolar);
+                     el identifier es estable por decisión (ver README). -->
+                <RegistryKey Root="HKCU" Key="Software\Classes\AppUserModelId\com.soundwave.app">
                     <RegistryValue Name="DisplayName" Type="string" Value="{{product_name}}" />
                     <RegistryValue Name="IconUri" Type="string" Value="[!Path]" />
                     <RegistryValue Name="IconBackgroundColor" Type="string" Value="#0a0a0f" />

@@ -77,9 +77,6 @@ describe("HomeView", () => {
     fireEvent.click(screen.getAllByText("Song 5")[0]);
     expect(playSong).toHaveBeenCalledWith(
       expect.objectContaining({ videoId: "5", title: "Song 5" }),
-      0,
-      false,
-      expect.any(Array),
     );
   });
 
@@ -106,9 +103,6 @@ describe("HomeView", () => {
     fireEvent.click(screen.getByText("Song 6"));
     expect(playSong).toHaveBeenCalledWith(
       expect.objectContaining({ videoId: "6" }),
-      0,
-      false,
-      expect.any(Array),
     );
   });
 

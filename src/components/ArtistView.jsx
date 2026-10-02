@@ -359,7 +359,7 @@ export default function ArtistView({
                 return (
                   <div
                     key={song.videoId || i}
-                    onClick={() => playSong(song, 0, false, displaySongs)}
+                    onClick={() => playSong(song)}
                     style={{
                       ...ANIMATIONS.fadeSlideUp(100 + i * 30),
                       display: "flex",

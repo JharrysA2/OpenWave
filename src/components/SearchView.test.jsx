@@ -174,9 +174,6 @@ describe("SearchView", () => {
     fireEvent.click(screen.getByText("Song 1"));
     expect(playSong).toHaveBeenCalledWith(
       expect.objectContaining({ videoId: "1" }),
-      0,
-      false,
-      expect.any(Array),
     );
   });
 
@@ -298,9 +295,6 @@ describe("SearchView", () => {
     fireEvent.click(screen.getByText("Song v1"));
     expect(playSong).toHaveBeenCalledWith(
       expect.objectContaining({ videoId: "v1" }),
-      0,
-      false,
-      expect.any(Array),
     );
   });
 

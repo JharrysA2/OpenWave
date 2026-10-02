@@ -63,20 +63,6 @@ const scheduleFrame =
 //  Rule: rerender-memo — funciones puras no necesitan estar dentro del hook
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** Poblar cola desde resultados de búsqueda. Retorna índice de la canción actual. */
-function populateQueueFromResults(song, searchResults, setQueueFn) {
-  if (!searchResults || searchResults.length <= 1) return -1;
-  const idx = searchResults.findIndex((s) => s?.videoId === song?.videoId);
-  if (idx >= 0) {
-    const nextSongs = searchResults.slice(idx, idx + 16);
-    if (nextSongs.length > 0) {
-      setQueueFn(nextSongs);
-      return 0;
-    }
-  }
-  return -1;
-}
-
 // Con el ajuste "Recomendar canciones similares" activo: si quedan ≤ N
 // canciones por debajo de la actual, se rellena el final con más abajo.
 const QUEUE_RECS_TAIL_MIN = 5;
@@ -114,8 +100,6 @@ export function usePlayer(
   const loggedSongRef = useRef(null);
   const currentlyPlayingSongRef = useRef(null);
   const isSwappedRef = useRef(false);
-  const resultsRef = useRef(results);
-  resultsRef.current = results;
   const queueIndexRef = useRef(queueIndex);
   queueIndexRef.current = queueIndex;
   const queueRef = useRef(queue);
@@ -128,12 +112,17 @@ export function usePlayer(
   // Guard de obsolez de las recomendaciones: id de la canción que originó
   // la cola actual; respuestas de contextos anteriores se descartan.
   const queueRecsIdRef = useRef(null);
+  // ¿La cola actual es una RADIO? (canción jugada fuera de la cola y de
+  // una colección → la cola = [canción] + relacionadas). La radio nunca se
+  // acaba: al llegar al final se AÑADEN +5 sin borrar nada, hasta salir
+  // de esta cola. Las colecciones (álbum/playlist/...) la ponen a false.
+  const queueIsRadioRef = useRef(false);
   // Ref de la setting para que playSong no se re-cree al cambiar el toggle.
   const queueRecsEnabledRef = useRef(queueRecommendations);
   queueRecsEnabledRef.current = queueRecommendations;
   // Petición de recomendaciones en vuelo: se reutiliza (en vez de duplicar)
   // y permite que handleNext espere el relleno al final de la cola.
-  const queueRecsPendingRef = useRef(null); // videoId de la petición en vuelo
+  const queueRecsPendingRef = useRef(null); // clave videoId|limit|max en vuelo
   const queueRecsPromiseRef = useRef(null); // promesa de esa petición
   const fetchSongIdRef = useRef(null); // Para ignorar respuestas API de canciones anteriores
 
@@ -480,57 +469,65 @@ export function usePlayer(
   //    limpió los refs. La solución: un mutex flag (crossfadePendingRef) que hace
   //    que performCrossfade se aborte si detecta que playSong está active.
 
-  // ── appendRecommendations: canciones relacionadas al FINAL de la cola ────
-  //    Solo con el ajuste "queueRecommendations" activo. La cola principal
-  //    NUNCA se toca: deduplica contra la cola viva y solo AÑADE por debajo
-  //    (como el Autoplay de Spotify/YouTube Music). Si el usuario cambia de
-  //    contexto antes de que responda, queueRecsIdRef invalida la respuesta
-  //    vieja. Devuelve la promesa con el array añadido (vacío si no añade)
-  //    para que handleNext pueda seguir reproduciendo al llegar al final.
-  const appendRecommendations = useCallback((song) => {
-    if (!queueRecsEnabledRef.current || !song?.videoId) return Promise.resolve([]);
-    // Ya hay una petición en vuelo para esta canción → reutilizarla
-    // (sin duplicar llamadas y permitiendo esperarla desde handleNext).
-    if (queueRecsPendingRef.current === song.videoId && queueRecsPromiseRef.current) {
-      return queueRecsPromiseRef.current;
-    }
-    queueRecsIdRef.current = song.videoId;
-    const p = api
-      // _skipCache: el relleno debe poder reintentarse (la caché de5 min
-      // del cliente devolvería el mismo vacío); los duplicados los filtra
-      // el dedupe contra la cola viva.
-      .get(`/queue/${song.videoId}?limit=15&artist=${encodeURIComponent(song.artist || "")}`, {
-        _skipCache: true,
-      })
-      .then((data) => {
-        if (queueRecsIdRef.current !== song.videoId) return []; // contexto nuevo
-        const tracks = data?.tracks;
-        if (!tracks?.length) return [];
-        const seen = new Set(queueRef.current.map((s) => s?.videoId));
-        const extra = tracks.filter((t) => t?.videoId && !seen.has(t.videoId)).slice(0, 10);
-        if (extra.length === 0) return [];
-        console.info(`[Queue] Recommendations appended below: ${extra.length} tracks`);
-        // Re-filtro contra la cola "viva" por si cambió mientras pedía:
-        // solo añade, jamás reemplaza ni reordena.
-        setQueue((q) => {
-          const live = new Set(q.map((s) => s?.videoId));
-          const add = extra.filter((t) => !live.has(t.videoId));
-          return add.length > 0 ? [...q, ...add] : q;
+  // ── appendRecommendations: relacionadas AÑADIDAS por debajo ─────────────
+  //    - force = true → SIEMPRE (la radio de las canciones jugadas fuera
+  //      de la cola; no depende del ajuste). force = false → solo con el
+  //      ajuste "queueRecommendations" (colecciones: álbum/playlist/...).
+  //    Nunca reemplaza ni mueve nada: deduplica contra la cola viva y solo
+  //    AÑADE por debajo. queueRecsIdRef invalida respuestas de otros
+  //    contextos; una respuesta de radio además solo aterriza si la cola
+  //    sigue siendo radio (force + queueIsRadioRef).
+  //    Devuelve la promesa con el array añadido (vacío si no añade).
+  const appendRecommendations = useCallback(
+    (song, { force = false, max = 10, limit = 15 } = {}) => {
+      if (!song?.videoId) return Promise.resolve([]);
+      if (!force && !queueRecsEnabledRef.current) return Promise.resolve([]);
+      const key = `${song.videoId}|${limit}|${max}`;
+      // Misma petición ya en vuelo → reutilizarla (sin duplicar llamadas
+      // y permitiendo esperarla desde handleNext al final de la cola).
+      if (queueRecsPendingRef.current === key && queueRecsPromiseRef.current) {
+        return queueRecsPromiseRef.current;
+      }
+      queueRecsIdRef.current = song.videoId;
+      const p = api
+        // _skipCache: el relleno debe poder reintentarse (la caché de5 min
+        // del cliente devolvería el mismo vacío); los duplicados los filtra
+        // el dedupe contra la cola viva.
+        .get(`/queue/${song.videoId}?limit=${limit}&artist=${encodeURIComponent(song.artist || "")}`, {
+          _skipCache: true,
+        })
+        .then((data) => {
+          if (queueRecsIdRef.current !== song.videoId) return []; // otro contexto
+          if (force && !queueIsRadioRef.current) return []; // ya no es radio
+          const tracks = data?.tracks;
+          if (!tracks?.length) return [];
+          const seen = new Set(queueRef.current.map((s) => s?.videoId));
+          const extra = tracks.filter((t) => t?.videoId && !seen.has(t.videoId)).slice(0, max);
+          if (extra.length === 0) return [];
+          console.info(`[Queue] Related appended below: ${extra.length} tracks`);
+          // Re-filtro contra la cola "viva" por si cambió mientras pedía:
+          // solo añade, jamás reemplaza ni reordena.
+          setQueue((q) => {
+            const live = new Set(q.map((s) => s?.videoId));
+            const add = extra.filter((t) => !live.has(t.videoId));
+            return add.length > 0 ? [...q, ...add] : q;
+          });
+          return extra;
+        })
+        .catch((err) => {
+          console.warn("[Queue] Related fetch failed:", err?.message);
+          return [];
+        })
+        .finally(() => {
+          if (queueRecsPendingRef.current === key) queueRecsPendingRef.current = null;
+          if (queueRecsPromiseRef.current === p) queueRecsPromiseRef.current = null;
         });
-        return extra;
-      })
-      .catch((err) => {
-        console.warn("[Queue] Recommendations fetch failed:", err?.message);
-        return [];
-      })
-      .finally(() => {
-        if (queueRecsPendingRef.current === song.videoId) queueRecsPendingRef.current = null;
-        if (queueRecsPromiseRef.current === p) queueRecsPromiseRef.current = null;
-      });
-    queueRecsPendingRef.current = song.videoId;
-    queueRecsPromiseRef.current = p;
-    return p;
-  }, []);
+      queueRecsPendingRef.current = key;
+      queueRecsPromiseRef.current = p;
+      return p;
+    },
+    [],
+  );
 
   // ── maybeTopUpRecommendations: que SIEMPRE quede algo por debajo ────────
   //    Con el ajuste activo, cuando quedan ≤ QUEUE_RECS_TAIL_MIN canciones
@@ -603,8 +600,10 @@ export function usePlayer(
       //      caller (handleNext, handlePrev, repetición...).
       //    - Sin contexto: si la canción YA está en la cola actual → solo
       //      mueve el índice (permanece en su lugar, sin reconstruir).
-      //      Si está FUERA de la cola → contexto nuevo.
-      //    - Recomendaciones opcionales (ajuste "queueRecommendations"):
+      //      Si está FUERA de la cola → RADIO: [canción] + relacionadas
+      //      (siempre, sin depender del ajuste). Nunca se rellena con la
+      //      lista de origen ni con resultados de búsqueda.
+      //    - Recomendaciones de colecciones (ajuste "queueRecommendations"):
       //      solo se AÑADEN AL FINAL, nunca reemplazan ni mueven nada.
 
       if (initialQueue && Array.isArray(initialQueue) && initialQueue.length > 0) {
@@ -632,6 +631,10 @@ export function usePlayer(
           // Contexto nuevo → cola extra completa por debajo (si va activo).
           appendRecommendations(song);
         }
+        // Colección → la cola NO es radio; marca la canción actual para
+        // descartar cualquier radio que aún esté en vuelo de antes.
+        queueIsRadioRef.current = false;
+        queueRecsIdRef.current = song.videoId;
       } else if (fromQueue) {
         // fromQueue=true: la canción viene de la cola — NO tocar la cola
         // ni el índice (ya lo gestionó el caller), pero SÍ actualizar
@@ -647,16 +650,16 @@ export function usePlayer(
           fetchSongIdRef.current = song.videoId;
           maybeTopUpRecommendations(song);
         } else {
-          // Fuera de la cola → contexto nuevo.
-          const qIdx = populateQueueFromResults(song, resultsRef.current, setQueue);
-          if (qIdx < 0) {
-            // Sin resultados de búsqueda: cola mínima con la canción.
-            setQueue([normalizedSong]);
-          }
+          // Fuera de la cola → RADIO: la cola es [canción] + relacionadas.
+          // Siempre (sin depender del ajuste "Recomendar canciones
+          // similares"): nunca se rellena con la lista de donde vino la
+          // canción ni con resultados de búsqueda.
+          setQueue([normalizedSong]);
           setQueueIndex(0);
           queueContextRef.current = null;
+          queueIsRadioRef.current = true;
           fetchSongIdRef.current = song.videoId;
-          appendRecommendations(song);
+          appendRecommendations(song, { force: true, max: 15 });
         }
       }
 
@@ -888,9 +891,21 @@ export function usePlayer(
         // REPEAT ALL: volver al inicio de la cola
         setQueueIndex(0);
         await playSong(queue[0], 0, true);
+      } else if (queueIsRadioRef.current) {
+        // Radio: nunca se acaba — al final se AÑADEN +5 relacionadas
+        // (sin borrar ni mover nada de lo que ya hay) y se sigue.
+        // Solo se sale de la radio al jugar otra canción (nuevo contexto).
+        const extra = await appendRecommendations(queue[queueIndex], {
+          force: true,
+          max: 5,
+        });
+        if (extra.length > 0) {
+          setQueueIndex((i) => i + 1);
+          await playSong(extra[0], 0, true);
+        }
       } else if (queueRecsEnabledRef.current) {
-        // Autoplay ("Recomendar canciones similares"): rellenar el final y
-        // seguir en vez de parar. Si no queda nada más, se para como antes.
+        // Ajuste "Recomendar canciones similares" en colecciones: rellenar
+        // el final y seguir en vez de parar. Si no queda nada, se para.
         const extra = await appendRecommendations(queue[queueIndex]);
         if (extra.length > 0) {
           setQueueIndex((i) => i + 1);

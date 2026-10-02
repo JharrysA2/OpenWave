@@ -240,7 +240,7 @@ export default function HistoryView({
                 isActive={isActive}
                 accentColor={accentColor}
                 index={i}
-                onClick={() => playSong(song, 0, false, history)}
+                onClick={() => playSong(song)}
                 coverSrc={song.thumbnail || song.thumbnails?.[0]?.url}
                 subtitle={`${song.artist} · ${song.playCount || 1} reproducción${
                   song.playCount !== 1 ? "es" : ""

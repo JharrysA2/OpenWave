@@ -83,9 +83,6 @@ describe("ArtistView", () => {
     fireEvent.click(screen.getByText("Song 1"));
     expect(defaultProps.playSong).toHaveBeenCalledWith(
       expect.objectContaining({ videoId: "s1" }),
-      0,
-      false,
-      expect.any(Array),
     );
   });
 

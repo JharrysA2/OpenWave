@@ -192,7 +192,7 @@ export default function HomeView({
               return (
                 <div
                   key={song.videoId || i}
-                  onClick={() => playSong(song, 0, false, quickPicks)}
+                  onClick={() => playSong(song)}
                   style={{
                     ...ANIMATIONS.fadeSlideUp(160 + i * 50),
                     ...GLASS.card,
@@ -398,7 +398,7 @@ export default function HomeView({
               return (
                 <div
                   key={song.videoId || i}
-                  onClick={() => playSong(song, 0, false, forYou)}
+                  onClick={() => playSong(song)}
                   style={{
                     ...ANIMATIONS.fadeSlideUp(400 + i * 35),
                     display: "flex",

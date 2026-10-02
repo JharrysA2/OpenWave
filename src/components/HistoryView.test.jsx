@@ -91,9 +91,6 @@ describe("HistoryView", () => {
     fireEvent.click(screen.getByText("History Song 1"));
     expect(playSong).toHaveBeenCalledWith(
       expect.objectContaining({ videoId: "1", title: "History Song 1" }),
-      0,
-      false,
-      expect.any(Array),
     );
   });
 

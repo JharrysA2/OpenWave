@@ -1017,7 +1017,8 @@ describe("usePlayer", () => {
       await result.current.playSong({ videoId: "outside1", title: "O" });
     });
 
-    // Canción fuera de la cola → contexto nuevo (cola mínima sin recs)
+    // Fuera de la cola → radio; si el backend no devuelve nada, queda la
+    // cola mínima con la canción
     expect(result.current.queue.map((s) => s.videoId)).toEqual(["outside1"]);
     expect(result.current.queueIndex).toBe(0);
     mockFetch.mockRestore();
@@ -1266,6 +1267,160 @@ describe("usePlayer", () => {
     expect(result.current.queue.map((s) => s.videoId)).toEqual(["b0", "b1", "rec1"]);
     expect(result.current.queueIndex).toBe(2);
     expect(result.current.currentSong.videoId).toBe("rec1");
+    mockFetch.mockRestore();
+  });
+
+  // ── RADIO: canción jugada fuera de la cola → [canción] + relacionadas ──
+
+  it("fuera de la cola → RADIO siempre: [canción] + relacionadas aunque el ajuste esté OFF", async () => {
+    const mockFetch = mockStreamFetch([
+      { videoId: "rl1", title: "RL1" },
+      { videoId: "rl2", title: "RL2" },
+    ]);
+    const audio = createMockAudio();
+
+    const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", false));
+    result.current.audioRef.current = audio;
+
+    await act(async () => {
+      await result.current.playSong({ videoId: "seedradio", title: "Seed" });
+    });
+
+    await waitFor(() => expect(result.current.queue).toHaveLength(3));
+    // Ni la lista de origen ni resultados de búsqueda: solo relacionadas
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["seedradio", "rl1", "rl2"]);
+    expect(result.current.queueIndex).toBe(0);
+    expect(result.current.currentSong.videoId).toBe("seedradio");
+    mockFetch.mockRestore();
+  });
+
+  it("la radio nunca se acaba: al final añade +5 sin borrar nada (sucesivo)", async () => {
+    let queueCalls = 0;
+    const okJson = (data) =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: () => "application/json" },
+        json: () => Promise.resolve(data),
+        text: () => Promise.resolve(""),
+      });
+    const mockFetch = vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes("/stream-url/")) {
+        return okJson({ url: "https://stream.example.com/audio.mp4", headers: {}, duration: 200 });
+      }
+      if (u.includes("/queue/feedback")) return okJson({});
+      if (u.includes("/queue/")) {
+        queueCalls += 1;
+        // 1ª llamada → radio inicial (2 relacionadas); después → lotes de +5
+        if (queueCalls === 1) {
+          return okJson({ tracks: [{ videoId: "r1" }, { videoId: "r2" }] });
+        }
+        const batch = queueCalls - 1; // 2 → b1*, 3 → b2*...
+        return okJson({
+          tracks: Array.from({ length: 5 }, (_, i) => ({ videoId: `b${batch}x${i}` })),
+        });
+      }
+      return okJson({});
+    });
+    const audio = createMockAudio();
+
+    const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", false));
+    result.current.audioRef.current = audio;
+
+    // Radio inicial (con el ajuste OFF: la radio no depende de él)
+    await act(async () => {
+      await result.current.playSong({ videoId: "rs", title: "RS" });
+    });
+    await waitFor(() =>
+      expect(result.current.queue.map((s) => s.videoId)).toEqual(["rs", "r1", "r2"]),
+    );
+
+    // Al final de la cola → "siguiente" extiende +5 por debajo
+    act(() => {
+      const last = result.current.queue.length - 1;
+      result.current.setQueueIndex(last);
+      result.current.setCurrentSong(result.current.queue[last]);
+    });
+    await act(async () => {
+      await result.current.handleNext();
+    });
+    const afterFirst = result.current.queue.map((s) => s.videoId);
+    expect(afterFirst).toEqual(["rs", "r1", "r2", "b1x0", "b1x1", "b1x2", "b1x3", "b1x4"]);
+    expect(result.current.queueIndex).toBe(3);
+    expect(result.current.currentSong.videoId).toBe("b1x0");
+
+    // Segunda extensión → +5 más; los8 anteriores INTACTOS (nunca se borra)
+    act(() => {
+      const last = result.current.queue.length - 1;
+      result.current.setQueueIndex(last);
+      result.current.setCurrentSong(result.current.queue[last]);
+    });
+    await act(async () => {
+      await result.current.handleNext();
+    });
+    const afterSecond = result.current.queue.map((s) => s.videoId);
+    expect(afterSecond).toHaveLength(13);
+    expect(afterSecond.slice(0, 8)).toEqual(afterFirst);
+    expect(queueCalls).toBe(3);
+    mockFetch.mockRestore();
+  });
+
+  it("elegir una canción de la radio no cambia la cola (solo el índice)", async () => {
+    const mockFetch = mockStreamFetch([
+      { videoId: "pr1", title: "PR1" },
+      { videoId: "pr2", title: "PR2" },
+    ]);
+    const audio = createMockAudio();
+
+    const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", false));
+    result.current.audioRef.current = audio;
+
+    await act(async () => {
+      await result.current.playSong({ videoId: "pseed", title: "PS" });
+    });
+    await waitFor(() => expect(result.current.queue).toHaveLength(3));
+
+    const before = result.current.queue.map((s) => s.videoId);
+    await act(async () => {
+      await result.current.playSong({ videoId: "pr2", title: "PR2" });
+    });
+
+    // La cola NO se reconstruye: mismas canciones, mismo orden
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(before);
+    expect(result.current.queueIndex).toBe(2);
+    mockFetch.mockRestore();
+  });
+
+  it("colección con el ajuste OFF: al final de la cola NO se radiada (se para)", async () => {
+    const mockFetch = mockStreamFetch([{ videoId: "cr1", title: "CR1" }]);
+    const audio = createMockAudio();
+    const ctx = [
+      { videoId: "c0", title: "C0" },
+      { videoId: "c1", title: "C1" },
+    ];
+
+    const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", false));
+    result.current.audioRef.current = audio;
+
+    await act(async () => {
+      await result.current.playSong(ctx[1], 0, false, ctx);
+    });
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["c0", "c1"]);
+    expect(result.current.queueIndex).toBe(1);
+
+    await act(async () => {
+      await result.current.handleNext();
+    });
+
+    // Sin radio ni recomendaciones: nada se añade ni se cambia
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["c0", "c1"]);
+    expect(result.current.queueIndex).toBe(1);
+    expect(result.current.currentSong.videoId).toBe("c1");
+    const relatedGets = mockFetch.mock.calls
+      .map((c) => String(c[0]))
+      .filter((u) => u.includes("/queue/") && !u.includes("/queue/feedback"));
+    expect(relatedGets).toHaveLength(0);
     mockFetch.mockRestore();
   });
 });

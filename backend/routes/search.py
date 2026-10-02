@@ -36,7 +36,10 @@ async def search(request: Request, q: str, limit: int = Query(25, ge=1, le=100))
         songs = [
             fmt_song(r)
             for r in ytm.search(q, filter="songs", limit=limit)
-            if r.get("resultType") == "song"
+            # ⭐ Sin videoId no hay canción reproducible: fmt_song rechazaría
+            #    el None en get_mp3_path y toda la búsqueda devolvería 500
+            #    (un resultado de YTMusic sin videoId es posible en vivo).
+            if r.get("resultType") == "song" and r.get("videoId")
         ]
 
         artists = []

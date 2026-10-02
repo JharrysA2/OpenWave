@@ -98,7 +98,7 @@ describe("PageReproductor", () => {
     expect(screen.getByText("Cola")).toBeInTheDocument();
     expect(screen.getByText("Recomendar canciones similares")).toBeInTheDocument();
     expect(
-      screen.getByText("Añade canciones parecidas al final de la cola (como el autoplay)"),
+      screen.getByText("Añade canciones parecidas al final de la cola"),
     ).toBeInTheDocument();
     // Por defecto desactivado: nada persistido con el toggle encendido
     const stored = JSON.parse(localStorage.getItem("sw_settings_v1") || "{}");

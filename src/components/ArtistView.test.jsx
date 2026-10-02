@@ -81,7 +81,12 @@ describe("ArtistView", () => {
       expect(screen.getByText("Song 1")).toBeInTheDocument();
     });
     fireEvent.click(screen.getByText("Song 1"));
-    expect(defaultProps.playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "s1" }));
+    expect(defaultProps.playSong).toHaveBeenCalledWith(
+      expect.objectContaining({ videoId: "s1" }),
+      0,
+      false,
+      expect.any(Array),
+    );
   });
 
   it("should navigate to album when an album is clicked", async () => {

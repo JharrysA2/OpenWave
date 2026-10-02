@@ -77,6 +77,9 @@ describe("HomeView", () => {
     fireEvent.click(screen.getAllByText("Song 5")[0]);
     expect(playSong).toHaveBeenCalledWith(
       expect.objectContaining({ videoId: "5", title: "Song 5" }),
+      0,
+      false,
+      expect.any(Array),
     );
   });
 
@@ -101,7 +104,12 @@ describe("HomeView", () => {
     renderHome({ history, playSong });
     // Song 6 only appears in for-you section (not in quick picks' top 6)
     fireEvent.click(screen.getByText("Song 6"));
-    expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "6" }));
+    expect(playSong).toHaveBeenCalledWith(
+      expect.objectContaining({ videoId: "6" }),
+      0,
+      false,
+      expect.any(Array),
+    );
   });
 
   // ── Current song highlighting ───────────────────────────────────────

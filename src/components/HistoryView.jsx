@@ -26,7 +26,7 @@ export default function HistoryView({
   const playAll = (shuffle = false) => {
     if (history.length === 0) return;
     const list = shuffle ? [...history].sort(() => Math.random() - 0.5) : history;
-    playSong(list[0], 0, false);
+    playSong(list[0], 0, false, list);
   };
 
   return (
@@ -240,7 +240,7 @@ export default function HistoryView({
                 isActive={isActive}
                 accentColor={accentColor}
                 index={i}
-                onClick={() => playSong(song)}
+                onClick={() => playSong(song, 0, false, history)}
                 coverSrc={song.thumbnail || song.thumbnails?.[0]?.url}
                 subtitle={`${song.artist} · ${song.playCount || 1} reproducción${
                   song.playCount !== 1 ? "es" : ""

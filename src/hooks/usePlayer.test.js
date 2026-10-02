@@ -1128,4 +1128,144 @@ describe("usePlayer", () => {
     expect(result.current.queueIndex).toBe(1);
     mockFetch.mockRestore();
   });
+
+  it("queueRecommendations ON: elegir en la cola con ≤5 por debajo rellena el final sin tocar las existentes", async () => {
+    const mockFetch = mockStreamFetch([
+      { videoId: "rec1", title: "R1" },
+      { videoId: "rec2", title: "R2" },
+    ]);
+    const audio = createMockAudio();
+    const ctx = [
+      { videoId: "t0", title: "T0" },
+      { videoId: "t1", title: "T1" },
+      { videoId: "t2", title: "T2" },
+    ];
+
+    const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", true));
+    result.current.audioRef.current = audio;
+    act(() => result.current.setQueue(ctx));
+
+    // Canción YA en la cola → solo índice + relleno por debajo (0 por debajo)
+    await act(async () => {
+      await result.current.playSong(ctx[2], 0, false);
+    });
+    await waitFor(() => expect(result.current.queue).toHaveLength(5));
+
+    // Invariante: la cola principal queda COMPLETA y en su orden;
+    // lo nuevo entra SOLO por debajo.
+    expect(result.current.queue.map((s) => s.videoId)).toEqual([
+      "t0",
+      "t1",
+      "t2",
+      "rec1",
+      "rec2",
+    ]);
+    expect(result.current.queueIndex).toBe(2);
+    mockFetch.mockRestore();
+  });
+
+  it("queueRecommendations OFF: elegir en la cola no pide relleno (cola intacta)", async () => {
+    const mockFetch = mockStreamFetch([{ videoId: "rec1", title: "R1" }]);
+    const audio = createMockAudio();
+    const ctx = [
+      { videoId: "t0", title: "T0" },
+      { videoId: "t1", title: "T1" },
+      { videoId: "t2", title: "T2" },
+    ];
+
+    const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", false));
+    result.current.audioRef.current = audio;
+    act(() => result.current.setQueue(ctx));
+
+    await act(async () => {
+      await result.current.playSong(ctx[2], 0, false);
+    });
+
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["t0", "t1", "t2"]);
+    expect(result.current.queueIndex).toBe(2);
+    const urls = mockFetch.mock.calls.map((c) => String(c[0])).join(" ");
+    expect(urls).not.toContain("/queue/");
+    mockFetch.mockRestore();
+  });
+
+  it("queueRecommendations ON: al avanzar desde el final sigue con la cola extra (no se para)", async () => {
+    // IDs únicos: la caché del cliente api.get(/queue/...) es por URL y
+    // los tests anteriores ya cachearon otros seeds.
+    const mockFetch = mockStreamFetch([{ videoId: "rec1", title: "R1" }]);
+    const audio = createMockAudio();
+    const ctx = [
+      { videoId: "a0", title: "A0" },
+      { videoId: "a1", title: "A1" },
+    ];
+
+    const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", true));
+    result.current.audioRef.current = audio;
+    act(() => result.current.setQueue(ctx));
+
+    // Última canción de la cola → el relleno entra por debajo
+    await act(async () => {
+      await result.current.playSong(ctx[1], 0, false);
+    });
+    await waitFor(() => expect(result.current.queue).toHaveLength(3));
+
+    // Avanzar continúa en la extra en lugar de cortar
+    await act(async () => {
+      await result.current.handleNext();
+    });
+    expect(result.current.queueIndex).toBe(2);
+    expect(result.current.currentSong.videoId).toBe("rec1");
+    mockFetch.mockRestore();
+  });
+
+  it("queueRecommendations ON: handleNext en la última pide el relleno pendiente y sigue", async () => {
+    let queueCalls = 0;
+    const okJson = (data) =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: () => "application/json" },
+        json: () => Promise.resolve(data),
+        text: () => Promise.resolve(""),
+      });
+    const mockFetch = vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes("/stream-url/")) {
+        return okJson({ url: "https://stream.example.com/audio.mp4", headers: {}, duration: 200 });
+      }
+      if (u.includes("/queue/feedback")) return okJson({});
+      if (u.includes("/queue/")) {
+        queueCalls += 1;
+        // 1ª llamada (al empezar la última): aún sin relleno disponible;
+        // 2ª (handleNext al final de la cola): sí → entra por debajo.
+        return okJson({ tracks: queueCalls === 1 ? [] : [{ videoId: "rec1", title: "R1" }] });
+      }
+      return okJson({});
+    });
+    const audio = createMockAudio();
+    // IDs únicos (la caché de api.get es por URL y otros tests ya usaron t*/ctx)
+    const ctx = [
+      { videoId: "b0", title: "B0" },
+      { videoId: "b1", title: "B1" },
+    ];
+
+    const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", true));
+    result.current.audioRef.current = audio;
+    act(() => result.current.setQueue(ctx));
+
+    await act(async () => {
+      await result.current.playSong(ctx[1], 0, false);
+    });
+    // La 1ª respuesta vino vacía → la cola sigue en su sitio
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["b0", "b1"]);
+
+    await act(async () => {
+      await result.current.handleNext();
+    });
+    // El relleno pedido desde handleNext entra por debajo y se reproduce
+    expect(queueCalls).toBeGreaterThanOrEqual(2);
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["b0", "b1", "rec1"]);
+    expect(result.current.queueIndex).toBe(2);
+    expect(result.current.currentSong.videoId).toBe("rec1");
+    mockFetch.mockRestore();
+  });
 });

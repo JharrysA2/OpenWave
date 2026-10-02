@@ -77,6 +77,10 @@ function populateQueueFromResults(song, searchResults, setQueueFn) {
   return -1;
 }
 
+// Con el ajuste "Recomendar canciones similares" activo: si quedan ≤ N
+// canciones por debajo de la actual, se rellena el final con más abajo.
+const QUEUE_RECS_TAIL_MIN = 5;
+
 export function usePlayer(
   toast,
   results = [],
@@ -127,6 +131,10 @@ export function usePlayer(
   // Ref de la setting para que playSong no se re-cree al cambiar el toggle.
   const queueRecsEnabledRef = useRef(queueRecommendations);
   queueRecsEnabledRef.current = queueRecommendations;
+  // Petición de recomendaciones en vuelo: se reutiliza (en vez de duplicar)
+  // y permite que handleNext espere el relleno al final de la cola.
+  const queueRecsPendingRef = useRef(null); // videoId de la petición en vuelo
+  const queueRecsPromiseRef = useRef(null); // promesa de esa petición
   const fetchSongIdRef = useRef(null); // Para ignorar respuestas API de canciones anteriores
 
   // ── Pre-cache: stream URLs, lyrics, thumbnails de las siguientes canciones ──
@@ -473,28 +481,72 @@ export function usePlayer(
   //    que performCrossfade se aborte si detecta que playSong está active.
 
   // ── appendRecommendations: canciones relacionadas al FINAL de la cola ────
-  //    Solo con el ajuste "queueRecommendations" activo. Nunca reemplaza ni
-  //    mueve nada: deduplica contra la cola viva y AÑADE por debajo (como el
-  //    Autoplay de Spotify/YouTube Music). Si el usuario cambia de contexto
-  //    antes de que responda, queueRecsIdRef invalida la respuesta vieja.
+  //    Solo con el ajuste "queueRecommendations" activo. La cola principal
+  //    NUNCA se toca: deduplica contra la cola viva y solo AÑADE por debajo
+  //    (como el Autoplay de Spotify/YouTube Music). Si el usuario cambia de
+  //    contexto antes de que responda, queueRecsIdRef invalida la respuesta
+  //    vieja. Devuelve la promesa con el array añadido (vacío si no añade)
+  //    para que handleNext pueda seguir reproduciendo al llegar al final.
   const appendRecommendations = useCallback((song) => {
-    if (!queueRecsEnabledRef.current || !song?.videoId) return;
-    api
-      .get(`/queue/${song.videoId}?limit=15&artist=${encodeURIComponent(song.artist || "")}`)
-      .then((data) => {
-        if (queueRecsIdRef.current !== song.videoId) return; // contexto nuevo
-        const tracks = data?.tracks;
-        if (!tracks?.length) return;
-        setQueue((q) => {
-          const seen = new Set(q.map((s) => s?.videoId));
-          const extra = tracks.filter((t) => t?.videoId && !seen.has(t.videoId)).slice(0, 10);
-          if (extra.length === 0) return q;
-          console.info(`[Queue] Recommendations appended below: ${extra.length} tracks`);
-          return [...q, ...extra];
-        });
+    if (!queueRecsEnabledRef.current || !song?.videoId) return Promise.resolve([]);
+    // Ya hay una petición en vuelo para esta canción → reutilizarla
+    // (sin duplicar llamadas y permitiendo esperarla desde handleNext).
+    if (queueRecsPendingRef.current === song.videoId && queueRecsPromiseRef.current) {
+      return queueRecsPromiseRef.current;
+    }
+    queueRecsIdRef.current = song.videoId;
+    const p = api
+      // _skipCache: el relleno debe poder reintentarse (la caché de5 min
+      // del cliente devolvería el mismo vacío); los duplicados los filtra
+      // el dedupe contra la cola viva.
+      .get(`/queue/${song.videoId}?limit=15&artist=${encodeURIComponent(song.artist || "")}`, {
+        _skipCache: true,
       })
-      .catch((err) => console.warn("[Queue] Recommendations fetch failed:", err?.message));
+      .then((data) => {
+        if (queueRecsIdRef.current !== song.videoId) return []; // contexto nuevo
+        const tracks = data?.tracks;
+        if (!tracks?.length) return [];
+        const seen = new Set(queueRef.current.map((s) => s?.videoId));
+        const extra = tracks.filter((t) => t?.videoId && !seen.has(t.videoId)).slice(0, 10);
+        if (extra.length === 0) return [];
+        console.info(`[Queue] Recommendations appended below: ${extra.length} tracks`);
+        // Re-filtro contra la cola "viva" por si cambió mientras pedía:
+        // solo añade, jamás reemplaza ni reordena.
+        setQueue((q) => {
+          const live = new Set(q.map((s) => s?.videoId));
+          const add = extra.filter((t) => !live.has(t.videoId));
+          return add.length > 0 ? [...q, ...add] : q;
+        });
+        return extra;
+      })
+      .catch((err) => {
+        console.warn("[Queue] Recommendations fetch failed:", err?.message);
+        return [];
+      })
+      .finally(() => {
+        if (queueRecsPendingRef.current === song.videoId) queueRecsPendingRef.current = null;
+        if (queueRecsPromiseRef.current === p) queueRecsPromiseRef.current = null;
+      });
+    queueRecsPendingRef.current = song.videoId;
+    queueRecsPromiseRef.current = p;
+    return p;
   }, []);
+
+  // ── maybeTopUpRecommendations: que SIEMPRE quede algo por debajo ────────
+  //    Con el ajuste activo, cuando quedan ≤ QUEUE_RECS_TAIL_MIN canciones
+  //    por debajo de la actual (o ninguna), se rellena el final con más
+  //    relacionadas. Solo AÑADE: la cola principal no se toca. Con el
+  //    ajuste desactivado no hace nada.
+  const maybeTopUpRecommendations = useCallback(
+    (song) => {
+      if (!queueRecsEnabledRef.current || !song?.videoId) return;
+      const idx = queueRef.current.findIndex((s) => s?.videoId === song.videoId);
+      const below = idx >= 0 ? queueRef.current.length - idx - 1 : 0;
+      if (below > QUEUE_RECS_TAIL_MIN) return;
+      appendRecommendations(song);
+    },
+    [appendRecommendations],
+  );
 
   const playSong = useCallback(
     async (song, startFrom = 0, fromQueue = false, initialQueue = null) => {
@@ -567,20 +619,25 @@ export function usePlayer(
           // Mismo álbum/playlist con la cola ya montada: NO la resetea,
           // solo marca la posición de la pista clickeada en la cola viva.
           setQueueIndex(liveIdx);
+          fetchSongIdRef.current = song.videoId;
+          // Si el final está corto (≤ QUEUE_RECS_TAIL_MIN por debajo),
+          // rellena la cola extra; no se repite el relleno completo.
+          maybeTopUpRecommendations(song);
         } else {
           console.info(`[Queue] Context queue: ${initialQueue.length} tracks`);
           setQueue(initialQueue);
           setQueueIndex(Math.max(0, initialQueue.findIndex((s) => s?.videoId === song.videoId)));
           queueContextRef.current = contextIds;
+          fetchSongIdRef.current = song.videoId;
+          // Contexto nuevo → cola extra completa por debajo (si va activo).
+          appendRecommendations(song);
         }
-        queueRecsIdRef.current = song.videoId;
-        fetchSongIdRef.current = song.videoId;
-        appendRecommendations(song);
       } else if (fromQueue) {
         // fromQueue=true: la canción viene de la cola — NO tocar la cola
         // ni el índice (ya lo gestionó el caller), pero SÍ actualizar
         // fetchSongIdRef para ignorar respuestas de la canción anterior.
         fetchSongIdRef.current = song.videoId;
+        maybeTopUpRecommendations(song);
       } else {
         const inQueueIdx = queueRef.current.findIndex((s) => s?.videoId === song.videoId);
         if (inQueueIdx >= 0) {
@@ -588,6 +645,7 @@ export function usePlayer(
           // posición (la canción permanece en su lugar).
           setQueueIndex(inQueueIdx);
           fetchSongIdRef.current = song.videoId;
+          maybeTopUpRecommendations(song);
         } else {
           // Fuera de la cola → contexto nuevo.
           const qIdx = populateQueueFromResults(song, resultsRef.current, setQueue);
@@ -597,7 +655,6 @@ export function usePlayer(
           }
           setQueueIndex(0);
           queueContextRef.current = null;
-          queueRecsIdRef.current = song.videoId;
           fetchSongIdRef.current = song.videoId;
           appendRecommendations(song);
         }
@@ -697,7 +754,14 @@ export function usePlayer(
       //    playSong está configurando el audio (race window B3).
       crossfadePendingRef.current = false;
     },
-    [normalizeThumbnails, isPlaying, currentSong, ensureDownloaded, appendRecommendations],
+    [
+      normalizeThumbnails,
+      isPlaying,
+      currentSong,
+      ensureDownloaded,
+      appendRecommendations,
+      maybeTopUpRecommendations,
+    ],
   );
 
   const togglePlay = useCallback(() => {
@@ -824,6 +888,14 @@ export function usePlayer(
         // REPEAT ALL: volver al inicio de la cola
         setQueueIndex(0);
         await playSong(queue[0], 0, true);
+      } else if (queueRecsEnabledRef.current) {
+        // Autoplay ("Recomendar canciones similares"): rellenar el final y
+        // seguir en vez de parar. Si no queda nada más, se para como antes.
+        const extra = await appendRecommendations(queue[queueIndex]);
+        if (extra.length > 0) {
+          setQueueIndex((i) => i + 1);
+          await playSong(extra[0], 0, true);
+        }
       }
     } else if (results.length > 0) {
       const idx = results.findIndex((s) => s.videoId === currentSong?.videoId);
@@ -831,7 +903,7 @@ export function usePlayer(
         await playSong(results[idx + 1], 0, false);
       }
     }
-  }, [queue, queueIndex, shuffleActive, repeatMode, results, currentSong, playSong, sendFeedback]); // ═══════════════════════════════════════════════════════════════════════════
+  }, [queue, queueIndex, shuffleActive, repeatMode, results, currentSong, playSong, sendFeedback, appendRecommendations]); // ═══════════════════════════════════════════════════════════════════════════
   // ⭐ Mantener handleNextRef fresco: performCrossfade lo usa como red de
   //    seguridad (failSafely) cuando el crossfade falla después de que la
   //    canción ya terminó — evita "dead air".

@@ -291,7 +291,7 @@ export default function SearchView({
                       isActive={isActive}
                       accentColor={accentColor}
                       index={i}
-                      onClick={() => playSong(song)}
+                      onClick={() => playSong(song, 0, false, results)}
                       showDuration
                       onToggleLike={(id) => toggleLike(id)}
                       liked={isLiked}
@@ -442,7 +442,7 @@ export default function SearchView({
               return (
                 <div
                   key={v.videoId || i}
-                  onClick={() => playSong(v)}
+                  onClick={() => playSong(v, 0, false, videoResults)}
                   style={{
                     ...ANIMATIONS.staggerFast(i),
                     display: "flex",

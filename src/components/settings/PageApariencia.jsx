@@ -344,14 +344,7 @@ export function PageApariencia({ neonColor }) {
         )}
       {showColorModal &&
         createPortal(
-          <AppColorModal
-            accent={accent}
-            settings={settings}
-            updateSetting={updateSetting}
-            onClose={() => setShowColorModal(false)}
-            title={t.appColor}
-            customLabel={t.appColorCustom}
-          />,
+          <AppColorModal accent={accent} onClose={() => setShowColorModal(false)} />,
           document.body,
         )}
     </div>

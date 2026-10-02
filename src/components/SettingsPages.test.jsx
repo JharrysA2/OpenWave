@@ -216,8 +216,8 @@ describe("PageApariencia", () => {
     fireEvent.click(screen.getByText("Color de la app"));
     // Bastantes colores: ≥20 swatches identificables por "Color #hex"
     expect(screen.getAllByLabelText(/^Color #/).length).toBeGreaterThanOrEqual(20);
-    // + selector libre (botón redondo con extractor de color)
-    expect(screen.getByLabelText("Color personalizado")).toBeInTheDocument();
+    // + selector libre: botón redondo con extractor de color
+    expect(screen.getByRole("button", { name: "Color personalizado" })).toBeInTheDocument();
     expect(screen.getByText("Cancelar")).toBeInTheDocument();
   });
 
@@ -239,13 +239,20 @@ describe("PageApariencia", () => {
     expect(screen.queryByLabelText("Color #22d3ee")).not.toBeInTheDocument();
   });
 
-  it("the eyedropper applies a custom color", () => {
+  it("the eyedropper opens the app-styled picker and applies a custom color", () => {
     renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
     fireEvent.click(screen.getByText("Color de la app"));
-    fireEvent.change(screen.getByLabelText("Color personalizado"), {
-      target: { value: "#123456" },
-    });
+    // el extractor abre el selector PROPIO de la app (no el del sistema):
+    // la paleta desaparece y entran tono + hex
+    fireEvent.click(screen.getByRole("button", { name: "Color personalizado" }));
+    expect(screen.queryByLabelText(/^Color #/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Tono")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Hexadecimal"), { target: { value: "#123456" } });
+    fireEvent.click(screen.getByText("Aplicar"));
     expect(JSON.parse(localStorage.getItem("sw_settings_v1")).appColor).toBe("#123456");
+    // Aplicar guarda y vuelve a la paleta
+    expect(screen.getAllByLabelText(/^Color #/).length).toBeGreaterThanOrEqual(20);
+    expect(screen.queryByLabelText("Hexadecimal")).not.toBeInTheDocument();
   });
 
   it("should render theme section", () => {

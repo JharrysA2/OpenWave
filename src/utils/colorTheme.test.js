@@ -6,6 +6,8 @@ import {
   srgbToOklch,
   oklchFromHex,
   hexToRgb,
+  hexToHsv,
+  hsvToHex,
   BASE,
   ACCENT_L_MIN,
   C_CEILING,
@@ -15,6 +17,7 @@ import {
   AMBIENT_C_MAX,
   AMBIENT_L,
 } from "./colorTheme";
+import { APP_COLORS } from "./appPalette";
 
 const HEX_RE = /^#[0-9a-f]{6}$/;
 
@@ -179,5 +182,26 @@ describe("colorTheme — conversions y contraste", () => {
   it("hexToRgb soporta #rgb y #rrggbbaa", () => {
     expect(hexToRgb("#fff")).toEqual({ r: 255, g: 255, b: 255 });
     expect(hexToRgb("#a78bfa22")).toEqual({ r: 167, g: 139, b: 250 });
+  });
+
+  it("hexToHsv/hsvToHex hacen round-trip exacto con toda la paleta", () => {
+    APP_COLORS.forEach((hex) => expect(hsvToHex(hexToHsv(hex))).toBe(hex));
+  });
+
+  it("hsvToHex de tonos puros y hexToHsv conocidos", () => {
+    expect(hsvToHex({ h: 0, s: 1, v: 1 })).toBe("#ff0000");
+    expect(hsvToHex({ h: 120, s: 1, v: 1 })).toBe("#00ff00");
+    expect(hsvToHex({ h: 240, s: 1, v: 1 })).toBe("#0000ff");
+    expect(hsvToHex({ h: 0, s: 0, v: 1 })).toBe("#ffffff");
+    expect(hsvToHex({ h: 0, s: 0, v: 0 })).toBe("#000000");
+    expect(hsvToHex({ h: -30, s: 1, v: 1 })).toBe("#ff0080"); // h negativo normalizado
+    const red = hexToHsv("#ff0000");
+    expect(red.h).toBeCloseTo(0, 5);
+    expect(red.s).toBe(1);
+    expect(red.v).toBe(1);
+    const grey = hexToHsv("#808080");
+    expect(grey.s).toBe(0);
+    expect(grey.h).toBe(0);
+    expect(grey.v).toBeCloseTo(128 / 255, 5);
   });
 });

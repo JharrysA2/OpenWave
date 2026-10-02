@@ -162,6 +162,42 @@ export const hexToRgb = (hex) => {
   };
 };
 
+/** hex → HSV ({ h:0-360, s:0-1, v:0-1 }). */
+export const hexToHsv = (hex) => {
+  const { r, g, b } = hexToRgb(hex);
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const d = max - min;
+  let h = 0;
+  if (d !== 0) {
+    if (max === rn) h = ((gn - bn) / d) % 6;
+    else if (max === gn) h = (bn - rn) / d + 2;
+    else h = (rn - gn) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  return { h, s: max === 0 ? 0 : d / max, v: max };
+};
+
+/** HSV ({ h:0-360, s:0-1, v:0-1 }) → hex "#rrggbb". */
+export const hsvToHex = ({ h, s, v }) => {
+  const c = v * s;
+  const hp = ((((h % 360) + 360) % 360) / 60) % 6;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let rgb = [c, x, 0];
+  if (hp >= 1 && hp < 2) rgb = [x, c, 0];
+  else if (hp >= 2 && hp < 3) rgb = [0, c, x];
+  else if (hp >= 3 && hp < 4) rgb = [0, x, c];
+  else if (hp >= 4 && hp < 5) rgb = [x, 0, c];
+  else if (hp >= 5) rgb = [c, 0, x];
+  const m = v - c;
+  const to = (n) => Math.round((n + m) * 255).toString(16).padStart(2, "0");
+  return `#${to(rgb[0])}${to(rgb[1])}${to(rgb[2])}`;
+};
+
 /** hex → OKLCH. */
 export const oklchFromHex = (hex) => {
   const { r, g, b } = hexToRgb(hex);

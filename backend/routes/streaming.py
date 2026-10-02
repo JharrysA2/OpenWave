@@ -4,14 +4,16 @@ import asyncio
 
 from downloads import get_mp3_path
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from logging_config import get_logger
+from range_utils import range_file_response
 from streaming import (
     ensure_low_quality_sync,
     get_audio_url,
     prefetch,
     sanitize_quality,
     stream_audio_generator,
+    upstream_range_stream,
     warm_low_quality,
 )
 
@@ -48,12 +50,12 @@ async def stream_url(request: Request, video_id: str, quality: str = "standard")
 
 
 @router.get("/stream/quality/{video_id}")
-async def stream_quality_low(video_id: str):
+async def stream_quality_low(request: Request, video_id: str):
     """Audio re-codificado a ~64 kb/s (Ajustes → Calidad de reproducción: Baja).
 
     Bloquea hasta tener el archivo (lo construye una sola vez, con
-    coordinación entre threads) y luego lo entrega completo, igual que las
-    descargas locales.
+    coordinación entre threads) y luego lo entrega honoreando ``Range``
+    (206 + Content-Range → seekable en el navegador).
     """
     require_valid_video_id(video_id)
     loop = asyncio.get_running_loop()
@@ -63,7 +65,7 @@ async def stream_quality_low(video_id: str):
         raise HTTPException(502, f"Audio en baja calidad no disponible: {e}") from e
     if not path.exists():
         raise HTTPException(404, "Archivo no encontrado")
-    return FileResponse(str(path), media_type="audio/mp4")
+    return range_file_response(str(path), "audio/mp4", request.headers.get("range"))
 
 
 @router.get("/stream/exists/{video_id}")
@@ -74,14 +76,52 @@ async def stream_exists(video_id: str):
 
 
 @router.get("/stream/play/{video_id}")
-async def stream_play(video_id: str, quality: str = "standard"):
-    """Proxy de audio: descarga con yt-dlp y streamea al frontend.
+async def stream_play(request: Request, video_id: str, quality: str = "standard"):
+    """Proxy de audio con soporte de seek (HTTP Range).
 
-    Usa yt-dlp subprocess directamente (no httpx) para evitar HTTP 403 de
-    YouTube CDN. yt-dlp maneja cookies, headers y firmas de URL correctamente.
-    El audio se streamea por chunks de 64KB para baja latencia.
+    Estrategia (en orden):
+      1. ``low`` → M4A local servido con 206/Content-Range.
+      2. URL directa de YouTube pidiendo al upstream EXACTAMENTE el rango que
+         envió el navegador (curl_cffi impersonate Chrome) → 206 real → el
+         ``<audio>`` queda seekable y ``currentTime = t`` salta en vez de
+         reiniciar la canción.
+      3. Fallback yt-dlp subprocess (streaming a secas, sin seek honesto con
+         ``Accept-Ranges: none``).
     """
     require_valid_video_id(video_id)
+    quality = sanitize_quality(quality)
+    range_header = request.headers.get("range")
+
+    if quality == "low":
+        try:
+            loop = asyncio.get_running_loop()
+            path = await loop.run_in_executor(None, ensure_low_quality_sync, video_id)
+            if path.exists():
+                return range_file_response(str(path), "audio/mp4", range_header)
+        except Exception as e:
+            logger.warning("proxy audio %s: baja no disponible (%s)", video_id, e)
+
+    try:
+        status, extra_headers, body = await upstream_range_stream(
+            video_id, quality, range_header
+        )
+        return StreamingResponse(
+            body,
+            status_code=status,
+            media_type="audio/mp4",
+            headers={
+                "Cache-Control": "no-cache",
+                "Access-Control-Allow-Origin": "*",
+                "X-Content-Type-Options": "nosniff",
+                # Sin esto el GZipMiddleware comprime el stream: Content-Range
+                # (upstream) dejaría de corresponderse con los bytes servidos.
+                "Content-Encoding": "identity",
+                **extra_headers,
+            },
+        )
+    except Exception as e:
+        logger.warning("proxy audio %s upstream falló (%s); yt-dlp", video_id, e)
+
     try:
         return StreamingResponse(
             stream_audio_generator(video_id, quality),
@@ -90,6 +130,10 @@ async def stream_play(video_id: str, quality: str = "standard"):
                 "Cache-Control": "no-cache",
                 "Access-Control-Allow-Origin": "*",
                 "X-Content-Type-Options": "nosniff",
+                "Content-Encoding": "identity",
+                # Este fallback no puede servir rangos: ser honestos para que
+                # Chromium no intente un seek que reiniciaría la reproducción.
+                "Accept-Ranges": "none",
             },
         )
     except Exception as e:
@@ -98,13 +142,15 @@ async def stream_play(video_id: str, quality: str = "standard"):
 
 
 @router.get("/stream/{video_id}")
-async def stream_file(video_id: str):
-    """Servir archivo MP3 descargado."""
+async def stream_file(request: Request, video_id: str):
+    """Servir archivo MP3 descargado (con soporte HTTP Range → seekable)."""
     require_valid_video_id(video_id)
     mp3_path = get_mp3_path(video_id)
     if not mp3_path.exists():
         raise HTTPException(404, "Archivo no encontrado")
-    return FileResponse(str(mp3_path), media_type="audio/mpeg")
+    return range_file_response(
+        str(mp3_path), "audio/mpeg", request.headers.get("range")
+    )
 
 
 @router.get("/stream/prefetch/{video_id}")

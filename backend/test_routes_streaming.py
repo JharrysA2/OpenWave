@@ -202,3 +202,177 @@ class TestStreamExists:
     def test_exists_rejects_invalid_id(self, client):
         resp = client.get("/stream/exists/..\\..\\evil")
         assert resp.status_code == 400
+
+
+def _fake_upstream_gen(data: bytes):
+    """Async generator de cuerpo para los mocks de upstream_range_stream."""
+
+    async def _gen():
+        yield data
+
+    return _gen()
+
+
+class TestStreamRangeSeek:
+    """Seek de audio:206 + Content-Range + Accept-Ranges en todas las rutas.
+
+    Sin esto Chromium marca el <audio> como no-seekable y un seek REINICIA
+    la canción (clic en letra / barra de reproducción).
+    """
+
+    def _write_mp3(self, vid: str, content: bytes) -> object:
+        from config import MUSIC_DIR
+
+        path = MUSIC_DIR / f"{vid}.mp3"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        return path
+
+    # ── /stream/{id} — MP3 local ──────────────────────────────────────────
+
+    def test_local_sin_range_es_200_seekable(self, client):
+        """Primera petición (bytes=0- o sin Range) → Accept-Ranges: bytes."""
+        self._write_mp3("range_seek_aaa", b"0123456789")
+        try:
+            resp = client.get("/stream/range_seek_aaa")
+            assert resp.status_code == 200
+            assert resp.headers["accept-ranges"] == "bytes"
+            assert resp.headers["content-length"] == "10"
+            assert resp.content == b"0123456789"
+        finally:
+            self._cleanup("range_seek_aaa")
+
+    def test_local_range_parcial_206(self, client):
+        """Range: bytes=2-5 → 206 + Content-Range + subcadena exacta."""
+        self._write_mp3("range_seek_bbb", b"0123456789")
+        try:
+            resp = client.get("/stream/range_seek_bbb", headers={"Range": "bytes=2-5"})
+            assert resp.status_code == 206
+            assert resp.headers["content-range"] == "bytes 2-5/10"
+            assert resp.headers["content-length"] == "4"
+            assert resp.content == b"2345"
+        finally:
+            self._cleanup("range_seek_bbb")
+
+    def test_local_range_abierto_206(self, client):
+        """Range: bytes=7- (seek hacia delante) → hasta el final."""
+        self._write_mp3("range_seek_ccc", b"0123456789")
+        try:
+            resp = client.get("/stream/range_seek_ccc", headers={"Range": "bytes=7-"})
+            assert resp.status_code == 206
+            assert resp.headers["content-range"] == "bytes 7-9/10"
+            assert resp.content == b"789"
+        finally:
+            self._cleanup("range_seek_ccc")
+
+    def test_local_range_invalido_416(self, client):
+        """Range fuera de rango → 416 + Content-Range: bytes */total."""
+        self._write_mp3("range_seek_ddd", b"0123456789")
+        try:
+            resp = client.get("/stream/range_seek_ddd", headers={"Range": "bytes=999-"})
+            assert resp.status_code == 416
+            assert resp.headers["content-range"] == "bytes */10"
+        finally:
+            self._cleanup("range_seek_ddd")
+
+    # ── /stream/quality/{id} — M4A local (calidad Baja) ───────────────────
+
+    def test_quality_range_parcial_206(self, client, mocker, tmp_path):
+        """El M4A de baja calidad también debe ser seekable."""
+        built = tmp_path / "low.64k.m4a"
+        built.write_bytes(b"m4a-bytes-here")
+        mocker.patch("routes.streaming.ensure_low_quality_sync", return_value=built)
+
+        resp = client.get("/stream/quality/test_video", headers={"Range": "bytes=4-7"})
+        assert resp.status_code == 206
+        assert resp.headers["content-range"] == "bytes 4-7/14"
+        assert resp.headers["accept-ranges"] == "bytes"
+        assert resp.content == b"byte"
+
+    # ── /stream/play/{id} — proxy con passthrough de Range ────────────────
+
+    def test_play_relay_upstream_206(self, client, mocker):
+        """El rango del navegador se reenvía al upstream y se relaya el 206."""
+        mock_upstream = mocker.patch(
+            "routes.streaming.upstream_range_stream",
+            new_callable=AsyncMock,
+            return_value=(
+                206,
+                {
+                    "content-range": "bytes 0-99/1000",
+                    "content-length": "100",
+                    "accept-ranges": "bytes",
+                },
+                _fake_upstream_gen(b"x" * 100),
+            ),
+        )
+
+        resp = client.get("/stream/play/test_video", headers={"Range": "bytes=0-99"})
+        assert resp.status_code == 206
+        assert resp.headers["content-range"] == "bytes 0-99/1000"
+        assert resp.headers["accept-ranges"] == "bytes"
+        assert resp.headers["content-length"] == "100"
+        assert resp.content == b"x" * 100
+        mock_upstream.assert_awaited_once_with("test_video", "standard", "bytes=0-99")
+
+    def test_play_sin_range_upstream_200(self, client, mocker):
+        """Sin cabecera Range →200 con Accept-Ranges (sigue siendo seekable)."""
+        from unittest.mock import AsyncMock
+
+        mocker.patch(
+            "routes.streaming.upstream_range_stream",
+            new_callable=AsyncMock,
+            return_value=(
+                200,
+                {"content-length": "1000", "accept-ranges": "bytes"},
+                _fake_upstream_gen(b"y" * 1000),
+            ),
+        )
+
+        resp = client.get("/stream/play/test_video")
+        assert resp.status_code == 200
+        assert resp.headers["accept-ranges"] == "bytes"
+        assert resp.content == b"y" * 1000
+
+    def test_play_upstream_falla_y_cae_al_fallback(self, client, mocker):
+        """Si el upstream falla → fallback yt-dlp con Accept-Ranges: none."""
+        mocker.patch(
+            "routes.streaming.upstream_range_stream",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("upstream HTTP 403"),
+        )
+        mock_gen = mocker.patch(
+            "routes.streaming.stream_audio_generator",
+            return_value=_fake_upstream_gen(b"fallback-body"),
+        )
+
+        resp = client.get("/stream/play/test_video", headers={"Range": "bytes=0-9"})
+        assert resp.status_code == 200
+        # Honestidad: este camino no puede servir rangos.
+        assert resp.headers["accept-ranges"] == "none"
+        assert resp.content == b"fallback-body"
+        mock_gen.assert_called_once_with("test_video", "standard")
+
+    def test_play_low_sirve_local_con_range(self, client, mocker, tmp_path):
+        """quality=low → M4A local con206 (no intenta upstream)."""
+        built = tmp_path / "low2.64k.m4a"
+        built.write_bytes(b"0123456789abcdef")
+        mocker.patch("routes.streaming.ensure_low_quality_sync", return_value=built)
+        mock_upstream = mocker.patch(
+            "routes.streaming.upstream_range_stream",
+            side_effect=AssertionError("no debe llegar al upstream con low"),
+        )
+
+        resp = client.get(
+            "/stream/play/test_video?quality=low",
+            headers={"Range": "bytes=8-11"},
+        )
+        assert resp.status_code == 206
+        assert resp.headers["content-range"] == "bytes 8-11/16"
+        assert resp.content == b"89ab"
+        mock_upstream.assert_not_called()
+
+    def _cleanup(self, vid: str):
+        from config import MUSIC_DIR
+
+        (MUSIC_DIR / f"{vid}.mp3").unlink(missing_ok=True)

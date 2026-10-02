@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import threading
+from collections.abc import AsyncIterator
 from contextlib import suppress
 from pathlib import Path
 
@@ -501,6 +502,80 @@ async def get_audio_url(video_id: str, quality: str = "standard") -> tuple:
     return await loop.run_in_executor(
         None, _extract_audio_url_sync, video_id, sanitize_quality(quality)
     )
+
+
+async def upstream_range_stream(
+    video_id: str, quality: str, range_header: str | None
+) -> tuple[int, dict, AsyncIterator[bytes]]:
+    """Obtener el audio directo de YouTube REENVIANDO la cabecera ``Range``.
+
+    Chromium solo considera seekable un ``<audio>`` si recibe 206 +
+    ``Content-Range`` (envía ``Range: bytes=0-`` ya en la PRIMERA petición).
+    Sin eso, marca el recurso como no-seekable y ``audio.currentTime = t``
+    reinicia la reproducción desde 0. Por eso el proxy de audio debe poder
+    responder rangos: aquí se pide al upstream exactamente el rango que pidió
+    el navegador, con impersonación TLS de Chrome (curl_cffi) para evitar 403.
+
+    Returns:
+        ``(status, headers, body)``:
+          - ``status``: 206 si el upstream honró el rango, si no 200 (o 416).
+          - ``headers``: cabeceras a relaying (Content-Range, Accept-Ranges...).
+          - ``body``: async generator que cierra la sesión al terminar.
+
+    Raises:
+        RuntimeError: si el upstream responde >=400 o la conexión falla →
+        el caller cae al fallback sin Range (yt-dlp subprocess).
+    """
+    from curl_cffi import requests as curl_requests
+
+    url, base_headers = await get_audio_url(video_id, quality)
+    req_headers = dict(base_headers or {})
+    if range_header:
+        req_headers["Range"] = range_header
+
+    session = curl_requests.AsyncSession(impersonate="chrome")
+    try:
+        resp = await session.get(
+            url, headers=req_headers, stream=True, timeout=(15, 30)
+        )
+    except BaseException:
+        await session.close()
+        raise
+
+    if resp.status_code >= 400:
+        await resp.aclose()
+        await session.close()
+        raise RuntimeError(f"upstream HTTP {resp.status_code}")
+
+    upstream = {k.lower(): v for k, v in dict(resp.headers).items()}
+    out: dict = {}
+    for key in (
+        "content-length",
+        "content-range",
+        "accept-ranges",
+        "etag",
+        "last-modified",
+    ):
+        if key in upstream:
+            out[key] = upstream[key]
+
+    if range_header and resp.status_code != 206:
+        # Pidió rango pero el upstream devolvió 200 completo: no podemos
+        # servir rangos → no prometer Accept-Ranges (Chromium lo comprobaría).
+        out.pop("accept-ranges", None)
+    else:
+        out.setdefault("accept-ranges", "bytes")
+
+    async def body():
+        try:
+            async for chunk in resp.aiter_content(chunk_size=65536):
+                if chunk:
+                    yield chunk
+        finally:
+            await resp.aclose()
+            await session.close()
+
+    return resp.status_code, out, body()
 
 
 async def stream_audio_generator(video_id: str, quality: str = "standard"):

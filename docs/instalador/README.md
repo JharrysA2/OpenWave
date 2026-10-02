@@ -343,20 +343,34 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 16. Re-ejecutar el MSI ya instalado **no reinstala**: aparece la bienvenida de
     mantenimiento y la página con **tres opciones**: «Cambiar», «Reparar» y
     «Quitar».
+    ✅ *Verificado 2026-10-01*: con el producto instalado, `msiexec /i <msi>`
+    muestra «Cambiar, reparar o quitar la instalación» con los tres botones y
+    **ninguna transacción se inicia hasta que el usuario pulsa**.
 17. **Cambiar** abre «Opciones de instalación» (las tres casillas de accesos
     directos); «Siguiente» lleva a «Listo para instalar» y los cambios se
     aplican. En WixUI_InstallDir ese botón venía **sin cablear** (solo publicaba
     `WixUI_InstallMode=Change` y no navegaba): el `NewDialog` a `OptionsDlg`
     está publicado en `main.wxs`.
+    ✅ *Estructural*: `verify-msi` comprueba el `NewDialog`
+    `ChangeButton → OptionsDlg`. ⏳ *Clic manual pendiente*: automatizar la UI
+    no fue posible (UIPI no deja enviar input/simular ratón a una ventana
+    elevada desde un proceso no elevado, y UI Automation se colgaba al
+    inspeccionar el diálogo); probar a mano: Cambiar → casillas → Siguiente.
 18. **Reparar** y **Quitar** van a «Listo para instalar» con el modo elegido.
     Cancelar en esas pantallas no toca la instalación.
+    ✅ *Quitar verificado end-to-end 2026-10-01 por la propia UI*: eventos
+    `MsiInstaller` 18:25:00–18:25:32 con la ventana de mantenimiento como
+    cliente (transacción completada con resultado 0); después: exe, clave ARP
+    y accesos directos borrados, solo quedaron los `.pyc` de runtime (que el
+    MSI no posee) y `C:\ProgramData\OpenWave` intacto. ⏳ *Reparar* y el clic
+    de *Cambiar* (17) quedan como prueba manual pendiente.
 
 ### Regresión rápida tras cada cambio
 
-- `ruff check backend/ && python -m pytest` en `backend/` (337 tests).
-- `npm test` (frontend).
+- `ruff check backend/ && python -m pytest` en `backend/` (355 tests).
+- `npm test` (frontend, 806 tests).
 - Tras recompilar: `powershell -ExecutionPolicy Bypass -File scripts\verify-msi.ps1`
-  → 49 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
+  → 53 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
   el modo mantenimiento, valores por defecto de las casillas, licencia embebida,
   textos de progreso de `ActionText`, tipografía de `TextStyle`, gráficos de
   marca, limpieza de INSTALLDIR, payload: backend + Python embebido + ffmpeg y

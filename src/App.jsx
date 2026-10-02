@@ -42,7 +42,7 @@ const LyricsView = React.memo(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function AppInner() {
-  const { settings, t } = useSettings();
+  const { settings } = useSettings();
 
   // ── Hooks personalizados ────────────────────────────────────────────────────
   const { toasts, show: toast } = useToast();
@@ -248,12 +248,13 @@ function AppInner() {
       subscribeReconnect(() => {
         // La caché pudo llenarse con respuestas inválidas mientras el backend
         // estaba caído (o quedar obsoleta): se limpia y se refresca la
-        // biblioteca COMPLETA (playlists, descargas e historial).
+        // biblioteca COMPLETA (playlists, descargas e historial). Sin toast:
+        // el banner de conexión ya cubre la caída y basta con que desaparezca
+        // al reconectar.
         api.clearCache();
         refreshLibrary();
-        toast(t.reconnected, "success");
       }),
-    [refreshLibrary, toast, t],
+    [refreshLibrary],
   );
 
   // ── Dynamic theme: color de portada + CSS vars (--neon, overlay) ──

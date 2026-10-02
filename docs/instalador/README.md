@@ -47,7 +47,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass \
 | 2 | `scripts/prepare-runtime.ps1` | `build/staging/{backend,runtime,ffmpeg}` |
 | 3 | `npx tauri build --bundles msi` | Compila y enlaza el MSI |
 | 3b | `scripts/msi-postprocess.ps1` | Tipografía del MSI enlazado: títulos sin negrita, `WixUI_Font_Bigger` a 11 pt |
-| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (53 checks) |
+| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (54 checks) |
 
 `prepare-runtime.ps1` es idempotente: deja `build/staging/.ready` y solo se
 vuelve a ejecutar si cambia `backend/requirements-runtime.txt`, si cambia el
@@ -239,9 +239,12 @@ El stderr del backend (arranques, tracebacks, warmup) cae en
 - **El `identifier` `com.soundwave.app` NO se renombra.** De él derivan el
   perfil de WebView2 (`%LOCALAPPDATA%\com.soundwave.app`, donde vive el
   `localStorage`: listas, ajustes, biblioteca), el `manufacturer` de WiX
-  (`HKCU\Software\soundwave\...`) y el AppUserModelID; cambiarlo supondría
-  perder los datos del usuario. La marca visible (nombre, `.exe`, ventanas,
-  documentos) sí es OpenWave.
+  (`HKCU\Software\soundwave\...`) y el AppUserModelID
+  (`Software\Classes\AppUserModelId\com.soundwave.app`, con `DisplayName`
+  «OpenWave»: crea el instalador y la app fija el AUMID del proceso al
+  arrancar para que los procesos de WebView2 aparezcan como «OpenWave» en el
+  Administrador de Tareas); cambiarlo supondría perder los datos del usuario.
+  La marca visible (nombre, `.exe`, ventanas, documentos) sí es OpenWave.
 
 - **Los datos viven en «Datos de Programas» (`C:\ProgramData\OpenWave`).**
   `config._datos_dir()` y `lib.rs::resolver_data_dir()` añaden esa rama con
@@ -378,10 +381,11 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 - `ruff check backend/ && python -m pytest` en `backend/` (355 tests).
 - `npm test` (frontend, 806 tests).
 - Tras recompilar: `powershell -ExecutionPolicy Bypass -File scripts\verify-msi.ps1`
-  → 53 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
+  → 54 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
   el modo mantenimiento, valores por defecto de las casillas, licencia embebida,
   textos de progreso de `ActionText`, tipografía de `TextStyle`, gráficos de
-  marca, limpieza de INSTALLDIR, payload: backend + Python embebido + ffmpeg y
+  marca, limpieza de INSTALLDIR, registro AppUserModelId de agrupación en el
+  Administrador de Tareas, payload: backend + Python embebido + ffmpeg y
   `main.py` al día), sin instalar nada.
 
 ---

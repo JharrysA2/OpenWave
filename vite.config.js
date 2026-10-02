@@ -1,10 +1,12 @@
 /// <reference types="vitest" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import compression from "vite-plugin-compression";
 
 export default defineConfig({
-  plugins: [react(), compression()],
+  // Sin vite-plugin-compression: los .gz no los sirve nadie (Tauri embebe y
+  // sirve dist por su propio protocolo, sin negociación Content-Encoding),
+  // así que solo añadían peso muerto al binario.
+  plugins: [react()],
   clearScreen: false,
   server: {
     port: 1420,

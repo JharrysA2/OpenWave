@@ -673,7 +673,7 @@ describe("App — conexión con el backend", () => {
     expect(screen.getByTestId("connection-code")).toHaveTextContent("E-CNX-01");
   });
 
-  it("al reconectar limpia la caché, refresca la biblioteca y avisa al usuario", async () => {
+  it("al reconectar limpia la caché y refresca la biblioteca (sin toast)", async () => {
     const clearCache = vi.spyOn(api, "clearCache");
     render(<App />);
 
@@ -684,7 +684,8 @@ describe("App — conexión con el backend", () => {
 
     expect(clearCache).toHaveBeenCalled();
     expect(mockRefreshLibrary).toHaveBeenCalledTimes(1);
-    expect(mockToast).toHaveBeenCalledWith("Conexión restablecida", "success");
+    // La reconexión es silenciosa: no se lanza ningún toast
+    expect(mockToast).not.toHaveBeenCalled();
     expect(screen.queryByTestId("connection-banner")).not.toBeInTheDocument();
   });
 

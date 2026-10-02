@@ -279,6 +279,8 @@ $checks = [ordered]@{
         [bool]($controls | Where-Object { $_[0] -eq 'LicenseAgreementDlg' -and $_[8] -eq 'LicenseAccepted' })
     'Clave HKCU Run para iniciar con Windows' =
         [bool]($reg | Where-Object { $_[2] -eq 'Software\Microsoft\Windows\CurrentVersion\Run' })
+    'Registro AppUserModelId (DisplayName OpenWave, agrupacion en TV)' =
+        [bool]($reg | Where-Object { $_[2] -eq 'Software\Classes\AppUserModelId\com.soundwave.app' -and $_[3] -eq 'DisplayName' -and $_[4] -eq 'OpenWave' })
     'Limpieza de INSTALLDIR (RemoveFile RemoveInstallDir, Path, uninstall)' =
         [bool]($rfile | Where-Object { $_[0] -eq 'RemoveInstallDir' -and $_[1] -eq 'Path' -and $_[3] -eq 'INSTALLDIR' -and $_[4] -eq '2' })
     'Accesos directos con su RemoveFile (menu inicio y escritorio)' =

@@ -20,6 +20,9 @@ tauri-plugin-http = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 window-vibrancy = "0.6"
+# Para SetCurrentProcessExplicitAppUserModelID (agrupación en la barra de
+# tareas y el Administrador de Tareas: WebView2 → «OpenWave»).
+windows = { version = "0.61", features = ["Win32_UI_Shell"] }
 
 [features]
 default = ["custom-protocol"]

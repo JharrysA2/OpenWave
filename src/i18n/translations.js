@@ -107,7 +107,6 @@ export const TRANSLATIONS = {
     slow: "Slow",
     serverOffline: "No connection to the server",
     reconnecting: "Reconnecting…",
-    reconnected: "Connection restored",
     // ── Estados de error / arranque (StatusState + BootScreen) ──────────────
     retry: "Retry",
     errorCode: "Error code",
@@ -264,7 +263,6 @@ export const TRANSLATIONS = {
     slow: "Lento",
     serverOffline: "Sin conexión con el servidor",
     reconnecting: "Reconectando…",
-    reconnected: "Conexión restablecida",
     // ── Estados de error / arranque (StatusState + BootScreen) ──────────────
     retry: "Reintentar",
     errorCode: "Código de error",

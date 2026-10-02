@@ -302,6 +302,56 @@ describe("VolSlider — popup de volumen", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  Arrastres sin selección de texto + sincronía bolita/relleno del volumen
+//  (bug: arrastrar la barra dejaba subrayado azul; la bolita y la barra de
+//  volumen no se movían al unísono durante el drag)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe("PlayerBar — arrastres sin selección y volumen sincronizado", () => {
+  // Abre el popup y devuelve la pista vertical:
+  // raíz del popup = [label %, pista, mini icono] → pista = children[1].
+  function openVolTrack() {
+    renderBar({ song });
+    const volBtn = screen.getAllByRole("button")[5];
+    fireEvent.mouseOver(volBtn.parentElement);
+    return screen.getByText("70").parentElement.children[1];
+  }
+
+  it("el mousedown en la barra de reproducción previene el default (no inicia selección)", () => {
+    renderBar({ song, duration: 200 });
+    const bar = screen.getByTestId("progress-bar");
+    // fireEvent devuelve false cuando el handler llama preventDefault()
+    expect(fireEvent.mouseDown(bar)).toBe(false);
+  });
+
+  it("la barra de reproducción tiene user-select: none", () => {
+    renderBar({ song, duration: 200 });
+    expect(screen.getByTestId("progress-bar").style.userSelect).toBe("none");
+  });
+
+  it("el mousedown en la pista del volumen previene el default y no selecciona", () => {
+    const track = openVolTrack();
+    expect(fireEvent.mouseDown(track, { clientY: 10 })).toBe(false);
+    expect(track.style.userSelect).toBe("none");
+  });
+
+  it("durante el drag la bolita y el relleno comparten la MISMA transición", () => {
+    const track = openVolTrack();
+    const fill = track.children[0]; // relleno visible
+    const thumb = track.children[1]; // bolita
+
+    // Reposo: ambos animan su posición con curvas idénticas (.08s ease)
+    expect(fill.style.transition).toBe("height .08s ease");
+    expect(thumb.style.transition).toContain("bottom .08s ease");
+
+    // Drag activo: NINGUNO de los dos anima → se mueven en el mismo frame
+    fireEvent.mouseDown(track, { clientY: 10, cancelable: true });
+    expect(fill.style.transition).toBe("none");
+    expect(thumb.style.transition).toBe("none");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  Progreso imperativo — sin setInterval de 200ms ni re-renders
 // ═══════════════════════════════════════════════════════════════════════════════
 

@@ -2533,6 +2533,9 @@ export function LyricsView({
           display: "flex",
           justifyContent: textAlign === "center" ? "center" : "flex-start",
           zIndex: 1,
+          // ⭐ Las letras sincronizadas no deben poder seleccionarse: al
+          //    mantener el clic y arrastrar salía el subrayado azul.
+          userSelect: "none",
         }}
       >
         <div

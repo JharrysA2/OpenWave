@@ -45,6 +45,9 @@ function VolSlider({ visible, volPos, volume, onVolume, accentColor, onMouseEnte
 
   const handleMouseDown = useCallback(
     (e) => {
+      // ⭐ El arrastre del volumen NO debe iniciar una selección de texto
+      //    (subrayado azul al arrastrar por encima del resto de la UI).
+      e.preventDefault();
       setDragging(true);
       calcVolume(e.clientY);
     },
@@ -124,6 +127,7 @@ function VolSlider({ visible, volPos, volume, onVolume, accentColor, onMouseEnte
           cursor: "pointer",
           margin: "6px 0",
           overflow: "visible",
+          userSelect: "none",
         }}
       >
         {/* Filled portion — desde abajo hasta thumbPos */}
@@ -158,7 +162,13 @@ function VolSlider({ visible, volPos, volume, onVolume, accentColor, onMouseEnte
             pointerEvents: "none",
             opacity: showThumb ? 1 : 0,
             transform: showThumb ? "translateX(-50%) scale(1)" : "translateX(-50%) scale(0.5)",
-            transition: "opacity .12s ease, transform .12s ease, bottom .08s ease",
+            // ⭐ Sincronía con el relleno: MISMA política de transición en los
+            //    dos (ninguno anima durante el drag, idéntica curva al soltar).
+            //    Antes el thumb seguía animando `bottom .08s` mientras el
+            //    relleno iba instantáneo → bolita y barra desincronizados.
+            transition: dragging
+              ? "none"
+              : "opacity .12s ease, transform .12s ease, bottom .08s ease",
             zIndex: 1,
           }}
         />
@@ -952,6 +962,12 @@ export const PlayerBar = memo(function PlayerBar({
         <div
           ref={progressBarRef}
           onClick={handleProgressClick}
+          onMouseDown={(e) => {
+            // ⭐ Arrastrar sobre la barra para buscar (seek) no debe iniciar
+            //    una selección de texto en los rótulos de alrededor.
+            e.preventDefault();
+          }}
+          data-testid="progress-bar"
           style={{
             flex: 1,
             height: "26px",
@@ -959,6 +975,7 @@ export const PlayerBar = memo(function PlayerBar({
             alignItems: "center",
             cursor: "pointer",
             position: "relative",
+            userSelect: "none",
           }}
         >
           <div

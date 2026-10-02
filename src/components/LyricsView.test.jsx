@@ -293,6 +293,13 @@ describe("LyricsView", () => {
     expect(onSeek).toHaveBeenCalledWith(expect.any(Number));
   });
 
+  it("should not allow text selection when dragging over synced lyrics", () => {
+    // Bug: mantener el clic y arrastrar sobre las letras marcaba el texto
+    // con subrayado azul → el panel de letras es user-select: none.
+    renderLyrics();
+    expect(screen.getByTestId("lyrics-scroll").style.userSelect).toBe("none");
+  });
+
   // ── Edge cases ─────────────────────────────────────────────────────────
 
   it("should handle songs without thumbnails", () => {

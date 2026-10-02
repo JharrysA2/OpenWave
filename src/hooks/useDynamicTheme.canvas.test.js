@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, renderHook } from "@testing-library/react";
-import { useDynamicTheme } from "./useDynamicTheme";
+import { useDynamicTheme, DEFAULT_ACCENT } from "./useDynamicTheme";
+import { deriveTheme } from "../utils/colorTheme";
+
+// El default (#a78bfa) se aplica pasando por deriveTheme como cualquier color
+// elegido por el usuario → única fuente de verdad del acento aplicado.
+const DEFAULT_APPLIED = deriveTheme(DEFAULT_ACCENT).accent;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  Extracción de colores: vía canvas (con Image + canvas mockeados)
@@ -142,7 +147,7 @@ describe("useDynamicTheme — extracción por canvas", () => {
   it("sin canción usa el acento por defecto", () => {
     const { result } = renderHook(() => useDynamicTheme({ settings: SETTINGS, currentSong: null }));
 
-    expect(result.current.neonColor).toBe("#a78bfa");
+    expect(result.current.neonColor).toBe(DEFAULT_APPLIED);
     expect(result.current.hasAccent).toBeFalsy();
     expect(createdImages).toHaveLength(0);
   });
@@ -156,7 +161,7 @@ describe("useDynamicTheme — extracción por canvas", () => {
     );
 
     expect(createdImages).toHaveLength(0);
-    expect(result.current.neonColor).toBe("#a78bfa");
+    expect(result.current.neonColor).toBe(DEFAULT_APPLIED);
   });
 
   it("extrae el color dominante cuando la API no devuelve colores", async () => {
@@ -172,7 +177,7 @@ describe("useDynamicTheme — extracción por canvas", () => {
     await fireLastImageLoad();
 
     expect(fakeCtx.drawImage).toHaveBeenCalled();
-    expect(result.current.neonColor).not.toBe("#a78bfa");
+    expect(result.current.neonColor).not.toBe(DEFAULT_APPLIED);
     // El rojo dominante conserva su hue (el boost solo toca saturación/luz)
     expect(hueDistance(hueOf(result.current.neonColor), 0)).toBeLessThan(25);
     expect(result.current.hasAccent).toBe(true);
@@ -197,7 +202,7 @@ describe("useDynamicTheme — extracción por canvas", () => {
 
     const hue = hueOf(result.current.neonColor);
     expect(result.current.neonColor).not.toBe("#ffffff");
-    expect(result.current.neonColor).not.toBe("#a78bfa");
+    expect(result.current.neonColor).not.toBe(DEFAULT_APPLIED);
     // Gana el azul (mayoría tras filtrar), no el blanco ni el gris
     expect(hueDistance(hue, 226)).toBeLessThan(30);
   });
@@ -221,7 +226,7 @@ describe("useDynamicTheme — extracción por canvas", () => {
     expect(proxied.src).toContain(encodeURIComponent(songA.thumbnail));
 
     await fireLastImageLoad();
-    expect(result.current.neonColor).not.toBe("#a78bfa");
+    expect(result.current.neonColor).not.toBe(DEFAULT_APPLIED);
   });
 
   it("no reintenta por proxy dos veces: falla en silencio", async () => {
@@ -237,7 +242,7 @@ describe("useDynamicTheme — extracción por canvas", () => {
     });
 
     expect(createdImages).toHaveLength(2);
-    expect(result.current.neonColor).toBe("#a78bfa");
+    expect(result.current.neonColor).toBe(DEFAULT_APPLIED);
   });
 
   it("descarta la extracción de una canción ya reemplazada", async () => {
@@ -254,11 +259,11 @@ describe("useDynamicTheme — extracción por canvas", () => {
     await act(async () => {
       imageForA.onload?.(); // respuesta tardía de la canción A
     });
-    expect(result.current.neonColor).toBe("#a78bfa");
+    expect(result.current.neonColor).toBe(DEFAULT_APPLIED);
 
     // La portada de B sí se aplica
     await fireLastImageLoad();
-    expect(result.current.neonColor).not.toBe("#a78bfa");
+    expect(result.current.neonColor).not.toBe(DEFAULT_APPLIED);
   });
 
   it("cae al tema acromático (blanco) cuando la imagen no tiene croma suficiente", async () => {

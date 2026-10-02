@@ -9,7 +9,7 @@ import { deriveTheme, extractOklchAccent, getLuminance, BASE } from "../utils/co
 //  se escriben SOLO una vez en src/dynamic-theme.css usando color-mix().
 // ═════════════════════════════════════════════════════════════════════════════
 
-// ── Acentos por defecto (sin extracción / tema apagado) ─────────────────────
+// ── Acentos por defecto (sin extracción / ajuste antiguo sin appColor) ──────
 
 export const DEFAULT_ACCENT = "#a78bfa";
 // on-accent del acento por defecto, derivado con la misma garantía ≥4.5:1 que
@@ -92,8 +92,20 @@ export function useDynamicTheme({ settings, currentSong }) {
     return speed === 0 ? "0s" : `${speed}s`;
   }, [settings.colorTransitionSpeed]);
 
-  const neonColor = extractedTheme?.accent || DEFAULT_ACCENT;
-  const neonForeground = extractedTheme?.onAccent || DEFAULT_ACCENT_FG;
+  // ── Color de la app (Ajustes → Apariencia → appColor) ─────────────────────
+  //    appColor pasa por deriveTheme() igual que una portada: el brillo se
+  //    normaliza al rango visible del tema oscuro (los colores oscuros se
+  //    aclaran y los muy claros se oscurecen un poco) y el on-accent queda a
+  //    ≥4.5:1 → iconos/texto de los botones negros sobre color claro y
+  //    blancos sobre oscuro (siempre visibles).
+  //    Con el tema dinámico activo y canción sonando manda la portada; sin
+  //    canción (al abrir) o con el tema dinámico apagado manda appColor.
+  const appTheme = useMemo(
+    () => deriveTheme(settings.appColor || DEFAULT_ACCENT),
+    [settings.appColor],
+  );
+  const neonColor = extractedTheme?.accent || appTheme.accent;
+  const neonForeground = extractedTheme?.onAccent || appTheme.onAccent;
 
   const hasAccent = useMemo(
     () => settings.dynamicTheme && extractedTheme !== null,

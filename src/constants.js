@@ -5,6 +5,11 @@ export const SW_SETTINGS_KEY = "sw_settings_v1";
 export const DEFAULT_SETTINGS = {
   language: "es",
   dynamicTheme: true,
+  // Color de la app (Ajustes → Apariencia): morado histórico por defecto.
+  // El acento final se deriva con deriveTheme() (ver useDynamicTheme) para
+  // que cualquier color elegido sea visible en el tema oscuro y sus botones
+  // tengan contraste. Se persiste con el resto de ajustes (localStorage).
+  appColor: "#a78bfa",
   pureBlack: false,
   blurStyle: "blur",
   defaultTab: "home",

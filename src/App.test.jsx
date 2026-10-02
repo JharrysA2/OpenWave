@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { api } from "./utils/api";
 import { winCtrl } from "./utils/windowControls";
 import { __expireBootGrace, __resetHealth, isHeartbeatRunning, markOffline, markOnline } from "./utils/backendHealth";
-import { contrastRatio } from "./utils/colorTheme";
+import { contrastRatio, deriveTheme } from "./utils/colorTheme";
 import App from "./App";
 
 // ── Mock hooks ──────────────────────────────────────────────────────────────────
@@ -587,7 +587,9 @@ describe("App — Componente principal", () => {
   it("should set the neon CSS variable on mount", () => {
     render(<App />);
     const root = document.documentElement;
-    expect(root.style.getPropertyValue("--neon")).toBe("#a78bfa");
+    // El default (#a78bfa) se aplica pasando por deriveTheme como cualquier
+    // color elegido → única fuente de verdad del acento.
+    expect(root.style.getPropertyValue("--neon")).toBe(deriveTheme("#a78bfa").accent);
   });
 
   // ── SettingsPanel props ────────────────────────────────────────────────────
@@ -775,7 +777,7 @@ describe("App — Contraste y overlayOpacity", () => {
   it("should set neon CSS variables to default purple when no extracted colors", () => {
     render(<App />);
     const root = document.documentElement;
-    expect(root.style.getPropertyValue("--neon")).toBe("#a78bfa");
+    expect(root.style.getPropertyValue("--neon")).toBe(deriveTheme("#a78bfa").accent);
     // on-accent derivado (≥4.5:1 sobre #a78bfa) — antes #ffffff, que solo
     // daba ~2.6:1 y dejaba invisible el texto sobre botones con acento
     expect(root.style.getPropertyValue("--neon-fg")).toBe("#000001");
@@ -814,7 +816,7 @@ describe("App — Contraste y overlayOpacity", () => {
     const root = document.documentElement;
     const neon = root.style.getPropertyValue("--neon");
     const fg = root.style.getPropertyValue("--neon-fg");
-    expect(neon).not.toBe("#a78bfa");
+    expect(neon).not.toBe(deriveTheme("#a78bfa").accent);
     expect(fg).not.toBe("");
     expect(contrastRatio(fg, neon)).toBeGreaterThanOrEqual(4.5);
   });

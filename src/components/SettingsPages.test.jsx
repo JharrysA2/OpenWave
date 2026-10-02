@@ -208,6 +208,28 @@ describe("PagePrivacidad", () => {
 // ── PageApariencia ──────────────────────────────────────────────────────
 
 describe("PageApariencia", () => {
+  it("should render the app color row with a palette of many colors", () => {
+    renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
+    expect(screen.getByText("Color de la app")).toBeInTheDocument();
+    // Bastantes colores: ≥20 swatches identificables por "Color #hex"
+    expect(screen.getAllByLabelText(/^Color #/).length).toBeGreaterThanOrEqual(20);
+    // + selector libre para elegir cualquier color
+    expect(screen.getByLabelText("Color personalizado")).toBeInTheDocument();
+  });
+
+  it("clicking a swatch persists the chosen color and moves the selection ring", () => {
+    renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
+    const azul = screen.getByLabelText("Color #22d3ee");
+    fireEvent.click(azul);
+    expect(JSON.parse(localStorage.getItem("sw_settings_v1")).appColor).toBe("#22d3ee");
+    // El anillo de seleccionado pasa al color clicado…
+    expect(azul.style.boxShadow).toContain("0 0 0 4px");
+    // …y el resto queda sin anillo (aunque antes fuera el default)
+    expect(screen.getByLabelText("Color #a78bfa").style.boxShadow).not.toContain(
+      "0 0 0 4px",
+    );
+  });
+
   it("should render theme section", () => {
     renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
     expect(screen.getByText("Tema")).toBeInTheDocument();

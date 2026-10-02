@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSettings } from "../../contexts/useSettings";
 import { BTN_SHAPES, BAR_STYLES } from "../../utils/playerStyles";
+import { APP_COLORS } from "../../utils/appPalette";
+import { deriveTheme } from "../../utils/colorTheme";
 import {
   SettingRow,
   SettingsSection,
@@ -20,10 +22,70 @@ export function PageApariencia({ neonColor }) {
   const [showBtnModal, setShowBtnModal] = useState(false);
   const [showBarModal, setShowBarModal] = useState(false);
   const accent = neonColor || "#a78bfa";
+  const appColor = settings.appColor || "#a78bfa";
+  // Swatches con el acento DERIVADO (deriveTheme): lo que ves en la cuadrícula
+  // es exactamente lo que la app aplicará (brillo normalizado + fg de botón).
+  const swatches = useMemo(
+    () => APP_COLORS.map((hex) => ({ hex, accent: deriveTheme(hex).accent })),
+    [],
+  );
 
   return (
     <div style={{ padding: "20px 16px" }}>
       <SettingsSection title="Tema">
+        <SettingRow icon={Ic.paintBrush} label={t.appColor} desc={t.appColorDesc} />
+        <div
+          style={{
+            padding: "2px 18px 14px",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "9px",
+            alignItems: "center",
+          }}
+        >
+          {swatches.map(({ hex, accent: swatchAccent }) => {
+            const selected = appColor === hex;
+            return (
+              <button
+                key={hex}
+                type="button"
+                aria-label={`Color ${hex}`}
+                onClick={() => updateSetting("appColor", hex)}
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: "50%",
+                  padding: 0,
+                  border: "none",
+                  cursor: "pointer",
+                  background: swatchAccent,
+                  // Anillo doble (oscuro + blanco): se ve sobre cualquier
+                  // color del swatch y sobre el fondo del panel.
+                  boxShadow: selected
+                    ? "0 0 0 2px #0a0a0f, 0 0 0 4px #ffffff"
+                    : "inset 0 0 0 1px rgba(255,255,255,.16)",
+                  transition: "transform .15s",
+                }}
+              />
+            );
+          })}
+          <input
+            type="color"
+            aria-label={t.appColorCustom}
+            title={t.appColorCustom}
+            value={appColor}
+            onChange={(e) => updateSetting("appColor", e.target.value)}
+            style={{
+              width: 26,
+              height: 26,
+              padding: 0,
+              border: "1px dashed rgba(255,255,255,.35)",
+              borderRadius: "50%",
+              background: "transparent",
+              cursor: "pointer",
+            }}
+          />
+        </div>
         <SettingRow
           icon={Ic.sun(16)}
           label={t.dynamicTheme}

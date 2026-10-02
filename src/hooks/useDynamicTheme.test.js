@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
+import { renderHook } from "@testing-library/react";
 import {
   overlayOpacityForLuminance,
   smoothstep,
+  useDynamicTheme,
   DEFAULT_ACCENT,
   DEFAULT_ACCENT_FG,
 } from "./useDynamicTheme";
+import { DEFAULT_SETTINGS } from "../constants";
 import { contrastRatio, deriveTheme, ON_ACCENT_MIN_CONTRAST } from "../utils/colorTheme";
 
 describe("smoothstep", () => {
@@ -93,5 +96,53 @@ describe("overlayOpacityForLuminance", () => {
 
   it("el par por defecto coincide con deriveTheme (única fuente de verdad)", () => {
     expect(DEFAULT_ACCENT_FG).toBe(deriveTheme(DEFAULT_ACCENT).onAccent);
+  });
+});
+
+// ── Color de la app (appColor) ──────────────────────────────────────────────
+
+describe("useDynamicTheme — color de la app (appColor)", () => {
+  const mkSettings = (appColor, dynamicTheme = false) => ({
+    ...DEFAULT_SETTINGS,
+    appColor,
+    dynamicTheme,
+  });
+
+  it("aplica el color elegido como --neon y --neon-fg con el tema dinámico apagado", () => {
+    const { result } = renderHook(() =>
+      useDynamicTheme({ settings: mkSettings("#22d3ee"), currentSong: null }),
+    );
+    const esperado = deriveTheme("#22d3ee");
+    expect(result.current.neonColor).toBe(esperado.accent);
+    expect(result.current.neonForeground).toBe(esperado.onAccent);
+    expect(document.documentElement.style.getPropertyValue("--neon")).toBe(esperado.accent);
+    expect(document.documentElement.style.getPropertyValue("--neon-fg")).toBe(esperado.onAccent);
+  });
+
+  it("con tema dinámico y sin canción (al abrir la app) se ve el color elegido", () => {
+    const { result } = renderHook(() =>
+      useDynamicTheme({ settings: mkSettings("#ec4899", true), currentSong: null }),
+    );
+    expect(result.current.neonColor).toBe(deriveTheme("#ec4899").accent);
+    expect(result.current.hasAccent).toBe(false);
+  });
+
+  it("el texto/icono del color elegido cumple ≥4.5:1 (botones visibles)", () => {
+    const { result } = renderHook(() =>
+      useDynamicTheme({ settings: mkSettings("#2563eb"), currentSong: null }),
+    );
+    expect(
+      contrastRatio(result.current.neonForeground, result.current.neonColor),
+    ).toBeGreaterThanOrEqual(ON_ACCENT_MIN_CONTRAST);
+  });
+
+  it("un ajuste antiguo sin appColor cae al morado por defecto", () => {
+    const { result } = renderHook(() =>
+      useDynamicTheme({
+        settings: { ...DEFAULT_SETTINGS, appColor: undefined, dynamicTheme: false },
+        currentSong: null,
+      }),
+    );
+    expect(result.current.neonColor).toBe(deriveTheme(DEFAULT_ACCENT).accent);
   });
 });

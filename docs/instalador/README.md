@@ -47,10 +47,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass \
 | 2 | `scripts/prepare-runtime.ps1` | `build/staging/{backend,runtime,ffmpeg}` |
 | 3 | `npx tauri build --bundles msi` | Compila y enlaza el MSI |
 | 3b | `scripts/msi-postprocess.ps1` | Tipografía del MSI enlazado: títulos sin negrita, `WixUI_Font_Bigger` a 11 pt |
-| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (49 checks) |
+| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (53 checks) |
 
 `prepare-runtime.ps1` es idempotente: deja `build/staging/.ready` y solo se
-vuelve a ejecutar si cambia `backend/requirements-runtime.txt` o con `-Force`.
+vuelve a ejecutar si cambia `backend/requirements-runtime.txt`, si cambia el
+código de `backend/*.py` (hash guardado en el marcador) o con `-Force`.
+
+> **Ojo con `-SkipRuntime`**: salta `prepare-runtime.ps1` por completo y NO
+> refresca `build/staging/backend`. Si el builda con `-SkipRuntime` y ha
+> cambiado código del backend, **el MSI empaqueta el backend viejo** (pasó en
+> la práctica: el seek seguía reiniciando la canción en la app «instalada»
+> con el fix ya commiteado). Con cambios en `backend/`, builda **sin**
+> `-SkipRuntime`.
 
 > **Obligatorio**: `tauri build` falla si `build/staging` no existe, porque
 > `bundle.resources` en `tauri.conf.json` apunta ahí. Por eso el paso 2 no se

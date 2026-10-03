@@ -1414,7 +1414,7 @@ export function LyricsView({
   streamCacheRef,
 }) {
   const { settings, updateSetting } = useSettings();
-  const { visible, solidOn } = usePerformance();
+  const { visible, solidOn, sleeping } = usePerformance();
   const [lyrics, setLyrics] = useState(null);
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState(null);
@@ -2092,7 +2092,11 @@ export function LyricsView({
         />
 
         {/* Capa 1: Fondo pre-difuminado en canvas (sin filter en CSS) */}
-        {!solidOn && bgThumb && (
+        {/* app-sleep (≥15 s con la ventana oculta): se DESMONTA la capa →
+            la textura 150vmax se libera (era el mayor consumidor de GPU:
+            abrir Letras +341MB / cerrar −191MB medidos). Al volver a verse
+            se remonta con la misma src → repaint inmediato, sin recarga. */}
+        {!solidOn && bgThumb && !sleeping && (
           <div
             data-testid="lyrics-bg"
             style={{

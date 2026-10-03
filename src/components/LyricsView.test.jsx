@@ -4,6 +4,8 @@ import { join } from "path";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SettingsProvider } from "../contexts/SettingsContext";
+import { PerformanceProvider } from "../contexts/PerformanceContext";
+import { SW_SETTINGS_KEY } from "../constants";
 import { LyricsView } from "./LyricsView";
 import { parseLrc } from "../utils/lrc";
 import { setLyricsOverride, getLyricsOverride } from "../utils/lyricsOverrides";
@@ -652,6 +654,68 @@ describe("LyricsView — rendimiento del fondo", () => {
     expect(bg).toBeTruthy();
     expect(bg.style.filter).toBe("");
     expect(bg.style.willChange).toBe("");
+  });
+});
+
+describe("LyricsView — app-sleep (≥15 s con la ventana oculta)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Promesa que nunca se resuelve: evita setState de LyricsView fuera de
+    // act() al cerrar el test (la letra no interesa aquí, solo la capa bg).
+    mockApiGet.mockImplementation(() => new Promise(() => {}));
+    // perfMode equilibrado explícito: sin GPU en jsdom el modo «auto»
+    // resolvería a sólido y la capa de fondo no montaría (gate !solidOn).
+    localStorage.setItem(
+      SW_SETTINGS_KEY,
+      JSON.stringify({ perfMode: "balanced", perfModeMigrated: true }),
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    delete document.visibilityState;
+    localStorage.clear();
+  });
+
+  it("desmonta la capa de fondo al dormirse (libera textura) y la remonta al despertar", () => {
+    vi.useFakeTimers();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+
+    const { container } = render(
+      <SettingsProvider>
+        <PerformanceProvider>
+          <LyricsView {...defaultProps} />
+        </PerformanceProvider>
+      </SettingsProvider>,
+    );
+    const bg = () => container.querySelector('[data-testid="lyrics-bg"]');
+
+    // t=0 oculta → congelado (app-hidden) pero la textura aún montada
+    expect(document.documentElement.className).toContain("app-hidden");
+    expect(document.documentElement.className).not.toContain("app-sleep");
+    expect(bg()).toBeTruthy();
+
+    // t=15 s → app-sleep: la capa 150vmax se descarga
+    act(() => {
+      vi.advanceTimersByTime(15000);
+    });
+    expect(document.documentElement.className).toContain("app-sleep");
+    expect(bg()).toBeNull();
+
+    // Restaurar → todo vuelve a la normalidad al instante
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(document.documentElement.className).not.toContain("app-sleep");
+    expect(document.documentElement.className).not.toContain("app-hidden");
+    expect(bg()).toBeTruthy();
   });
 });
 

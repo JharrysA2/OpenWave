@@ -260,16 +260,40 @@
         will-change: auto !important;
       }
       /* EXCEPCIÓN — cristal de modal: un modal abierto es exactamente lo que
-         el usuario está mirando; al perder el foco DOM la regla de arriba
-         convertía el vidrio esmerilado en transparente de golpe (bug: "los
-         modales no tienen blur", reproducido con foco robado el 2026-09-29).
-         Solo se salva el `blur(40px)` inline de GLASS.sheet/settings (hojas y
-         paneles); shell/player/popup siguen apagándose. Los modos explícitos
-         de Rendimiento ganan por el :not() — perf-blur-off/perf-solid tienen
-         prioridad sobre la exención. */
+         el usuario está mirando; la regla de arriba convertía el vidrio
+         esmerilado en transparente de golpe (bug: "los modales no tienen
+         blur", 2026-09-29). Hoy app-hidden solo se activa con la ventana
+         oculta, pero la exención se conserva por si el motor reporta oculto
+         con la ventana a la vista. Solo se salva el `blur(40px)` inline de
+         GLASS.sheet/settings (hojas y paneles); shell/player/popup siguen
+         apagándose. Los modos explícitos de Rendimiento ganan por el :not()
+         — perf-blur-off/perf-solid tienen prioridad sobre la exención. */
       html.app-hidden:not(.perf-blur-off):not(.perf-solid) [style*="blur(40px)"] {
         backdrop-filter: blur(40px) !important;
         -webkit-backdrop-filter: blur(40px) !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════
+         APP SLEEP — la ventana lleva ≥15 s OCULTA (PerformanceContext,
+         APP_SLEEP_MS). Diferencia con app-hidden:
+           app-hidden → animaciones PAUSADAS (retoman donde estaban)
+           app-sleep  → animaciones APAGADAS (animation: none) y cero
+                        efectos; React descarta además los recursos pesados
+                        (fondo 150vmax de Letras) para liberar memoria.
+         Si la ventana vuelve a verse antes de 15 s, solo app-hidden (pausa
+         transparente). Restaurar tras el sueño = repaint normal (la memoria
+         se reasigna sola). Solo con ventana invisible: con solo perder el
+         foco (ventanas divididas) no se aplica NADA de esto. ═══════ */
+      html.app-sleep *,
+      html.app-sleep *::before,
+      html.app-sleep *::after {
+        animation: none !important;
+        transition: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        filter: none !important;
+        box-shadow: none !important;
+        will-change: auto !important;
       }
 
       /* ═══════════════════════════════════════════════════════════════════════

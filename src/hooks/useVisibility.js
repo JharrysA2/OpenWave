@@ -1,19 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * useVisibility - detecta si la ventana sigue siendo percibida por el usuario
- * (no minimizada, no cubierta, no en segundo plano, no en otra pestana).
+ * useVisibility - detecta si la ventana está realmente OCULTA
+ * (minimizada o tapada del todo). NO depende del FOCO: con ventanas
+ * divididas la app puede perder el foco pero seguir visible, y en ese
+ * caso NADA se congela (blur, animaciones y karaoke siguen vivos).
  *
- * La MUSICA SIGUE SONANDO en todos los casos: esto solo pausa los EFECTOS
- * VISUALES pesados (blur, animaciones, sombras) y los reanuda
- * exactamente donde quedaron al volver a ser visible.
+ * visible = (document.visibilityState !== "hidden")
  *
- * visible = (document.visibilityState !== "hidden") && document.hasFocus()
+ * La MUSICA SIGUE SONANDO en todos los casos: si la ventana queda
+ * oculta, los efectos visuales pesados se pausan (app-hidden) y a los
+ * 15 s PerformanceContext entra en sueño profundo (app-sleep); al
+ * volver todo se reanuda exactamente donde quedó.
  */
 export function useVisibility() {
   const compute = useCallback(() => {
     if (typeof document === "undefined") return true;
-    return document.visibilityState !== "hidden" && document.hasFocus();
+    return document.visibilityState !== "hidden";
   }, []);
 
   const [visible, setVisible] = useState(compute);
@@ -24,14 +27,10 @@ export function useVisibility() {
     const raf = requestAnimationFrame(sync);
 
     document.addEventListener("visibilitychange", sync);
-    window.addEventListener("focus", sync);
-    window.addEventListener("blur", sync);
 
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener("visibilitychange", sync);
-      window.removeEventListener("focus", sync);
-      window.removeEventListener("blur", sync);
     };
   }, [compute]);
 

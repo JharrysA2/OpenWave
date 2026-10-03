@@ -58,23 +58,48 @@ que se repinta con letras/scroll). Por tanto:
 - Las animaciones que se mueven usan `transform`/`opacity` (ya compuestos).
 - Cualquier capa promovida (`will-change`) solo con medición detrás.
 
-## 4. Segundo plano y pérdida de foco: congelar, no rediseñar
+## 4. Segundo plano y pérdida de foco: congelar por VISIBILIDAD (no por foco)
 
-- `useVisibility` (visibilitychange + blur/focus) → clase `.app-hidden`:
-  animaciones con `animation-play-state: paused` (pausadas, no muertas ⇒
-  retoman donde estaban), backdrop/filter/shadow/will-change apagados, rAF de
-  letras y de la barra frenados.
+Especificación vigente (2026-10-02, pedido explícito del usuario):
+
+| Evento                        | Respuesta                                                     |
+| ----------------------------- | ------------------------------------------------------------- |
+| Perder el foco (ventana vista) | **Nada**: ventanas divididas / Alt+Tab con la app a la vista → blur, animaciones, karaoke y progreso siguen como siempre |
+| Oculta (minimizada), t=0      | `app-hidden`: congela todo menos la música                    |
+| Oculta ≥ 15 s                 | `app-sleep`: animaciones **apagadas** + liberación de RAM     |
+| Restaurar/expandir            | todo vuelve a la normalidad al instante                       |
+
+- `useVisibility` escucha **solo `visibilitychange`** (`document.visibilityState`).
+  El foco (`document.hasFocus()`/`blur`/`focus`) ya no decide nada: perderlo con
+  la ventana visible no pausa ni apaga nada.
+- `PerformanceContext` añade `app-hidden` a `<html>` en cuanto la ventana queda
+  oculta: animaciones con `animation-play-state: paused` (pausadas, no muertas
+  ⇒ retoman donde estaban), backdrop/filter/shadow/will-change apagados con
+  CSS `!important`, rAF de letras y progreso de la barra frenados por
+  `visible`. Si la ventana sigue oculta `APP_SLEEP_MS` (15 s, exportado de
+  `PerformanceContext`) pasa a **`app-sleep`**: `animation: none` +
+  `transition: none` + cero efectos en * todos, y los componentes liberan
+  recursos pesados vía contexto `sleeping`:
+  - `LyricsView` **desmonta la capa de fondo `150vmax`** (el mayor
+    consumidor: abrir Letras +341 MB / cerrar −191 MB medidos, ver §8) y la
+    remonta con la misma `src` al despertar (repaint sin recarga de red);
+  - `usePlayer` vacía las `Image` detached del precaché de portadas
+    (`preloadedImgsRef`); al despertar solo se precachea la siguiente
+    canción con el próximo cambio de cola.
+- Ambas clases (y el sueño) dependen de `pauseEffectsHidden` (Rendimiento →
+  «Pausar efectos al ocultar»): con ese ajuste apagado no se congela ni se
+  duerme nada.
 - **Exención del cristal de modal**: `html.app-hidden:not(.perf-blur-off):
   not(.perf-solid) [style*="blur(40px)"]` mantiene el `backdrop-filter` de las
-  hojas y paneles (`GLASS.sheet`/`GLASS.settings`) al perder el foco: un modal
-  abierto es lo que el usuario mira y el vidrio no debe pasar de esmerilado a
-  transparente en pantalla (bug «los modales no tienen blur», reproducido con
-  foco robado el 2026-09-29: texto del karaoke nítido a través de la hoja).
-  Solo se salva el `blur(40px)` inline; shell/player/popup siguen apagándose
-  y los modos explícitos de Rendimiento ganan gracias al `:not()`.
-- La música sigue sonando y al volver (Alt+Tab) el primer frame recalcula el
-  estado exacto. No se necesitan hooks en Rust: WebView2 reporta
-  `document.hidden` y el `blur` de la ventana llega al JS.
+  hojas y paneles (`GLASS.sheet`/`GLASS.settings`) mientras dure `app-hidden`
+  (bug «los modales no tienen blur», 2026-09-29). Hoy `app-hidden` solo se
+  activa con la ventana invisible, pero la exención se conserva por si el
+  motor reporta oculto con la ventana a la vista: solo se salva el
+  `blur(40px)` inline; shell/player/popup siguen apagándose y los modos
+  explícitos de Rendimiento ganan gracias al `:not()`.
+- La música sigue sonando y al restaurar el primer frame recalcula el estado
+  exacto. No se necesitan hooks en Rust: WebView2 reporta
+  `document.hidden` con la ventana minimizada.
 - **Consumo ~0 con la ventana minimizada**: con la ventana oculta el único
   latido que queda es el de conexión al backend, reducido a 60 s (10 s si está
   caído) y con chequeo inmediato al volver a ser visible
@@ -85,6 +110,9 @@ que se repinta con letras/scroll). Por tanto:
   irreductible es el propio pipeline de audio si la canción sigue en marcha.
 - El modo Rendimiento (`perf-blur-off/anim-off/solid` + detección de software
   renderer, `src/utils/softwareRenderer.js`) cubre los equipos con GPU débil.
+- Tests: `PerformanceContext.test.jsx` (ciclo oculta→15 s→restaurar, foco
+  irrelevante, pauseEffectsHidden OFF, contexto `sleeping`, CSS de
+  `app-sleep`) y `LyricsView.test.jsx` (desmontaje/remontaje del fondo).
 
 ## 5. Aceleración por hardware (estado: ACTIVA, no hay que activarla)
 
@@ -255,6 +283,88 @@ al cerrarlo), `theme.test.js` (`sheet`/`settings` a `blur(40px)`, `popup` a
 (banner de conexión sin `backdrop-filter`) y `PerformanceContext.test.jsx`
 (apagado de `app-hidden` en `index.html` + exención del cristal `blur(40px)`
 al perder el foco).
+
+## 8. Memoria (RAM / GPU): diagnóstico «llega hasta 1,5 GB»
+
+**Síntoma reportado:** en uso normal la app alcanza ~1,5 GB (pico medido:
+**2.206 MB** de proceso GPU en 90 s).
+
+**Diagnóstico (2026-10-02):** no hay fuga de JavaScript:
+
+- Heap JS estable en 3-7 MB, DOM estable, 0 canvas sueltos, PID del proceso
+  GPU estable (sin crashes ni reciclajes forzados).
+- El consumo vive en el **proceso GPU**: `private=492MB mapped=1486MB
+  image=110MB` — texturas mapeadas, no memoria JS.
+- Cachés de disco sanas (~417 MB). Brave en el mismo equipo GPU: 587 MB
+  (la escala es del motor, no de la app).
+- Upstream: [Chromium #41125802](https://issues.chromium.org/issues/41125802).
+
+**Línea base (script `cdp-baseline`):**
+
+| Estado                        | GPU process        |
+| ----------------------------- | ------------------ |
+| Reposo (sin música)           | 134-264 MB         |
+| Uso activo (música + Letras)  | **134 → 2.206 MB en 90 s** |
+
+**A/B en reposo (sin música, sin vistas):** inyectar
+`* { backdrop-filter: none; filter: none }` no movió la memoria (planeta
+exacto 1,501-1,502 MB): **en reposo los filtros no son el consumidor**.
+
+**A/B activo — reproducción sola (2 min control + 2 min filtros OFF):**
+con música sonando y ventana enfocada en Inicio, el proceso GPU quedó
+**PLANO** (280 → 277 MB durante 4 min, filtros ON y OFF por igual):
+**la reproducción por sí sola no crece**.
+
+**A/B activo — con Letras abierto (`cdp-letras-ab5`, 2026-10-02, 8 min,
+música + foco forzados, fondo con fallback `blur(12px)` + `sw-bg-spin`
+activo):**
+
+| Fase                    | GPU (proceso)            | Renderer                  |
+| ----------------------- | ------------------------ | ------------------------- |
+| A · control 120 s       | 301 → meseta **358-369** | 64 → 424 (oscila) → 186   |
+| B · filtros OFF 120 s   | meseta **342-372**       | 134-234                   |
+| C · filtros ON 60 s     | meseta **346-374**       | 155-210                   |
+| D · cambio de canción   | salto **+40 → 408-411**  | 211-288                   |
+
+- **Filtros ON y OFF idénticos** (A ≈ B ≈ C): el fallback de filtro CSS del
+  fondo de Letras **no es el consumidor** → descartado como fix.
+- Letras cuesta un **+90 MB fijo** de GPU frente a reproducción sola
+  (~278 MB): la textura de la capa `150vmax`, no un crecimiento.
+- **Ninguna fase crece sin control** en 8 min (todas meseta); el único salto
+  sostenido viene de los **cambios de canción** (ver sonda siguiente) —
+  caché de texturas que Chromium no purga sin presión de sistema, coherente
+  con upstream [Chromium #41125802](https://issues.chromium.org/issues/41125802).
+- El **renderer** oscila con el karaoke y las imágenes (64 → 424 MB) pero
+  **vuelve a bajar** (155-186 MB al pararse la vista): no es una fuga.
+
+**Sonda de acumulación (`cdp-songcycle`, 5 cambios de canción seguidos con
+Letras abierto):** GPU **379 → 531** (pico del primer cambio: texturas vieja +
+nueva conviviendo) → meseta 439-447 → **452 MB**. Neto: **+73 MB en 5
+cambios (~15 MB por cambio que no se devuelven)** más picos transitorios de
+~+150 MB durante la transición.
+
+_Nota sobre la línea base de 2.206 MB_: ese pico de 90 s no se reprodujo en
+las corridas controladas posteriores (meseta ~370-410 MB con Letras); la
+métrica es la misma (`PrivateMemorySize64` del `gpu-process`). La
+explicación consistente con todos los datos es la **retención por cambio de
+canción (~15 MB netos + picos de ~150 MB por transición)**: en una sesión
+larga con decenas de cambios alcanza los ~1,5-2 GB reportados y solo se
+alivia al destruir elementos (cerrar Letras −191 MB) o con la purga del
+motor.
+
+**Flags Chromium evaluados y rechazados:** `--force-gpu-mem-*` — reportes de
+«sin efecto» y riesgo de romper el rendering (caso Electron). No se aplican.
+
+**Veredicto y decisiones:**
+
+- **Sin fix de filtros**: el A/B demuestra que `filter`/`backdrop-filter` no
+  mueven la memoria en ningún estado (reposo, reproducción, Letras).
+- **Fix de app implementado** (nuevo comportamiento pedido): congelado por
+  visibilidad + **`app-sleep` a los 15 s de ventana oculta** que desmonta el
+  fondo de Letras y vacía el precaché de portadas (§4) → la memoria pesada se
+  libera mientras la app está minimizada y se reasigna al restaurar.
+- **Documento, no flags**: se mantiene la decisión de no forzar flags GPU;
+  la palanca del usuario es «Pausar efectos al ocultar» (por defecto ON).
 
 ## Regla de oro
 

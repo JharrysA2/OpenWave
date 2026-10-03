@@ -48,7 +48,9 @@ export const DEFAULT_SETTINGS = {
   playerTextAlign: "left",
   // Pestaña inicial de Búsqueda: "music" | "videos".
   defaultSearchTab: "music",
-  // Pausar glass/animaciones cuando la app pierde el foco (app-hidden).
+  // Pausar glass/animaciones cuando la ventana queda OCULTA (app-hidden).
+  // Solo la visibilidad real (minimizada/tapada) decide: perder el foco con
+  // la ventana visible (ventanas divididas) NO congela nada.
   pauseEffectsHidden: true,
   // Recomendar canciones similares al FINAL de la cola (como el Autoplay de
   // Spotify/YTM). Solo AÑADE debajo, nunca reemplaza ni mueve la cola.

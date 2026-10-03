@@ -1,10 +1,10 @@
 import React from "react";
-import { render } from "@testing-library/react";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, act } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SettingsProvider } from "./SettingsContext";
-import { PerformanceProvider } from "./PerformanceContext";
+import { PerformanceProvider, usePerformance } from "./PerformanceContext";
 import { SW_SETTINGS_KEY } from "../constants";
 
 // Los tests corren con cwd en la raíz del proyecto (npm test)
@@ -87,26 +87,157 @@ describe("PerformanceProvider — modo auto con detección de GPU", () => {
     expect(c).toContain("perf-solid");
   });
 
-  it("no añade 'app-hidden' con la ventana visible", () => {
-    // jsdom no tiene foco real: simular la ventana en primer plano.
-    const focusSpy = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  it("no añade 'app-hidden' con la ventana visible (aunque pierda el foco)", () => {
+    // El foco ya NO decide nada (ventanes divididas deben seguir vivas):
+    // solo manda document.visibilityState.
+    const focusSpy = vi.spyOn(document, "hasFocus").mockReturnValue(false);
     renderProvider();
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+    });
     expect(classes()).not.toContain("app-hidden");
+    expect(classes()).not.toContain("app-sleep");
     focusSpy.mockRestore();
   });
 });
 
+// ── Congelado por visibilidad REAL (spec §4): foco irrelevante ──────────────
+//  t=0 oculta  → app-hidden (pausa; música sigue)
+//  t=15 s      → app-sleep (animaciones apagadas + componentes liberan RAM)
+//  restaurar   → ambas fuera al instante
+
+describe("app-hidden → app-sleep — ciclo de congelado por visibilidad", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockSoftware.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    // Restaura el getter original de jsdom para el resto de tests.
+    delete document.visibilityState;
+  });
+
+  /** Simula minimizar (hidden) o restaurar (visible) la ventana. */
+  const setVisibility = (value) => {
+    act(() => {
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        get: () => value,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+  };
+
+  it("minimizar → 'app-hidden' al instante (congelado t=0), sin 'app-sleep'", () => {
+    renderProvider();
+    setVisibility("hidden");
+    expect(classes()).toContain("app-hidden");
+    expect(classes()).not.toContain("app-sleep");
+  });
+
+  it("15 s oculta → 'app-sleep' (antes de los 15 s solo pausa)", () => {
+    vi.useFakeTimers();
+    renderProvider();
+    setVisibility("hidden");
+    act(() => {
+      vi.advanceTimersByTime(14999);
+    });
+    expect(classes()).not.toContain("app-sleep");
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(classes()).toContain("app-sleep");
+  });
+
+  it("restaurar tras el sueño → limpia app-sleep y app-hidden al instante", () => {
+    vi.useFakeTimers();
+    renderProvider();
+    setVisibility("hidden");
+    act(() => {
+      vi.advanceTimersByTime(15000);
+    });
+    expect(classes()).toContain("app-sleep");
+    setVisibility("visible");
+    expect(classes()).not.toContain("app-sleep");
+    expect(classes()).not.toContain("app-hidden");
+  });
+
+  it("visible otra vez ANTES de 15 s → nunca llega a 'app-sleep'", () => {
+    vi.useFakeTimers();
+    renderProvider();
+    setVisibility("hidden");
+    act(() => {
+      vi.advanceTimersByTime(14000);
+    });
+    setVisibility("visible");
+    act(() => {
+      vi.advanceTimersByTime(60000);
+    });
+    expect(classes()).not.toContain("app-sleep");
+    expect(classes()).not.toContain("app-hidden");
+  });
+
+  it("con «Pausar efectos al ocultar» OFF → la ventana oculta no congela ni duerme", () => {
+    vi.useFakeTimers();
+    localStorage.setItem(SW_SETTINGS_KEY, JSON.stringify({ pauseEffectsHidden: false }));
+    renderProvider();
+    setVisibility("hidden");
+    act(() => {
+      vi.advanceTimersByTime(60000);
+    });
+    expect(classes()).not.toContain("app-hidden");
+    expect(classes()).not.toContain("app-sleep");
+  });
+
+  it("expone visible/sleeping por contexto (LyricsView y usePlayer lo consumen)", () => {
+    vi.useFakeTimers();
+    const { container } = render(
+      <SettingsProvider>
+        <PerformanceProvider>
+          <PerfProbe />
+        </PerformanceProvider>
+      </SettingsProvider>,
+    );
+    const probe = () => container.querySelector('[data-testid="perf-probe"]');
+    expect(probe().dataset.visible).toBe("true");
+    expect(probe().dataset.sleeping).toBe("false");
+    setVisibility("hidden");
+    expect(probe().dataset.visible).toBe("false");
+    expect(probe().dataset.sleeping).toBe("false");
+    act(() => {
+      vi.advanceTimersByTime(15000);
+    });
+    expect(probe().dataset.sleeping).toBe("true");
+    setVisibility("visible");
+    expect(probe().dataset.sleeping).toBe("false");
+  });
+});
+
+/** Sonda del contexto: refleja visible/sleeping en atributos de test. */
+function PerfProbe() {
+  const { visible, sleeping } = usePerformance();
+  return (
+    <div
+      data-testid="perf-probe"
+      data-visible={String(visible)}
+      data-sleeping={String(sleeping)}
+    />
+  );
+}
+
 describe("app-hidden — reglas CSS de index.html (presupuesto §4)", () => {
-  it("con la ventana sin foco apaga backdrop-filter/filtro/sombras de todo", () => {
+  it("con la ventana OCULTA apaga backdrop-filter/filtro/sombras de todo", () => {
     const html = readProjectFile("index.html");
     expect(html).toMatch(/html\.app-hidden \*[^}]*backdrop-filter:\s*none\s*!important/);
     expect(html).toMatch(/html\.app-hidden \*[^}]*filter:\s*none\s*!important/);
   });
 
   it("excepción: el cristal de modal blur(40px) NO se apaga (vidrio debe conservarse)", () => {
-    // Un modal abierto es lo que el usuario está mirando: sin esta exención,
-    // perder el foco DOM convertía el vidrio esmerilado en transparente de
-    // golpe (bug "los modales no tienen blur", reproducido con foco robado).
+    // Regla de seguridad heredada del bug "los modales no tienen blur": al
+    // entrar en app-hidden el vidrio esmerilado se volvía transparente de
+    // golpe. Hoy app-hidden solo se activa con la ventana invisible, pero la
+    // exención se mantiene por si el motor reporta oculto con ventana a la vista.
     const html = readProjectFile("index.html");
     expect(html).toMatch(
       /html\.app-hidden:not\(\.perf-blur-off\):not\(\.perf-solid\) \[style\*="blur\(40px\)"\]\s*\{\s*backdrop-filter:\s*blur\(40px\)\s*!important/,
@@ -125,5 +256,24 @@ describe("app-hidden — reglas CSS de index.html (presupuesto §4)", () => {
     expect(html).toMatch(
       /html\.perf-shadow-off \[style\*="drop-shadow"\]\s*\{\s*filter:\s*none\s*!important/,
     );
+  });
+});
+
+describe("app-sleep — reglas CSS de index.html (sueño profundo ≥15 s)", () => {
+  it("APAGA (no pausa) animaciones y transiciones de todos los elementos", () => {
+    // Diferencia clave con app-hidden (animation-play-state: paused): en
+    // sueño profundo las animaciones se destruyen para que el compositor
+    // no mantenga estados vivos con la ventana oculta.
+    const html = readProjectFile("index.html");
+    expect(html).toMatch(/html\.app-sleep \*[^}]*animation:\s*none\s*!important/);
+    expect(html).toMatch(/html\.app-sleep \*[^}]*transition:\s*none\s*!important/);
+  });
+
+  it("mantiene apagados backdrop-filter/filtro/sombras y libera will-change", () => {
+    const html = readProjectFile("index.html");
+    expect(html).toMatch(/html\.app-sleep \*[^}]*backdrop-filter:\s*none\s*!important/);
+    expect(html).toMatch(/html\.app-sleep \*[^}]*filter:\s*none\s*!important/);
+    expect(html).toMatch(/html\.app-sleep \*[^}]*box-shadow:\s*none\s*!important/);
+    expect(html).toMatch(/html\.app-sleep \*[^}]*will-change:\s*auto\s*!important/);
   });
 });

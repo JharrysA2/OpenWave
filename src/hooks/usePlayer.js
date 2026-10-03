@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { api } from "../utils/api";
 import { withHDThumbnails } from "../utils/thumbnails";
 import { getLyricsOverride } from "../utils/lyricsOverrides";
+import { usePerformance } from "../contexts/PerformanceContext";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  Module-level caches — Rule: js-cache-storage
@@ -86,6 +87,9 @@ export function usePlayer(
   const [repeatMode, setRepeatMode] = useState("off"); // "off" | "one" | "all"
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueIndex, setQueueIndex] = useState(() => loadPersistedQueue().queueIndex);
+  // Sueño profundo de la app (≥15 s con la ventana oculta): fuera del provider
+  // (tests) el default del contexto es sleeping:false → sin cambios.
+  const { sleeping } = usePerformance();
 
   // ── Persistir cola en localStorage ──────────────────────────────────────
   useEffect(() => {
@@ -1275,6 +1279,24 @@ export function usePlayer(
       }
     };
   }, [queue, queueIndex, normalizeThumbnails, initialQuality, localExists, requestDownload]);
+
+  // ── Sueño profundo (app-sleep): liberar portadas precargadas ──────────────
+  //    A los 15 s con la ventana oculta, PerformanceContext pone sleeping=true:
+  //    las Image detached del precaché mantienen su bitmap decodificado en la
+  //    caché de imágenes aunque no estén en el DOM → se vacían (src=""). Al
+  //    despertar no hace falta re-precachear nada: solo precarga la SIGUIENTE
+  //    canción, que volverá a dispararse con el primer cambio de cola.
+  useEffect(() => {
+    if (!sleeping) return;
+    preloadedImgsRef.current.forEach((img) => {
+      img.src = "";
+    });
+    preloadedImgsRef.current = [];
+    if (preCacheTimeoutRef.current) {
+      clearTimeout(preCacheTimeoutRef.current);
+      preCacheTimeoutRef.current = null;
+    }
+  }, [sleeping]);
 
   // ── Sincronizar volumen con el elemento audio ──────────────────────────────
 

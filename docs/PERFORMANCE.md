@@ -393,7 +393,7 @@ motor.
 - **Documento, no flags**: se mantiene la decisión de no forzar flags GPU;
   la palanca del usuario es «Pausar efectos al ocultar» (por defecto ON).
 
-## 9. Letras: «Girar el fondo» costaba +14–37 pts de GPU → `steps(720)`
+## 9. Letras: «Girar el fondo» costaba +14–37 pts de GPU → `steps(360)` + pre-difuminado
 
 Síntoma (2026-10-03): en la pantalla de Letras la GPU integrada (Radeon
 740M) marcaba ~75% «antes gastaba menos de 20%».
@@ -422,18 +422,52 @@ app enfocada, música sonando):
 
 - **Causa**: la rotación continua actualiza la matriz de transformación en
   **cada frame** → el compositor repinta la capa 150vmax en cada vsync.
-  Con `animation-timing-function: steps(720, jump-none)` la matriz solo
-  cambia 8 veces/s (0,5° por paso; `jump-none` cierra en 360°=0° → bucle
-  seamless) y Chromium **salta los frames cuya matriz no cambia**: la GPU
-  baja al suelo (karaoke + resto). A 90 s/vuelta el salto de 0,5° es
-  invisible.
-- **Fix**: rama `settings.lyricsRotateBg` de `src/components/LyricsView.jsx`
-  (+ test «rendimiento del fondo» en `LyricsView.test.jsx`).
-- **Nota metodológica**: el código anterior a `2571d17` pausaba todos los
-  efectos al perder el foco (`visible = visibilityState && hasFocus()`), así
-  que abrir el Administrador de Tareas para mirar la GPU medía la app
-  **congelada**. Hoy, por la spec (a) (ventanas divididas no pausan nada), se
-  mide el coste real con la app viva — este §9 es ese coste.
+  Con `animation-timing-function: steps(N, jump-none)` la matriz solo cambia
+  N veces/s y Chromium **salta los frames cuya matriz no cambia**; a 90
+  s/vuelta el salto por paso es invisible sobre el fondo difuminado
+  (`jump-none` cierra el último paso en 360°=0° → bucle seamless).
+
+- **A/B de la tarde (2026-10-03; maximizada 1920×1079, capa 2880², con
+  música y el mismo tema en toda la tanda)**: intercalado `steps(720)` =
+  43,2 / 50,1% (media **46,7%**) vs `steps(360)` = 39,8 / 34,9% (media
+  **37,4%**) — **las 4 muestras sin solape**, con el sistema en 69–78%.
+  Se fija `steps(360)` (4 pasos/s, 1° por paso): ~9 pts menos que 720.
+
+- **El filtro CSS de la capa era el otro motor del coste y estaba roto en
+  producción**: `bgBlurUrl` (pre-difuminado en canvas) nunca se activaba
+  porque el CSP `img-src` no permitía `http://127.0.0.1:8765` (sí lo
+  hacían `connect-src` y `media-src`). La `Image` con `crossOrigin` del
+  proxy de miniaturas era bloqueada (confirmado con el evento
+  `securitypolicyviolation` → `img-src`), el fallback directo contaminaba
+  el canvas y la capa rotaba SIEMPRE con
+  `filter: blur(12px) saturate(1.2) brightness(0.7)` → **cada paso
+  re-rasterizaba 8,3 MP con Gaussian**. Fix: añadir el origen del backend
+  a `img-src` en `src-tauri/tauri.conf.json` (+ guard en
+  `imageBlur.test.js`); con el pre-difuminado activo la capa pinta sin
+  `filter`.
+
+- **El absoluto depende de la carga total del sistema**: con la rotación
+  PAUSADA (suelo puro: karaoke + progreso) el mismo build marcó 18,4%
+  con el sistema al ~29% y 43,8% con el sistema al ~85% — la GPU
+  integrada está compartida, así que cualquier % suelto del Administrador
+  de Tareas hay que leerlo con la carga de fondo. Lo fiable sigue siendo
+  el delta pareado en la misma tanda.
+
+- **Fix**: rama `settings.lyricsRotateBg` de
+  `src/components/LyricsView.jsx` → `steps(360, jump-none)` (+ test
+  «rendimiento del fondo» en `LyricsView.test.jsx`); CSP `img-src` en
+  `src-tauri/tauri.conf.json` (+ test guard en `imageBlur.test.js`).
+- **Nota metodológica — por qué «antes» marcaba <20%**: (1) la rotación
+  **no llegaba a girar** hasta 2026-10-01: las `@keyframes sw-bg-spin`
+  vivían en un `<style>` runtime con nonce que la CSP bloqueaba en la app
+  instalada — `animationName` resolvía pero el transform estaba
+  **congelado** → fondo estático = coste de imagen parada (el propio bug
+  «el botón de girar el fondo no funciona» reportado aquel día); (2) el
+  código anterior a `2571d17` pausaba todos los efectos al perder el
+  foco (`visible = visibilityState && hasFocus()`), así que abrir el
+  Administrador de Tareas para mirar la GPU medía la app **congelada**.
+  Hoy, por la spec (a) (ventanas divididas no pausan nada), se mide el
+  coste real con la app viva — este §9 es ese coste.
 
 ## Regla de oro
 

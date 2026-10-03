@@ -656,12 +656,13 @@ describe("LyricsView — rendimiento del fondo", () => {
     expect(bg.style.willChange).toBe("");
   });
 
-  it("«Girar el fondo» usa steps(720, jump-none): la rotación continua costaba +14–37 pts de GPU", () => {
-    // Medido en vivo 2026-10-03 (Radeon 740M, ventana 1100×720): con la
-    // rotación CONTINUA la capa 150vmax se repintaba en cada vsync
-    // (63–70% de GPU 3D en una sesión, 30% en otra); con steps(720) la
-    // matriz cambia solo 8 veces/s → el compositor salta los frames sin
-    // cambios y la GPU baja al suelo (10.9–11.6% medidos, A/B directo).
+  it("«Girar el fondo» usa steps(360, jump-none): la rotación continua costaba +14–37 pts de GPU", () => {
+    // Medido en vivo 2026-10-03 (Radeon 740M): con la rotación CONTINUA la
+    // capa 150vmax se repintaba en cada vsync (63–70% de GPU 3D en una
+    // sesión, 30% en otra). A/B intercalado con música, ventana maximizada
+    // y mismo tema: steps(720) 46,7% vs steps(360) 37,4% (muestras sin
+    // solape) → 4 cambios de matriz/s rinden ~9 pts frente a 8/s. El salto
+    // de 1° a 90 s/vuelta es invisible sobre el fondo pre-difuminado, y
     // jump-none cierra el último paso en 360°=0° → bucle seamless.
     localStorage.setItem(
       SW_SETTINGS_KEY,
@@ -679,7 +680,7 @@ describe("LyricsView — rendimiento del fondo", () => {
     const bg = container.querySelector('[data-testid="lyrics-bg"]');
     expect(bg).toBeTruthy();
     expect(bg.style.animation).toContain("sw-bg-spin");
-    expect(bg.style.animationTimingFunction).toBe("steps(720, jump-none)");
+    expect(bg.style.animationTimingFunction).toBe("steps(360, jump-none)");
     localStorage.clear();
   });
 });

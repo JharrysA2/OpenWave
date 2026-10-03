@@ -2113,25 +2113,30 @@ export function LyricsView({
                     top: "50%",
                     transform: "translate(-50%, -50%)",
                     animation: "sw-bg-spin 90s linear infinite",
-                    // steps(720, jump-none): la matriz solo cambia 8 veces/s
-                    // (0,5° por paso; jump-none cierra en 360°=0° → bucle
+                    // steps(360, jump-none): la matriz solo cambia 4 veces/s
+                    // (1° por paso; jump-none cierra en 360°=0° → bucle
                     // seamless). Medido en vivo 2026-10-03 (Radeon 740M): la
                     // rotación CONTINUA repintaba la capa 150vmax en cada
-                    // vsync y costaba +14–37 pts de GPU 3D en Letras; con
-                    // steps el compositor salta los frames cuya matriz no
-                    // cambia → GPU = suelo (karaoke+resto), 29.9% → 11.6%
-                    // medido en A/B sobre la marcha. A 90 s/vuelta el salto
-                    // de 0,5° es invisible.
-                    animationTimingFunction: "steps(720, jump-none)",
+                    // vsync y costaba +14–37 pts de GPU 3D en Letras. A/B
+                    // intercalado con música, ventana maximizada y mismo
+                    // tema: steps(720) 46,7% vs steps(360) 37,4% (4 muestras
+                    // sin solape) → los 4 pasos/s rinden ~9 pts. A 90 s/vuelta
+                    // el salto de 1° sobre el fondo pre-difuminado es
+                    // invisible.
+                    animationTimingFunction: "steps(360, jump-none)",
                   }
                 : { inset: "-5%", transform: "scale(1.1)" }),
               backgroundImage: bgLoaded && bgLayerSrc ? `url(${bgLayerSrc})` : "none",
               backgroundSize: "cover",
               backgroundPosition: "center",
               // Filtro CSS solo como fallback si el pre-difuminado falló
-              // (canvas contaminado por CORS): en el flujo normal la cadena
+              // (canvas contaminado por CORS, o proxy de miniaturas bloqueado
+              // por el CSP: `img-src` no permitía 127.0.0.1:8765 hasta
+              // 2026-10-03, así que la app instalada mandaba SIEMPRE este
+              // filtro y cada paso de rotación re-rasterizaba 8,3 MP con
+              // Gaussian). En el flujo normal la cadena
               // blur+saturate+brightness va aplicada una vez en canvas y esta
-              // capa pinta sin `filter` (medido: ~1.8% GPU en Letras).
+              // capa pinta sin `filter`.
               filter:
                 bgLoaded && bgSrc && !bgBlurUrl
                   ? "blur(12px) saturate(1.2) brightness(0.7)"

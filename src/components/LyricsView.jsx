@@ -2132,11 +2132,11 @@ export function LyricsView({
               // Filtro CSS solo como fallback si el pre-difuminado falló
               // (canvas contaminado por CORS, o proxy de miniaturas bloqueado
               // por el CSP: `img-src` no permitía 127.0.0.1:8765 hasta
-              // 2026-10-03, así que la app instalada mandaba SIEMPRE este
-              // filtro y cada paso de rotación re-rasterizaba 8,3 MP con
-              // Gaussian). En el flujo normal la cadena
-              // blur+saturate+brightness va aplicada una vez en canvas y esta
-              // capa pinta sin `filter`.
+              // 2026-10-03 — la app instalada mandaba SIEMPRE este filtro;
+              // en el A/B pareado el filtro a 4 pasos/s no movió la aguja,
+              // pero el flujo diseñado es la cadena aplicada una vez en
+              // canvas, con textura pre-difuminada más ligera). En el flujo
+              // normal la capa pinta sin `filter`.
               filter:
                 bgLoaded && bgSrc && !bgBlurUrl
                   ? "blur(12px) saturate(1.2) brightness(0.7)"

@@ -9,9 +9,9 @@ describe("CSP de producción — cadena del pre-difuminado de Letras", () => {
     // por CSP en la app instalada (evento securitypolicyviolation →
     // img-src), el canvas caía contaminado por el fallback directo y
     // bgBlurUrl quedaba vacío: la capa de Letras rotaba SIEMPRE con el
-    // filtro CSS blur(12px) y cada paso re-rasterizaba 8,3 MP con Gaussian
-    // (la palanca grande de GPU tras el fix de steps). connect-src y
-    // media-src sí lo traían: solo img-src se había quedado corto.
+    // filtro CSS blur(12px) en vez del flujo diseñado (cadena aplicada en
+    // canvas, capa sin filter). connect-src y media-src sí lo traían: solo
+    // img-src se había quedado corto.
     const csp = tauriConf.app.security.csp;
     expect(csp).toContain("img-src");
     expect(csp).toMatch(/img-src[^;]*http:\/\/127\.0\.0\.1:8765/);

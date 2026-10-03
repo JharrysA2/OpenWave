@@ -433,18 +433,20 @@ app enfocada, música sonando):
   **37,4%**) — **las 4 muestras sin solape**, con el sistema en 69–78%.
   Se fija `steps(360)` (4 pasos/s, 1° por paso): ~9 pts menos que 720.
 
-- **El filtro CSS de la capa era el otro motor del coste y estaba roto en
-  producción**: `bgBlurUrl` (pre-difuminado en canvas) nunca se activaba
-  porque el CSP `img-src` no permitía `http://127.0.0.1:8765` (sí lo
-  hacían `connect-src` y `media-src`). La `Image` con `crossOrigin` del
-  proxy de miniaturas era bloqueada (confirmado con el evento
-  `securitypolicyviolation` → `img-src`), el fallback directo contaminaba
-  el canvas y la capa rotaba SIEMPRE con
-  `filter: blur(12px) saturate(1.2) brightness(0.7)` → **cada paso
-  re-rasterizaba 8,3 MP con Gaussian**. Fix: añadir el origen del backend
-  a `img-src` en `src-tauri/tauri.conf.json` (+ guard en
-  `imageBlur.test.js`); con el pre-difuminado activo la capa pinta sin
-  `filter`.
+- **El pre-difuminado (`bgBlurUrl`) nunca se activaba en producción —
+  bug de CSP**: `img-src` no permitía `http://127.0.0.1:8765` (sí lo
+  hacían `connect-src` y `media-src`), así que la `Image` con
+  `crossOrigin` del proxy de miniaturas era bloqueada (confirmado con el
+  evento `securitypolicyviolation` → `img-src`), el fallback directo
+  contaminaba el canvas y la capa rotaba con `filter: blur(12px)
+  saturate(1.2) brightness(0.7)` en vez del flujo diseñado (cadena ya
+  aplicada en canvas, textura pre-difuminada más ligera, capa sin
+  `filter`). Fix: añadir el origen del backend a `img-src` en
+  `src-tauri/tauri.conf.json` (+ guard en `imageBlur.test.js`). **OJO con
+  la atribución**: en el A/B pareado el filtro a 4 pasos/s no movió la
+  aguja (con filtro 20,0% vs sin filtro 20,7/20,0% en la verificación
+  final) — el filtro no era el motor del coste; sí lo eran la frecuencia
+  de pasos y, sobre todo, la rotación continua.
 
 - **El absoluto depende de la carga total del sistema**: con la rotación
   PAUSADA (suelo puro: karaoke + progreso) el mismo build marcó 18,4%
@@ -452,6 +454,17 @@ app enfocada, música sonando):
   integrada está compartida, así que cualquier % suelto del Administrador
   de Tareas hay que leerlo con la carga de fondo. Lo fiable sigue siendo
   el delta pareado en la misma tanda.
+
+- **Verificación final en el build instalado (2026-10-03; MSI
+  `63921b2e…`, maximizada 1920×1079, capa 2880², música, app enfocada)**:
+  estado shipped `steps(360)` + `filter: none` (fondo `data:image/webp`
+  pre-difuminado) → **20,7 / 20,0 / 20,0%** de GPU 3D en tres muestras
+  intercaladas (sistema 29–47%); suelo con rotación pausada **15,9%** →
+  la rotación cuesta ya solo ~+4 pts. Recorrido completo del día:
+  continuo **60,9%** → steps(720) **36,6%** → steps(360) **~20%**
+  (−67% sobre el continuo). El salto respecto a la tarde (360 ≈ 37% con
+  el sistema al 69–78%) vuelve a confirmar que el absoluto se infla con
+  la carga.
 
 - **Fix**: rama `settings.lyricsRotateBg` de
   `src/components/LyricsView.jsx` → `steps(360, jump-none)` (+ test

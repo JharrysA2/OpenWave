@@ -77,10 +77,10 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
     (verificado en vivo el 2026-10-02: con `ShowWindow(SW_MINIMIZE)` el
     documento seguía `"visible"` con `focus=false`) → con `visibilitychange`
     solo, la app nunca se congelaría al minimizar.
-  - El foco **no decide nada**: `blur`/`focus` (DOM) y `onFocusChanged`/`
-    onResized` (eventos de ventana de Tauri) solo disparan una *reconsulta*
-    de `IsIconic`. Con ventanas divididas (blur + `IsIconic=false`) no se
-    pausa ni apaga nada.
+  - El foco **no decide nada**: `blur`/`focus` (DOM) y los eventos de ventana
+    de Tauri (`onFocusChanged`/`onResized`) solo disparan una *reconsulta* de
+    `IsIconic`. Con ventanas divididas (blur + `IsIconic=false`) no se pausa
+    ni apaga nada.
   - **Restaurar sin foco**: tao emite `Resized` en todos los `WM_SIZE`
     (minimize y restore) → `onResized` despierta aunque el foco no vuelva
     (p. ej. `ShowWindow(SW_RESTORE)` sin activación).
@@ -92,7 +92,7 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
   CSS `!important`, rAF de letras y progreso de la barra frenados por
   `visible`. Si la ventana sigue oculta `APP_SLEEP_MS` (15 s, exportado de
   `PerformanceContext`) pasa a **`app-sleep`**: `animation: none` +
-  `transition: none` + cero efectos en * todos, y los componentes liberan
+  `transition: none` + cero efectos en todos los elementos, y los componentes liberan
   recursos pesados vía contexto `sleeping`:
   - `LyricsView` **desmonta la capa de fondo `150vmax`** (el mayor
     consumidor: abrir Letras +341 MB / cerrar −191 MB medidos, ver §8) y la

@@ -13,6 +13,39 @@ const readProjectFile = (rel) => readFileSync(join(process.cwd(), rel), "utf8");
 const mockSoftware = vi.hoisted(() => vi.fn(() => true));
 vi.mock("../utils/softwareRenderer", () => ({ isSoftwareRenderer: () => mockSoftware() }));
 
+// Doble de la ventana de Tauri: isMinimized (IsIconic vía IPC) y eventos
+// onResized/onFocusChanged. Sin este mock, el módulo real lanza en jsdom y
+// minimized resolvería siempre false → imposible simular «minimizar», que
+// WebView2 NO reporta por document.visibilityState (verificado en vivo).
+const tauri = vi.hoisted(() => ({
+  minimized: false,
+  resizeHandlers: [],
+  focusHandlers: [],
+}));
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => ({
+    isMinimized: async () => tauri.minimized,
+    onResized: async (h) => {
+      tauri.resizeHandlers.push(h);
+      return () => {};
+    },
+    onFocusChanged: async (h) => {
+      tauri.focusHandlers.push(h);
+      return () => {};
+    },
+  }),
+}));
+
+/** Dispara los listeners de ventana Tauri registrados por useVisibility. */
+const fireTauri = (kind) =>
+  (kind === "resize" ? tauri.resizeHandlers : tauri.focusHandlers).forEach((h) => h());
+
+beforeEach(() => {
+  tauri.minimized = false;
+  tauri.resizeHandlers.length = 0;
+  tauri.focusHandlers.length = 0;
+});
+
 function renderProvider() {
   return render(
     <SettingsProvider>
@@ -87,17 +120,91 @@ describe("PerformanceProvider — modo auto con detección de GPU", () => {
     expect(c).toContain("perf-solid");
   });
 
-  it("no añade 'app-hidden' con la ventana visible (aunque pierda el foco)", () => {
-    // El foco ya NO decide nada (ventanes divididas deben seguir vivas):
-    // solo manda document.visibilityState.
-    const focusSpy = vi.spyOn(document, "hasFocus").mockReturnValue(false);
+  it("no añade 'app-hidden' con la ventana visible (aunque pierda el foco)", async () => {
+    // El foco NO decide nada (ventanas divididas deben seguir vivas): el
+    // blur solo dispara una reconsulta de IsIconic, que aqui es false.
     renderProvider();
-    act(() => {
+    await act(async () => {
       window.dispatchEvent(new Event("blur"));
     });
     expect(classes()).not.toContain("app-hidden");
     expect(classes()).not.toContain("app-sleep");
-    focusSpy.mockRestore();
+  });
+});
+
+// ── Minimizado: la senal que visibilityState NO da (IsIconic de Win32) ───────
+//  Verificado en vivo el 2026-10-02: con ShowWindow(SW_MINIMIZE) el documento
+//  seguia "visible" (focus=false) -> con solo visibilitychange la app nunca se
+//  congelaria. Senales: blur/focus (DOM) + onResized/onFocusChanged (Tauri).
+
+describe("minimizar (IsIconic) — congelado sin visibilityState", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockSoftware.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("blur con IsIconic=true → 'app-hidden' (el documento sigue visible)", async () => {
+    await act(async () => {
+      renderProvider();
+    });
+    tauri.minimized = true;
+    await act(async () => {
+      window.dispatchEvent(new Event("blur"));
+    });
+    expect(document.visibilityState).toBe("visible");
+    expect(classes()).toContain("app-hidden");
+    expect(classes()).not.toContain("app-sleep");
+  });
+
+  it("blur con IsIconic=false (ventanas divididas) → NO congela nada", async () => {
+    await act(async () => {
+      renderProvider();
+    });
+    tauri.minimized = false;
+    await act(async () => {
+      window.dispatchEvent(new Event("blur"));
+    });
+    expect(classes()).not.toContain("app-hidden");
+    expect(classes()).not.toContain("app-sleep");
+  });
+
+  it("≥15 s minimizado → 'app-sleep'; restaurar SOLO por onResized (sin foco) → normal", async () => {
+    vi.useFakeTimers();
+    await act(async () => {
+      renderProvider();
+    });
+    tauri.minimized = true;
+    await act(async () => {
+      window.dispatchEvent(new Event("blur"));
+    });
+    expect(classes()).toContain("app-hidden");
+    await act(async () => {
+      vi.advanceTimersByTime(15000);
+    });
+    expect(classes()).toContain("app-sleep");
+    // Restore sin activacion: el foco NO vuelve, solo llega WM_SIZE -> Resized
+    // (tao lo emite en minimize y restore aunque el foco no cambie).
+    tauri.minimized = false;
+    await act(async () => {
+      fireTauri("resize");
+    });
+    expect(classes()).not.toContain("app-sleep");
+    expect(classes()).not.toContain("app-hidden");
+  });
+
+  it("onFocusChanged tambien reconcilia (refuerzo de la senal blur)", async () => {
+    await act(async () => {
+      renderProvider();
+    });
+    tauri.minimized = true;
+    await act(async () => {
+      fireTauri("focus");
+    });
+    expect(classes()).toContain("app-hidden");
   });
 });
 
@@ -118,9 +225,13 @@ describe("app-hidden → app-sleep — ciclo de congelado por visibilidad", () =
     delete document.visibilityState;
   });
 
-  /** Simula minimizar (hidden) o restaurar (visible) la ventana. */
-  const setVisibility = (value) => {
-    act(() => {
+  /**
+   * Simula ocultar (hidden) o restaurar (visible) el documento.
+   * Async: el paso «visible» reconcilia contra IsIconic (microtask) y hay
+   * que drenarlo DENTRO de act() para no emitir warnings de React.
+   */
+  const setVisibility = async (value) => {
+    await act(async () => {
       Object.defineProperty(document, "visibilityState", {
         configurable: true,
         get: () => value,
@@ -129,17 +240,17 @@ describe("app-hidden → app-sleep — ciclo de congelado por visibilidad", () =
     });
   };
 
-  it("minimizar → 'app-hidden' al instante (congelado t=0), sin 'app-sleep'", () => {
+  it("minimizar → 'app-hidden' al instante (congelado t=0), sin 'app-sleep'", async () => {
     renderProvider();
-    setVisibility("hidden");
+    await setVisibility("hidden");
     expect(classes()).toContain("app-hidden");
     expect(classes()).not.toContain("app-sleep");
   });
 
-  it("15 s oculta → 'app-sleep' (antes de los 15 s solo pausa)", () => {
+  it("15 s oculta → 'app-sleep' (antes de los 15 s solo pausa)", async () => {
     vi.useFakeTimers();
     renderProvider();
-    setVisibility("hidden");
+    await setVisibility("hidden");
     act(() => {
       vi.advanceTimersByTime(14999);
     });
@@ -150,27 +261,27 @@ describe("app-hidden → app-sleep — ciclo de congelado por visibilidad", () =
     expect(classes()).toContain("app-sleep");
   });
 
-  it("restaurar tras el sueño → limpia app-sleep y app-hidden al instante", () => {
+  it("restaurar tras el sueño → limpia app-sleep y app-hidden al instante", async () => {
     vi.useFakeTimers();
     renderProvider();
-    setVisibility("hidden");
+    await setVisibility("hidden");
     act(() => {
       vi.advanceTimersByTime(15000);
     });
     expect(classes()).toContain("app-sleep");
-    setVisibility("visible");
+    await setVisibility("visible");
     expect(classes()).not.toContain("app-sleep");
     expect(classes()).not.toContain("app-hidden");
   });
 
-  it("visible otra vez ANTES de 15 s → nunca llega a 'app-sleep'", () => {
+  it("visible otra vez ANTES de 15 s → nunca llega a 'app-sleep'", async () => {
     vi.useFakeTimers();
     renderProvider();
-    setVisibility("hidden");
+    await setVisibility("hidden");
     act(() => {
       vi.advanceTimersByTime(14000);
     });
-    setVisibility("visible");
+    await setVisibility("visible");
     act(() => {
       vi.advanceTimersByTime(60000);
     });
@@ -178,11 +289,11 @@ describe("app-hidden → app-sleep — ciclo de congelado por visibilidad", () =
     expect(classes()).not.toContain("app-hidden");
   });
 
-  it("con «Pausar efectos al ocultar» OFF → la ventana oculta no congela ni duerme", () => {
+  it("con «Pausar efectos al ocultar» OFF → la ventana oculta no congela ni duerme", async () => {
     vi.useFakeTimers();
     localStorage.setItem(SW_SETTINGS_KEY, JSON.stringify({ pauseEffectsHidden: false }));
     renderProvider();
-    setVisibility("hidden");
+    await setVisibility("hidden");
     act(() => {
       vi.advanceTimersByTime(60000);
     });
@@ -190,7 +301,7 @@ describe("app-hidden → app-sleep — ciclo de congelado por visibilidad", () =
     expect(classes()).not.toContain("app-sleep");
   });
 
-  it("expone visible/sleeping por contexto (LyricsView y usePlayer lo consumen)", () => {
+  it("expone visible/sleeping por contexto (LyricsView y usePlayer lo consumen)", async () => {
     vi.useFakeTimers();
     const { container } = render(
       <SettingsProvider>
@@ -202,14 +313,14 @@ describe("app-hidden → app-sleep — ciclo de congelado por visibilidad", () =
     const probe = () => container.querySelector('[data-testid="perf-probe"]');
     expect(probe().dataset.visible).toBe("true");
     expect(probe().dataset.sleeping).toBe("false");
-    setVisibility("hidden");
+    await setVisibility("hidden");
     expect(probe().dataset.visible).toBe("false");
     expect(probe().dataset.sleeping).toBe("false");
     act(() => {
       vi.advanceTimersByTime(15000);
     });
     expect(probe().dataset.sleeping).toBe("true");
-    setVisibility("visible");
+    await setVisibility("visible");
     expect(probe().dataset.sleeping).toBe("false");
   });
 });

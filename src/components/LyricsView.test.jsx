@@ -677,7 +677,7 @@ describe("LyricsView — app-sleep (≥15 s con la ventana oculta)", () => {
     localStorage.clear();
   });
 
-  it("desmonta la capa de fondo al dormirse (libera textura) y la remonta al despertar", () => {
+  it("desmonta la capa de fondo al dormirse (libera textura) y la remonta al despertar", async () => {
     vi.useFakeTimers();
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
@@ -710,7 +710,7 @@ describe("LyricsView — app-sleep (≥15 s con la ventana oculta)", () => {
       configurable: true,
       get: () => "visible",
     });
-    act(() => {
+    await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
     expect(document.documentElement.className).not.toContain("app-sleep");

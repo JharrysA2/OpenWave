@@ -69,9 +69,23 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
 | Oculta ≥ 15 s                 | `app-sleep`: animaciones **apagadas** + liberación de RAM     |
 | Restaurar/expandir            | todo vuelve a la normalidad al instante                       |
 
-- `useVisibility` escucha **solo `visibilitychange`** (`document.visibilityState`).
-  El foco (`document.hasFocus()`/`blur`/`focus`) ya no decide nada: perderlo con
-  la ventana visible no pausa ni apaga nada.
+- `useVisibility` calcula
+  `visible = document.visibilityState !== "hidden" && !isMinimized()`:
+  - **`visibilitychange`**: documento oculto → congelado síncrono, sin IPC.
+  - **`getCurrentWindow().isMinimized()` (Tauri → Win32 `IsIconic`)**: es la
+    señal de MINIMIZAR. **WebView2 NO cambia `visibilityState` al minimizar**
+    (verificado en vivo el 2026-10-02: con `ShowWindow(SW_MINIMIZE)` el
+    documento seguía `"visible"` con `focus=false`) → con `visibilitychange`
+    solo, la app nunca se congelaría al minimizar.
+  - El foco **no decide nada**: `blur`/`focus` (DOM) y `onFocusChanged`/`
+    onResized` (eventos de ventana de Tauri) solo disparan una *reconsulta*
+    de `IsIconic`. Con ventanas divididas (blur + `IsIconic=false`) no se
+    pausa ni apaga nada.
+  - **Restaurar sin foco**: tao emite `Resized` en todos los `WM_SIZE`
+    (minimize y restore) → `onResized` despierta aunque el foco no vuelva
+    (p. ej. `ShowWindow(SW_RESTORE)` sin activación).
+  - Sin runtime Tauri (tests/jsdom) `isMinimized()` lanza y se resuelve en
+    `false`: solo manda `visibilitychange`.
 - `PerformanceContext` añade `app-hidden` a `<html>` en cuanto la ventana queda
   oculta: animaciones con `animation-play-state: paused` (pausadas, no muertas
   ⇒ retoman donde estaban), backdrop/filter/shadow/will-change apagados con
@@ -98,8 +112,9 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
   `blur(40px)` inline; shell/player/popup siguen apagándose y los modos
   explícitos de Rendimiento ganan gracias al `:not()`.
 - La música sigue sonando y al restaurar el primer frame recalcula el estado
-  exacto. No se necesitan hooks en Rust: WebView2 reporta
-  `document.hidden` con la ventana minimizada.
+  exacto. No se necesitan hooks en Rust: basta el IPC ya existente
+  `getCurrentWindow().isMinimized()` (y `document.visibilityState` sí reporta
+  `hidden` cuando la ventana se oculta de verdad, p. ej. en un navegador).
 - **Consumo ~0 con la ventana minimizada**: con la ventana oculta el único
   latido que queda es el de conexión al backend, reducido a 60 s (10 s si está
   caído) y con chequeo inmediato al volver a ser visible
@@ -110,9 +125,11 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
   irreductible es el propio pipeline de audio si la canción sigue en marcha.
 - El modo Rendimiento (`perf-blur-off/anim-off/solid` + detección de software
   renderer, `src/utils/softwareRenderer.js`) cubre los equipos con GPU débil.
-- Tests: `PerformanceContext.test.jsx` (ciclo oculta→15 s→restaurar, foco
-  irrelevante, pauseEffectsHidden OFF, contexto `sleeping`, CSS de
-  `app-sleep`) y `LyricsView.test.jsx` (desmontaje/remontaje del fondo).
+- Tests: `PerformanceContext.test.jsx` (ciclo oculta→15 s→restaurar;
+  minimizado por `IsIconic` con `visibilityState` visible, incluido restaurar
+  SOLO por `onResized` sin foco; blur con `IsIconic=false` no congela;
+  pauseEffectsHidden OFF; contexto `sleeping`; CSS de `app-sleep`) y
+  `LyricsView.test.jsx` (desmontaje/remontaje del fondo en `app-sleep`).
 
 ## 5. Aceleración por hardware (estado: ACTIVA, no hay que activarla)
 

@@ -411,6 +411,15 @@ app enfocada, música sonando):
 | **`steps(360)` / `steps(720)` (giro ON)** | **10.9% / 11.6%** |
 | Minimizado + `app-sleep`                  | **2.2%**   |
 
+- **Ventana MAXIMIZADA (1920×1079, capa 150vmax = 2880², música sonando)**,
+  pareado en la misma sesión (2026-10-03, tras instalar el fix):
+  continuo **60.9% → steps(720) 36.6%**; en muestras sueltas, continuo
+  50–64% vs steps 37–44%, con suelo sin giro ≈ 18–30%. La resolución
+  importa: el coste por repintado escala con píxeles (ventanada 1100×720
+  steps ≈ suelo 11%). El absoluto se mueve ±10 pts con la carga del
+  sistema y el tramo de la letra; lo fiable es el delta pareado ≈ −15 a
+  −25 pts.
+
 - **Causa**: la rotación continua actualiza la matriz de transformación en
   **cada frame** → el compositor repinta la capa 150vmax en cada vsync.
   Con `animation-timing-function: steps(720, jump-none)` la matriz solo

@@ -36,6 +36,13 @@ export async function isWindowMinimized() {
  *     minimize como del restore → única señal que llega al restaurar
  *     SIN que vuelva el foco)
  *   - `onFocusChanged` de Tauri (refuerzo)
+ *   - WATCHDOG: en vivo el 2026-10-03 se midió que las señales de
+ *     restauración pueden llegar RETARDADAS o no llegar y la ventana
+ *     quedó restaurada con app-sleep clavado (letras sin fondo y
+ *     animaciones muertas con la ventana a la vista). Mientras `visible`
+ *     siga false, un timer consulta IsIconic cada segundo → el despertar
+ *     no puede quedar atrapado. Solo corre CONGELADO (al despertar el
+ *     efecto se destruye): 1 IPC/s como máximo, cero con la app viva.
  *
  * La MUSICA SIGUE SONANDO en todos los casos: si la ventana queda
  * oculta, los efectos visuales pesados se pausan (app-hidden) y a los
@@ -121,6 +128,21 @@ export function useVisibility() {
       });
     };
   }, [reconcile]);
+
+  // ── Watchdog de despertar ────────────────────────────────────────────────
+  // Mientras la app esté CONGELADA (visible=false con el documento a la
+  // vista — WebView2 nunca reporta hidden), consulta IsIconic cada segundo:
+  // si la señal de restauración no llega (o llega tarde), el despertar pasa
+  // en ≤1 s igualmente. Con la app viva no existe (visible=true → sin
+  // efecto), así que ni un timer ni un IPC sobran.
+  useEffect(() => {
+    if (visible) return undefined;
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      return undefined; // oculto de verdad: visibilitychange manda, sin IPC
+    }
+    const wd = setInterval(() => reconcile(), 1000);
+    return () => clearInterval(wd);
+  }, [visible, reconcile]);
 
   return visible;
 }

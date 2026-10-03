@@ -19,12 +19,16 @@ vi.mock("../utils/softwareRenderer", () => ({ isSoftwareRenderer: () => mockSoft
 // WebView2 NO reporta por document.visibilityState (verificado en vivo).
 const tauri = vi.hoisted(() => ({
   minimized: false,
+  isMinCalls: 0,
   resizeHandlers: [],
   focusHandlers: [],
 }));
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
-    isMinimized: async () => tauri.minimized,
+    isMinimized: async () => {
+      tauri.isMinCalls += 1;
+      return tauri.minimized;
+    },
     onResized: async (h) => {
       tauri.resizeHandlers.push(h);
       return () => {};
@@ -42,6 +46,7 @@ const fireTauri = (kind) =>
 
 beforeEach(() => {
   tauri.minimized = false;
+  tauri.isMinCalls = 0;
   tauri.resizeHandlers.length = 0;
   tauri.focusHandlers.length = 0;
 });
@@ -205,6 +210,41 @@ describe("minimizar (IsIconic) — congelado sin visibilityState", () => {
       fireTauri("focus");
     });
     expect(classes()).toContain("app-hidden");
+  });
+
+  it("watchdog: SIN ninguna senal de restauracion → despierta en <=1 s (y luego, cero IPC)", async () => {
+    // Medido en vivo el 2026-10-03: la ventana se restauró pero las senales
+    // (resize/focus) llegaron tarde o no llegaron y app-sleep quedo CLAVADO
+    // con la ventana a la vista (bug real de la primera version del esquema).
+    // El watchdog consulta IsIconic mientras este congelado: el despertar
+    // no depende de que llegue evento alguno.
+    vi.useFakeTimers();
+    await act(async () => {
+      renderProvider();
+    });
+    tauri.minimized = true;
+    await act(async () => {
+      window.dispatchEvent(new Event("blur"));
+    });
+    expect(classes()).toContain("app-hidden");
+    await act(async () => {
+      vi.advanceTimersByTime(15000);
+    });
+    expect(classes()).toContain("app-sleep");
+    // Restaurada la ventana SIN disparar ni resize ni focus: solo el
+    // watchdog puede verlo — y lo hace en su primer tick (<=1 s).
+    tauri.minimized = false;
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(classes()).not.toContain("app-sleep");
+    expect(classes()).not.toContain("app-hidden");
+    // Con la app viva el efecto del watchdog ya no existe: ni un IPC más.
+    const calls = tauri.isMinCalls;
+    await act(async () => {
+      vi.advanceTimersByTime(10000);
+    });
+    expect(tauri.isMinCalls).toBe(calls);
   });
 });
 

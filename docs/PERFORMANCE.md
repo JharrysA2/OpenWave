@@ -585,11 +585,28 @@ de media) para ver la FORMA de la onda:
   fila (G ≈ 0); quitar el visual de palabras (M ≈ 0); sin-scroll total
   (K) en favor de la banda central (glide cuando importa).
 
-- **Pendiente conocido**: el resto del pico (~+12–19 sobre la base) es
-  el repintado *one-shot* del bloque completo al cambiar de línea
-  (47 líneas cambian tamaño/opacidad/escala — «lente cilíndrico») más
-  la rotación (+6 de base). Atacarlo exige cuantizar la distancia de
-  las líneas lejanas o rediseñar la jerarquía de tamaños.
+- **Verificación en vivo del build corregido** (cc27a59, «Soy Peor»,
+  seek t=40, others ≈ 30, foco verificado pre/post en las dos series):
+
+  | Serie        | media | mín  | **máx** | picos |
+  | ------------ | ----- | ---- | ------- | ----- |
+  | Control previo (pre-fix, otros ≈ 32–34) | ~20 | 14–16 | **33–44** (hasta 52) | uno cada 3–5 s |
+  | POST-fix-1   | 23,1  | 16,6 | **27**   | ninguno |
+  | POST-fix-2   | 23,2  | 17,3 | **28**   | ninguno |
+
+  Amplitud de la onda: **~30 pts antes → ~11 pts después** (el suelo
+  sube un poco — la banda central hace que los pocos scrolls que quedan
+  sean más largos — pero DESAPARECEN los picos, que era la queja:
+  «picos de 24 a 50»). DOM en vivo confirmado: `transition: color 0.5s
+  + font-weight 0.4s` sin `text-shadow`, glow `rgba(…,.53) 0 0 16px`,
+  rotación `steps(720, jump-none)`, capa 2246 (hypot).
+
+- **Pendiente conocido**: el resto de la base (~+6) es la rotación, y
+  el one-shot del bloque completo al cambiar de línea (~+12–19 medido
+  con scroll glider) queda amortiguido pero no eliminado — atacarlo
+  exige cuantizar la distancia de las líneas lejanas o rediseñar la
+  jerarquía de tamaños. En cuanto el usuario confirme que la onda es
+  sostenible, cerramos.
 
 ## Regla de oro
 

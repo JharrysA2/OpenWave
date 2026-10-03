@@ -393,12 +393,13 @@ describe("LyricsView", () => {
     );
   });
 
-  it("las palabras iluminadas van sin transition y con glow de un solo radio (16px)", async () => {
-    // Medido 2026-10-03 (parejas K/N/PD, carga externa constante): la
-    // transition de color/peso/sombra repintaba cada span en cada frame
-    // durante .4–.5s, y repintar con text-shadow re-rasterizaba el doble
-    // glow → 17,4% → 6,7% solo por quitar la sombra (−10,7 pts), y el
-    // radio de32px aportaba otros −4 pts por su cuenta (32,3% → 28,3%).
+  it("las palabras iluminadas llevan fade de color/peso SIN transición de sombra y glow de un solo radio (16px)", async () => {
+    // Medido 2026-10-03: la transición de text-shadow re-rasterizaba el
+    // doble glow en cada frame por palabra (pareja K: −10,7 pts quitando
+    // la sombra; el radio de32px, −4 pts solo — PD/PE), PERO el snap total
+    // rompió la suavidad palabra a palabra. Sonda J: el fade de color
+    // costó ~0 pts (19,9% vs 20,0% de control pareado) → se restaura
+    // color .5s + font-weight .4s y se mantiene fuera la sombra.
     const lrcLines = ["[00:01.00]Hello beautiful world"];
     mockApiGet.mockImplementation((path) => {
       if (path.startsWith("/lyrics/")) {
@@ -425,8 +426,15 @@ describe("LyricsView", () => {
         ),
       { timeout: 3000 },
     );
-    const spans = Array.from(row.querySelectorAll("span"));
-    spans.forEach((s) => expect(s.style.transition).toBe(""));
+    const spans = Array.from(row.querySelectorAll("span")).filter(
+      (s) => s.style.textShadow !== "", // solo spans de palabra (el wrapper no)
+    );
+    expect(spans.length).toBeGreaterThan(2);
+    spans.forEach((s) => {
+      expect(s.style.transition).toContain("color .5s");
+      expect(s.style.transition).toContain("font-weight .4s");
+      expect(s.style.transition).not.toContain("text-shadow");
+    });
     const lit = spans.find((s) => s.style.color && s.style.color !== unlitColor);
     expect(lit).toBeTruthy();
     expect(lit.style.textShadow).toContain("16px");
@@ -611,6 +619,91 @@ describe("LyricsView auto-scroll latch", () => {
       vi.advanceTimersByTime(3000);
     });
     expect(calls()).toBe(3);
+  });
+
+  it("la banda central (30–70%) omite el scroll; fuera de banda centra con glide", async () => {
+    // Medido 03/10 (sonda K): el glide en cada cambio de línea costaba
+    // ~9 pts en cada pico de GPU (24–34 sin scroll vs 33–44 de control).
+    // Con la banda, la línea activa en zona central no dispara scroll.
+    vi.useFakeTimers({
+      toFake: [
+        "setTimeout",
+        "clearTimeout",
+        "setInterval",
+        "clearInterval",
+        "requestAnimationFrame",
+        "cancelAnimationFrame",
+        "Date",
+        "performance",
+      ],
+    });
+    const lrcLines = ["[00:01.00]Line one", "[00:10.00]Line two", "[00:15.00]Line three"];
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) {
+        return Promise.resolve({ lyrics: lrcLines, source: "lrcLib" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+    const progressRef = { current: 3 };
+    const { container } = renderLyrics({ progressRef });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const scrollBox = container.querySelector('[data-testid="lyrics-scroll"]');
+    const calls = () => Element.prototype.scrollIntoView.mock.calls.length;
+    Element.prototype.scrollIntoView.mockClear();
+
+    // jsdom da rects a 0 (el guard cae a "centrar siempre"); hay que
+    // simular un contenedor real para ejercitar la banda.
+    scrollBox.getBoundingClientRect = () => ({
+      top: 0,
+      bottom: 400,
+      height: 400,
+      left: 0,
+      right: 800,
+      width: 800,
+    });
+    const line0 = document.querySelector('[data-testid="lyric-line-0"]');
+    // Línea DENTRO de la banda (30–70% de 400 = 120–280) → sin scroll
+    line0.getBoundingClientRect = () => ({
+      top: 140,
+      bottom: 200,
+      height: 60,
+      left: 0,
+      right: 800,
+      width: 800,
+    });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(line0.style.opacity).toBe("1");
+    expect(calls()).toBe(0);
+
+    // Línea FUERA de banda (bottom 360 > 280) → glide al centro
+    const line1 = document.querySelector('[data-testid="lyric-line-1"]');
+    line1.getBoundingClientRect = () => ({
+      top: 300,
+      bottom: 360,
+      height: 60,
+      left: 0,
+      right: 800,
+      width: 800,
+    });
+    act(() => {
+      progressRef.current = 12;
+    });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(document.querySelector('[data-testid="lyric-line-1"]').style.opacity).toBe("1");
+    expect(calls()).toBe(1);
   });
 });
 

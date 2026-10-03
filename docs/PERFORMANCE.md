@@ -536,12 +536,60 @@ condición del usuario):
   denso. Opción aún más agresiva medida pero NO implementada: quitar el
   glow del todo = −10,7 pts (dejaría el karaoke plano, blanco/terciario).
 
-- **Pitfall metodológico (confirmado 3 veces)**: con la ventana
+- **Pitfall metodológico (confirmado 5 veces)**: con la ventana
   **ocluida** (otra app maximizada delante) WebView2 **suspende la
   composición** → la app marca 0–7% e «inválido»; **minimizada** →
   `app-sleep` → 0%. Toda muestra debe verificar
   `isMinimized=false + document.hasFocus() + cls=""` (vía set-eval)
   antes y después de leer el contador.
+
+### 9.2 Ronda 3 (2026-10-03 tarde): picos «24↔50 todo el rato» y suavidad del karaoke
+
+El usuario reporta: (1) tras el snap del karaoke «palabra a palabra no
+es suave»; (2) la GPU «tiene picos de 24 a 50% y así todo el rato, eso
+no es sostenible». Se añade `gpu-series.ps1` (valor por segundo en vez
+de media) para ver la FORMA de la onda:
+
+- **Onda del build shipped** (maximizada, música, enfocada): base
+  **14–16%** con **picos de 33–49% cada 3–5 s** — los picos coinciden
+  con los **cambios de línea** (media 20–37 según la sección y la carga;
+  la serie con el sistema inactiva llegaba a media 36,6 — los
+  absolutos siguen atados al entorno, solo valen parejas).
+
+- **Atribución por sondeos intercalados** (seek al mismo punto de la
+  canción ⇒ mismo contenido; others = sistema − app ≈ 32–34 en todas):
+
+  | Variante (sonda CDP)                    | media | picos t=1,3,5     |
+  | ---------------------------------------- | ----- | ----------------- |
+  | Control                                  | ~20   | **33–44**         |
+  | Sin scroll suave (K)                     | 18,2  | **24–34** ← scroll ≈ −9 pts/pico |
+  | Sin transiciones de fila (G)             | 19,9  | 33–44 (igual)     |
+  | Sin visual de palabras (M)               | 20,4  | 30–46 (igual)     |
+  | Lejanas sin transición de font-size (F)  | 20,4  | 32–44 (igual)     |
+  | **Fade de color (J)**                    | **19,9** | 33–43 (**igual ⇒ la suavidad es gratis**) |
+  | Banda central de scroll (T)              | 36,1  | ≈ control (sesión ruidosa: 4 series con otros≈9) |
+
+- **Conclusiones implementadas**:
+  1. **Suavidad del karaoke restaurada**: `transition: color .5s,
+     font-weight .4s` (sin `text-shadow`) — sonda J: coste ~0.
+  2. **Scroll por bandas** (30–70% del contenedor): la línea activa en
+     zona central ya no dispara `scrollIntoView`; fuera de banda, glide
+     suave al centro (decisión del usuario). El glide completo costaba
+     ~9 pts por pico (sonda K).
+  3. **Glow** intacto (16px, sin transición de sombra): lo medido en
+     §9.1 se mantiene.
+
+- **Descartados con datos**: `will-change: transform` en la capa de
+  rotación (ventana ocluida en los 3 intentos — firma de oclusión
+  0–3,7% — y la mañana del mismo día ya no ayudó); transiciones de
+  fila (G ≈ 0); quitar el visual de palabras (M ≈ 0); sin-scroll total
+  (K) en favor de la banda central (glide cuando importa).
+
+- **Pendiente conocido**: el resto del pico (~+12–19 sobre la base) es
+  el repintado *one-shot* del bloque completo al cambiar de línea
+  (47 líneas cambian tamaño/opacidad/escala — «lente cilíndrico») más
+  la rotación (+6 de base). Atacarlo exige cuantizar la distancia de
+  las líneas lejanas o rediseñar la jerarquía de tamaños.
 
 ## Regla de oro
 

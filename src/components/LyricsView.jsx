@@ -1284,20 +1284,19 @@ const KaraokeWords = React.memo(
         <span
           key={pi}
           style={{
-            // SIN transition (medido 03/10, parejas K/N/PD): cada
-            // transición de color/peso/sombra repintaba el span en CADA
-            // frame durante .4–.5s, y repintar un span con text-shadow
-            // re-rasterizaba el glow → con el doble radio la pareja K
-            // marcaba 17,4% → 6,7% solo por quitar la sombra (−10,7 pts
-            // de GPU a carga externa constante). El snap de iluminación
-            // rinde ~4 pts más y el resalte a golpe es el comportamiento
-            // estándar del karaoke.
+            // Transición SOLO de color y peso (medido 03/10, sonda J): el
+            // fade de color costó ~0 pts (19,9% vs 20,0% de control pareado
+            // al mismo punto de la canción) y devuelve la suavidad palabra
+            // a palabra («palabra a palabra no es suave»). SIN transición de
+            // text-shadow: interpolar el blur re-rasterizaba el glow en cada
+            // frame de la transición (doble radio −10,7 pts en la pareja K;
+            // el radio de32px, −4 pts por sí solo en PD/PE).
+            transition: "color .5s cubic-bezier(.25,.1,.25,1), font-weight .4s cubic-bezier(.25,.1,.25,1)",
             color: isLit ? "#ffffff" : COLORS.textTertiary,
             fontWeight: isActiveWord ? "900" : isLit ? "700" : "500",
-            // Glow de un solo radio: el 32px aportaba poco halo y
-            // costaba ~4 pts por sí solo (pareja PD/PE: 32,3% → 28,3%,
-            // otros 34,8/34,0 constantes). El 16px conserva el «glow
-            // sutil» del diseño.
+            // Glow de un solo radio: el 32px aportaba poco halo y costaba
+            // ~4 pts por sí solo (pareja PD/PE: 32,3% → 28,3%). El 16px
+            // conserva el «glow sutil» del diseño.
             textShadow: isLit ? `0 0 16px ${accentColor}88` : "none",
           }}
         >
@@ -1756,11 +1755,26 @@ export function LyricsView({
     // ⭐ Solo hacer scroll cuando cambia la línea activa (no cada frame):
     //    evita "saltos" constantes y micro-jitter del smooth scroll.
     lastScrolledLineRef.current = currentLine;
-    scrollLatchRef.current = performance.now();
     const el = lineRefs.current[currentLine];
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (!el) return;
+
+    // Banda central 30–70%: mientras la línea activa siga dentro, NO hay
+    // scroll. Medido 03/10 (sonda K, pareado al mismo punto de la canción):
+    // el glide en cada cambio de línea aportaba ~9 pts a cada pico (sin
+    // scroll 24–34 vs control 33–44) — el reposicionado continuo era puro
+    // repintado. Al salir de la banda, glide suave al centro (se conserva
+    // el look centrado). Sin rectángulos medibles (jsdom, altura 0) →
+    // centrar siempre, como antes.
+    const cont = lyricsContainerRef.current;
+    const r = el.getBoundingClientRect();
+    const c = cont.getBoundingClientRect();
+    if (c.height > 0) {
+      const top = r.top - c.top;
+      const bottom = r.bottom - c.top;
+      if (top >= c.height * 0.3 && bottom <= c.height * 0.7) return;
     }
+    scrollLatchRef.current = performance.now();
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [currentLine, lyrics, isSynced, autoScroll]);
 
   // ── Reset scroll timer when user scrolls manually ──────────────────────────

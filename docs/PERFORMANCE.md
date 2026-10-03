@@ -393,7 +393,7 @@ motor.
 - **Documento, no flags**: se mantiene la decisión de no forzar flags GPU;
   la palanca del usuario es «Pausar efectos al ocultar» (por defecto ON).
 
-## 9. Letras: «Girar el fondo» costaba +14–37 pts de GPU → `steps(360)` + pre-difuminado
+## 9. Letras: «Girar el fondo» costaba +14–37 pts de GPU → `steps(720)` + capa diagonal + pre-difuminado
 
 Síntoma (2026-10-03): en la pantalla de Letras la GPU integrada (Radeon
 740M) marcaba ~75% «antes gastaba menos de 20%».
@@ -467,8 +467,10 @@ app enfocada, música sonando):
   la carga.
 
 - **Fix**: rama `settings.lyricsRotateBg` de
-  `src/components/LyricsView.jsx` → `steps(360, jump-none)` (+ test
-  «rendimiento del fondo» en `LyricsView.test.jsx`); CSP `img-src` en
+  `src/components/LyricsView.jsx` → `steps(720, jump-none)` + capa
+  `calc(hypot(100vw, 100vh) * 1.02)` (estado final; el `steps(360)` de la
+  mañana se revirtió, ver «Ronda 2» abajo) (+ test en
+  `LyricsView.test.jsx`); CSP `img-src` en
   `src-tauri/tauri.conf.json` (+ test guard en `imageBlur.test.js`).
 - **Nota metodológica — por qué «antes» marcaba <20%**: (1) la rotación
   **no llegaba a girar** hasta 2026-10-01: las `@keyframes sw-bg-spin`
@@ -481,6 +483,65 @@ app enfocada, música sonando):
   Administrador de Tareas para mirar la GPU medía la app **congelada**.
   Hoy, por la spec (a) (ventanas divididas no pausan nada), se mide el
   coste real con la app viva — este §9 es ese coste.
+
+### 9.1 Ronda 2 (2026-10-03 tarde): el `steps(360)` se veía en pausas + el karaoke
+
+El usuario reporta dos cosas: «el movimiento se ve en pausas, avanza en
+pausas» (el salto de 1°/250 ms del `steps(360)` **es perceptible**) y
+«en Letras sigue al 50%». Diagnóstico en vivo en el build instalado
+(maximizada 1920×1079, música, app enfocada; sistema al 74–87% = la
+condición del usuario):
+
+| Estado (CDP, verificado por set-eval)                | GPU 3D app | Sistema |
+| ---------------------------------------------------- | ---------- | ------- |
+| Shipped: `steps(360)` @ capa 150vmax (2880²)         | 40,4%      | 83,1%   |
+| `steps(720)` @ capa 150vmax                          | 44,1%      | 86,8%   |
+| **`steps(720)` @ capa diagonal (`hypot`, 2246²)**    | **38,9%**  | 82,3%   |
+| Suelo (rotación pausada)                             | 31,4%      | 74,6%   |
+
+- **`hypot()` funciona en el WebView2**: `calc(hypot(100vw, 100vh) *
+  1.02)` resolvió a `offsetWidth=2246` (Chrome 111+). El lado mínimo
+  que cubre el viewport en **todos** los ángulos es la diagonal
+  √(w²+h²) (la esquina más lejana tiene radio exactamente esa);
+  150vmax sobre-dimensionaba un 30% → −39% de píxeles por repintado.
+
+- **Se revierte a `steps(720)`**: 720@diagonal (38,9%) es **más barato
+  que el 360@150vmax shipped (40,4%) y se mueve a 8 pasos/s** (0,5°/
+  125 ms — la cadencia aceptada visualmente desde la mañana). Arreglo
+  completo de ambas quejas: sin pausas visibles y menos GPU.
+
+- **Atribución del suelo (karaoke)**, pareada con carga externa
+  constante (others = sistema − app ≈ 36–45 en todas las muestras):
+  suelo completo 31–34% → oculto el texto de Letras **9,4%** → ocultos
+  también gradients+bg **6,2%**. El karaoke es el motor, no la rotación
+  ni los gradients. Descomposición de ese karaoke (controles 17,4/16,7%):
+
+  | Variante medida (rotación pausada)        | GPU 3D app | Δ vs control |
+  | ----------------------------------------- | ---------- | ------------ |
+  | Control (glow doble radio + transitions)  | 17,4%      | —            |
+  | Sin `text-shadow` en las palabras         | **6,7%**   | **−10,7**    |
+  | Sin sombra + sin transiciones             | 7,0%       | (sin sombra, las transiciones no pegan) |
+  | Snap completo (sin transitions), glow ON  | 32,5%      | −3/−5 (controles 37,7/34,8) |
+  | **Solo quitar el radio de 32px**          | **28,3%**  | **−4,0** (controles 32,3; others 34,8/34,0) |
+  | Glow solo en la palabra activa            | 33,8%      | −2,7 (insuficiente: repintar la palabra que apaga/gana el glow cuesta lo mismo) |
+
+  **Mecanismo**: `transition: …, text-shadow .5s` (y el `color`/`font-weight`)
+  repintaba el span **en cada frame** durante .4–.5 s por palabra, y cada
+  repintado de un span con `text-shadow` re-rasteriza el blur; con todas
+  las palabras cantadas manteniendo el glow, la cascada es continua.
+
+- **Fix implementado** (`KaraokeWords` en `LyricsView.jsx`): glow de un
+  **solo radio (16px)** y **sin `transition`** (resalte a golpe, el
+  estándar del karaoke). Estimado pareado: −5 a −7 pts en el karaoke
+  denso. Opción aún más agresiva medida pero NO implementada: quitar el
+  glow del todo = −10,7 pts (dejaría el karaoke plano, blanco/terciario).
+
+- **Pitfall metodológico (confirmado 3 veces)**: con la ventana
+  **ocluida** (otra app maximizada delante) WebView2 **suspende la
+  composición** → la app marca 0–7% e «inválido»; **minimizada** →
+  `app-sleep` → 0%. Toda muestra debe verificar
+  `isMinimized=false + document.hasFocus() + cls=""` (vía set-eval)
+  antes y después de leer el contador.
 
 ## Regla de oro
 

@@ -393,6 +393,46 @@ describe("LyricsView", () => {
     );
   });
 
+  it("las palabras iluminadas van sin transition y con glow de un solo radio (16px)", async () => {
+    // Medido 2026-10-03 (parejas K/N/PD, carga externa constante): la
+    // transition de color/peso/sombra repintaba cada span en cada frame
+    // durante .4–.5s, y repintar con text-shadow re-rasterizaba el doble
+    // glow → 17,4% → 6,7% solo por quitar la sombra (−10,7 pts), y el
+    // radio de32px aportaba otros −4 pts por su cuenta (32,3% → 28,3%).
+    const lrcLines = ["[00:01.00]Hello beautiful world"];
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) {
+        return Promise.resolve({ lyrics: lrcLines, source: "lrcLib" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+    const progressRef = { current: 1.5 };
+    renderLyrics({ progressRef });
+    const row = await screen.findByTestId("lyric-line-0");
+    const unlitColor = (() => {
+      const el = document.createElement("span");
+      el.style.color = COLORS.textTertiary;
+      return el.style.color;
+    })();
+    await waitFor(() => expect(row.style.opacity).toBe("1"), { timeout: 3000 });
+    await waitFor(
+      () =>
+        Array.from(row.querySelectorAll("span")).some(
+          (s) => s.style.color && s.style.color !== unlitColor,
+        ),
+      { timeout: 3000 },
+    );
+    const spans = Array.from(row.querySelectorAll("span"));
+    spans.forEach((s) => expect(s.style.transition).toBe(""));
+    const lit = spans.find((s) => s.style.color && s.style.color !== unlitColor);
+    expect(lit).toBeTruthy();
+    expect(lit.style.textShadow).toContain("16px");
+    expect(lit.style.textShadow).not.toContain("32px");
+  });
+
   // ── Recargar letras nunca re-usa el cache viejo ni hace doble fetch ──────
 
   it("reload forces a fresh fetch and never falls back to the stale cache", async () => {
@@ -656,13 +696,15 @@ describe("LyricsView — rendimiento del fondo", () => {
     expect(bg.style.willChange).toBe("");
   });
 
-  it("«Girar el fondo» usa steps(360, jump-none): la rotación continua costaba +14–37 pts de GPU", () => {
-    // Medido en vivo 2026-10-03 (Radeon 740M): con la rotación CONTINUA la
-    // capa 150vmax se repintaba en cada vsync (63–70% de GPU 3D en una
-    // sesión, 30% en otra). A/B intercalado con música, ventana maximizada
-    // y mismo tema: steps(720) 46,7% vs steps(360) 37,4% (muestras sin
-    // solape) → 4 cambios de matriz/s rinden ~9 pts frente a 8/s. El salto
-    // de 1° a 90 s/vuelta es invisible sobre el fondo pre-difuminado, y
+  it("«Girar el fondo» usa steps(720) y capa diagonal hypot(): continuo caro y360 se veía en pausas", () => {
+    // Medido en vivo 2026-10-03 (Radeon 740M). La rotación CONTINUA
+    // repinta la capa en cada vsync (+14–37 pts de GPU 3D). A/B pareado:
+    // steps(720) 44,1% vs steps(360) 40,4%, pero el 1°/250 ms se VEÍA en
+    // pausas («se mira que avanza en pausas») → se revierte a 720
+    // (0,5°/125 ms, aceptado visualmente). El ahorro vuelve por la capa:
+    // lado = hypot(100vw,100vh)×1.02 = diagonal mínima que cubre en todo
+    // ángulo → 720@diagonal 38,9% < 40,4% del 360@150vmax (−39% píxeles;
+    // hypot validado en el WebView2 real: offsetWidth=2246 a 1920×1079).
     // jump-none cierra el último paso en 360°=0° → bucle seamless.
     localStorage.setItem(
       SW_SETTINGS_KEY,
@@ -680,7 +722,12 @@ describe("LyricsView — rendimiento del fondo", () => {
     const bg = container.querySelector('[data-testid="lyrics-bg"]');
     expect(bg).toBeTruthy();
     expect(bg.style.animation).toContain("sw-bg-spin");
-    expect(bg.style.animationTimingFunction).toBe("steps(360, jump-none)");
+    expect(bg.style.animationTimingFunction).toBe("steps(720, jump-none)");
+    // jsdom re-serializa el calc() (p. ej. "calc(1.02 * hypot(…)"), así
+    // que comprobamos los substrings esenciales en vez de la cadena literal.
+    expect(bg.style.width).toContain("hypot");
+    expect(bg.style.height).toContain("hypot");
+    expect(bg.style.width).toContain("1.02");
     localStorage.clear();
   });
 });

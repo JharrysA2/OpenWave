@@ -1284,11 +1284,21 @@ const KaraokeWords = React.memo(
         <span
           key={pi}
           style={{
-            transition:
-              "color .5s cubic-bezier(.25,.1,.25,1), text-shadow .5s cubic-bezier(.25,.1,.25,1), font-weight .4s cubic-bezier(.25,.1,.25,1)",
+            // SIN transition (medido 03/10, parejas K/N/PD): cada
+            // transición de color/peso/sombra repintaba el span en CADA
+            // frame durante .4–.5s, y repintar un span con text-shadow
+            // re-rasterizaba el glow → con el doble radio la pareja K
+            // marcaba 17,4% → 6,7% solo por quitar la sombra (−10,7 pts
+            // de GPU a carga externa constante). El snap de iluminación
+            // rinde ~4 pts más y el resalte a golpe es el comportamiento
+            // estándar del karaoke.
             color: isLit ? "#ffffff" : COLORS.textTertiary,
             fontWeight: isActiveWord ? "900" : isLit ? "700" : "500",
-            textShadow: isLit ? `0 0 16px ${accentColor}88, 0 0 32px ${accentColor}44` : "none",
+            // Glow de un solo radio: el 32px aportaba poco halo y
+            // costaba ~4 pts por sí solo (pareja PD/PE: 32,3% → 28,3%,
+            // otros 34,8/34,0 constantes). El 16px conserva el «glow
+            // sutil» del diseño.
+            textShadow: isLit ? `0 0 16px ${accentColor}88` : "none",
           }}
         >
           {part}
@@ -2101,29 +2111,34 @@ export function LyricsView({
             data-testid="lyrics-bg"
             style={{
               position: "absolute",
-              // «Girar el fondo» (lyricsRotateBg): capa cuadrada de 150vmax
-              // centrada — un cuadrado ≥ diagonal del viewport siempre cubre,
-              // así la rotación no deja esquinas destapadas (el contenedor
-              // con overflow:hidden la recorta). Sin la opción: 110% + scale.
+              // «Girar el fondo» (lyricsRotateBg): capa cuadrada centrada
+              // con lado = diagonal del viewport — el lado mínimo que
+              // cubre el rectángulo en TODOS los ángulos es √(w²+h²)
+              // (basta la esquina más lejana: max |x·cosθ+y·senθ| = r);
+              // ×1.02 de margen por redondeo. Sin la opción: 110% + scale.
               ...(settings.lyricsRotateBg
                 ? {
-                    width: "150vmax",
-                    height: "150vmax",
+                    // hypot() (CSS Values 4, Chrome 111+) calcula la
+                    // diagonal en vivo con el resize. Antes era 150vmax
+                    // (2880² a 1920×1079) = −39% de píxeles por paso:
+                    // 720@diagonal 38,9% vs 720@150vmax 44,1% vs el
+                    // 360@150vmax 40,4% que se envió la mañana del
+                    // 03/10 (sistema 82–87%, mismas condiciones).
+                    width: "calc(hypot(100vw, 100vh) * 1.02)",
+                    height: "calc(hypot(100vw, 100vh) * 1.02)",
                     left: "50%",
                     top: "50%",
                     transform: "translate(-50%, -50%)",
                     animation: "sw-bg-spin 90s linear infinite",
-                    // steps(360, jump-none): la matriz solo cambia 4 veces/s
-                    // (1° por paso; jump-none cierra en 360°=0° → bucle
-                    // seamless). Medido en vivo 2026-10-03 (Radeon 740M): la
-                    // rotación CONTINUA repintaba la capa 150vmax en cada
-                    // vsync y costaba +14–37 pts de GPU 3D en Letras. A/B
-                    // intercalado con música, ventana maximizada y mismo
-                    // tema: steps(720) 46,7% vs steps(360) 37,4% (4 muestras
-                    // sin solape) → los 4 pasos/s rinden ~9 pts. A 90 s/vuelta
-                    // el salto de 1° sobre el fondo pre-difuminado es
-                    // invisible.
-                    animationTimingFunction: "steps(360, jump-none)",
+                    // steps(720, jump-none): 0,5° cada 125 ms — 8 pasos/s;
+                    // jump-none cierra en 360°=0° → bucle seamless. La
+                    // rotación continua costaba +14–37 pts de GPU; el
+                    // steps(360) (1°/250 ms) ahorraba ~9 pts PERO se
+                    // VEÍA en pausas («se mira que avanza en pausas»,
+                    // 03/10) → se revierte a 720, aceptado visualmente
+                    // desde la mañana. La capa diagonal devuelve esos
+                    // ~5 pts sin tocar la suavidad.
+                    animationTimingFunction: "steps(720, jump-none)",
                   }
                 : { inset: "-5%", transform: "scale(1.1)" }),
               backgroundImage: bgLoaded && bgLayerSrc ? `url(${bgLayerSrc})` : "none",

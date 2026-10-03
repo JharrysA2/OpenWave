@@ -655,6 +655,33 @@ describe("LyricsView — rendimiento del fondo", () => {
     expect(bg.style.filter).toBe("");
     expect(bg.style.willChange).toBe("");
   });
+
+  it("«Girar el fondo» usa steps(720, jump-none): la rotación continua costaba +14–37 pts de GPU", () => {
+    // Medido en vivo 2026-10-03 (Radeon 740M, ventana 1100×720): con la
+    // rotación CONTINUA la capa 150vmax se repintaba en cada vsync
+    // (63–70% de GPU 3D en una sesión, 30% en otra); con steps(720) la
+    // matriz cambia solo 8 veces/s → el compositor salta los frames sin
+    // cambios y la GPU baja al suelo (10.9–11.6% medidos, A/B directo).
+    // jump-none cierra el último paso en 360°=0° → bucle seamless.
+    localStorage.setItem(
+      SW_SETTINGS_KEY,
+      JSON.stringify({
+        perfMode: "balanced",
+        perfModeMigrated: true,
+        lyricsRotateBg: true,
+      }),
+    );
+    const { container } = render(
+      <SettingsProvider>
+        <LyricsView {...defaultProps} />
+      </SettingsProvider>,
+    );
+    const bg = container.querySelector('[data-testid="lyrics-bg"]');
+    expect(bg).toBeTruthy();
+    expect(bg.style.animation).toContain("sw-bg-spin");
+    expect(bg.style.animationTimingFunction).toBe("steps(720, jump-none)");
+    localStorage.clear();
+  });
 });
 
 describe("LyricsView — app-sleep (≥15 s con la ventana oculta)", () => {

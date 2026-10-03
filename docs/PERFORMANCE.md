@@ -84,6 +84,15 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
   - **Restaurar sin foco**: tao emite `Resized` en todos los `WM_SIZE`
     (minimize y restore) → `onResized` despierta aunque el foco no vuelva
     (p. ej. `ShowWindow(SW_RESTORE)` sin activación).
+  - **WATCHDOG de despertar (2026-10-03)**: en vivo se midió que las
+    señales de restauración pueden llegar **retardadas o no llegar**: la
+    ventana quedó restaurada y enfocada con `app-sleep` clavado durante
+    minutos (letras sin fondo y animaciones muertas con la ventana a la
+    vista). Por eso, mientras `visible=false` con el documento a la vista,
+    un timer vuelve a consultar `IsIconic` **cada 1 s** → el despertar
+    ocurre en ≤1 s aunque no llegue ningún evento. Al despertar el efecto
+    se destruye: **cero timers ni IPC con la app viva** (test que lo
+    verifica contando llamadas a `isMinimized`).
   - Sin runtime Tauri (tests/jsdom) `isMinimized()` lanza y se resuelve en
     `false`: solo manda `visibilitychange`.
 - `PerformanceContext` añade `app-hidden` a `<html>` en cuanto la ventana queda
@@ -128,7 +137,8 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
 - Tests: `PerformanceContext.test.jsx` (ciclo oculta→15 s→restaurar;
   minimizado por `IsIconic` con `visibilityState` visible, incluido restaurar
   SOLO por `onResized` sin foco; blur con `IsIconic=false` no congela;
-  pauseEffectsHidden OFF; contexto `sleeping`; CSS de `app-sleep`) y
+  watchdog: restaurar sin NINGUNA señal → despierta en ≤1 s y después cero
+  IPC; pauseEffectsHidden OFF; contexto `sleeping`; CSS de `app-sleep`) y
   `LyricsView.test.jsx` (desmontaje/remontaje del fondo en `app-sleep`).
 
 ## 5. Aceleración por hardware (estado: ACTIVA, no hay que activarla)
@@ -382,6 +392,39 @@ motor.
   libera mientras la app está minimizada y se reasigna al restaurar.
 - **Documento, no flags**: se mantiene la decisión de no forzar flags GPU;
   la palanca del usuario es «Pausar efectos al ocultar» (por defecto ON).
+
+## 9. Letras: «Girar el fondo» costaba +14–37 pts de GPU → `steps(720)`
+
+Síntoma (2026-10-03): en la pantalla de Letras la GPU integrada (Radeon
+740M) marcaba ~75% «antes gastaba menos de 20%».
+
+Diagnóstico en vivo (CDP + `Get-Counter '\GPU Engine(*)\Utilization
+Percentage'` atribuido por árbol de procesos de OpenWave; ventana 1100×720,
+app enfocada, música sonando):
+
+| Estado                                    | GPU 3D app |
+| ----------------------------------------- | ---------- |
+| Giro CONTINUO (`sw-bg-spin`)              | 63–70% (sesión A) / 30% (sesión B) |
+| Fallback con `filter: blur(12px)`         | +1% (irrelevante) |
+| `contain: paint` del fondo                | sin efecto medido |
+| Rotación estática (animación apagada)     | 16%        |
+| **`steps(360)` / `steps(720)` (giro ON)** | **10.9% / 11.6%** |
+| Minimizado + `app-sleep`                  | **2.2%**   |
+
+- **Causa**: la rotación continua actualiza la matriz de transformación en
+  **cada frame** → el compositor repinta la capa 150vmax en cada vsync.
+  Con `animation-timing-function: steps(720, jump-none)` la matriz solo
+  cambia 8 veces/s (0,5° por paso; `jump-none` cierra en 360°=0° → bucle
+  seamless) y Chromium **salta los frames cuya matriz no cambia**: la GPU
+  baja al suelo (karaoke + resto). A 90 s/vuelta el salto de 0,5° es
+  invisible.
+- **Fix**: rama `settings.lyricsRotateBg` de `src/components/LyricsView.jsx`
+  (+ test «rendimiento del fondo» en `LyricsView.test.jsx`).
+- **Nota metodológica**: el código anterior a `2571d17` pausaba todos los
+  efectos al perder el foco (`visible = visibilityState && hasFocus()`), así
+  que abrir el Administrador de Tareas para mirar la GPU medía la app
+  **congelada**. Hoy, por la spec (a) (ventanas divididas no pausan nada), se
+  mide el coste real con la app viva — este §9 es ese coste.
 
 ## Regla de oro
 

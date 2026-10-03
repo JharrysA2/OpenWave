@@ -2113,6 +2113,16 @@ export function LyricsView({
                     top: "50%",
                     transform: "translate(-50%, -50%)",
                     animation: "sw-bg-spin 90s linear infinite",
+                    // steps(720, jump-none): la matriz solo cambia 8 veces/s
+                    // (0,5° por paso; jump-none cierra en 360°=0° → bucle
+                    // seamless). Medido en vivo 2026-10-03 (Radeon 740M): la
+                    // rotación CONTINUA repintaba la capa 150vmax en cada
+                    // vsync y costaba +14–37 pts de GPU 3D en Letras; con
+                    // steps el compositor salta los frames cuya matriz no
+                    // cambia → GPU = suelo (karaoke+resto), 29.9% → 11.6%
+                    // medido en A/B sobre la marcha. A 90 s/vuelta el salto
+                    // de 0,5° es invisible.
+                    animationTimingFunction: "steps(720, jump-none)",
                   }
                 : { inset: "-5%", transform: "scale(1.1)" }),
               backgroundImage: bgLoaded && bgLayerSrc ? `url(${bgLayerSrc})` : "none",

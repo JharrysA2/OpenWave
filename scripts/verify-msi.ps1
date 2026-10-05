@@ -335,22 +335,25 @@ $checks = [ordered]@{
         [bool]($iseq | Where-Object { $_[0] -eq 'SetFixAclData' })
 
     # ── Identidad de paquete sparse (plan C: un solo grupo «OpenWave») ──
-    # El msix/.cer llegan como resources al INSTALLDIR; RegisterIdentity los
-    # registra al instalar y UnregisterIdentity los quita al desinstalar.
-    # Ver scripts\package-appx.ps1 y docs/PERFORMANCE.md §9.3.
+    # El msix/.cer/script llegan como resources al INSTALLDIR; RegisterIdentity
+    # llama al script -Mode Register (importa confianza + Remove-Add del
+    # paquete, con log en openwave-identity.log) y UnregisterIdentity a
+    # -Mode Unregister. La forma inline -Command se retiro: fallaba solo
+    # dentro de msiexec (exit 1). Ver scripts\package-appx.ps1 y
+    # docs/PERFORMANCE.md §10.
     'Identidad: openwave-identity.msix en el payload (INSTALLDIR)' =
         [bool]($files | Where-Object { ([string]$_[2]) -like '*openwave-identity.msix*' })
     'Identidad: openwave-identity.cer en el payload (confianza)' =
         [bool]($files | Where-Object { ([string]$_[2]) -like '*openwave-identity.cer*' })
-    'Identidad: SAC RegisterIdentity = powershell + Import-Certificate + Add-AppxPackage -ExternalLocation' =
+    'Identidad: script openwave-identity-ca.ps1 en el payload' =
+        [bool]($files | Where-Object { ([string]$_[2]) -like '*openwave-identity-ca.ps1*' })
+    'Identidad: SAC RegisterIdentity = powershell -File del script -Mode Register' =
         [bool]($cas | Where-Object {
             $_[0] -eq 'RegisterIdentity' -and
-            ([string]$_[3]) -like '*Import-Certificate*' -and
-            ([string]$_[3]) -like '*TrustedPeople*' -and
-            ([string]$_[3]) -like '*Add-AppxPackage*' -and
-            ([string]$_[3]) -like '*-ExternalLocation*' -and
-            ([string]$_[3]) -like '*[[]INSTALLDIR[]]openwave-identity.msix*' -and
-            ([string]$_[3]) -like '*Remove-AppxPackage*'
+            ([string]$_[3]) -like '*powershell.exe*' -and
+            ([string]$_[3]) -like '*-File*' -and
+            ([string]$_[3]) -like '*openwave-identity-ca.ps1*' -and
+            ([string]$_[3]) -like '*-Mode Register*'
         })
     'Identidad: RegisterIdentity corre con NOT REMOVE y tras InstallFinalize' =
         [bool]($iseq | Where-Object { $_[0] -eq 'RegisterIdentity' -and ([string]$_[1]) -like '*NOT REMOVE*' }) -and
@@ -360,7 +363,11 @@ $checks = [ordered]@{
             ([int](@($iseqSeq | Where-Object { $_[0] -eq 'InstallFinalize' })[0][1]))
         })
     'Identidad: SAC UnregisterIdentity al desinstalar (REMOVE=ALL, sin en upgrade)' =
-        [bool]($cas | Where-Object { $_[0] -eq 'UnregisterIdentity' -and ([string]$_[3]) -like '*Remove-AppxPackage*' }) -and
+        [bool]($cas | Where-Object {
+            $_[0] -eq 'UnregisterIdentity' -and
+            ([string]$_[3]) -like '*openwave-identity-ca.ps1*' -and
+            ([string]$_[3]) -like '*-Mode Unregister*'
+        }) -and
         [bool]($iseq | Where-Object { $_[0] -eq 'UnregisterIdentity' -and ([string]$_[1]) -like '*REMOVE*ALL*' -and ([string]$_[1]) -like '*UPGRADINGPRODUCTCODE*' })
     'Identidad: autolanzado tras RegisterIdentity (arranca ya con identidad)' =
         [bool]($iseqSeq | Where-Object {

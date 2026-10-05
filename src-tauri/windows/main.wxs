@@ -408,38 +408,46 @@
         </InstallExecuteSequence>
 
         <!-- ── Identidad de paquete sparse (plan C: agrupacion en TV) ──────
-             openwave-identity.msix/.cer llegan al INSTALLDIR via
-             bundle.resources (tauri.conf.json). Al instalar se importa el
-             certificado al Trusted People del usuario que instala (sin esa
-             confianza Add-AppxPackage falla con 0x800B0109) y se registra el
-             paquete con -ExternalLocation [INSTALLDIR]: OpenWave.exe (con el
-             elemento <msix> que embebe build.rs) y sus hijos WebView2 pasan a
-             compartir identidad, y el Administrador de Tareas los agrupa en
-             UN solo grupo «OpenWave» con el icono original (sin esto, hijo
-             de WebView2 en «Administrador de WebView2»: bug
-             MicrosoftEdge/WebView2Feedback#5628). Sacar el paquete antes de
-             añadirlo (Remove-Add) hace la operacion idempotente y actualiza
-             la ExternalLocation en reparaciones y upgrades (con la misma
+             openwave-identity.msix/.cer y el script register-identity.ps1
+             llegan al INSTALLDIR via bundle.resources (tauri.conf.json).
+             La SAC NO pega el comando en linea: llama al script -File (el
+             inline -Command fallaba solo dentro de msiexec: exit 1 sin
+             ejecutar Remove/Add; verificado 2026-10-05, y el detalle en
+             openwave-identity.log). El script importa la confianza del
+             certificado al usuario que instala (sin ella Add-AppxPackage
+             da 0x800B0109) y registra el paquete con -ExternalLocation =
+             su propia carpeta: OpenWave.exe (con el elemento <msix> que
+             embebe build.rs) y sus hijos WebView2 comparten identidad y
+             el Administrador de Tareas los agrupa en UN solo grupo
+             «OpenWave» con el icono original (sin esto, hijos de WebView2
+             en «Administrador de WebView2»: bug
+             MicrosoftEdge/WebView2Feedback#5628). Remove-Add dentro del
+             script hace la operacion idempotente y actualiza la
+             ExternalLocation en reparaciones y upgrades (con la misma
              version sin remover daria 0x80073CF9).
              Return=ignore: si AppX fallara (p.ej. policy de equipo que
-             bloqueie despliegues), la instalacion NO se rompe; la app queda
-             sin identidad y verify-msi lo detecta en el chequeo en vivo.
-             Inmediata tras InstallFinalize (ficheros ya en disco) e imperada
-             por el usuario que instala (los CAs inmediados corren en su
-             contexto: HKCU/Cert:\CurrentUser sin privilegios elevados).
-             La SAC va en literal (sin \{} de handlebars): MSI Formatted
-             solo trata [ ] como referencia de propiedades. -->
+             bloqueie despliegues), la instalacion NO se rompe; la app
+             quedaria sin identidad y verify-msi lo detecta en el chequeo
+             en vivo. Register va inmediata tras InstallFinalize (ficheros
+             ya en disco) y Unregister ANTES de RemoveFiles (el script
+             tiene que existir todavia); ambas imperadas por el usuario
+             que instala (los CAs inmediados corren en su contexto:
+             HKCU/Cert:\CurrentUser sin elevacion).
+             -ExecutionPolicy Bypass: por si el equipo restringe scripts. -->
         <CustomAction Id="RegisterIdentity"
                       Directory="$(var.IcaclsFolderId)"
-                      ExeCommand="powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command try { Import-Certificate -FilePath '[INSTALLDIR]openwave-identity.cer' -CertStoreLocation Cert:\CurrentUser\TrustedPeople -ErrorAction SilentlyContinue | Out-Null } catch { }; try { Get-AppxPackage -Name OpenWave | Remove-AppxPackage -ErrorAction SilentlyContinue } catch { }; try { Add-AppxPackage -Path '[INSTALLDIR]openwave-identity.msix' -ExternalLocation '[INSTALLDIR]' -ErrorAction Stop } catch { exit 0 }"
+                      ExeCommand="powershell.exe -NoProfile -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File &quot;[INSTALLDIR]openwave-identity-ca.ps1&quot; -Mode Register"
                       Return="ignore" />
         <CustomAction Id="UnregisterIdentity"
                       Directory="$(var.IcaclsFolderId)"
-                      ExeCommand="powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command try { Get-AppxPackage -Name OpenWave | Remove-AppxPackage -ErrorAction SilentlyContinue } catch { }; exit 0"
+                      ExeCommand="powershell.exe -NoProfile -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File &quot;[INSTALLDIR]openwave-identity-ca.ps1&quot; -Mode Unregister"
                       Return="ignore" />
         <InstallExecuteSequence>
             <Custom Action="RegisterIdentity" After="InstallFinalize">NOT REMOVE</Custom>
-            <Custom Action="UnregisterIdentity" After="RegisterIdentity">(REMOVE = "ALL") AND NOT UPGRADINGPRODUCTCODE</Custom>
+            <!-- Antes de RemoveFiles: el script -Mode Unregister tiene que
+                 seguir en disco (RemoveFiles borra los ficheros ANTES de
+                 InstallFinalize, asi que tras InstallFinalize ya no estaria). -->
+            <Custom Action="UnregisterIdentity" Before="RemoveFiles">(REMOVE = "ALL") AND NOT UPGRADINGPRODUCTCODE</Custom>
         </InstallExecuteSequence>
 
         {{#each merge_modules as |msm| ~}}

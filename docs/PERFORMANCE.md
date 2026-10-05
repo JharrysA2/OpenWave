@@ -652,29 +652,55 @@ manually»* (sparse package):
   en `CurrentUser\TrustedPeople` (sin confianza → `0x800B0109`), y
   `makeappx pack /nv` — **`/nv` obligatoria** (makeappx exige que el .exe
   esté dentro del paquete y aquí vive en `ExternalLocation`) + signtool.
-- **MSI**: `tauri.conf.json` (`bundle.resources`) embarca msix+cer en el
-  INSTALLDIR; la SAC `RegisterIdentity` (inmediata, tras `InstallFinalize`,
-  `NOT REMOVE`, `Return="ignore"`) importa la confianza y hace
-  `Remove-AppxPackage` + `Add-AppxPackage -ExternalLocation [INSTALLDIR]`
-  (el Remove-Add hace idempotente la reparación y actualiza la
-  ExternalLocation; con la misma versión sin remover → `0x80073CF9`).
-  `UnregisterIdentity` quita el paquete en la desinstalación, salvo en
-  upgrades (`NOT UPGRADINGPRODUCTCODE`), y `LaunchApplication` se encadenó
+- **MSI**: `tauri.conf.json` (`bundle.resources`) embarca msix+cer+script
+  en el INSTALLDIR (**tauri conserva el nombre del fichero de ORIGEN en
+  resources: el destino del mapa se ignora para ficheros** — por eso el
+  script se llama `packaging/appx/openwave-identity-ca.ps1` y no otro);
+  la SAC `RegisterIdentity` (inmediata, tras `InstallFinalize`, `NOT REMOVE`,
+  `Return="ignore"`) invoca
+  `powershell -NoProfile -ExecutionPolicy Bypass -File
+  "[INSTALLDIR]openwave-identity-ca.ps1" -Mode Register`, y
+  `UnregisterIdentity` (en la desinstalación, `NOT UPGRADINGPRODUCTCODE`,
+  **antes de `RemoveFiles`** porque el script tiene que seguir en disco)
+  invoca `-Mode Unregister`. El script importa la confianza y hace
+  `Remove-AppxPackage` + `Add-AppxPackage -ExternalLocation` con trazas en
+  `openwave-identity.log` del INSTALLDIR (si no puede escribir —
+  ejecución media sobre Program Files — cae a `%TEMP%`). El Remove-Add hace
+  idempotente la reparación y actualiza la ExternalLocation (con la misma
+  versión sin remover → `0x80073CF9`). `LaunchApplication` se encadenó
   tras `RegisterIdentity` para que la app arranque ya con identidad.
+  **El comando NO va inline en el `ExeCommand`**: la forma `-Command
+  try{...}` pegada en la SAC fallaba solo dentro de msiexec (exit 1 sin
+  llegar a ejecutar ni `Remove` ni `Add` — cero eventos
+  `AppXDeploymentServer` a las 09:05; el mismo string fuera del MSI daba
+  `exit 0`), y la primera versión `-File` apuntaba a un nombre que Tauri
+  no renombró (`-196608` = fallo de lanzamiento). Con `-File` + logging
+  la SAC corre verificada de punta a punta (log completo de la instalación).
 - **`AppModelUnlock` NO hace falta**: comprobado empíricamente registrando
   con la clave `HKLM\...\AppModelUnlock` ausente → OK. El MSI no toca HKLM.
   Tampoco se necesita Developer Mode; solo el certificado de confianza
   (por usuario).
 
-**Verificación (2026-10-05, prueba de humo + build con identidad).**
+**Verificación (2026-10-05, prueba de humo + build con identidad + MSI instalado).**
 
-- `pkg-probe`: `OpenWave.exe` y los 6 hijos WV2 con `pkg=OpenWave_pr6hx30mntjwm`.
+- `pkg-probe`: `OpenWave.exe` y los 6 hijos WV2 con `pkg=OpenWave_pr6hx30mntjwm`
+  (también tras instalar el MSI y tras reparar/re-registrar).
 - Task Manager, filtro «openwave»: **un único grupo `OpenWave (7)`** con
   chevron; filtro «webview»: `OpenWave (6)` + `Buscar (6)` (los de Buscar,
   del sistema) → **cero grupos «Administrador de WebView2»**.
 - Icono del grupo: el original (cuadrado morado con la onda), tomado del
   `Square44x44Logo` del paquete (zoom de captura verificado).
-- `scripts/verify-msi.ps1`: +6 checks (payload msix/cer, SACs y secuencia).
+- `scripts/verify-msi.ps1`: **61 comprobaciones en verde** (payload
+  msix/cer/script, SACs y secuencia).
+- MSI instalado (`exit=0`): log de la SAC con `add: ok`, `PackageRootFolder
+  = C:\Program Files\OpenWave`, y ciclos manuales `-Mode Unregister` /
+  `-Mode Register` del script verificados (con su traza en el log).
+- Barra de tareas (check del AUMID): **un único botón** `OpenWave: 1 ventana
+  en ejecución` con `aid=Appid: OpenWave_pr6hx30mntjwm!App` — el AUMID
+  explícito `com.soundwave.app` de `set_appusermodel_id()` solo tiene
+  efecto sin identidad (aid `Appid: com.soundwave.app`), y con identidad
+  manda el del paquete → **no hay separación de botones; se mantiene
+  `set_appusermodel_id()`**.
 
 **Límites conocidos.** Registro por usuario (el que instala): en máquinas
 multiusuario los demás usuarios ven la app sin identidad (mismo
@@ -682,6 +708,25 @@ comportamiento que antes). Certificado autofirmado local: para distribución
 externa haría falta certificado real (Azure Trusted Signing o de empresa).
 Si el paquete registrado apunta a una carpeta que ya no existe, la app corre
 sin identidad: la SAC de instalación siempre rehace Remove-Add.
+
+**Icono del botón en la barra de tareas (2026-10-05).** Con identidad, el
+botón es único y con el nombre correcto, pero su icono se renderiza como un
+placeholder gris (el resto de la app usa el morado original: título, grupo
+en Task Manager, accesos directos). Descartado empíricamente en esta
+máquina: refresco de caché de iconos (`ie4uinit -show`), purga de
+`SystemAppData\OpenWave_*`, reinicio de Explorer, `AppListEntry` por
+defecto (además crea una segunda entrada «OpenWave» en Start, duplicada
+con el acceso directo del MSI → se mantiene `none`), `WM_SETICON`
+(big+small) con el logo morado y la clave
+`HKCU\...\AppUserModelId\OpenWave_pr6hx30mntjwm!App` con `IconUri`.
+Sin identidad el botón sí sale morado (AUMID `com.soundwave.app` con
+`IconUri` que crea el MSI). Es decir: el shell no resuelve el icono del
+AUMID para paquetes de contenido externo (la receta de Microsoft promete
+identidad, no integración completa del shell) — queda documentado como
+limitación de la receta sparse; si algún día se necesita el icono, las
+vías son empaquetar también los `Assets`/iconos como contenido interno
+del msix (ya van dentro) con alguna variante que el shell sí consulte, o
+pasar a un MSIX completo.
 
 ## Regla de oro
 

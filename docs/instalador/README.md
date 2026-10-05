@@ -100,7 +100,7 @@ con el hash esperado y el obtenido para que se actualice el pin.
 | `scripts/prepare-runtime.ps1` | Python embebido + deps + ffmpeg → `build/staging/` |
 | `scripts/msi-postprocess.ps1` | UPDATE de `TextStyle` en el MSI ya enlazado (sin negrita en títulos) |
 | `scripts/package-windows.ps1` | Orquesta todo, post-procesa y renombra el MSI |
-| `scripts/verify-msi.ps1` | Lee las tablas del MSI por COM y ejecuta las 49 comprobaciones |
+| `scripts/verify-msi.ps1` | Lee las tablas del MSI por COM y ejecuta las 61 comprobaciones |
 
 ### Estructura instalada
 
@@ -381,7 +381,7 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 - `ruff check backend/ && python -m pytest` en `backend/` (355 tests).
 - `npm test` (frontend, 806 tests).
 - Tras recompilar: `powershell -ExecutionPolicy Bypass -File scripts\verify-msi.ps1`
-  → 54 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
+  → 61 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
   el modo mantenimiento, valores por defecto de las casillas, licencia embebida,
   textos de progreso de `ActionText`, tipografía de `TextStyle`, gráficos de
   marca, limpieza de INSTALLDIR, registro AppUserModelId de agrupación en el

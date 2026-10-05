@@ -64,7 +64,6 @@
       uap10:TrustLevel="mediumIL"
       uap10:RuntimeBehavior="win32App">
       <uap:VisualElements
-        AppListEntry="none"
         DisplayName="OpenWave"
         Description="OpenWave - reproductor de musica"
         BackgroundColor="transparent"

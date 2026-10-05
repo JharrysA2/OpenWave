@@ -234,38 +234,36 @@ $checks = [ordered]@{
         [bool](Ev 'InstallDirDlg' 'Next' 'NewDialog' | Where-Object { $_[3] -eq 'VerifyReadyDlg' -and $_[5] -eq '4' })
     'VerifyReadyDlg.Back -> OptionsDlg Order 3 (gana)' =
         [bool](Ev 'VerifyReadyDlg' 'Back' 'NewDialog' | Where-Object { $_[3] -eq 'OptionsDlg' -and $_[5] -eq '3' })
-    'OptionsDlg.Next: AddLocal StartMenuShortcut (1)' =
-        [bool](Ev 'OptionsDlg' 'Next' 'AddLocal' | Where-Object { $_[3] -eq 'StartMenuShortcut' -and $_[5] -eq '1' })
-    'OptionsDlg.Next: Remove StartMenuShortcut (2)' =
-        [bool](Ev 'OptionsDlg' 'Next' 'Remove' | Where-Object { $_[3] -eq 'StartMenuShortcut' -and $_[5] -eq '2' })
-    'OptionsDlg.Next: AddLocal DesktopShortcut (3)' =
-        [bool](Ev 'OptionsDlg' 'Next' 'AddLocal' | Where-Object { $_[3] -eq 'DesktopShortcut' -and $_[5] -eq '3' })
-    'OptionsDlg.Next: Remove DesktopShortcut (4)' =
-        [bool](Ev 'OptionsDlg' 'Next' 'Remove' | Where-Object { $_[3] -eq 'DesktopShortcut' -and $_[5] -eq '4' })
-    'OptionsDlg.Next: AddLocal StartupShortcut (5)' =
-        [bool](Ev 'OptionsDlg' 'Next' 'AddLocal' | Where-Object { $_[3] -eq 'StartupShortcut' -and $_[5] -eq '5' })
-    'OptionsDlg.Next: Remove StartupShortcut (6)' =
-        [bool](Ev 'OptionsDlg' 'Next' 'Remove' | Where-Object { $_[3] -eq 'StartupShortcut' -and $_[5] -eq '6' })
+    'OptionsDlg.Next: AddLocal DesktopShortcut (1)' =
+        [bool](Ev 'OptionsDlg' 'Next' 'AddLocal' | Where-Object { $_[3] -eq 'DesktopShortcut' -and $_[5] -eq '1' })
+    'OptionsDlg.Next: Remove DesktopShortcut (2)' =
+        [bool](Ev 'OptionsDlg' 'Next' 'Remove' | Where-Object { $_[3] -eq 'DesktopShortcut' -and $_[5] -eq '2' })
+    'OptionsDlg.Next: AddLocal StartupShortcut (3)' =
+        [bool](Ev 'OptionsDlg' 'Next' 'AddLocal' | Where-Object { $_[3] -eq 'StartupShortcut' -and $_[5] -eq '3' })
+    'OptionsDlg.Next: Remove StartupShortcut (4)' =
+        [bool](Ev 'OptionsDlg' 'Next' 'Remove' | Where-Object { $_[3] -eq 'StartupShortcut' -and $_[5] -eq '4' })
+    'OptionsDlg.Next: sin eventos de StartMenuShortcut (feature eliminada)' =
+        (@(Ev 'OptionsDlg' 'Next' 'AddLocal' | Where-Object { $_[3] -eq 'StartMenuShortcut' }).Count -eq 0) -and
+        (@(Ev 'OptionsDlg' 'Next' 'Remove'  | Where-Object { $_[3] -eq 'StartMenuShortcut' }).Count -eq 0)
     'OptionsDlg.Next: NewDialog VerifyReadyDlg (10, el mayor)' =
         [bool](Ev 'OptionsDlg' 'Next' 'NewDialog' | Where-Object { $_[3] -eq 'VerifyReadyDlg' -and $_[5] -eq '10' })
-    'OptionsDlg: exactamente 3 checkboxes' =
-        (@($optControls | Where-Object { $_[2] -eq 'CheckBox' }).Count -eq 3)
-    'Checkbox sobre INSTALL_STARTMENU / INSTALL_DESKTOP / INSTALL_STARTUP' =
-        [bool]($optControls | Where-Object { $_[2] -eq 'CheckBox' -and $_[8] -eq 'INSTALL_STARTMENU' }) -and
+    'OptionsDlg: exactamente 2 checkboxes' =
+        (@($optControls | Where-Object { $_[2] -eq 'CheckBox' }).Count -eq 2)
+    'Checkbox sobre INSTALL_DESKTOP / INSTALL_STARTUP' =
         [bool]($optControls | Where-Object { $_[2] -eq 'CheckBox' -and $_[8] -eq 'INSTALL_DESKTOP' }) -and
         [bool]($optControls | Where-Object { $_[2] -eq 'CheckBox' -and $_[8] -eq 'INSTALL_STARTUP' })
     'Textos de casillas en espanol' =
         [bool]($optControls | Where-Object { $_[9] -like 'Crear un acceso*' }) -and
         [bool]($optControls | Where-Object { $_[9] -eq 'Iniciar OpenWave con Windows' })
-    'Feature StartMenuShortcut Level 1' =
-        [bool]($features | Where-Object { $_[0] -eq 'StartMenuShortcut' -and $_[5] -eq '1' })
+    'Sin feature StartMenuShortcut (la entrada en Inicio la da el paquete)' =
+        -not [bool]($features | Where-Object { $_[0] -eq 'StartMenuShortcut' })
     'Feature DesktopShortcut Level 1' =
         [bool]($features | Where-Object { $_[0] -eq 'DesktopShortcut' -and $_[5] -eq '1' })
     'Feature StartupShortcut Level 101 (desmarcada)' =
         [bool]($features | Where-Object { $_[0] -eq 'StartupShortcut' -and $_[5] -eq '101' })
     'INSTALL_STARTUP sin declarar (default off)' = -not $propOf.ContainsKey('INSTALL_STARTUP')
-    'INSTALL_STARTMENU=1 y INSTALL_DESKTOP=1 (por defecto activas)' =
-        ($propOf['INSTALL_STARTMENU'] -eq '1') -and ($propOf['INSTALL_DESKTOP'] -eq '1')
+    'INSTALL_DESKTOP=1 (activa) y sin INSTALL_STARTMENU (feature eliminada)' =
+        ($propOf['INSTALL_DESKTOP'] -eq '1') -and (-not $propOf.ContainsKey('INSTALL_STARTMENU'))
     'Licencia: flujo Welcome -> License -> InstallDir' =
         [bool](Ev 'WelcomeDlg' 'Next' 'NewDialog' | Where-Object { $_[3] -eq 'LicenseAgreementDlg' }) -and
         [bool](Ev 'LicenseAgreementDlg' 'Next' 'NewDialog' | Where-Object { $_[3] -eq 'InstallDirDlg' })
@@ -285,9 +283,12 @@ $checks = [ordered]@{
         [bool]($reg | Where-Object { $_[2] -eq 'Software\Classes\AppUserModelId\com.soundwave.app' -and $_[3] -eq 'DisplayName' -and $_[4] -eq 'OpenWave' })
     'Limpieza de INSTALLDIR (RemoveFile RemoveInstallDir, Path, uninstall)' =
         [bool]($rfile | Where-Object { $_[0] -eq 'RemoveInstallDir' -and $_[1] -eq 'Path' -and $_[3] -eq 'INSTALLDIR' -and $_[4] -eq '2' })
-    'Accesos directos con su RemoveFile (menu inicio y escritorio)' =
+    'Acceso directo de escritorio con su RemoveFile (sin carpeta de menú)' =
         [bool]($rfile | Where-Object { $_[1] -eq 'ApplicationShortcutDesktop' -and $_[3] -eq 'DesktopFolder' }) -and
-        [bool]($rfile | Where-Object { $_[1] -eq 'ApplicationShortcut' -and $_[3] -eq 'ApplicationProgramsFolder' })
+        (-not [bool]($rfile | Where-Object { $_[1] -eq 'ApplicationShortcut' })) -and
+        (-not [bool]($rfile | Where-Object { $_[3] -eq 'ApplicationProgramsFolder' }))
+    'CMP_UninstallShortcut (Desinstalar) movido a MainProgram' =
+        [bool]($featComps | Where-Object { $_[0] -eq 'MainProgram' -and $_[1] -eq 'CMP_UninstallShortcut' })
     'Payload con mas de 5000 ficheros' = ($files.Count -gt 5000)
     'Binario OpenWave.exe en la tabla File' =
         [bool]($files | Where-Object { ([string]$_[2]) -like '*OpenWave.exe*' })

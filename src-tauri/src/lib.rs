@@ -361,51 +361,32 @@ fn create_err_log(data_dir: &std::path::Path) -> Option<std::fs::File> {
         .ok()
 }
 
-/// Fija el icono **ICON_BIG** de la ventana (el que leen la barra de
-/// tareas y Alt+Tab).
+/// Fija el icono **ICON_BIG** de la ventana (el que leen Alt+Tab, la lista
+/// de ventanas y el taskbar cuando el AUMID **no** tiene ítem de app en
+/// `AppsFolder` — p. ej. arranque sin identidad de paquete).
 ///
 /// Tauri solo fija el icono *small* (`WM_SETICON ICON_SMALL` vía
-/// `set_window_icon`); el *big* (`ICON_BIG`) queda `NULL`. Sin identidad
-/// de paquete el shell rellenaba ese hueco con el icono del `.exe`
-/// (morado, correcto), pero con identidad msix esa vía no se usa y el
-/// botón del taskbar salía con un placeholder **gris** (ver
-/// `docs/PERFORMANCE.md` §10). Aquí copiamos y escalamos el icono small
-/// ya cargado (256x256) a 48x48 — el `HICON` es válido porque se crea en
-/// ESTE proceso (mandar uno de otro proceso, como se probó primero en
-/// PowerShell, no sirve: el handle es inúil en el proceso que lo recibe) —
-/// y lo enviamos ANTES de que arrance el bucle de mensajes, de forma que
-/// el taskbar cree su botón ya con el icono.
+/// `set_window_icon`); el *big* (`ICON_BIG`) queda `NULL`. Aquí copiamos y
+/// escalamos el icono small ya cargado (256x256) a 48x48 — el `HICON` es
+/// válido porque se crea en ESTE proceso (mandar uno de otro proceso, como
+/// se probó en PowerShell, no sirve: el handle es inútil en el proceso que
+/// lo recibe) — y lo enviamos ANTES de que arrance el bucle de mensajes.
+///
+/// El icono del botón del taskbar con identidad de paquete NO depende de
+/// esto, sino del ítem de AppsFolder del AUMID (uap:VisualElements con
+/// AppListEntry por defecto); ver `docs/PERFORMANCE.md` §10.
 #[cfg(windows)]
 fn set_taskbar_icon(window: &tauri::WebviewWindow) {
-    use std::io::Write as _;
     use windows::Win32::Foundation::{HANDLE, LPARAM, WPARAM};
     use windows::Win32::UI::WindowsAndMessaging::{
         CopyImage, GCLP_HICON, ICON_BIG, ICON_SMALL, IMAGE_FLAGS, IMAGE_ICON,
-        SetClassLongPtrW, SendMessageW, WM_GETICON, WM_SETICON,
+        SendMessageW, SetClassLongPtrW, WM_GETICON, WM_SETICON,
     };
-
-    // DEBUG (quitar): traza visible sin consola.
-    let dbg = |line: String| {
-        if let Some(dir) = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf()))
-        {
-            if let Ok(mut f) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(dir.join("taskbar-icon.dbg"))
-            {
-                let _ = writeln!(f, "{line}");
-            }
-        }
-    };
-    let _ = dbg("funcion llamada".into());
 
     let hwnd = match window.hwnd() {
-        Ok(h) => {
-            dbg(format!("hwnd = {:?}", h.0));
-            h
-        }
+        Ok(h) => h,
         Err(e) => {
-            dbg(format!("sin hwnd: {e}"));
+            eprintln!("[openwave] set_taskbar_icon: sin hwnd ({e})");
             return;
         }
     };
@@ -414,11 +395,10 @@ fn set_taskbar_icon(window: &tauri::WebviewWindow) {
         // Icono small que tauri/tao ya puso al crear la ventana.
         let small = SendMessageW(hwnd, WM_GETICON, Some(WPARAM(ICON_SMALL as usize)), None);
         if small.0 == 0 {
-            dbg("la ventana no tiene icono small".into());
+            eprintln!("[openwave] set_taskbar_icon: la ventana no tiene icono small");
             return;
         }
-        dbg(format!("small = {}", small.0));
-        // Escalar a 48x48 (icono de taskbar a 100% de DPI; fuente 256 ⇒ nítido).
+        // Escalar a 48x48 (icono de taskbar a 100% de DPI; fuente 256 => nitido).
         match CopyImage(
             HANDLE(small.0 as *mut _),
             IMAGE_ICON,
@@ -427,7 +407,6 @@ fn set_taskbar_icon(window: &tauri::WebviewWindow) {
             IMAGE_FLAGS(0),
         ) {
             Ok(big) => {
-                dbg(format!("big = {:?} -> WM_SETICON ICON_BIG", big.0));
                 SendMessageW(
                     hwnd,
                     WM_SETICON,
@@ -437,10 +416,7 @@ fn set_taskbar_icon(window: &tauri::WebviewWindow) {
                 // Respaldo por si el shell consulta el icono de la clase.
                 SetClassLongPtrW(hwnd, GCLP_HICON, big.0 as isize);
             }
-            Err(e) => {
-                dbg(format!("CopyImage falló: {e}"));
-                eprintln!("[openwave] set_taskbar_icon: CopyImage falló ({e})");
-            }
+            Err(e) => eprintln!("[openwave] set_taskbar_icon: CopyImage fallo ({e})"),
         }
     }
 }

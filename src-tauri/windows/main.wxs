@@ -74,8 +74,11 @@
              INSTALL_STARTUP no se declara a propósito: en WiX un <Property>
              sin Value se ignora (CNDL1006) y Value="" es un error (CNDL0006),
              así que «desmarcado por defecto» = propiedad indefinida, que es
-             como la lee el checkbox. -->
-        <Property Id="INSTALL_STARTMENU" Value="1" />
+             como la lee el checkbox.
+             INSTALL_STARTMENU ya no existe: el acceso directo de menú
+             inicio lo aporta el paquete sparse (uap:VisualElements con
+             AppListEntry por defecto, necesario para que la barra de tareas
+             tenga icono); un shortcut del MSI aquí DUPLICARÍA la entrada. -->
         <Property Id="INSTALL_DESKTOP" Value="1" />
 
         {{#if allow_downgrades}}
@@ -194,11 +197,10 @@
                 <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
                 <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
 
-                <Control Id="StartMenuCheck" Type="CheckBox" X="20" Y="56" Width="330" Height="18" CheckBoxValue="1" Property="INSTALL_STARTMENU" Text="!(loc.OptionsDlgStartMenu)" />
-                <Control Id="DesktopCheck" Type="CheckBox" X="20" Y="82" Width="330" Height="18" CheckBoxValue="1" Property="INSTALL_DESKTOP" Text="!(loc.OptionsDlgDesktop)" />
-                <Control Id="StartupCheck" Type="CheckBox" X="20" Y="108" Width="330" Height="18" CheckBoxValue="1" Property="INSTALL_STARTUP" Text="!(loc.OptionsDlgStartup)" />
-                <Control Id="StartupHint" Type="Text" X="32" Y="130" Width="310" Height="30" Transparent="yes" NoPrefix="yes" Text="!(loc.OptionsDlgStartupHint)" />
-                <Control Id="DataNote" Type="Text" X="20" Y="166" Width="330" Height="46" Transparent="yes" NoPrefix="yes" Text="!(loc.OptionsDlgNote)" />
+                <Control Id="DesktopCheck" Type="CheckBox" X="20" Y="56" Width="330" Height="18" CheckBoxValue="1" Property="INSTALL_DESKTOP" Text="!(loc.OptionsDlgDesktop)" />
+                <Control Id="StartupCheck" Type="CheckBox" X="20" Y="82" Width="330" Height="18" CheckBoxValue="1" Property="INSTALL_STARTUP" Text="!(loc.OptionsDlgStartup)" />
+                <Control Id="StartupHint" Type="Text" X="32" Y="104" Width="310" Height="30" Transparent="yes" NoPrefix="yes" Text="!(loc.OptionsDlgStartupHint)" />
+                <Control Id="DataNote" Type="Text" X="20" Y="140" Width="330" Height="46" Transparent="yes" NoPrefix="yes" Text="!(loc.OptionsDlgNote)" />
 
                 <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
                     <!-- La UI traduce las casillas en selección de features:
@@ -206,12 +208,10 @@
                          orden ascendente (AddLocal/Remove) y el NewDialog
                          publicado con el mayor Order ("10") cierra el
                          diálogo al final. -->
-                    <Publish Event="AddLocal" Value="StartMenuShortcut" Order="1"><![CDATA[INSTALL_STARTMENU = "1"]]></Publish>
-                    <Publish Event="Remove" Value="StartMenuShortcut" Order="2"><![CDATA[INSTALL_STARTMENU <> "1"]]></Publish>
-                    <Publish Event="AddLocal" Value="DesktopShortcut" Order="3"><![CDATA[INSTALL_DESKTOP = "1"]]></Publish>
-                    <Publish Event="Remove" Value="DesktopShortcut" Order="4"><![CDATA[INSTALL_DESKTOP <> "1"]]></Publish>
-                    <Publish Event="AddLocal" Value="StartupShortcut" Order="5"><![CDATA[INSTALL_STARTUP = "1"]]></Publish>
-                    <Publish Event="Remove" Value="StartupShortcut" Order="6"><![CDATA[INSTALL_STARTUP <> "1"]]></Publish>
+                    <Publish Event="AddLocal" Value="DesktopShortcut" Order="1"><![CDATA[INSTALL_DESKTOP = "1"]]></Publish>
+                    <Publish Event="Remove" Value="DesktopShortcut" Order="2"><![CDATA[INSTALL_DESKTOP <> "1"]]></Publish>
+                    <Publish Event="AddLocal" Value="StartupShortcut" Order="3"><![CDATA[INSTALL_STARTUP = "1"]]></Publish>
+                    <Publish Event="Remove" Value="StartupShortcut" Order="4"><![CDATA[INSTALL_STARTUP <> "1"]]></Publish>
                     <Publish Event="NewDialog" Value="VerifyReadyDlg" Order="10">1</Publish>
                 </Control>
                 <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
@@ -246,9 +246,12 @@
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
                 <Directory Id="INSTALLDIR" Name="{{product_name}}"/>
             </Directory>
-            <Directory Id="ProgramMenuFolder">
-                <Directory Id="ApplicationProgramsFolder" Name="{{product_name}}"/>
-            </Directory>
+            <!-- Ya NO hay carpeta de menú inicio (ProgramMenuFolder): la
+                 entrada en Inicio la aporta el paquete sparse con
+                 AppListEntry por defecto — el shortcut del MSI duplicaba
+                 «OpenWave» y, además, AppListEntry="none" dejaba la barra de
+                 tareas SIN icono (sin ítem en AppsFolder no hay icono que
+                 resolver). -->
             <!-- «Datos de Programas»: raíz de datos de la app (base de datos,
                  descargas, log). CommonAppDataFolder = C:\ProgramData (el Id
                  estándar es ese; «ProgramDataFolder» NO existe y MSI lo
@@ -360,20 +363,8 @@
             </Component>
         </DirectoryRef>
 
-        <DirectoryRef Id="ApplicationProgramsFolder">
-            <Component Id="ApplicationShortcut" Guid="*">
-                <Shortcut Id="ApplicationStartMenuShortcut"
-                    Name="{{product_name}}"
-                    Description="Reproductor y descargador de música"
-                    Target="[!Path]"
-                    Icon="ProductIcon"
-                    WorkingDirectory="INSTALLDIR">
-                    <ShortcutProperty Key="System.AppUserModel.ID" Value="{{bundle_id}}"/>
-                </Shortcut>
-                <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
-                <RegistryValue Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="Start Menu Shortcut" Type="integer" Value="1" KeyPath="yes"/>
-           </Component>
-        </DirectoryRef>
+        <!-- Sin DirectoryRef de ApplicationProgramsFolder: el acceso directo
+             de menú inicio se eliminó (lo aporta el paquete sparse). -->
 
         <!-- Carpeta de datos. CreateFolder solo la retira si queda VACÍA en
              la desinstalación: los datos sobreviven. (Guid explícito: un
@@ -461,11 +452,13 @@
         {{/each~}}
 
         <!-- Features:
-             MainProgram        -> imprescindible (exe + recursos + registro)
-               StartMenuShortcut-> Level 1   (por defecto SÍ)
+             MainProgram        -> imprescindible (exe + recursos + registro
+                                   + shortcut «Desinstalar» en INSTALLDIR)
                DesktopShortcut  -> Level 1   (por defecto SÍ)
                StartupShortcut  -> Level 101 (> INSTALLLEVEL: por defecto NO)
-               Environment      -> como en Tauri (referencia doble de Path) -->
+               Environment      -> como en Tauri (referencia doble de Path)
+             NO hay feature StartMenuShortcut: la entrada en el menú Inicio
+             la da el paquete sparse (AppListEntry por defecto). -->
         <Feature
                 Id="MainProgram"
                 Title="Application"
@@ -482,6 +475,9 @@
             <ComponentRef Id="Path"/>
             <!-- Datos en «Datos de Programas» (con su ACL): siempre. -->
             <ComponentRef Id="CMP_DataDir"/>
+            <!-- Shortcut «Desinstalar OpenWave» en INSTALLDIR (antes estaba
+                 en la feature StartMenuShortcut, eliminada). -->
+            <ComponentRef Id="CMP_UninstallShortcut"/>
 
             {{#each resource_file_ids as |resource_file_id| ~}}
                 <ComponentRef Id="{{ resource_file_id }}"/>
@@ -492,14 +488,6 @@
                 <ComponentRef Id="UpdateTaskInstaller" />
                 <ComponentRef Id="UpdateTaskUninstaller" />
             {{/if}}
-
-            <Feature Id="StartMenuShortcut"
-                Title="!(loc.FeatureStartMenu)"
-                Level="1"
-                Absent="allow">
-                <ComponentRef Id="ApplicationShortcut" />
-                <ComponentRef Id="CMP_UninstallShortcut" />
-            </Feature>
 
             <Feature Id="DesktopShortcut"
                 Title="!(loc.FeatureDesktop)"

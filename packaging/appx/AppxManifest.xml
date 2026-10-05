@@ -21,9 +21,11 @@
   - Executable es relativo a la ExternalLocation que pasa Add-AppxPackage.
   - makeappx requiere /nv (salta la validacion de rutas, que en un paquete
     sparse viven fuera).
-  - AppListEntry=none evita la entrada duplicada en Start (el MSI ya crea su
-    propio acceso directo); el grupo en Task Manager lo etiqueta igualmente
-    con el DisplayName del paquete.
+  - AppListEntry tiene que ser POR DEFECTO (no "none"): sin él el shell no
+    registra el ítem de la app en AppsFolder y el botón de la barra de tareas
+    se queda SIN icono (placeholder gris) — comprobado empíricamente. El
+    acceso directo de menú inicio del MSI se ELIMINÓ para no duplicar la
+    entrada que el paquete crea en Start.
 -->
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"

@@ -29,7 +29,6 @@
     <String Id="PathEnvVarFeature">Añade la carpeta de instalación de OpenWave a la variable de entorno PATH del sistema, para poder lanzarlo desde cualquier ubicación.</String>
 
     <!-- Titulos de las features opcionales del OptionsDlg -->
-    <String Id="FeatureStartMenu">Acceso directo en el menú inicio</String>
     <String Id="FeatureDesktop">Acceso directo en el escritorio</String>
     <String Id="FeatureStartup">Iniciar OpenWave con Windows</String>
 
@@ -38,7 +37,6 @@
     <String Id="OptionsDlgTitle">{\WixUI_Font_Title}Opciones de instalación</String>
     <String Id="OptionsDlgDescription">Elija qué accesos directos desea crear.</String>
     <String Id="OptionsDlgBannerBitmap">WixUI_Bmp_Banner</String>
-    <String Id="OptionsDlgStartMenu">Crear un acceso directo en el menú inicio</String>
     <String Id="OptionsDlgDesktop">Crear un acceso directo en el escritorio</String>
     <String Id="OptionsDlgStartup">Iniciar OpenWave con Windows</String>
     <String Id="OptionsDlgStartupHint">Solo para este usuario. Puede desactivarlo más adelante en Configuración de Windows &gt; Aplicaciones de inicio.</String>

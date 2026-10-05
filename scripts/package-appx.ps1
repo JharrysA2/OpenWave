@@ -73,8 +73,11 @@ $publisher = [string]$appx.Package.Identity.Publisher
 $appId     = [string]$appx.Package.Applications.Application.Id
 $exeName   = [string]$appx.Package.Applications.Application.Executable
 $nsMgr     = New-Object System.Xml.XmlNamespaceManager($appx.NameTable)
+$nsMgr.AddNamespace('p', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10')
 $nsMgr.AddNamespace('uap10', 'http://schemas.microsoft.com/appx/manifest/uap/windows10/10')
-$allowExt  = $appx.SelectSingleNode('/Package/Properties/uap10:AllowExternalContent', $nsMgr)
+# El elemento esta en el namespace uap10; sin el prefijo p: en Package/Properties
+# el XPath no matchea (la raiz lleva xmlns por defecto del foundation).
+$allowExt  = $appx.SelectSingleNode('/p:Package/p:Properties/uap10:AllowExternalContent', $nsMgr)
 
 $msix = $appm.assembly.msix
 if (-not $msix) { throw 'packaging\appx\app.manifest no contiene el elemento <msix>.' }

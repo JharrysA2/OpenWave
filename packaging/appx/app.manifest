@@ -2,9 +2,10 @@
   Manifiesto de aplicacion (recurso RT_MANIFEST id 1) de OpenWave.exe.
 
   Contiene el elemento <msix> que conecta el exe con el paquete sparse
-  «OpenWave» (packaging/appx/AppxManifest.xml): sin el, el proceso no
+  "OpenWave" (packaging/appx/AppxManifest.xml): sin el, el proceso no
   adquiere identidad de paquete y Task Manager sigue separando a los hijos
-  de WebView2 en «Administrador de WebView2». Ver docs/PERFORMANCE.md §10.
+  de WebView2 en "Administrador de WebView2". Ver docs/PERFORMANCE.md
+  (seccion 10).
 
   Los tres atributos tienen que coincidir EXACTAMENTE con el Identity y el
   Application del manifiesto del paquete (lo valida scripts/package-appx.ps1):
@@ -12,13 +13,14 @@
     packageName   = Identity@Name        (OpenWave)
     applicationId = Application@Id      (App)
   Si no coinciden: el registro funciona pero en runtime no hay identidad
-  (error 0x80073D54 «identity missing»).
+  (error 0x80073D54 "identity missing").
 
-  ARCHIVO ASCII A PROPOSITO (sin acentos y sin declaracion <?xml>): es el
-  mismo formato que el manifiesto por defecto que embebe tauri-build via
-  rc.exe (winres lo escribe como texto sin conversion y sin BOM, con un
-  espacio inicial que CreateProcess tolera); con acentos UTF-8 mt.exe
-  rechazaba el recurso.
+  ARCHIVO 100% ASCII A PROPOSITO (sin acentos, sin comillas tipograficas y
+  sin declaracion XML inicial): es el mismo formato que el manifiesto por
+  defecto que embebe tauri-build via rc.exe (winres lo escribe como texto
+  sin conversion y sin BOM, con un espacio inicial que CreateProcess
+  tolera); con bytes UTF-8 o texto tipo "&lt;?xml" dentro de los comentarios,
+  mt.exe rechazaba el recurso.
 -->
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
   <assemblyIdentity version="1.0.0.0" name="OpenWave" />

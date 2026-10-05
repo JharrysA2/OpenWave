@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
-    Verificacion estatica del MSI de OpenWave sin instalarlo (49 comprobaciones).
+    Verificacion estatica del MSI de OpenWave sin instalarlo (incluye los
+    checks del paquete sparse de identidad, plan C).
 
 .DESCRIPTION
     Lee las tablas del .msi con el objeto COM WindowsInstaller.Installer y
@@ -94,6 +95,7 @@ $features = @(Invoke-MsiQuery $db 'SELECT * FROM Feature')      # 0 Feature 1 Fe
 $props    = @(Invoke-MsiQuery $db 'SELECT * FROM Property')     # 0 Property 1 Value
 $cas      = @(Invoke-MsiQuery $db 'SELECT Action, Type, Source, Target FROM CustomAction') # 0 Action 1 Type 2 Source 3 Target
 $iseq     = @(Invoke-MsiQuery $db 'SELECT Action, Condition FROM InstallExecuteSequence')   # 0 Action 1 Condition
+$iseqSeq  = @(Invoke-MsiQuery $db 'SELECT Action, Sequence FROM InstallExecuteSequence')    # 0 Action 1 Sequence (numero)
 $featComps= @(Invoke-MsiQuery $db 'SELECT Feature_, Component_ FROM FeatureComponents')     # 0 Feature_ 1 Component_
 $reg      = @(Invoke-MsiQuery $db 'SELECT * FROM Registry')     # 0 Registry 1 Root 2 Key 3 Name_ 4 Value 5 Component_
 $rfile    = @(Invoke-MsiQuery $db 'SELECT * FROM RemoveFile')   # 0 RemoveFile 1 Component_ 2 FileName 3 DirProperty 4 InstallMode
@@ -331,6 +333,40 @@ $checks = [ordered]@{
         [bool]($cas | Where-Object { $_[0] -eq 'SetFixAclData' -and (([string]$_[2]) -eq 'CustomActionData' -or ([string]$_[3]) -eq 'CustomActionData') }) -and
         [bool]($iseq | Where-Object { $_[0] -eq 'FixAcl' -and ([string]$_[1]) -like '*NOT REMOVE*' }) -and
         [bool]($iseq | Where-Object { $_[0] -eq 'SetFixAclData' })
+
+    # ── Identidad de paquete sparse (plan C: un solo grupo «OpenWave») ──
+    # El msix/.cer llegan como resources al INSTALLDIR; RegisterIdentity los
+    # registra al instalar y UnregisterIdentity los quita al desinstalar.
+    # Ver scripts\package-appx.ps1 y docs/PERFORMANCE.md §9.3.
+    'Identidad: openwave-identity.msix en el payload (INSTALLDIR)' =
+        [bool]($files | Where-Object { ([string]$_[2]) -like '*openwave-identity.msix*' })
+    'Identidad: openwave-identity.cer en el payload (confianza)' =
+        [bool]($files | Where-Object { ([string]$_[2]) -like '*openwave-identity.cer*' })
+    'Identidad: SAC RegisterIdentity = powershell + Import-Certificate + Add-AppxPackage -ExternalLocation' =
+        [bool]($cas | Where-Object {
+            $_[0] -eq 'RegisterIdentity' -and
+            ([string]$_[3]) -like '*Import-Certificate*' -and
+            ([string]$_[3]) -like '*TrustedPeople*' -and
+            ([string]$_[3]) -like '*Add-AppxPackage*' -and
+            ([string]$_[3]) -like '*-ExternalLocation*' -and
+            ([string]$_[3]) -like '*[[]INSTALLDIR[]]openwave-identity.msix*' -and
+            ([string]$_[3]) -like '*Remove-AppxPackage*'
+        })
+    'Identidad: RegisterIdentity corre con NOT REMOVE y tras InstallFinalize' =
+        [bool]($iseq | Where-Object { $_[0] -eq 'RegisterIdentity' -and ([string]$_[1]) -like '*NOT REMOVE*' }) -and
+        [bool]($iseqSeq | Where-Object {
+            $_[0] -eq 'RegisterIdentity' -and
+            $_[1] -match '^\d+$' -and [int]$_[1] -gt
+            ([int](@($iseqSeq | Where-Object { $_[0] -eq 'InstallFinalize' })[0][1]))
+        })
+    'Identidad: SAC UnregisterIdentity al desinstalar (REMOVE=ALL, sin en upgrade)' =
+        [bool]($cas | Where-Object { $_[0] -eq 'UnregisterIdentity' -and ([string]$_[3]) -like '*Remove-AppxPackage*' }) -and
+        [bool]($iseq | Where-Object { $_[0] -eq 'UnregisterIdentity' -and ([string]$_[1]) -like '*REMOVE*ALL*' -and ([string]$_[1]) -like '*UPGRADINGPRODUCTCODE*' })
+    'Identidad: autolanzado tras RegisterIdentity (arranca ya con identidad)' =
+        [bool]($iseqSeq | Where-Object {
+            $_[0] -eq 'LaunchApplication' -and $_[1] -match '^\d+$' -and
+            [int]$_[1] -gt ([int](@($iseqSeq | Where-Object { $_[0] -eq 'RegisterIdentity' })[0][1]))
+        })
 }
 
 Write-Host ''

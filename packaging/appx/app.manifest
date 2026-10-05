@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manifiesto de aplicacion (recurso RT_MANIFEST id 1) de OpenWave.exe.
+
+  Contiene el elemento <msix> que conecta el exe con el paquete sparse
+  «OpenWave» (packaging/appx/AppxManifest.xml): sin el, el proceso no
+  adquiere identidad de paquete y Task Manager sigue separando a los hijos
+  de WebView2 en «Administrador de WebView2».
+
+  Los tres atributos tienen que coincidir EXACTAMENTE con el Identity y el
+  Application del manifiesto del paquete:
+    publisher     = Identity@Publisher   (CN=OpenWave)
+    packageName   = Identity@Name        (OpenWave)
+    applicationId = Application@Id      (App)
+
+  Si no coinciden: el registro funciona pero en runtime no hay identidad
+  (documentado como error 0x80073D54 «identity missing»).
+-->
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <assemblyIdentity version="1.0.0.0" name="OpenWave" />
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity
+        type="win32"
+        name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0"
+        processorArchitecture="*"
+        publicKeyToken="6595b64144ccf1df"
+        language="*" />
+    </dependentAssembly>
+  </dependency>
+  <msix xmlns="urn:schemas-microsoft-com:msix.v1"
+        publisher="CN=OpenWave"
+        packageName="OpenWave"
+        applicationId="App" />
+</assembly>

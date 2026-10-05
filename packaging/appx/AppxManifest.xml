@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manifiesto del paquete sparse (identidad) de OpenWave (plan C).
+
+  Proposito: dar identidad de paquete a OpenWave.exe. Los procesos hijos de
+  WebView2 heredan la identidad por token (misma mecanica que SearchHost),
+  con lo que el Task Manager agrupa TODO bajo un unico grupo «OpenWave» con
+  el icono original en lugar de «Administrador de WebView2».
+
+  Receta oficial (Microsoft Learn, «Grant package identity by packaging with
+  external location manually»):
+  - uap10:AllowExternalContent=true habilita el contenido externo; sin el,
+    Add-AppxPackage -ExternalLocation falla con 0x80073D2E
+    (ERROR_PACKAGE_EXTERNAL_LOCATION_NOT_ALLOWED).
+  - Identity.Name/Publisher tienen que coincidir con el certificado de firma
+    (CN=OpenWave) y con el elemento <msix> del manifiesto embebido en el exe
+    (publisher/packageName/applicationId). Application@Id = App.
+  - Version se sincroniza con package.version de tauri.conf.json
+    (1.0.0 -> 1.0.0.0); hay que subirla en cada re-registro (no se puede
+    registrar dos veces la misma version: 0x80073CF9).
+  - Executable es relativo a la ExternalLocation que pasa Add-AppxPackage.
+  - makeappx requiere /nv (salta la validacion de rutas, que en un paquete
+    sparse viven fuera).
+  - AppListEntry=none evita la entrada duplicada en Start (el MSI ya crea su
+    propio acceso directo); el grupo en Task Manager lo etiqueta igualmente
+    con el DisplayName del paquete.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap10">
+
+  <Identity
+    Name="OpenWave"
+    Publisher="CN=OpenWave"
+    Version="1.0.0.0"
+    ProcessorArchitecture="neutral" />
+
+  <Properties>
+    <DisplayName>OpenWave</DisplayName>
+    <PublisherDisplayName>OpenWave</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <uap10:AllowExternalContent>true</uap10:AllowExternalContent>
+  </Properties>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="unvirtualizedResources" />
+  </Capabilities>
+
+  <Applications>
+    <Application Id="App"
+      Executable="OpenWave.exe"
+      uap10:TrustLevel="mediumIL"
+      uap10:RuntimeBehavior="win32App">
+      <uap:VisualElements
+        AppListEntry="none"
+        DisplayName="OpenWave"
+        Description="OpenWave - reproductor de musica"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png" />
+    </Application>
+  </Applications>
+</Package>

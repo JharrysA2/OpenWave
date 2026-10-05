@@ -9,6 +9,10 @@
      dialog.bmp (gráficos de marca del asistente).
   2. scripts\prepare-runtime.ps1  -> build\staging con Python embebido,
      dependencias y ffmpeg (se salta si el marcador .ready está vigente).
+  2b. scripts\package-appx.ps1    -> build\windows\openwave-identity.msix/.cer
+     (paquete sparse de identidad: un solo grupo «OpenWave» en el Task
+     Manager; va al MSI via bundle.resources y lo registra la SAC
+     RegisterIdentity al instalar; ver docs/PERFORMANCE.md §9.3).
   3. npx tauri build --bundles msi.
   3b. scripts\msi-postprocess.ps1 -> ajustes de tipografía del MSI enlazado
      (sin negrita en los títulos; WixUI_Font_Bigger a 11 pt).
@@ -83,6 +87,17 @@ try {
     if (-not (Test-Path -LiteralPath $marker)) {
         throw 'build\staging no esta preparado: ejecuta scripts\prepare-runtime.ps1 sin -SkipRuntime.'
     }
+
+    # ── 2b. Paquete sparse de identidad (plan C: agrupacion en TV) ────
+    # openwave-identity.msix/.cer: tauri.conf.json (bundle.resources) los
+    # mete en el MSI y la SAC RegisterIdentity registra el paquete al
+    # instalar, de modo que OpenWave.exe y sus hijos WebView2 comparten
+    # identidad de paquete y el Administrador de Tareas muestra UN solo
+    # grupo «OpenWave». Hay que ANTES de `npx tauri build` (los resources
+    # tienen que existir al empaquetar). Ver docs/PERFORMANCE.md §9.3.
+    Write-Host ''
+    Write-Host '--- Paquete de identidad (sparse msix) ---'
+    & (Join-Path $root 'scripts\package-appx.ps1')
 
     # ── 3. Build del MSI ─────────────────────────────────────────────────────
     Write-Host ''

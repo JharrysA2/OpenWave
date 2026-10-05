@@ -608,6 +608,81 @@ de media) para ver la FORMA de la onda:
   jerarquía de tamaños. En cuanto el usuario confirme que la onda es
   sostenible, cerramos.
 
+## 10. Task Manager: un solo grupo «OpenWave» (paquete sparse de identidad, plan C)
+
+**Problema.** El Administrador de Tareas agrupaba al proceso principal en
+«OpenWave» y a los seis procesos hijos de WebView2 en un grupo aparte,
+«Administrador de WebView2 (6)» — con sus 135 MB desglosados aparte. Es el
+bug conocido [MicrosoftEdge/WebView2Feedback#5628](https://github.com/MicrosoftEdge/WebView2Feedback/issues/5628)
+(abierto, sin respuesta) con hilo paralelo en [tauri#15567](https://github.com/tauri-apps/tauri/issues/15567).
+
+**Diagnóstico empírico (2026-10-04).** Sonda `GetPackageFamilyName` por
+proceso: los hijos WV2 de hosts **sin paquete** devuelven `none (hr=15700)`
+→ grupo fallback «Administrador de WebView2»; SearchHost (empaquetado,
+`MicrosoftWindows.Client.CBS_cw5n1h2txyewy`) sí hereda → sus WV2 quedan
+agrupados en «Buscar (6)». También se descartó: el AUMID explícito
+(`set_appusermodel_id`, commit `c4e255d` — ya presente, no bastó), FileDescription,
+etiquetas de Taskmgr y el registro `AppUserModelId`. La etiqueta «Administrador
+de WebView2» viene de los recursos localizados del propio runtime WV2.
+
+**Solución: identidad de paquete para nuestro exe** según la receta oficial
+de Microsoft *«Grant package identity by packaging with external location
+manually»* (sparse package):
+
+- `packaging/appx/AppxManifest.xml` — el paquete (sin payload):
+  `Identity Name=OpenWave / Publisher=CN=OpenWave / Version 1.0.0.0 neutral`,
+  `<uap10:AllowExternalContent>true</uap10:AllowExternalContent>` — **sin
+  este elemento `Add-AppxPackage -ExternalLocation` falla con `0x80073D2E`
+  (`ERROR_PACKAGE_EXTERNAL_LOCATION_NOT_ALLOWED`)**, fue el error del primer
+  intento — `uap10:RuntimeBehavior=win32App` (¡prohibido `EntryPoint` con
+  RuntimeBehavior! error de makeappx) + `unvirtualizedResources`,
+  `AppListEntry=none` (sin entrada duplicada en Start; el MSI ya pone su
+  acceso directo).
+- `packaging/appx/app.manifest` — manifiesto RT_MANIFEST del exe con el
+  elemento `<msix publisher="CN=OpenWave" packageName="OpenWave"
+  applicationId="App">`; lo embebe `src-tauri/build.rs` vía
+  `tauri_build::WindowsAttributes::app_manifest()` (reemplaza al manifiesto
+  por defecto de Tauri, por eso redeclara comctl32 v6). **Si no coincide con
+  el Identity/App del paquete, el registro va bien pero en runtime no hay
+  identidad (0x80073D54)** — `scripts/package-appx.ps1` lo valida y aborta.
+- `scripts/package-appx.ps1` — construye `build\windows\openwave-identity.msix`
+  + `.cer`: version sincronizada con `tauri.conf.json`, assets 50/44/150
+  desde `src-tauri/icons/128x128.png`, certificado autofirmado `CN=OpenWave`
+  en `Cert:\CurrentUser\My` (autorenovable si caduca < 30 días) con el `.cer`
+  en `CurrentUser\TrustedPeople` (sin confianza → `0x800B0109`), y
+  `makeappx pack /nv` — **`/nv` obligatoria** (makeappx exige que el .exe
+  esté dentro del paquete y aquí vive en `ExternalLocation`) + signtool.
+- **MSI**: `tauri.conf.json` (`bundle.resources`) embarca msix+cer en el
+  INSTALLDIR; la SAC `RegisterIdentity` (inmediata, tras `InstallFinalize`,
+  `NOT REMOVE`, `Return="ignore"`) importa la confianza y hace
+  `Remove-AppxPackage` + `Add-AppxPackage -ExternalLocation [INSTALLDIR]`
+  (el Remove-Add hace idempotente la reparación y actualiza la
+  ExternalLocation; con la misma versión sin remover → `0x80073CF9`).
+  `UnregisterIdentity` quita el paquete en la desinstalación, salvo en
+  upgrades (`NOT UPGRADINGPRODUCTCODE`), y `LaunchApplication` se encadenó
+  tras `RegisterIdentity` para que la app arranque ya con identidad.
+- **`AppModelUnlock` NO hace falta**: comprobado empíricamente registrando
+  con la clave `HKLM\...\AppModelUnlock` ausente → OK. El MSI no toca HKLM.
+  Tampoco se necesita Developer Mode; solo el certificado de confianza
+  (por usuario).
+
+**Verificación (2026-10-05, prueba de humo + build con identidad).**
+
+- `pkg-probe`: `OpenWave.exe` y los 6 hijos WV2 con `pkg=OpenWave_pr6hx30mntjwm`.
+- Task Manager, filtro «openwave»: **un único grupo `OpenWave (7)`** con
+  chevron; filtro «webview»: `OpenWave (6)` + `Buscar (6)` (los de Buscar,
+  del sistema) → **cero grupos «Administrador de WebView2»**.
+- Icono del grupo: el original (cuadrado morado con la onda), tomado del
+  `Square44x44Logo` del paquete (zoom de captura verificado).
+- `scripts/verify-msi.ps1`: +6 checks (payload msix/cer, SACs y secuencia).
+
+**Límites conocidos.** Registro por usuario (el que instala): en máquinas
+multiusuario los demás usuarios ven la app sin identidad (mismo
+comportamiento que antes). Certificado autofirmado local: para distribución
+externa haría falta certificado real (Azure Trusted Signing o de empresa).
+Si el paquete registrado apunta a una carpeta que ya no existe, la app corre
+sin identidad: la SAC de instalación siempre rehace Remove-Add.
+
 ## Regla de oro
 
 Todo estilo con impacto potencial en GPU/CPU (backdrop-filter nuevo,

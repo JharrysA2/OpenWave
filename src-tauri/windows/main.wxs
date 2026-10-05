@@ -272,14 +272,16 @@
                 <RegistryKey Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}">
                     <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
                 </RegistryKey>
-                <!-- AppUserModelID: el proceso principal y los de WebView2
-                     se agrupan como «OpenWave» (con su icono) en el
-                     Administrador de Tareas y en la barra de tareas. El
-                     AUMID del proceso (com.soundwave.app) lo pone la app al
-                     arrancar; aquí queda el nombre/icono visible. La clave
-                     va en literal porque {{bundle_id}} NO existe en el
-                     contexto handlebars de Tauri (quedaría sin interpolar);
-                     el identifier es estable por decisión (ver README). -->
+                <!-- AppUserModelID (com.soundwave.app): nombre/icono para
+                     lo que resuelve por AUMID (accesos directos en la barra
+                     de tareas). La AGRUPACION en el Administrador de Tareas
+                     ya NO depende de esto: la da la identidad de paquete
+                     sparse (SAC RegisterIdentity + elemento <msix> del exe;
+                     el AUMID explicito no basto — bug #5628, ver
+                     docs/PERFORMANCE.md §10). La clave va en literal porque
+                     {{bundle_id}} NO existe en el contexto handlebars de
+                     Tauri (quedaría sin interpolar); el identifier es
+                     estable por decisión (ver README). -->
                 <RegistryKey Root="HKCU" Key="Software\Classes\AppUserModelId\com.soundwave.app">
                     <RegistryValue Name="DisplayName" Type="string" Value="{{product_name}}" />
                     <RegistryValue Name="IconUri" Type="string" Value="[!Path]" />
@@ -403,6 +405,41 @@
         <InstallExecuteSequence>
             <Custom Action="SetFixAclData" Before="FixAcl" />
             <Custom Action="FixAcl" After="CreateFolders">NOT REMOVE</Custom>
+        </InstallExecuteSequence>
+
+        <!-- ── Identidad de paquete sparse (plan C: agrupacion en TV) ──────
+             openwave-identity.msix/.cer llegan al INSTALLDIR via
+             bundle.resources (tauri.conf.json). Al instalar se importa el
+             certificado al Trusted People del usuario que instala (sin esa
+             confianza Add-AppxPackage falla con 0x800B0109) y se registra el
+             paquete con -ExternalLocation [INSTALLDIR]: OpenWave.exe (con el
+             elemento <msix> que embebe build.rs) y sus hijos WebView2 pasan a
+             compartir identidad, y el Administrador de Tareas los agrupa en
+             UN solo grupo «OpenWave» con el icono original (sin esto, hijo
+             de WebView2 en «Administrador de WebView2»: bug
+             MicrosoftEdge/WebView2Feedback#5628). Sacar el paquete antes de
+             añadirlo (Remove-Add) hace la operacion idempotente y actualiza
+             la ExternalLocation en reparaciones y upgrades (con la misma
+             version sin remover daria 0x80073CF9).
+             Return=ignore: si AppX fallara (p.ej. policy de equipo que
+             bloqueie despliegues), la instalacion NO se rompe; la app queda
+             sin identidad y verify-msi lo detecta en el chequeo en vivo.
+             Inmediata tras InstallFinalize (ficheros ya en disco) e imperada
+             por el usuario que instala (los CAs inmediados corren en su
+             contexto: HKCU/Cert:\CurrentUser sin privilegios elevados).
+             La SAC va en literal (sin \{} de handlebars): MSI Formatted
+             solo trata [ ] como referencia de propiedades. -->
+        <CustomAction Id="RegisterIdentity"
+                      Directory="$(var.IcaclsFolderId)"
+                      ExeCommand="powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command try { Import-Certificate -FilePath '[INSTALLDIR]openwave-identity.cer' -CertStoreLocation Cert:\CurrentUser\TrustedPeople -ErrorAction SilentlyContinue | Out-Null } catch { }; try { Get-AppxPackage -Name OpenWave | Remove-AppxPackage -ErrorAction SilentlyContinue } catch { }; try { Add-AppxPackage -Path '[INSTALLDIR]openwave-identity.msix' -ExternalLocation '[INSTALLDIR]' -ErrorAction Stop } catch { exit 0 }"
+                      Return="ignore" />
+        <CustomAction Id="UnregisterIdentity"
+                      Directory="$(var.IcaclsFolderId)"
+                      ExeCommand="powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command try { Get-AppxPackage -Name OpenWave | Remove-AppxPackage -ErrorAction SilentlyContinue } catch { }; exit 0"
+                      Return="ignore" />
+        <InstallExecuteSequence>
+            <Custom Action="RegisterIdentity" After="InstallFinalize">NOT REMOVE</Custom>
+            <Custom Action="UnregisterIdentity" After="RegisterIdentity">(REMOVE = "ALL") AND NOT UPGRADINGPRODUCTCODE</Custom>
         </InstallExecuteSequence>
 
         {{#each merge_modules as |msm| ~}}
@@ -593,7 +630,7 @@
         {{/if}}
 
         <InstallExecuteSequence>
-          <Custom Action="LaunchApplication" After="InstallFinalize">AUTOLAUNCHAPP AND NOT Installed</Custom>
+          <Custom Action="LaunchApplication" After="RegisterIdentity">AUTOLAUNCHAPP AND NOT Installed</Custom>
         </InstallExecuteSequence>
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>

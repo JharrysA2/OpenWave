@@ -48,7 +48,7 @@
       "../LICENSE": "LICENSE",
       "../build/windows/openwave-identity.msix": "openwave-identity.msix",
       "../build/windows/openwave-identity.cer": "openwave-identity.cer",
-      "../packaging/appx/register-identity.ps1": "openwave-identity-ca.ps1"
+      "../packaging/appx/openwave-identity-ca.ps1": "openwave-identity-ca.ps1"
     },
     "windows": {
       "webviewInstallMode": { "type": "embedBootstrapper" },

@@ -408,7 +408,7 @@
         </InstallExecuteSequence>
 
         <!-- ── Identidad de paquete sparse (plan C: agrupacion en TV) ──────
-             openwave-identity.msix/.cer y el script register-identity.ps1
+             openwave-identity.msix/.cer y el script openwave-identity-ca.ps1
              llegan al INSTALLDIR via bundle.resources (tauri.conf.json).
              La SAC NO pega el comando en linea: llama al script -File (el
              inline -Command fallaba solo dentro de msiexec: exit 1 sin

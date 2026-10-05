@@ -246,12 +246,17 @@
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
                 <Directory Id="INSTALLDIR" Name="{{product_name}}"/>
             </Directory>
-            <!-- Ya NO hay carpeta de menú inicio (ProgramMenuFolder): la
-                 entrada en Inicio la aporta el paquete sparse con
-                 AppListEntry por defecto — el shortcut del MSI duplicaba
-                 «OpenWave» y, además, AppListEntry="none" dejaba la barra de
-                 tareas SIN icono (sin ítem en AppsFolder no hay icono que
-                 resolver). -->
+            <!-- El acceso directo de menú inicio del MSI se ELIMINÓ (feature
+                 StartMenuShortcut): la entrada en Inicio la aporta el paquete
+                 sparse con AppListEntry por defecto — el shortcut del MSI
+                 duplicaba «OpenWave» y, además, AppListEntry="none" dejaba la
+                 barra de tareas SIN icono (sin ítem en AppsFolder no hay
+                 icono que resolver). La carpeta de menú SOLO se declara para
+                 CMP_LegacyStartCleanup (ver abajo): no se crea ni se pone en
+                 ninguna feature. -->
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="{{product_name}}"/>
+            </Directory>
             <!-- «Datos de Programas»: raíz de datos de la app (base de datos,
                  descargas, log). CommonAppDataFolder = C:\ProgramData (el Id
                  estándar es ese; «ProgramDataFolder» NO existe y MSI lo
@@ -363,8 +368,31 @@
             </Component>
         </DirectoryRef>
 
-        <!-- Sin DirectoryRef de ApplicationProgramsFolder: el acceso directo
-             de menú inicio se eliminó (lo aporta el paquete sparse). -->
+        <!-- Limpieza del acceso directo de menú inicio HEREDADO de las
+             versiones previas del MSI (feature StartMenuShortcut, ya
+             eliminada). Hace falta autorarla en el producto NUEVO porque en un
+             upgrade RemoveExistingProducts desinstala el producto viejo con la
+             secuencia de ESA versión (RemoveShortcuts = Installed AND NOT
+             UPGRADINGPRODUCTCODE -> false): su .lnk queda huérfano para
+             siempre y duplicaría «OpenWave» en Start. Por eso la limpieza va
+             AQUÍ, en modo install (RemoveFiles corre tambien en instalacion
+             fresca; ver msi-install-icon.log sesion 00:8C). Si la borra el
+             producto nuevo, la carpeta (foreign, sin CreateFolder) se elimina
+             solo si queda vacia: el Id de la fila del .lnk va con prefijo A_
+             y el de la carpeta Z_ para que el orden de la tabla RemoveFile
+             (FileKey) procese el .lnk ANTES. -->
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="CMP_LegacyStartCleanup" Guid="*">
+                <RemoveFile Id="A_RemoveLegacyStartLnk" Name="*.lnk" DirProperty="ApplicationProgramsFolder" On="install" />
+                <RemoveFolder Id="Z_RemoveLegacyStartFolder" On="install" />
+                <RegistryValue Root="HKCU"
+                               Key="Software\\{{manufacturer}}\\{{product_name}}"
+                               Name="Legacy Start Menu Cleanup"
+                               Type="integer"
+                               Value="1"
+                               KeyPath="yes" />
+            </Component>
+        </DirectoryRef>
 
         <!-- Carpeta de datos. CreateFolder solo la retira si queda VACÍA en
              la desinstalación: los datos sobreviven. (Guid explícito: un
@@ -478,6 +506,9 @@
             <!-- Shortcut «Desinstalar OpenWave» en INSTALLDIR (antes estaba
                  en la feature StartMenuShortcut, eliminada). -->
             <ComponentRef Id="CMP_UninstallShortcut"/>
+            <!-- Limpieza del .lnk de menú inicio que dejó el MSI antiguo
+                 (huérfano en upgrades: ver CMP_LegacyStartCleanup). -->
+            <ComponentRef Id="CMP_LegacyStartCleanup"/>
 
             {{#each resource_file_ids as |resource_file_id| ~}}
                 <ComponentRef Id="{{ resource_file_id }}"/>

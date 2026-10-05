@@ -283,10 +283,13 @@ $checks = [ordered]@{
         [bool]($reg | Where-Object { $_[2] -eq 'Software\Classes\AppUserModelId\com.soundwave.app' -and $_[3] -eq 'DisplayName' -and $_[4] -eq 'OpenWave' })
     'Limpieza de INSTALLDIR (RemoveFile RemoveInstallDir, Path, uninstall)' =
         [bool]($rfile | Where-Object { $_[0] -eq 'RemoveInstallDir' -and $_[1] -eq 'Path' -and $_[3] -eq 'INSTALLDIR' -and $_[4] -eq '2' })
-    'Acceso directo de escritorio con su RemoveFile (sin carpeta de menú)' =
+    'Escritorio con su RemoveFile + limpieza del .lnk heredado de Inicio' =
         [bool]($rfile | Where-Object { $_[1] -eq 'ApplicationShortcutDesktop' -and $_[3] -eq 'DesktopFolder' }) -and
         (-not [bool]($rfile | Where-Object { $_[1] -eq 'ApplicationShortcut' })) -and
-        (-not [bool]($rfile | Where-Object { $_[3] -eq 'ApplicationProgramsFolder' }))
+        [bool]($rfile | Where-Object { $_[0] -eq 'A_RemoveLegacyStartLnk' -and $_[1] -eq 'CMP_LegacyStartCleanup' -and $_[2] -eq '*.lnk' -and $_[3] -eq 'ApplicationProgramsFolder' -and $_[4] -eq '1' }) -and
+        [bool]($rfile | Where-Object { $_[0] -eq 'Z_RemoveLegacyStartFolder' -and $_[1] -eq 'CMP_LegacyStartCleanup' -and $_[2] -eq '' -and $_[3] -eq 'ApplicationProgramsFolder' -and $_[4] -eq '1' }) -and
+        [bool]($featComps | Where-Object { $_[0] -eq 'MainProgram' -and $_[1] -eq 'CMP_LegacyStartCleanup' }) -and
+        (@($rfile | ForEach-Object { $_[0] }) -indexOf 'A_RemoveLegacyStartLnk') -lt (@($rfile | ForEach-Object { $_[0] }) -indexOf 'Z_RemoveLegacyStartFolder')
     'CMP_UninstallShortcut (Desinstalar) movido a MainProgram' =
         [bool]($featComps | Where-Object { $_[0] -eq 'MainProgram' -and $_[1] -eq 'CMP_UninstallShortcut' })
     'Payload con mas de 5000 ficheros' = ($files.Count -gt 5000)

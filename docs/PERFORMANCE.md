@@ -695,6 +695,14 @@ manually»* (sparse package):
 - MSI instalado (`exit=0`): log de la SAC con `add: ok`, `PackageRootFolder
   = C:\Program Files\OpenWave`, y ciclos manuales `-Mode Unregister` /
   `-Mode Register` del script verificados (con su traza en el log).
+- **Ciclo completo desinstalar → reinstalar** (ambos `exit=0`, `/qn`):
+  `UnregisterIdentity` elimina el paquete con el script aún en disco
+  (anclaje `Before=RemoveFiles`) y la reinstalación lo rehace con
+  `ExternalLocation = C:\Program Files\OpenWave`; el log de la SAC
+  conserva la secuencia completa `Register → Unregister → Register` con
+  `remove: ok` / `add: ok`. Los accesos directos per-machine (menú de
+  Inicio común en ProgramData y Escritorio público) se van y vuelven, y
+  la app relanzada arranca de nuevo con identidad (exe + 6 hijos WV2).
 - Barra de tareas (check del AUMID): **un único botón** `OpenWave: 1 ventana
   en ejecución` con `aid=Appid: OpenWave_pr6hx30mntjwm!App` — el AUMID
   explícito `com.soundwave.app` de `set_appusermodel_id()` solo tiene

@@ -16,7 +16,8 @@
        (error documentado 0x80073D54): aqui se aborta antes de construir.
     2. Staging: AppxManifest.xml con Version sincronizado con
        src-tauri/tauri.conf.json (1.0.0 -> 1.0.0.0) + Assets generados desde
-       src-tauri/icons/128x128.png (50/44/150 px).
+       src-tauri/icons/128x128.png (50/44/150 px + el set targetsize
+       16..256 en tres formas: default, unplated y lightunplated).
     3. Certificado de firma CN=OpenWave en Cert:\CurrentUser\My
        (autocreado si falta o caduca en menos de 30 dias) + export del .cer a
        la salida + confianza en Cert:\CurrentUser\TrustedPeople (sin ella,
@@ -134,15 +135,28 @@ New-Asset 44  'Square44x44Logo.png'    $icon128 $assetsDir
 New-Asset 150 'Square150x150Logo.png'  $icon128 $assetsDir
 Write-Host '  assets: StoreLogo 50, Square44x44 44, Square150x150 150'
 
-# Variante target-based UNPLATED: la que usan el taskbar, task view, Alt+Tab y
-# snap-assist. Sin ella el shell compone el logo sobre una placa opaca del color
-# dominante (morada) y el icono sale CUADRADO; con ella pinta el logo con sus
-# esquinas redondeadas y transparencia. Receta oficial «Add Target-based
+# Variantes target-based: el SET COMPLETO targetsize-N x 3 formas, no solo la
+# de 44 px. El taskbar, la lista de apps de Start, el buscador, Alt+Tab y
+# snap-assist piden un targetsize EXACTO (al 100 % de escala: 24 px taskbar,
+# 32 px pins, 48 px Alt+Tab); si no existe la variante de ese tamano el shell
+# escala la base y la compone sobre una placa opaca del BackgroundColor, y las
+# esquinas del icono salen a color (primero moradas por el color dominante,
+# despues negras con BackgroundColor=#0a0a0f). La doc MSIX «App icon» exige ademas
+# las tres formas (default, unplated «dark», lightunplated «light») para todos
+# los tamanos: sin ellas "your icon will appear on a system icon plate".
+# El nombre va pegado al recurso del atributo Square44x44Logo ( asi resuelve MRT
+# los calificadores targetsize/altform ). Receta oficial «Add Target-based
 # unplated assets» + «Generate a Package Resource Index (PRI)» (makepri, mas
 # abajo). El Task Manager no se toca: su icono viene del exe (icon.ico).
-Copy-Item -LiteralPath (Join-Path $assetsDir 'Square44x44Logo.png') `
-    -Destination (Join-Path $assetsDir 'Square44x44Logo.targetsize-44_altform-unplated.png') -Force
-Write-Host '  unplated: Square44x44Logo.targetsize-44_altform-unplated.png'
+$targetSizes = @(16, 20, 24, 30, 32, 36, 40, 44, 48, 60, 64, 72, 80, 96, 256)
+$assetForms  = @('', '_altform-unplated', '_altform-lightunplated')
+foreach ($ts in $targetSizes) {
+    foreach ($form in $assetForms) {
+        New-Asset $ts "Square44x44Logo.targetsize-$ts$form.png" $icon128 $assetsDir
+    }
+}
+Write-Host ("  target-based: " + $targetSizes.Count + " tamanos x " + $assetForms.Count +
+    " formas = " + ($targetSizes.Count * $assetForms.Count) + " variantes")
 
 # ── 4. Certificado de firma (idempotente, autorenovable) ────────────────────
 $cert = Get-ChildItem Cert:\CurrentUser\My -ErrorAction SilentlyContinue |

@@ -393,12 +393,19 @@ $checks = [ordered]@{
             [int]$_[1] -gt ([int](@($iseqSeq | Where-Object { $_[0] -eq 'RegisterIdentity' })[0][1]))
         })
 
-    # ── Icono del taskbar (esquinas redondas): target-based unplated + PRI ──
-    # Sin la variante unplated el shell compone el logo sobre una placa opaca
-    # del color dominante y el icono sale CUADRADO; el resources.pri es
+    # ── Icono del taskbar (esquinas redondas): set target-based completo + PRI ──
+    # El taskbar/start/buscador piden un targetsize EXACTO (24 px al 100 %);
+    # sin el SET completo de variantes (15 tamanos x 3 formas = 45) el shell
+    # escala la base y la compone sobre una placa opaca del BackgroundColor
+    # (con transparent salia morada por el color dominante; con #0a0a0f, con
+    # esquinas negras visibles sobre la barra). El resources.pri es
     # obligatorio para resolver los target-based assets (doc oficial MSIX).
     # El Task Manager no depende de esto (su icono viene del exe). Ver
     # docs/PERFORMANCE.md §10 y scripts/package-appx.ps1.
+    'Icono taskbar: msix con el set targetsize completo (45 variantes)' =
+        @($msixNames | Where-Object { $_ -like '*Assets\Square44x44Logo.targetsize-*.png' }).Count -eq 45
+    'Icono taskbar: msix con la variante exacta del taskbar (targetsize-24 unplated)' =
+        [bool]($msixNames | Where-Object { $_ -like '*Square44x44Logo.targetsize-24_altform-unplated.png' })
     'Icono taskbar: msix con Square44x44Logo.targetsize-44_altform-unplated.png' =
         [bool]($msixNames | Where-Object { $_ -like '*Square44x44Logo.targetsize-44_altform-unplated.png' })
     'Icono taskbar: msix con resources.pri (resuelve assets unplated)' =
@@ -406,6 +413,8 @@ $checks = [ordered]@{
     'Icono taskbar: MSI instala Assets en ExternalLocation (base + unplated)' =
         [bool]($fileSizes.Keys | Where-Object { $_ -like '*\Assets\Square44x44Logo.png' }) -and
         [bool]($fileSizes.Keys | Where-Object { $_ -like '*\Assets\Square44x44Logo.targetsize-44_altform-unplated.png' })
+    'Icono taskbar: MSI instala el set targetsize completo (45 variantes)' =
+        @($fileSizes.Keys | Where-Object { $_ -like '*\Assets\Square44x44Logo.targetsize-*.png' }).Count -eq 45
 }
 
 Write-Host ''

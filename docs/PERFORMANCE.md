@@ -694,7 +694,7 @@ manually»* (sparse package):
   del sistema) → **cero grupos «Administrador de WebView2»**.
 - Icono del grupo: el original (cuadrado morado con la onda), tomado del
   `Square44x44Logo` del paquete (zoom de captura verificado).
-- `scripts/verify-msi.ps1`: **64 comprobaciones en verde** (payload
+- `scripts/verify-msi.ps1`: **67 comprobaciones en verde** (payload
   msix/cer/script, SACs y secuencia).
 - MSI instalado (`exit=0`): log de la SAC con `add: ok`, `PackageRootFolder
   = C:\Program Files\OpenWave`, y ciclos manuales `-Mode Unregister` /
@@ -777,9 +777,10 @@ del logo (morado exacto `109,86,240`, el mismo del asset). Diagnóstico:
   MSI ahora los empaqueta (`bundle.resources` → `INSTALLDIR\Assets`;
   check de verify-msi) — sin eso, una instalación limpia se quedaría sin
   logo.
-- **Fix de la placa**: `uap:VisualElements BackgroundColor="#0a0a0f"`
-  (el mismo fondo de la app) en vez de `transparent` → la placa pasa a
-  casi negra, imperceptible sobre la barra, y la onda redondeada manda.
+- **Fix de la placa (parcial)**: `uap:VisualElements BackgroundColor="#0a0a0f"`
+  (el mismo fondo de la app) en vez de `transparent` → la placa deja de ser
+  morada (color dominante) y pasa a casi negra… pero se sigue viendo: ver la
+  cuarta causa más abajo.
 - **Receta oficial MSIX** («Add Target-based unplated assets» +
   «Generate a Package Resource Index»): el msix lleva ahora
   `Square44x44Logo.targetsize-44_altform-unplated.png` y `resources.pri`
@@ -792,6 +793,32 @@ de abajo terminan antes) + captura zoom con tile redondeado. Task Manager
 intacto: su icono viene del exe (`icon.ico`), que no se toca. El taskbar
 NO depende del `WM_SETICON` (comprobado: la pintura sigue la base de
 ExternalLocation, no el icono de la ventana).
+
+**Cuarta causa (resuelta 2026-10-06): las esquinas seguían en negro.** Con
+la placa ya en `#0a0a0f` el tile salía redondeado, pero las esquinas del
+cuadro se seguían viendo (negro visible sobre la barra). Causa: solo
+existía la variante `targetsize-44`, y el taskbar pide un targetsize
+**exacto** (24 px al 100 % de escala; 32 px en pins de Inicio, 48 px en
+Alt+Tab…). Sin la variante de ese tamaño el shell escala la base y la
+compone sobre la placa del `BackgroundColor`, y el `resources.pri` solo
+indexaba el 44. La doc MSIX lo advierte literalmente: *«If you do not
+include the targetsize-\*-altform-unplated assets above your icon will
+scale to a smaller size and will get an undesirable backplate behind the
+icon on Taskbar and Start»* (mismo problema que
+WindowsAppSDK#5984 y el hilo de TechCommunity «the border will just not
+go away»: a todos les faltaba el set completo, no una variante suelta).
+
+Fix: `scripts/package-appx.ps1` genera ahora el set completo — **15 tamaños
+(16…256) × 3 formas (default, `altform-unplated` «dark»,
+`altform-lightunplated` «light») = 45 variantes** — indexado por el mismo
+`makepri` e instalado en `ExternalLocation\Assets` por el MSI
+(`bundle.resources`; checks de `verify-msi`: set completo en el msix y en
+la payload del MSI). Verificado en vivo tras re-registrar el paquete:
+esquinas del botón = color real del taskbar (barra traslúcida, sin rastro
+de `#0a0a0f`; muestreo de las 4 esquinas y de los refs de fondo) con el
+centro `231,227,252` intacto y la captura zoom con el tile redondeado
+sobre el fondo de la barra. Task Manager sigue intacto (su icono viene
+del exe).
 
 ## Regla de oro
 

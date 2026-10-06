@@ -403,7 +403,7 @@ $checks = [ordered]@{
     # El Task Manager no depende de esto (su icono viene del exe). Ver
     # docs/PERFORMANCE.md §10 y scripts/package-appx.ps1.
     'Icono taskbar: msix con el set targetsize completo (45 variantes)' =
-        @($msixNames | Where-Object { $_ -like '*Assets\Square44x44Logo.targetsize-*.png' }).Count -eq 45
+        @($msixNames | Where-Object { $_ -like '*Square44x44Logo.targetsize-*.png' }).Count -eq 45
     'Icono taskbar: msix con la variante exacta del taskbar (targetsize-24 unplated)' =
         [bool]($msixNames | Where-Object { $_ -like '*Square44x44Logo.targetsize-24_altform-unplated.png' })
     'Icono taskbar: msix con Square44x44Logo.targetsize-44_altform-unplated.png' =

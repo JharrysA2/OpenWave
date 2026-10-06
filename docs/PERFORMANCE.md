@@ -665,7 +665,9 @@ manually»* (sparse package):
   `UnregisterIdentity` (en la desinstalación, `NOT UPGRADINGPRODUCTCODE`,
   **antes de `RemoveFiles`** porque el script tiene que seguir en disco)
   invoca `-Mode Unregister`. El script importa la confianza y hace
-  `Remove-AppxPackage` + `Add-AppxPackage -ExternalLocation` con trazas en
+  `Remove-AppxPackage` + `Add-AppxPackage -ExternalLocation $scriptDir`
+  **sin barra final** (ver §10: con la barra el botón del taskbar no
+  pinta el icono del paquete) con trazas en
   `openwave-identity.log` del INSTALLDIR (si no puede escribir —
   ejecución media sobre Program Files — cae a `%TEMP%`). El Remove-Add hace
   idempotente la reparación y actualiza la ExternalLocation (con la misma
@@ -743,6 +745,22 @@ AUMID no tiene ítem (arranque sin identidad)— y la clave
 Sin identidad el botón salía morado (AUMID `com.soundwave.app` con
 `IconUri` que crea el MSI); con identidad manda el `Square44x44Logo` del
 paquete.
+
+**Segunda causa (resuelta 2026-10-06): la barra final en
+`-ExternalLocation`.** Con `-ExternalLocation ($scriptDir + '\')` el botón
+no pintaba el icono del paquete —render fragmentado: punto/cuadrado
+diminuto en el centro— mientras que con `-ExternalLocation $scriptDir`
+(sin barra) sí. Lo retorcido: el estado del paquete queda **idéntico** en
+ambos casos (`PackageRootFolder = C:\Program Files\OpenWave` sin barra,
+`diff` de las claves `AppModel\Repository\...` y `AppModel` vacío) y la
+extracción vía `IShellItemImageFactory` devuelve la onda morada en los
+dos; solo el taskbar se nota, así que la `\` actúa durante el `Add`
+(cache de contenido/ítem, no en el registro). Verificado en vivo con
+3/3 parejas el 2026-10-05 (SAC con barra → roto; registro manual sin
+barra → morado, RGB esquina `109,86,241` y centro `231,227,252` en el
+botón). Fix: `packaging/appx/openwave-identity-ca.ps1` pasa
+`-ExternalLocation $scriptDir` (commit `02b1abe`); la SAC del MSI
+instalado y su log (`add: ok`, 2026-10-06 08:41) lo confirman.
 
 ## Regla de oro
 

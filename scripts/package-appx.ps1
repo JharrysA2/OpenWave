@@ -197,7 +197,7 @@ $priconfig = Join-Path $OutDir 'priconfig.xml'
 $priPath   = Join-Path $stage 'resources.pri'
 & $makepri.FullName createconfig /cf $priconfig /dq en-US /o
 if ($LASTEXITCODE -ne 0) { throw "makepri createconfig ha fallado (codigo $LASTEXITCODE)." }
-& $makepri.FullName new /pr $stage /cf $priconfig /pri $priPath /o
+& $makepri.FullName new /pr $stage /cf $priconfig /of $priPath /o
 if ($LASTEXITCODE -ne 0) { throw "makepri new ha fallado (codigo $LASTEXITCODE)." }
 if (-not (Test-Path -LiteralPath $priPath)) { throw 'makepri no ha generado resources.pri.' }
 Remove-Item -LiteralPath $priconfig -Force   # priconfig.xml no viaja en el paquete

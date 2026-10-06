@@ -383,7 +383,7 @@
              (FileKey) procese el .lnk ANTES. -->
         <DirectoryRef Id="ApplicationProgramsFolder">
             <Component Id="CMP_LegacyStartCleanup" Guid="*">
-                <RemoveFile Id="A_RemoveLegacyStartLnk" Name="*.lnk" DirProperty="ApplicationProgramsFolder" On="install" />
+                <RemoveFile Id="A_RemoveLegacyStartLnk" Name="*.lnk" On="install" />
                 <RemoveFolder Id="Z_RemoveLegacyStartFolder" On="install" />
                 <RegistryValue Root="HKCU"
                                Key="Software\\{{manufacturer}}\\{{product_name}}"

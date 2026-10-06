@@ -134,6 +134,16 @@ New-Asset 44  'Square44x44Logo.png'    $icon128 $assetsDir
 New-Asset 150 'Square150x150Logo.png'  $icon128 $assetsDir
 Write-Host '  assets: StoreLogo 50, Square44x44 44, Square150x150 150'
 
+# Variante target-based UNPLATED: la que usan el taskbar, task view, Alt+Tab y
+# snap-assist. Sin ella el shell compone el logo sobre una placa opaca del color
+# dominante (morada) y el icono sale CUADRADO; con ella pinta el logo con sus
+# esquinas redondeadas y transparencia. Receta oficial «Add Target-based
+# unplated assets» + «Generate a Package Resource Index (PRI)» (makepri, mas
+# abajo). El Task Manager no se toca: su icono viene del exe (icon.ico).
+Copy-Item -LiteralPath (Join-Path $assetsDir 'Square44x44Logo.png') `
+    -Destination (Join-Path $assetsDir 'Square44x44Logo.targetsize-44_altform-unplated.png') -Force
+Write-Host '  unplated: Square44x44Logo.targetsize-44_altform-unplated.png'
+
 # ── 4. Certificado de firma (idempotente, autorenovable) ────────────────────
 $cert = Get-ChildItem Cert:\CurrentUser\My -ErrorAction SilentlyContinue |
     Where-Object { $_.Subject -eq 'CN=OpenWave' -and $_.HasPrivateKey -and $_.NotAfter -gt (Get-Date).AddDays(30) } |
@@ -172,6 +182,26 @@ if (-not $makeappx) {
 }
 $signtool = Join-Path $makeappx.Directory.FullName 'signtool.exe'
 if (-not (Test-Path -LiteralPath $signtool)) { throw "No se encuentra signtool.exe junto a makeappx: $signtool" }
+
+# resources.pri (makepri): obligatorio para que el shell resuelva la variante
+# targetsize-44_altform-unplated (los target-based assets exigen PRI; doc MSIX
+# «Generate a Package Resource Index (PRI) file using MakePri»). /dq tiene que
+# coincidir con <Resource Language> del manifiesto (en-us). El priconfig vive
+# FUERA de la carpeta indexada para no entrar en el propio PRI.
+$makepri = Get-ChildItem -Path (Join-Path $kits '*\x64\makepri.exe') -ErrorAction SilentlyContinue |
+    Sort-Object { [version]($_.Directory.Parent.Name) } -Descending | Select-Object -First 1
+if (-not $makepri) {
+    throw 'No se encuentra makepri.exe en "Windows Kits\10\bin\<ver>\x64" (instala el Windows 10/11 SDK).'
+}
+$priconfig = Join-Path $OutDir 'priconfig.xml'
+$priPath   = Join-Path $stage 'resources.pri'
+& $makepri.FullName createconfig /cf $priconfig /dq en-US /o
+if ($LASTEXITCODE -ne 0) { throw "makepri createconfig ha fallado (codigo $LASTEXITCODE)." }
+& $makepri.FullName new /pr $stage /cf $priconfig /pri $priPath /o
+if ($LASTEXITCODE -ne 0) { throw "makepri new ha fallado (codigo $LASTEXITCODE)." }
+if (-not (Test-Path -LiteralPath $priPath)) { throw 'makepri no ha generado resources.pri.' }
+Remove-Item -LiteralPath $priconfig -Force   # priconfig.xml no viaja en el paquete
+Write-Host '  resources.pri generado (assets unplated resolubles)'
 
 $msixPath = Join-Path $OutDir 'openwave-identity.msix'
 & $makeappx.FullName pack /d $stage /p $msixPath /o /nv

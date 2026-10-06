@@ -219,6 +219,20 @@ $bigStyle        = @($textsty | Where-Object { $_[0] -eq 'WixUI_Font_Bigger' })
 $installFilesTxt = @($actext  | Where-Object { $_[0] -eq 'InstallFiles' })
 $maintControls   = @($controls | Where-Object { $_[0] -eq 'MaintenanceTypeDlg' })
 
+# Contenido del msix (icono del taskbar): variante unplated + resources.pri.
+# El msix se empaqueta junto al MSI (build\windows\openwave-identity.msix).
+$msixPath = Join-Path (Split-Path -Parent $MsiPath) 'openwave-identity.msix'
+if (-not (Test-Path -LiteralPath $msixPath)) {
+    $msixPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'build\windows\openwave-identity.msix'
+}
+$msixNames = @()
+if (Test-Path -LiteralPath $msixPath) {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem | Out-Null
+    $msixZip = [System.IO.Compression.ZipFile]::OpenRead($msixPath)
+    try { $msixNames = @($msixZip.Entries | ForEach-Object { $_.FullName }) }
+    finally { $msixZip.Dispose() }
+}
+
 $checks = [ordered]@{
     'Dialogos WixUI (Welcome, License, InstallDir, VerifyReady, Exit)' =
         ('WelcomeDlg' -in $dialogNames) -and ('LicenseAgreementDlg' -in $dialogNames) -and
@@ -378,6 +392,17 @@ $checks = [ordered]@{
             $_[0] -eq 'LaunchApplication' -and $_[1] -match '^\d+$' -and
             [int]$_[1] -gt ([int](@($iseqSeq | Where-Object { $_[0] -eq 'RegisterIdentity' })[0][1]))
         })
+
+    # ── Icono del taskbar (esquinas redondas): target-based unplated + PRI ──
+    # Sin la variante unplated el shell compone el logo sobre una placa opaca
+    # del color dominante y el icono sale CUADRADO; el resources.pri es
+    # obligatorio para resolver los target-based assets (doc oficial MSIX).
+    # El Task Manager no depende de esto (su icono viene del exe). Ver
+    # docs/PERFORMANCE.md §10 y scripts/package-appx.ps1.
+    'Icono taskbar: msix con Square44x44Logo.targetsize-44_altform-unplated.png' =
+        [bool]($msixNames | Where-Object { $_ -like '*Square44x44Logo.targetsize-44_altform-unplated.png' })
+    'Icono taskbar: msix con resources.pri (resuelve assets unplated)' =
+        [bool]($msixNames | Where-Object { $_ -eq 'resources.pri' })
 }
 
 Write-Host ''

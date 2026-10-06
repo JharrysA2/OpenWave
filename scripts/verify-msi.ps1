@@ -403,6 +403,9 @@ $checks = [ordered]@{
         [bool]($msixNames | Where-Object { $_ -like '*Square44x44Logo.targetsize-44_altform-unplated.png' })
     'Icono taskbar: msix con resources.pri (resuelve assets unplated)' =
         [bool]($msixNames | Where-Object { $_ -eq 'resources.pri' })
+    'Icono taskbar: MSI instala Assets en ExternalLocation (base + unplated)' =
+        [bool]($fileSizes.Keys | Where-Object { $_ -like '*\Assets\Square44x44Logo.png' }) -and
+        [bool]($fileSizes.Keys | Where-Object { $_ -like '*\Assets\Square44x44Logo.targetsize-44_altform-unplated.png' })
 }
 
 Write-Host ''

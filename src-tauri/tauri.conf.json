@@ -48,7 +48,8 @@
       "../LICENSE": "LICENSE",
       "../build/windows/openwave-identity.msix": "openwave-identity.msix",
       "../build/windows/openwave-identity.cer": "openwave-identity.cer",
-      "../packaging/appx/openwave-identity-ca.ps1": "openwave-identity-ca.ps1"
+      "../packaging/appx/openwave-identity-ca.ps1": "openwave-identity-ca.ps1",
+      "../build/windows/appx-staging/Assets": "Assets"
     },
     "windows": {
       "webviewInstallMode": { "type": "embedBootstrapper" },

@@ -694,7 +694,7 @@ manually»* (sparse package):
   del sistema) → **cero grupos «Administrador de WebView2»**.
 - Icono del grupo: el original (cuadrado morado con la onda), tomado del
   `Square44x44Logo` del paquete (zoom de captura verificado).
-- `scripts/verify-msi.ps1`: **61 comprobaciones en verde** (payload
+- `scripts/verify-msi.ps1`: **64 comprobaciones en verde** (payload
   msix/cer/script, SACs y secuencia).
 - MSI instalado (`exit=0`): log de la SAC con `add: ok`, `PackageRootFolder
   = C:\Program Files\OpenWave`, y ciclos manuales `-Mode Unregister` /
@@ -761,6 +761,37 @@ barra → morado, RGB esquina `109,86,241` y centro `231,227,252` en el
 botón). Fix: `packaging/appx/openwave-identity-ca.ps1` pasa
 `-ExternalLocation $scriptDir` (commit `02b1abe`); la SAC del MSI
 instalado y su log (`add: ok`, 2026-10-06 08:41) lo confirman.
+
+**Tercera causa (resuelta 2026-10-06): el tile salía con esquinas rectas.**
+Con el icono ya morado, el botón seguía siendo un **cuadrado morado perfecto**
+(mapa ASCII del botón: borde vertical idéntico desde la primera fila, cero
+escalera) — el shell compone el `Square44x44Logo` sobre una **placa opaca**
+y con `BackgroundColor="transparent"` la placa sale del **color dominante**
+del logo (morado exacto `109,86,240`, el mismo del asset). Diagnóstico:
+
+- **Test verde**: sobrescribir la base en `ExternalLocation\Assets` volvía
+  verde el botón → la fuente del taskbar es
+  `C:\Program Files\OpenWave\Assets`, **no** la copia del msix en
+  WindowsApps; por eso los cambios dentro del paquete no se notaban. Los
+  Assets eran residuales de una ronda antigua (no los instalaba nadie): el
+  MSI ahora los empaqueta (`bundle.resources` → `INSTALLDIR\Assets`;
+  check de verify-msi) — sin eso, una instalación limpia se quedaría sin
+  logo.
+- **Fix de la placa**: `uap:VisualElements BackgroundColor="#0a0a0f"`
+  (el mismo fondo de la app) en vez de `transparent` → la placa pasa a
+  casi negra, imperceptible sobre la barra, y la onda redondeada manda.
+- **Receta oficial MSIX** («Add Target-based unplated assets» +
+  «Generate a Package Resource Index»): el msix lleva ahora
+  `Square44x44Logo.targetsize-44_altform-unplated.png` y `resources.pri`
+  generado con `makepri createconfig /dq en-US` + `makepri new /of`
+  (el build confirma los qualifiers `UNPLATED`/`44`).
+
+Verificado en vivo: mapa ASCII del botón con escalera en las cuatro
+esquinas (las filas de arriba arrancan dos columnas más a la derecha y las
+de abajo terminan antes) + captura zoom con tile redondeado. Task Manager
+intacto: su icono viene del exe (`icon.ico`), que no se toca. El taskbar
+NO depende del `WM_SETICON` (comprobado: la pintura sigue la base de
+ExternalLocation, no el icono de la ventana).
 
 ## Regla de oro
 

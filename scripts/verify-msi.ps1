@@ -289,7 +289,7 @@ $checks = [ordered]@{
         [bool]($rfile | Where-Object { $_[0] -eq 'A_RemoveLegacyStartLnk' -and $_[1] -eq 'CMP_LegacyStartCleanup' -and $_[2] -eq '*.lnk' -and $_[3] -eq 'ApplicationProgramsFolder' -and $_[4] -eq '1' }) -and
         [bool]($rfile | Where-Object { $_[0] -eq 'Z_RemoveLegacyStartFolder' -and $_[1] -eq 'CMP_LegacyStartCleanup' -and $_[2] -eq '' -and $_[3] -eq 'ApplicationProgramsFolder' -and $_[4] -eq '1' }) -and
         [bool]($featComps | Where-Object { $_[0] -eq 'MainProgram' -and $_[1] -eq 'CMP_LegacyStartCleanup' }) -and
-        (@($rfile | ForEach-Object { $_[0] }) -indexOf 'A_RemoveLegacyStartLnk') -lt (@($rfile | ForEach-Object { $_[0] }) -indexOf 'Z_RemoveLegacyStartFolder')
+        ((@($rfile | ForEach-Object { $_[0] })).IndexOf('A_RemoveLegacyStartLnk') -lt (@($rfile | ForEach-Object { $_[0] })).IndexOf('Z_RemoveLegacyStartFolder'))
     'CMP_UninstallShortcut (Desinstalar) movido a MainProgram' =
         [bool]($featComps | Where-Object { $_[0] -eq 'MainProgram' -and $_[1] -eq 'CMP_UninstallShortcut' })
     'Payload con mas de 5000 ficheros' = ($files.Count -gt 5000)

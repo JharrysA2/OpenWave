@@ -74,8 +74,13 @@ try {
 
         try {
             # ExternalLocation = esta misma carpeta (el <msix> del exe exige
-            # que el payload este donde se ejecuta).
-            Add-AppxPackage -Path $msix -ExternalLocation ($scriptDir + '\') -ErrorAction Stop
+            # que el payload este donde se ejecuta). SIN barra final: con
+            # ($scriptDir + '\') el boton de la barra de tareas no pinta el
+            # icono del paquete (renderiza un punto/cuadrado diminuto) aunque
+            # el registro del paquete quede IDENTICO y la extraccion via
+            # IShellItemImageFactory devuelva la onda morada; sin la barra si
+            # pinta. Verificado en vivo con las tres parejas 2026-10-05.
+            Add-AppxPackage -Path $msix -ExternalLocation $scriptDir -ErrorAction Stop
             Log 'add: ok'
         } catch { Log ('add: ERR ' + $_.Exception.Message); exit 1 }
 

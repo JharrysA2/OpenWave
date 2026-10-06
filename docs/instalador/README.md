@@ -187,10 +187,16 @@ El stderr del backend (arranques, tracebacks, warmup) cae en
 
 - **`RemoveFolder` de INSTALLDIR vive en el componente `Path`** (el `.exe`, que
   se instala siempre), no en el de accesos directos, para que la carpeta se
-  limpie aunque el usuario desmarque el Menú Inicio.
+  limpie también si se desmarcan los accesos directos.
 
-- **`INSTALL_STARTUP` empieza vacío** (desmarcado por defecto);
-  `INSTALL_STARTMENU` y `INSTALL_DESKTOP` vienen con `1`.
+- **`INSTALL_STARTUP` empieza vacío** (desmarcado por defecto) y
+  `INSTALL_DESKTOP` viene con `1`. No existe `INSTALL_STARTMENU`: la feature
+  `StartMenuShortcut` se eliminó, porque la entrada en Inicio la aporta el
+  paquete sparse (identidad) y el shortcut del MSI la duplicaba. La carpeta de
+  menú solo se declara para `CMP_LegacyStartCleanup`, que en cada instalación
+  borra el `.lnk` heredado que dejaría un upgrade desde una versión antigua
+  (`RemoveExistingProducts` ejecuta la secuencia del producto viejo, donde
+  `RemoveShortcuts` se salta con `UPGRADINGPRODUCTCODE`).
 
 - **La página de progreso necesita `<UIRef Id="WixUI_ErrorProgressText" />`.**
   Ese fragmento de la librería WixUI aporta la tabla `ActionText` («Copiando
@@ -311,10 +317,11 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
    «Acepto los términos».
 4. **Carpeta de destino**: `C:\Program Files\OpenWave`, con botón
    `Examinar...` que abre el diálogo de selección de carpeta.
-5. **Opciones de instalación**: tres casillas
-   - [x] Crear un acceso directo en el menú inicio
+5. **Opciones de instalación**: dos casillas
    - [x] Crear un acceso directo en el escritorio
    - [ ] Iniciar OpenWave con Windows  ← **desmarcado por defecto**
+   (La entrada en el menú Inicio no es una casilla: la pone el paquete sparse
+   al registrarse — ver §10 de `PERFORMANCE.md`.)
 6. **Listo para instalar** → «Instalar»: la página de progreso muestra
    **textos de estado** («Copiando archivos nuevos», «Archivo: …, directorio:
    …») sobre la barra, no solo la barra.
@@ -330,8 +337,9 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
    (~5-20 s en frío la primera vez), la pantalla se desvanece sola y entra
    a la app. Con el backend caído de verdad, a los 30 s aparece el error con
    su **código** (p. ej. `E-CNX-01`) y «Continuar sin conexión».
-10. Accesos directos creados en el escritorio y en
-    `Inicio ▸ OpenWave`, ambos apuntando al `.exe` instalado.
+10. Acceso directo creado en el escritorio apuntando al `.exe` instalado; la
+    entrada `Inicio ▸ OpenWave` la aporta el paquete de identidad, no un
+    `.lnk` del MSI.
 11. Con la tercera casilla marcada: aparece
     `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\OpenWave` y la app
     arranca tras reiniciar. Sin marcar: la clave no existe.
@@ -357,8 +365,8 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
     ✅ *Verificado 2026-10-01*: con el producto instalado, `msiexec /i <msi>`
     muestra «Cambiar, reparar o quitar la instalación» con los tres botones y
     **ninguna transacción se inicia hasta que el usuario pulsa**.
-17. **Cambiar** abre «Opciones de instalación» (las tres casillas de accesos
-    directos); «Siguiente» lleva a «Listo para instalar» y los cambios se
+17. **Cambiar** abre «Opciones de instalación» (las dos casillas); «Siguiente»
+    lleva a «Listo para instalar» y los cambios se
     aplican. En WixUI_InstallDir ese botón venía **sin cablear** (solo publicaba
     `WixUI_InstallMode=Change` y no navegaba): el `NewDialog` a `OptionsDlg`
     está publicado en `main.wxs`.
@@ -384,7 +392,8 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
   → 61 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
   el modo mantenimiento, valores por defecto de las casillas, licencia embebida,
   textos de progreso de `ActionText`, tipografía de `TextStyle`, gráficos de
-  marca, limpieza de INSTALLDIR, registro AppUserModelId de agrupación en el
+  marca, limpieza de INSTALLDIR y del acceso directo de Inicio heredado
+  (`CMP_LegacyStartCleanup`), registro AppUserModelId de agrupación en el
   Administrador de Tareas, payload: backend + Python embebido + ffmpeg y
   `main.py` al día), sin instalar nada.
 

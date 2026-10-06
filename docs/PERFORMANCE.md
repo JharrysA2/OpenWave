@@ -635,9 +635,11 @@ manually»* (sparse package):
   este elemento `Add-AppxPackage -ExternalLocation` falla con `0x80073D2E`
   (`ERROR_PACKAGE_EXTERNAL_LOCATION_NOT_ALLOWED`)**, fue el error del primer
   intento — `uap10:RuntimeBehavior=win32App` (¡prohibido `EntryPoint` con
-  RuntimeBehavior! error de makeappx) + `unvirtualizedResources`,
-  `AppListEntry=none` (sin entrada duplicada en Start; el MSI ya pone su
-  acceso directo).
+  RuntimeBehavior! error de makeappx) + `unvirtualizedResources`.
+  **`AppListEntry` va por DEFECTO** (atributo ausente): `none` dejaba el botón
+  de la barra de tareas sin icono (ver el párrafo «Icono del botón» más
+  abajo) y además sobraba, porque el acceso directo de menú inicio del MSI se
+  eliminó — la entrada única en Start la da el paquete.
 - `packaging/appx/app.manifest` — manifiesto RT_MANIFEST del exe con el
   elemento `<msix publisher="CN=OpenWave" packageName="OpenWave"
   applicationId="App">`; lo embebe `src-tauri/build.rs` vía
@@ -717,24 +719,30 @@ externa haría falta certificado real (Azure Trusted Signing o de empresa).
 Si el paquete registrado apunta a una carpeta que ya no existe, la app corre
 sin identidad: la SAC de instalación siempre rehace Remove-Add.
 
-**Icono del botón en la barra de tareas (2026-10-05).** Con identidad, el
-botón es único y con el nombre correcto, pero su icono se renderiza como un
-placeholder gris (el resto de la app usa el morado original: título, grupo
-en Task Manager, accesos directos). Descartado empíricamente en esta
-máquina: refresco de caché de iconos (`ie4uinit -show`), purga de
-`SystemAppData\OpenWave_*`, reinicio de Explorer, `AppListEntry` por
-defecto (además crea una segunda entrada «OpenWave» en Start, duplicada
-con el acceso directo del MSI → se mantiene `none`), `WM_SETICON`
-(big+small) con el logo morado y la clave
+**Icono del botón en la barra de tareas (resuelto 2026-10-05).** Causa
+raíz del placeholder gris: **`AppListEntry="none"` en el manifiesto del
+paquete** — sin ítem en `AppsFolder` para el AUMID el shell no tiene
+icono que resolver, pese a que `Assets/Square44x44Logo.png` (la onda
+morada) va dentro del msix y en `ExternalLocation`. Con `AppListEntry`
+**por defecto** (atributo ausente) el ítem existe
+(`OpenWave_pr6hx30mntjwm!App`) y el botón pinta la onda morada original
+(captura con zoom verificada en vivo; también el grupo en Task Manager y
+los accesos directos). El motivo original de `none` — no duplicar la
+entrada en Start porque el MSI creaba su propio acceso directo — dejó de
+existir: la feature `StartMenuShortcut` se eliminó del MSI (la entrada
+única en Inicio la aporta el paquete) y los upgrades borran el `.lnk`
+heredado con `CMP_LegacyStartCleanup`.
+
+Descartado empíricamente como causa (todo probado antes de dar con la
+raíz): refresco de caché de iconos (`ie4uinit -show`), purga de
+`SystemAppData\OpenWave_*`, reinicio de Explorer, `WM_SETICON`
+(big+small) con el logo morado —solo afecta al icono de la ventana, no
+al del botón cuando hay identidad; se conserva como fallback cuando el
+AUMID no tiene ítem (arranque sin identidad)— y la clave
 `HKCU\...\AppUserModelId\OpenWave_pr6hx30mntjwm!App` con `IconUri`.
-Sin identidad el botón sí sale morado (AUMID `com.soundwave.app` con
-`IconUri` que crea el MSI). Es decir: el shell no resuelve el icono del
-AUMID para paquetes de contenido externo (la receta de Microsoft promete
-identidad, no integración completa del shell) — queda documentado como
-limitación de la receta sparse; si algún día se necesita el icono, las
-vías son empaquetar también los `Assets`/iconos como contenido interno
-del msix (ya van dentro) con alguna variante que el shell sí consulte, o
-pasar a un MSIX completo.
+Sin identidad el botón salía morado (AUMID `com.soundwave.app` con
+`IconUri` que crea el MSI); con identidad manda el `Square44x44Logo` del
+paquete.
 
 ## Regla de oro
 

@@ -17,7 +17,9 @@
     2. Staging: AppxManifest.xml con Version sincronizado con
        src-tauri/tauri.conf.json (1.0.0 -> 1.0.0.0) + Assets generados desde
        src-tauri/icons/128x128.png (50/44/150 px + el set targetsize
-       16..256 en tres formas: default, unplated y lightunplated).
+       16..256 en tres formas (default, unplated, lightunplated) en las dos
+       familias de nombre: Square44x44Logo.* y AppList.* — esta ultima es el
+       recurso canonico que consultan taskbar/Start/buscador (doc oficial).
     3. Certificado de firma CN=OpenWave en Cert:\CurrentUser\My
        (autocreado si falta o caduca en menos de 30 dias) + export del .cer a
        la salida + confianza en Cert:\CurrentUser\TrustedPeople (sin ella,
@@ -144,19 +146,64 @@ Write-Host '  assets: StoreLogo 50, Square44x44 44, Square150x150 150'
 # despues negras con BackgroundColor=#0a0a0f). La doc MSIX «App icon» exige ademas
 # las tres formas (default, unplated «dark», lightunplated «light») para todos
 # los tamanos: sin ellas "your icon will appear on a system icon plate".
-# El nombre va pegado al recurso del atributo Square44x44Logo ( asi resuelve MRT
-# los calificadores targetsize/altform ). Receta oficial «Add Target-based
-# unplated assets» + «Generate a Package Resource Index (PRI)» (makepri, mas
-# abajo). El Task Manager no se toca: su icono viene del exe (icon.ico).
+# Receta oficial «Add Target-based unplated assets» + «Generate a Package
+# Resource Index (PRI)» (makepri, mas abajo). El Task Manager no se toca: su
+# icono viene del exe (icon.ico).
+#
+# AppList.* = recurso «App icon» CANONICO: la doc oficial «Construct your
+# Windows app's icon» (app-icon-construction.md) dice literalmente «the
+# AppList icon is your app's primary icon. It will be used in several places,
+# including the Taskbar, Start pins, the all app list, and the search results
+# list» y su ausencia provoca «your icon will appear on a system icon plate».
+# Con SOLO variantes Square44x44Logo.* el taskbar seguia componiendo la placa
+# del BackgroundColor (quinta causa, PERFORMANCE.md §10): hay que publicar
+# tambien AppList.targetsize-N[form].png con los nombres EXACTOS de la doc.
+# La lista oficial no incluye 44; se genera igual (receta DesktopBridge 2016,
+# el taskbar de Win10 usaba 44) y sobra el default para el demas contexto.
 $targetSizes = @(16, 20, 24, 30, 32, 36, 40, 44, 48, 60, 64, 72, 80, 96, 256)
 $assetForms  = @('', '_altform-unplated', '_altform-lightunplated')
 foreach ($ts in $targetSizes) {
     foreach ($form in $assetForms) {
         New-Asset $ts "Square44x44Logo.targetsize-$ts$form.png" $icon128 $assetsDir
+        New-Asset $ts "AppList.targetsize-$ts$form.png"          $icon128 $assetsDir
     }
 }
 Write-Host ("  target-based: " + $targetSizes.Count + " tamanos x " + $assetForms.Count +
-    " formas = " + ($targetSizes.Count * $assetForms.Count) + " variantes")
+    " formas x 2 familias (Square44x44Logo + AppList) = " +
+    ($targetSizes.Count * $assetForms.Count * 2) + " variantes")
+
+# Variantes contrast-black/contrast-white (temas de alto contraste) + scale.
+# Comparacion con un paquete sano de referencia (Windows Terminal MSIX 1.25,
+# descargado de GitHub): su Square44x44Logo publica ademas
+#   targetsize-N_contrast-black|white, targetsize-N_altform-unplated_contrast-black|white
+#   y scale-100|125|150|200|400 (+ _contrast-black|white)
+# y su resources.pri declara los qualifiers Contrast y Scale. El nuestro NO
+# los declaraba y el taskbar seguia dibujando la placa (medido en vivo: con
+# BackgroundColor=transparent la placa era el ACCENT_COLOR del usuario
+# (116,77,169) en las esquinas del tile, mientras Terminal/Brave mostraban el
+# color real de la barra). La doc «unplated assets and themes»: si el sistema
+# no encuentra la version qualified/high-contrast del asset,
+# «the system draws the plated form of the asset instead».
+$contrastForms = @('_contrast-black', '_contrast-white',
+    '_altform-unplated_contrast-black', '_altform-unplated_contrast-white')
+foreach ($ts in $targetSizes) {
+    foreach ($form in $contrastForms) {
+        New-Asset $ts "Square44x44Logo.targetsize-$ts$form.png" $icon128 $assetsDir
+        New-Asset $ts "AppList.targetsize-$ts$form.png"          $icon128 $assetsDir
+    }
+}
+# scale: Square44x44Logo.scale-S = 44px x S/100 (misma escala que usa Terminal).
+# Hashtable PLANO a proposito: con [ordered] PowerShell interpreta $d[$s] con
+# clave int como acceso POSICIONAL (devuelve null; ver ordtest en swcheck).
+$scales = @{ 100 = 44; 125 = 55; 150 = 66; 200 = 88; 400 = 176 }
+foreach ($s in $scales.Keys) {
+    New-Asset $scales[$s] "Square44x44Logo.scale-$s.png"                $icon128 $assetsDir
+    New-Asset $scales[$s] "Square44x44Logo.scale-${s}_contrast-black.png" $icon128 $assetsDir
+    New-Asset $scales[$s] "Square44x44Logo.scale-${s}_contrast-white.png" $icon128 $assetsDir
+}
+Write-Host ("  contrast: " + $targetSizes.Count + " tamanos x " + $contrastForms.Count +
+    " formas x 2 familias = " + ($targetSizes.Count * $contrastForms.Count * 2) +
+    " + scale " + $scales.Count + "x3 (Square44x44Logo)")
 
 # ── 4. Certificado de firma (idempotente, autorenovable) ────────────────────
 $cert = Get-ChildItem Cert:\CurrentUser\My -ErrorAction SilentlyContinue |

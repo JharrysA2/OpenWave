@@ -68,7 +68,7 @@
       <uap:VisualElements
         DisplayName="OpenWave"
         Description="OpenWave - reproductor de musica"
-        BackgroundColor="#0a0a0f"
+        BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png" />
     </Application>

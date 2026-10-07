@@ -813,12 +813,68 @@ Fix: `scripts/package-appx.ps1` genera ahora el set completo — **15 tamaños
 `altform-lightunplated` «light») = 45 variantes** — indexado por el mismo
 `makepri` e instalado en `ExternalLocation\Assets` por el MSI
 (`bundle.resources`; checks de `verify-msi`: set completo en el msix y en
-la payload del MSI). Verificado en vivo tras re-registrar el paquete:
-esquinas del botón = color real del taskbar (barra traslúcida, sin rastro
-de `#0a0a0f`; muestreo de las 4 esquinas y de los refs de fondo) con el
-centro `231,227,252` intacto y la captura zoom con el tile redondeado
-sobre el fondo de la barra. Task Manager sigue intacto (su icono viene
-del exe).
+la payload del MSI). La verificación en vivo de esta ronda **no se sostuvo**:
+al día siguiente el usuario siguió viendo las esquinas negras («Sigue con
+esquinas negras») — el set de 45 era *necesario pero no suficiente*; faltaba
+la quinta causa.
+
+**Quinta causa (resuelta 2026-10-07): el `resources.pri` del paquete
+sparse tiene que vivir en la RAÍZ de `ExternalLocation`, no solo dentro del
+msix.** Diagnóstico (medición en vivo: botones localizados por UIA, reveal
+con movimientos reales del cursor, muestreo dentro de la caja del tile de
+24 px centrado en el botón de 44, y controles en el MISMO píxel — Brave sin
+empaquetar y Terminal MSIX sano — más color de barra medido en los huecos):
+
+- Con `BackgroundColor="#0a0a0f"` las esquinas de OpenWave eran
+  `(10,10,15)` = la placa; con `"transparent"` eran `(116,77,169)` = el
+  **accent color exacto del usuario** (DWM `AccentColor=0xFFA94D74`, ABGR).
+  O sea: *ningún* valor de `BackgroundColor` evita la placa mientras falle
+  la resolución calificada — `transparent` solo la tiñe (comportamiento de
+  WindowsAppSDK#5984, cerrado como externo) — y el esquema del manifiesto
+  rechaza el alfa: pattern `#[\da-fA-F]{6}` o colores con nombre
+  (un `#00000000` falla con `C00CE169`). Brave y Terminal, en cambio,
+  devolvían el color real de la barra → Terminal (MSIX completo,
+  `BackgroundColor="transparent"`) va **sin placa**.
+- `IShellItemImageFactory` de OpenWave devuelve esquinas transparentes
+  (`A=0`) con flags 0 y 0x4, idéntico a Calculator/Terminal → la placa la
+  compone el taskbar por su cuenta; el asset no es el problema.
+- Diff contra el paquete real de Windows Terminal (MSIX v1.25 extraída de
+  GitHub): Terminal publica `contrast-black/contrast-white` en todas las
+  formas y `scale-100/125/150/200/400`; su `resources.pri` declara los
+  qualifiers `AlternateForm, Contrast, Language, Scale, TargetSize` y el
+  nuestro solo `AlternateForm, TargetSize`. Se añadió la paridad
+  (`package-appx.ps1`: +120 variantes contrast y +15 scale) — **necesario
+  pero no suficiente** (medido: seguía la placa de acento).
+- Discriminador decisivo: **msix COMPLETO** (mismo manifiesto, mismos
+  assets, mismo PRI; exe dentro y sin `-ExternalLocation`) → esquinas =
+  color de la barra, iguales a Terminal/Brave → **sin placa**. El registro
+  *in-place* (`Add-AppxPackage -Register`) quedó descartado: exige licencia
+  de desarrollador (`0x80073CFF`).
+- Aislamiento del mecanismo: sparse apuntando `-ExternalLocation` a un
+  directorio que además contiene `resources.pri` + `resources.scale-*.pri`
+  **en su raíz** → sin placa (esquinas = barra `(43,43,43)` idénticas a los
+  controles); quitando el `AppxManifest.xml` del test seguía sin placa → la
+  variable activa es el **PRI externo**.
+
+Causa raíz: en un paquete sparse (AllowExternalContent + ExternalLocation)
+MRT carga el índice de recursos desde la **raíz del contenido externo**; si
+el `resources.pri` solo va dentro del msix el índice queda vacío, no hay
+candidatos `targetsize/altform/contrast/scale` y el taskbar cae al
+fallback: base del manifiesto escalada + placa del `BackgroundColor`.
+
+Fix del pipeline: `src-tauri/tauri.conf.json` (`bundle.resources`) instala
+ahora `resources.pri` y `resources.scale-{125,150,200,400}.pri` en la raíz
+de INSTALLDIR —que es `ExternalLocation`— junto a `Assets\`. El set de
+variantes pasa a **7 formas × 15 tamaños = 105 por familia** (las 3 de
+tema + 4 contrast) más 15 `scale-*` y la familia `AppList` completa (105;
+el taskbar/Start piden AppList primero). `BackgroundColor="transparent"`
+se conserva (paridad con Terminal: la placa solo se dibuja si la
+resolución falla, y con el PRI externo no falla). Checks nuevos en
+`verify-msi.ps1`: PRI + satellites en la raíz, PRI idéntico al de staging
+(sin desfase de build), qualifiers `AlternateForm/Contrast/Scale/TargetSize`,
+sets de 105 en msix y en el MSI, y `BackgroundColor` del msix. Los scripts
+de medición viven en `Desktop\swcheck\` (el limpiador de `%TEMP%` borra
+ficheros de ahí en minutos: no guardarlos en Temp).
 
 ## Regla de oro
 

@@ -226,11 +226,52 @@ if (-not (Test-Path -LiteralPath $msixPath)) {
     $msixPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'build\windows\openwave-identity.msix'
 }
 $msixNames = @()
+$msixManifestText = ''
 if (Test-Path -LiteralPath $msixPath) {
     Add-Type -AssemblyName System.IO.Compression.FileSystem | Out-Null
     $msixZip = [System.IO.Compression.ZipFile]::OpenRead($msixPath)
-    try { $msixNames = @($msixZip.Entries | ForEach-Object { $_.FullName }) }
-    finally { $msixZip.Dispose() }
+    try {
+        $msixNames = @($msixZip.Entries | ForEach-Object { $_.FullName })
+        $entry = $msixZip.GetEntry('AppxManifest.xml')
+        if ($entry) {
+            $reader = New-Object System.IO.StreamReader($entry.Open())
+            try { $msixManifestText = $reader.ReadToEnd() } finally { $reader.Dispose() }
+        }
+    } finally { $msixZip.Dispose() }
+}
+
+# Raiz de INSTALLDIR (= ExternalLocation del paquete sparse) y el PRI que el
+# MSI instala ahi: es la pieza que lee MRT para resolver variantes calificadas
+# (quinta causa, docs/PERFORMANCE.md §10). Se comprueba presencia, identidad
+# con el de staging (mismo tamano, sin desfase de build) y sus qualifiers.
+$instRoot   = InstallPath 'INSTALLDIR'
+$priStaging = Join-Path $repoRoot 'build\windows\appx-staging\resources.pri'
+$priStagingFresh = $false
+if (Test-Path -LiteralPath $priStaging) {
+    $msiPriSize = $fileSizes[($instRoot + '\resources.pri')]
+    if ($msiPriSize -gt 0) {
+        $priStagingFresh = ($msiPriSize -eq (Get-Item -LiteralPath $priStaging).Length)
+    }
+}
+$priQualsOk = $false
+$kitsBin = 'C:\Program Files (x86)\Windows Kits\10\bin'
+$makepriExe = Get-ChildItem -Path (Join-Path $kitsBin '*\x64\makepri.exe') -ErrorAction SilentlyContinue |
+    Sort-Object FullName -Descending | Select-Object -First 1
+if ($makepriExe -and (Test-Path -LiteralPath $priStaging)) {
+    $dump = Join-Path $env:TEMP ('swverify-pri-' + [Guid]::NewGuid().ToString('N') + '.xml')
+    try {
+        & $makepriExe.FullName dump /if $priStaging /of $dump /o | Out-Null
+        if (($LASTEXITCODE -eq 0) -and (Test-Path -LiteralPath $dump)) {
+            $xml = Get-Content -LiteralPath $dump -Raw
+            $mq = [regex]::Match($xml, '<Qualifiers[^>]*>.*?</Qualifiers>',
+                [System.Text.RegularExpressions.RegexOptions]::Singleline)
+            if ($mq.Success) {
+                $block = $mq.Value
+                $priQualsOk = $block.Contains('AlternateForm') -and $block.Contains('Contrast') -and
+                    $block.Contains('Scale') -and $block.Contains('TargetSize')
+            }
+        }
+    } finally { Remove-Item -LiteralPath $dump -ErrorAction SilentlyContinue }
 }
 
 $checks = [ordered]@{
@@ -393,28 +434,54 @@ $checks = [ordered]@{
             [int]$_[1] -gt ([int](@($iseqSeq | Where-Object { $_[0] -eq 'RegisterIdentity' })[0][1]))
         })
 
-    # ── Icono del taskbar (esquinas redondas): set target-based completo + PRI ──
-    # El taskbar/start/buscador piden un targetsize EXACTO (24 px al 100 %);
-    # sin el SET completo de variantes (15 tamanos x 3 formas = 45) el shell
-    # escala la base y la compone sobre una placa opaca del BackgroundColor
-    # (con transparent salia morada por el color dominante; con #0a0a0f, con
-    # esquinas negras visibles sobre la barra). El resources.pri es
-    # obligatorio para resolver los target-based assets (doc oficial MSIX).
-    # El Task Manager no depende de esto (su icono viene del exe). Ver
-    # docs/PERFORMANCE.md §10 y scripts/package-appx.ps1.
-    'Icono taskbar: msix con el set targetsize completo (45 variantes)' =
-        @($msixNames | Where-Object { $_ -like '*Square44x44Logo.targetsize-*.png' }).Count -eq 45
+    # ── Icono del taskbar (esquinas transparentes): set completo + PRI externo ──
+    # Quinta causa (2026-10-07, docs/PERFORMANCE.md §10): en un paquete SPARSE
+    # (AllowExternalContent + -ExternalLocation) el taskbar solo resuelve
+    # variantes calificadas si resources.pri (y sus satellites) estan en la
+    # RAIZ de ExternalLocation: MRT lee el indice desde el contenido externo y,
+    # si el PRI solo va dentro del msix, el indice queda vacio: sin candidatos
+    # targetsize/altform el shell escala la base del manifiesto y la compone
+    # sobre la placa del BackgroundColor (#0a0a0f -> esquinas negras;
+    # «transparent» -> placa del accent color del usuario, WindowsAppSDK#5984;
+    # el esquema solo admite #RRGGBB o colores con nombre: el alfa se rechaza
+    # con C00CE169). Con el PRI externo y el set completo, el taskbar pide el
+    # targetsize exacto (24 px al 100 %) y usa altform-unplated -> esquinas
+    # iguales al color real de la barra. contrast-*/scale-* completan la
+    # paridad con paquetes sanos de referencia (Windows Terminal MSIX, cuyo
+    # PRI declara Contrast y Scale; el nuestro no los declaraba). Task Manager
+    # no depende de esto (su icono viene del exe). Ver tambien
+    # scripts/package-appx.ps1.
+    'Icono taskbar: msix con el set targetsize completo (105 = 7 formas x 15 tamanos)' =
+        @($msixNames | Where-Object { $_ -like '*Square44x44Logo.targetsize-*.png' }).Count -eq 105
     'Icono taskbar: msix con la variante exacta del taskbar (targetsize-24 unplated)' =
         [bool]($msixNames | Where-Object { $_ -like '*Square44x44Logo.targetsize-24_altform-unplated.png' })
     'Icono taskbar: msix con Square44x44Logo.targetsize-44_altform-unplated.png' =
         [bool]($msixNames | Where-Object { $_ -like '*Square44x44Logo.targetsize-44_altform-unplated.png' })
+    'Icono taskbar: msix con contrast-* (>=120) y scale-* (15) — paridad Terminal' =
+        (@($msixNames | Where-Object { $_ -like '*_contrast-black.png' -or $_ -like '*_contrast-white.png' }).Count -ge 120) -and
+        (@($msixNames | Where-Object { $_ -like '*Square44x44Logo.scale-*.png' }).Count -eq 15)
+    'Icono taskbar: msix con la familia AppList completa (105 variantes)' =
+        @($msixNames | Where-Object { $_ -like '*AppList.targetsize-*.png' }).Count -eq 105
     'Icono taskbar: msix con resources.pri (resuelve assets unplated)' =
         [bool]($msixNames | Where-Object { $_ -eq 'resources.pri' })
+    'Icono taskbar: manifiesto del msix con BackgroundColor transparent' =
+        $msixManifestText.Contains('BackgroundColor="transparent"')
     'Icono taskbar: MSI instala Assets en ExternalLocation (base + unplated)' =
         [bool]($fileSizes.Keys | Where-Object { $_ -like '*\Assets\Square44x44Logo.png' }) -and
         [bool]($fileSizes.Keys | Where-Object { $_ -like '*\Assets\Square44x44Logo.targetsize-44_altform-unplated.png' })
-    'Icono taskbar: MSI instala el set targetsize completo (45 variantes)' =
-        @($fileSizes.Keys | Where-Object { $_ -like '*\Assets\Square44x44Logo.targetsize-*.png' }).Count -eq 45
+    'Icono taskbar: MSI instala el set targetsize completo (105 variantes)' =
+        @($fileSizes.Keys | Where-Object { $_ -like '*\Assets\Square44x44Logo.targetsize-*.png' }).Count -eq 105
+    'Icono taskbar: MSI instala AppList completo en ExternalLocation (105)' =
+        @($fileSizes.Keys | Where-Object { $_ -like '*\Assets\AppList.targetsize-*.png' }).Count -eq 105
+    'Icono taskbar: resources.pri + 4 satellites en la RAIZ de ExternalLocation' =
+        $fileSizes.ContainsKey($instRoot + '\resources.pri') -and
+        @(@('125', '150', '200', '400') | Where-Object {
+            -not $fileSizes.ContainsKey($instRoot + '\resources.scale-' + $_ + '.pri')
+        }).Count -eq 0
+    'Icono taskbar: PRI instalado identico al de staging (sin desfase de build)' =
+        $priStagingFresh
+    'Icono taskbar: PRI declara AlternateForm, Contrast, Scale y TargetSize' =
+        $priQualsOk
 }
 
 Write-Host ''

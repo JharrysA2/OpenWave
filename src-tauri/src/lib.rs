@@ -426,6 +426,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
+        // Selector nativo de archivos (rfd) + lectura: sustituyen a los
+        // <input type="file">, cuyo diálogo en WebView2 cerraba la app.
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .manage(BackendProcess(Mutex::new(None)))
         .setup(|app| {
             #[cfg_attr(not(target_os = "windows"), allow(unused_variables))]

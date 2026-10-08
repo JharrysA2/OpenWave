@@ -27,6 +27,10 @@ windows = { version = "0.61", features = [
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
+# Fijadas exactas: son las últimas compatibles con tauri 2.10.3 (2.8.x/2.6.x
+# exigen tauri ^2.12 y arrastrarían wry/tray-icon — specs congeladas).
+tauri-plugin-dialog = "=2.7.3"
+tauri-plugin-fs = "=2.5.2"
 
 [features]
 default = ["custom-protocol"]

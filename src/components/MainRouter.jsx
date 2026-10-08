@@ -30,6 +30,7 @@ export const MainRouter = React.memo(function MainRouter({
   liked,
   history,
   playlists,
+  onSelectPlaylist,
   toast,
   albumBrowseId,
   artistBrowseId,
@@ -185,6 +186,11 @@ export const MainRouter = React.memo(function MainRouter({
             accentColor={neonColor}
             onSearch={onHomeSearch}
             openOptions={(song) => song && openOptions(song)}
+            playlists={playlists}
+            onSelectPlaylist={onSelectPlaylist}
+            onSelectAlbum={(a) => {
+              if (a?.browseId) goToAlbum(a.browseId);
+            }}
           />
         </Suspense>
       );

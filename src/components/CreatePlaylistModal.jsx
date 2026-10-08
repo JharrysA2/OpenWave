@@ -1,9 +1,25 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { readFile } from "@tauri-apps/plugin-fs";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
 import { COLORS, RADIUS, TRANSITIONS, GLASS } from "../utils/theme";
+
+// El selector nativo (plugin-dialog/rfd) reemplaza al <input type="file">, que
+// alojaba el diálogo en el proceso WebView2 y provocaba el cierre de la app.
+const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "avif", "svg"];
+const IMAGE_MIME = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  bmp: "image/bmp",
+  avif: "image/avif",
+  svg: "image/svg+xml",
+};
 
 const PRESET_COLORS = [
   null,
@@ -27,7 +43,6 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
   const [coverFile, setCoverFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef(null);
-  const fileInputRef = useRef(null);
   const creatingRef = useRef(false);
   useOverlayLayer(open);
 
@@ -42,23 +57,36 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
     }
   }, [open]);
 
-  const handleCoverSelect = useCallback(
-    (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      if (!file.type.startsWith("image/")) {
-        toast("Selecciona una imagen valida", "error");
-        return;
-      }
+  const handleCoverSelect = useCallback(async () => {
+    let path;
+    try {
+      path = await openDialog({
+        multiple: false,
+        filters: [{ name: "Imagenes", extensions: IMAGE_EXTENSIONS }],
+      });
+    } catch {
+      toast("No se pudo abrir el selector", "error");
+      return;
+    }
+    if (!path) return; // cancelado: no pasa nada (antes cerraba la app)
+    const ext = (path.split(".").pop() || "").toLowerCase();
+    const mime = IMAGE_MIME[ext];
+    if (!mime) {
+      toast("Selecciona una imagen valida", "error");
+      return;
+    }
+    try {
+      const bytes = await readFile(path);
       const reader = new FileReader();
       reader.onload = () => {
         setCoverPreview(reader.result);
         setCoverFile(reader.result);
       };
-      reader.readAsDataURL(file);
-    },
-    [toast],
-  );
+      reader.readAsDataURL(new Blob([bytes], { type: mime }));
+    } catch {
+      toast("No se pudo leer la imagen", "error");
+    }
+  }, [toast]);
 
   const handleCreate = useCallback(async () => {
     if (!name.trim() || creatingRef.current) return;
@@ -176,7 +204,7 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
           <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
             {/* Cover picker */}
             <div
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleCoverSelect}
               style={{
                 width: "100px",
                 height: "100px",
@@ -229,14 +257,6 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
                 </>
               )}
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleCoverSelect}
-              style={{ display: "none" }}
-            />
-
             {/* Name */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <label

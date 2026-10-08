@@ -13,6 +13,11 @@
     "core:window:allow-set-focus",
     "core:window:allow-is-maximized",
     "shell:allow-open",
-    "http:default"
+    "http:default",
+    "dialog:default",
+    {
+      "identifier": "fs:read-files",
+      "allow": [{ "path": "**" }]
+    }
   ]
 }

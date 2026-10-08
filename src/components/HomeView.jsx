@@ -2,7 +2,7 @@ import React from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
-import { fmtTime } from "../utils/formatTime";
+import { api } from "../utils/api";
 import {
   COLORS,
   RADIUS,
@@ -17,6 +17,9 @@ import {
 import { SkeletonGrid, SkeletonSongRow } from "./SkeletonLoader";
 import { SearchBar } from "./SearchBar";
 import { StatusState } from "./StatusState";
+
+/** Límites por sección — home estilo YTM/Spotify: rejilla apilada, más items. */
+const LIMITS = { recents: 18, forYou: 20, trending: 20, albums: 20 };
 
 /** Devuelve un saludo según la hora del día */
 const getGreeting = () => {
@@ -36,14 +39,367 @@ const getGreetingIcon = () => {
   return Ic.moon(22);
 };
 
+/**
+ * Feed de la home desde el backend (4 endpoints en paralelo).
+ *
+ * Cada sección se rellena cuando su endpoint responde; si falla, la sección
+ * usa su fallback (historial) o directamente se omite — un endpoint caído
+ * nunca rompe la home. `settled` distingue "cargando" de "vacío de verdad"
+ * para no parpadear el estado vacío mientras viajan las peticiones.
+ *
+ * Reintentos: en el primer arranque el backend está en frío y /trending,
+ * /home/for-you y /home/albums tardan más de 10 s (timeout de api.get); sin
+ * reintento la sección no llegaba a aparecer en toda la sesión. Solo se
+ * reintenta ante error/timeout — una respuesta vacía es definitiva.
+ */
+const RETRY_DELAYS_MS = [5_000, 10_000, 20_000];
+
+function useHomeFeed() {
+  const [feed, setFeed] = React.useState({});
+  const [settled, setSettled] = React.useState(false);
+
+  React.useEffect(() => {
+    let alive = true;
+    const country = (navigator.language || "es").split("-")[1] || "GT";
+    const load = async (key, path) => {
+      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1]));
+          if (!alive) return;
+        }
+        try {
+          const data = await api.get(path);
+          const items = Array.isArray(data?.results) ? data.results : [];
+          if (alive && items.length > 0) {
+            setFeed((prev) => ({ ...prev, [key]: items }));
+          }
+          return; // respuesta definitiva (con datos o vacía)
+        } catch {
+          // timeout (backend en frío) u error → reintenta
+        }
+      }
+    };
+    Promise.allSettled([
+      load("recents", "/home/quick-picks"),
+      load("forYou", "/home/for-you"),
+      load("trending", `/trending?country=${country}`),
+      load("albums", "/home/albums"),
+    ]).then(() => {
+      if (alive) setSettled(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return { feed, settled };
+}
+
+/** Cabecera de sección (h3) con la misma cadencia de animación de siempre. */
+function SectionHeader({ children, delay = 120 }) {
+  return (
+    <div
+      style={{
+        ...ANIMATIONS.fadeSlideUp(delay),
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: SPACING.gap.wide,
+      }}
+    >
+      <h3 style={{ ...TYPOGRAPHY.h3, color: COLORS.iconActive, margin: 0 }}>{children}</h3>
+    </div>
+  );
+}
+
+/**
+ * Tarjeta de la rejilla: canción, álbum o cualquier entidad con cover.
+ * Estilo congelado: sin backdrop-filter por tarjeta (regresión de GPU),
+ * glow 16px de acento solo cuando está sonando.
+ */
+function FeedCard({
+  item,
+  index,
+  accentColor,
+  currentSong,
+  isActuallyPlaying,
+  onClick,
+  subtitle,
+  openOptions,
+}) {
+  const isPlaying = Boolean(item.videoId) && currentSong?.videoId === item.videoId;
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        ...ANIMATIONS.fadeSlideUp(160 + Math.min(index, 10) * 45),
+        ...GLASS.card,
+        // Sin backdrop-filter por tarjeta (regresión de rendimiento, mismo
+        // criterio que LibraryCard): sobre la rejilla plana era imperceptible.
+        backdropFilter: undefined,
+        WebkitBackdropFilter: undefined,
+        background: isPlaying
+          ? `linear-gradient(135deg, ${withAlpha(accentColor, "18")}, ${withAlpha(accentColor, "08")})`
+          : GLASS.card.background,
+        borderRadius: RADIUS.card,
+        cursor: "pointer",
+        transition:
+          "background .2s cubic-bezier(.16,1,.3,1), transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1), border-color .2s cubic-bezier(.16,1,.3,1)",
+        border: isPlaying ? `1.5px solid ${withAlpha(accentColor, "44")}` : GLASS.card.border,
+        boxShadow: isPlaying
+          ? `0 0 16px ${withAlpha(accentColor, "33")}, inset 0 1px 0 rgba(255,255,255,.06)`
+          : "none",
+        position: "relative",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = isPlaying
+          ? `linear-gradient(135deg, ${withAlpha(accentColor, "22")}, ${withAlpha(accentColor, "10")})`
+          : GLASS.cardHover.background;
+        e.currentTarget.style.transform = "translateY(-3px)";
+        e.currentTarget.style.boxShadow = `0 8px 24px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.06)`;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = isPlaying
+          ? `linear-gradient(135deg, ${withAlpha(accentColor, "18")}, ${withAlpha(accentColor, "08")})`
+          : GLASS.card.background;
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "none";
+      }}
+    >
+      {/* Cover con overlay sutil de gradiente en la parte inferior */}
+      <div
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: `${RADIUS.card}px ${RADIUS.card}px 0 0`,
+        }}
+      >
+        <MusicCover
+          thumbnails={item.thumbnails}
+          src={item.thumbnail}
+          displaySize={200}
+          alt={item.title}
+          style={{ width: "100%", aspectRatio: "1" }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: "40%",
+            background: "linear-gradient(to top, rgba(0,0,0,.5), transparent)",
+            pointerEvents: "none",
+          }}
+        />
+        {/* Indicador de reproducción en esquina inferior derecha (canciones) */}
+        {isPlaying && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "8px",
+              right: "8px",
+              width: "28px",
+              height: "28px",
+              borderRadius: "50%",
+              background: accentColor,
+              // Icono del pulso: primer plano dinámico sobre el acento
+              color: "var(--neon-fg)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              // Pausado mientras hay un modal abierto (queda tapado por el
+              // scrim): html.overlay-open (index.html)
+              boxShadow: `0 0 12px ${accentColor}88`,
+              animation: "pulse 1.5s ease infinite",
+            }}
+            className="now-playing-pulse"
+            data-testid="now-playing-pulse"
+          >
+            {isActuallyPlaying ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16" rx="1" />
+                <rect x="14" y="4" width="4" height="16" rx="1" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            )}
+          </div>
+        )}
+      </div>
+      {/* 3-dot menu — solo para canciones, fuera del contenedor con overflow */}
+      {openOptions && item.videoId && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            openOptions(item);
+          }}
+          style={{
+            position: "absolute",
+            top: "6px",
+            right: "6px",
+            width: "26px",
+            height: "26px",
+            borderRadius: "50%",
+            background: "rgba(0,0,0,.5)",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "rgba(255,255,255,.8)",
+            opacity: 0,
+            transition: "opacity .15s",
+            zIndex: 10,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = "1";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = "0";
+          }}
+        >
+          {Ic.dots}
+        </button>
+      )}
+      <div style={{ padding: "10px 12px 12px" }}>
+        <div
+          style={{
+            fontSize: "13px",
+            fontWeight: "700",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: isPlaying ? safeAccentText(accentColor) : COLORS.textPrimary,
+            lineHeight: 1.3,
+          }}
+        >
+          {item.title}
+        </div>
+        <div
+          style={{
+            fontSize: "11.5px",
+            color: COLORS.textTertiary,
+            fontWeight: "500",
+            marginTop: "3px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {subtitle}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Tarjeta de playlist local (cover = dataURL del backend, no thumbnails YT). */
+function PlaylistCard({ playlist, index, accentColor, onClick }) {
+  const cover = playlist.cover || playlist.first_cover;
+  const count = Number(playlist.song_count || 0);
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        ...ANIMATIONS.fadeSlideUp(160 + Math.min(index, 10) * 45),
+        ...GLASS.card,
+        backdropFilter: undefined,
+        WebkitBackdropFilter: undefined,
+        borderRadius: RADIUS.card,
+        cursor: "pointer",
+        position: "relative",
+        transition:
+          "background .2s cubic-bezier(.16,1,.3,1), transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = GLASS.cardHover.background;
+        e.currentTarget.style.transform = "translateY(-3px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = GLASS.card.background;
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: `${RADIUS.card}px ${RADIUS.card}px 0 0`,
+          background: COLORS.surfaceCoverBg,
+          aspectRatio: "1",
+        }}
+      >
+        {cover ? (
+          <img
+            src={cover}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          /* Fallback: acento de la playlist (o el de la app) sobre el fondo */
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: `linear-gradient(135deg, ${withAlpha(playlist.color || accentColor, "44")}, ${withAlpha(playlist.color || accentColor, "11")})`,
+              color: safeAccentText(playlist.color || accentColor),
+            }}
+          >
+            {Ic.music}
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "10px 12px 12px" }}>
+        <div
+          style={{
+            fontSize: "13px",
+            fontWeight: "700",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: COLORS.textPrimary,
+            lineHeight: 1.3,
+          }}
+        >
+          {playlist.name}
+        </div>
+        <div
+          style={{
+            fontSize: "11.5px",
+            color: COLORS.textTertiary,
+            fontWeight: "500",
+            marginTop: "3px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {count === 1 ? "1 canción" : `${count} canciones`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomeView({
   currentSong,
   isPlaying: isActuallyPlaying,
   playSong,
-  history,
+  history = [],
   accentColor = "#a78bfa",
   onSearch,
   openOptions,
+  playlists = [],
+  onSelectPlaylist,
+  onSelectAlbum,
   // ── Estado de la biblioteca (useLibrary) ──────────────────────────────────
   // "loading" → skeleton; "error" → estado con código + Reintentar; "ready" →
   // contenido. Antes se deducía de "history vacío" y el skeleton convivía con
@@ -52,11 +408,26 @@ export default function HomeView({
   errorCode,
   onRetry,
 }) {
-  // Quick picks from history
-  const quickPicks = history.slice(0, 6);
+  const { feed, settled } = useHomeFeed();
 
-  // For-you mixed (if there's a section)
-  const forYou = history.slice(0, 12);
+  // ── Secciones (rejilla apilada): endpoints con fallback a historial ───────
+  const recentsItems = (feed.recents || history.slice(0, LIMITS.recents)).slice(0, LIMITS.recents);
+  // Fallback de "Para ti": historial que no se ve ya en Recientes.
+  const recentsIds = new Set(recentsItems.map((s) => s.videoId).filter(Boolean));
+  const forYouFallback = history.filter((s) => !recentsIds.has(s.videoId)).slice(0, LIMITS.forYou);
+  const forYouItems = (feed.forYou || forYouFallback).slice(0, LIMITS.forYou);
+  // Tendencias y Álbumes: sin fallback de historial — si el endpoint falla,
+  // la sección no se pinta (nada de mezclar señas ajenas).
+  const trendingItems = (feed.trending || []).slice(0, LIMITS.trending);
+  const albumItems = (feed.albums || []).slice(0, LIMITS.albums);
+
+  const hasAnyContent =
+    recentsItems.length +
+      forYouItems.length +
+      trendingItems.length +
+      albumItems.length +
+      playlists.length >
+    0;
 
   // ── Search bar state ────────────────────────────────────────────────────────
   const [searchValue, setSearchValue] = React.useState("");
@@ -109,7 +480,7 @@ export default function HomeView({
               margin: 0,
             }}
           >
-            {quickPicks.length > 0 ? "¿Qué quieres escuchar?" : "Descubre tu sonido"}
+            {recentsItems.length > 0 ? "¿Qué quieres escuchar?" : "Descubre tu sonido"}
           </h1>
         </div>
 
@@ -160,403 +531,137 @@ export default function HomeView({
         </div>
       )}
 
-      {status === "ready" && quickPicks.length > 0 && (
+      {/* Skeleton — home vacía pero el feed todavía viaja (sin parpadeos) */}
+      {status === "ready" && !hasAnyContent && !settled && (
+        <div style={{ ...ANIMATIONS.fadeIn(100) }}>
+          <SkeletonGrid count={6} />
+        </div>
+      )}
+
+      {/* ── 1) Recientes — cronológico real (quick-picks), fallback historial */}
+      {status === "ready" && recentsItems.length > 0 && (
         <>
+          <SectionHeader delay={120}>Recientes</SectionHeader>
           <div
-            style={{
-              ...ANIMATIONS.fadeSlideUp(120),
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: SPACING.gap.wide,
-            }}
+            data-testid="grid-recents"
+            style={{ ...LAYOUTS.cardGrid, marginBottom: SPACING.section.marginBottom }}
           >
-            <h3
-              style={{
-                ...TYPOGRAPHY.h3,
-                color: COLORS.iconActive,
-                margin: 0,
-              }}
-            >
-              Recientes
-            </h3>
-          </div>
-          <div
-            style={{
-              ...LAYOUTS.cardGrid,
-              marginBottom: SPACING.section.marginBottom,
-            }}
-          >
-            {quickPicks.map((song, i) => {
-              const isPlaying = currentSong?.videoId === song.videoId;
-              return (
-                <div
-                  key={song.videoId || i}
-                  onClick={() => playSong(song)}
-                  style={{
-                    ...ANIMATIONS.fadeSlideUp(160 + i * 50),
-                    ...GLASS.card,
-                    // Sin backdrop-filter por tarjeta (regresión de
-                    // rendimiento, mismo criterio que LibraryCard): sobre la
-                    // rejilla plana el blur era imperceptible.
-                    backdropFilter: undefined,
-                    WebkitBackdropFilter: undefined,
-                    background: isPlaying
-                      ? `linear-gradient(135deg, ${withAlpha(accentColor, "18")}, ${withAlpha(accentColor, "08")})`
-                      : GLASS.card.background,
-                    borderRadius: RADIUS.card,
-                    cursor: "pointer",
-                    transition:
-                      "background .2s cubic-bezier(.16,1,.3,1), transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1), border-color .2s cubic-bezier(.16,1,.3,1)",
-                    border: isPlaying
-                      ? `1.5px solid ${withAlpha(accentColor, "44")}`
-                      : GLASS.card.border,
-                    boxShadow: isPlaying
-                      ? `0 0 16px ${withAlpha(accentColor, "33")}, inset 0 1px 0 rgba(255,255,255,.06)`
-                      : "none",
-                    position: "relative",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = isPlaying
-                      ? `linear-gradient(135deg, ${withAlpha(accentColor, "22")}, ${withAlpha(accentColor, "10")})`
-                      : GLASS.cardHover.background;
-                    e.currentTarget.style.transform = "translateY(-3px)";
-                    e.currentTarget.style.boxShadow = `0 8px 24px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.06)`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = isPlaying
-                      ? `linear-gradient(135deg, ${withAlpha(accentColor, "18")}, ${withAlpha(accentColor, "08")})`
-                      : GLASS.card.background;
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                >
-                  {/* Cover con overlay sutil de gradiente en la parte inferior */}
-                  <div
-                    style={{
-                      position: "relative",
-                      overflow: "hidden",
-                      borderRadius: `${RADIUS.card}px ${RADIUS.card}px 0 0`,
-                    }}
-                  >
-                    <MusicCover
-                      thumbnails={song.thumbnails}
-                      src={song.thumbnail}
-                      displaySize={200}
-                      alt={song.title}
-                      style={{ width: "100%", aspectRatio: "1" }}
-                    />
-                    {/* Gradiente sutil en la parte inferior del cover */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: "40%",
-                        background: "linear-gradient(to top, rgba(0,0,0,.5), transparent)",
-                        pointerEvents: "none",
-                      }}
-                    />
-                    {/* Indicador de reproducción en esquina inferior derecha */}
-                    {isPlaying && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          bottom: "8px",
-                          right: "8px",
-                          width: "28px",
-                          height: "28px",
-                          borderRadius: "50%",
-                          background: accentColor,
-                          // Icono del pulso: primer plano dinámico sobre el acento
-                          color: "var(--neon-fg)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          // Pausado mientras hay un modal abierto (queda
-                          // tapado por el scrim): html.overlay-open (index.html)
-                          boxShadow: `0 0 12px ${accentColor}88`,
-                          animation: "pulse 1.5s ease infinite",
-                        }}
-                        className="now-playing-pulse"
-                        data-testid="now-playing-pulse"
-                      >
-                        {isActuallyPlaying ? (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                            <rect x="6" y="4" width="4" height="16" rx="1" />
-                            <rect x="14" y="4" width="4" height="16" rx="1" />
-                          </svg>
-                        ) : (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  {/* 3-dot menu — outside overflow container */}
-                  {openOptions && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openOptions(song);
-                      }}
-                      style={{
-                        position: "absolute",
-                        top: "6px",
-                        right: "6px",
-                        width: "26px",
-                        height: "26px",
-                        borderRadius: "50%",
-                        background: "rgba(0,0,0,.5)",
-                        border: "none",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "rgba(255,255,255,.8)",
-                        opacity: 0,
-                        transition: "opacity .15s",
-                        zIndex: 10,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.opacity = "1";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.opacity = "0";
-                      }}
-                    >
-                      {Ic.dots}
-                    </button>
-                  )}
-                  <div style={{ padding: "10px 12px 12px" }}>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: "700",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        color: isPlaying ? safeAccentText(accentColor) : COLORS.textPrimary,
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      {song.title}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "11.5px",
-                        color: COLORS.textTertiary,
-                        fontWeight: "500",
-                        marginTop: "3px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {song.artist}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {recentsItems.map((song, i) => (
+              <FeedCard
+                key={song.videoId || `r-${i}`}
+                item={song}
+                index={i}
+                accentColor={accentColor}
+                currentSong={currentSong}
+                isActuallyPlaying={isActuallyPlaying}
+                onClick={() => playSong(song)}
+                subtitle={song.artist}
+                openOptions={openOptions}
+              />
+            ))}
           </div>
         </>
       )}
 
-      {status === "ready" && forYou.length > 0 && (
+      {/* ── 2) Para ti — mix personal del backend, fallback historial ──────── */}
+      {status === "ready" && forYouItems.length > 0 && (
         <>
+          <SectionHeader delay={300}>Para ti</SectionHeader>
           <div
-            style={{
-              ...ANIMATIONS.fadeSlideUp(350),
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: SPACING.gap.wide,
-            }}
+            data-testid="grid-for-you"
+            style={{ ...LAYOUTS.cardGrid, marginBottom: SPACING.section.marginBottom }}
           >
-            <h3
-              style={{
-                ...TYPOGRAPHY.h3,
-                color: COLORS.iconActive,
-                margin: 0,
-              }}
-            >
-              Para ti
-            </h3>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "2px",
-            }}
-          >
-            {forYou.map((song, i) => {
-              const isPlaying = currentSong?.videoId === song.videoId;
-              return (
-                <div
-                  key={song.videoId || i}
-                  onClick={() => playSong(song)}
-                  style={{
-                    ...ANIMATIONS.fadeSlideUp(400 + i * 35),
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    padding: "8px 12px",
-                    borderRadius: RADIUS.default,
-                    cursor: "pointer",
-                    background: isPlaying
-                      ? `linear-gradient(90deg, ${withAlpha(accentColor, "15")}, transparent)`
-                      : "transparent",
-                    transition:
-                      "background .15s cubic-bezier(.16,1,.3,1), border-color .15s cubic-bezier(.16,1,.3,1)",
-                    borderLeft: isPlaying ? `2px solid ${accentColor}` : "2px solid transparent",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isPlaying) {
-                      e.currentTarget.style.background = COLORS.surfaceNav;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isPlaying) {
-                      e.currentTarget.style.background = "transparent";
-                    }
-                  }}
-                >
-                  {/* Número de orden — más sutil, estilo playlist */}
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: isPlaying ? safeAccentText(accentColor) : COLORS.textDimmest,
-                      minWidth: "20px",
-                      textAlign: "center",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {isPlaying ? (
-                      isActuallyPlaying ? (
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill={safeAccentText(accentColor)}
-                          style={{ verticalAlign: "middle" }}
-                        >
-                          <rect x="6" y="4" width="4" height="16" rx="1" />
-                          <rect x="14" y="4" width="4" height="16" rx="1" />
-                        </svg>
-                      ) : (
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill={safeAccentText(accentColor)}
-                          style={{ verticalAlign: "middle" }}
-                        >
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      )
-                    ) : (
-                      i + 1
-                    )}
-                  </span>
-                  {/* Cover con bordes más suaves */}
-                  <div
-                    style={{
-                      width: "42px",
-                      height: "42px",
-                      borderRadius: "8px",
-                      overflow: "hidden",
-                      flexShrink: 0,
-                      background: COLORS.surfaceCoverBg,
-                    }}
-                  >
-                    <MusicCover
-                      thumbnails={song.thumbnails}
-                      src={song.thumbnail}
-                      displaySize={50}
-                      alt=""
-                      style={{ width: "42px", height: "42px" }}
-                    />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: "13.5px",
-                        fontWeight: "600",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        color: isPlaying ? safeAccentText(accentColor) : COLORS.textPrimary,
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      {song.title}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "11.5px",
-                        color: COLORS.textTertiary,
-                        fontWeight: "500",
-                        marginTop: "2px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {song.artist}
-                    </div>
-                  </div>
-                  {song.duration > 0 && (
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: "600",
-                        color: COLORS.textMuted,
-                        flexShrink: 0,
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {fmtTime(song.duration)}
-                    </span>
-                  )}
-                  {openOptions && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openOptions(song);
-                      }}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: COLORS.iconDefault,
-                        display: "flex",
-                        padding: "4px",
-                        flexShrink: 0,
-                        transition: "color .15s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.color = accentColor;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color = COLORS.iconDefault;
-                      }}
-                    >
-                      {Ic.dots}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+            {forYouItems.map((song, i) => (
+              <FeedCard
+                key={song.videoId || `f-${i}`}
+                item={song}
+                index={i}
+                accentColor={accentColor}
+                currentSong={currentSong}
+                isActuallyPlaying={isActuallyPlaying}
+                onClick={() => playSong(song)}
+                subtitle={song.artist}
+                openOptions={openOptions}
+              />
+            ))}
           </div>
         </>
       )}
 
-      {status === "ready" && quickPicks.length === 0 && forYou.length === 0 && (
+      {/* ── 3) Tendencias — charts del país del sistema ─────────────────────── */}
+      {status === "ready" && trendingItems.length > 0 && (
+        <>
+          <SectionHeader delay={360}>Tendencias</SectionHeader>
+          <div
+            data-testid="grid-trending"
+            style={{ ...LAYOUTS.cardGrid, marginBottom: SPACING.section.marginBottom }}
+          >
+            {trendingItems.map((song, i) => (
+              <FeedCard
+                key={song.videoId || `t-${i}`}
+                item={song}
+                index={i}
+                accentColor={accentColor}
+                currentSong={currentSong}
+                isActuallyPlaying={isActuallyPlaying}
+                onClick={() => playSong(song)}
+                subtitle={song.artist}
+                openOptions={openOptions}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── 4) Álbumes — de tus artistas más escuchados ─────────────────────── */}
+      {status === "ready" && albumItems.length > 0 && (
+        <>
+          <SectionHeader delay={420}>Álbumes</SectionHeader>
+          <div
+            data-testid="grid-albums"
+            style={{ ...LAYOUTS.cardGrid, marginBottom: SPACING.section.marginBottom }}
+          >
+            {albumItems.map((album, i) => (
+              <FeedCard
+                key={album.browseId || `a-${i}`}
+                item={album}
+                index={i}
+                accentColor={accentColor}
+                currentSong={currentSong}
+                isActuallyPlaying={isActuallyPlaying}
+                onClick={() => onSelectAlbum?.(album)}
+                subtitle={
+                  album.year ? `${album.artist} · ${album.year}` : album.artist || album.type
+                }
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── 5) Tus playlists — librería local ───────────────────────────────── */}
+      {status === "ready" && playlists.length > 0 && (
+        <>
+          <SectionHeader delay={480}>Tus playlists</SectionHeader>
+          <div
+            data-testid="grid-playlists"
+            style={{ ...LAYOUTS.cardGrid, marginBottom: SPACING.section.marginBottom }}
+          >
+            {playlists.map((pl, i) => (
+              <PlaylistCard
+                key={pl.id || `p-${i}`}
+                playlist={pl}
+                index={i}
+                accentColor={accentColor}
+                onClick={() => onSelectPlaylist?.(pl)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── Estado vacío — cuando ya llegó todo y sigue sin haber nada ──── */}
+      {status === "ready" && !hasAnyContent && settled && (
         <div
           style={{
             ...ANIMATIONS.fadeIn(200),

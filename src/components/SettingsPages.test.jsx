@@ -1,6 +1,6 @@
 import React from "react";
-import { screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderWithSettings } from "../test-utils";
 import {
   PageAcercaDe,
@@ -13,6 +13,12 @@ import {
   PageCopias,
   PageRendimiento,
 } from "./SettingsPages";
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
+vi.mock("@tauri-apps/plugin-fs", () => ({ readTextFile: vi.fn() }));
+
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 
 // ── PageAcercaDe ───────────────────────────────────────────────────────────
 
@@ -97,9 +103,7 @@ describe("PageReproductor", () => {
     );
     expect(screen.getByText("Cola")).toBeInTheDocument();
     expect(screen.getByText("Recomendar canciones similares")).toBeInTheDocument();
-    expect(
-      screen.getByText("Añade canciones parecidas al final de la cola"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Añade canciones parecidas al final de la cola")).toBeInTheDocument();
     // Por defecto desactivado: nada persistido con el toggle encendido
     const stored = JSON.parse(localStorage.getItem("sw_settings_v1") || "{}");
     expect(stored.queueRecommendations).not.toBe(true);
@@ -406,6 +410,76 @@ describe("PageCopias", () => {
     fireEvent.click(screen.getByText("Exportar datos"));
     // Export creates a blob and triggers download; verify toast was called
     expect(toast).toHaveBeenCalledWith("Datos exportados", "success");
+  });
+
+  // ── Importar con plugin-dialog (sustituye al <input type="file">) ─────────
+
+  describe("importar con plugin-dialog", () => {
+    afterEach(() => {
+      localStorage.removeItem("sw_liked_v2");
+      localStorage.removeItem("sw_history_v2");
+      localStorage.removeItem("sw_playlists_v2");
+      vi.clearAllMocks();
+    });
+
+    it("cancelar el selector no escribe en localStorage ni avisa (bug: cerraba la app)", async () => {
+      openDialog.mockResolvedValue(null);
+      const toast = vi.fn();
+      renderWithSettings(<PageCopias {...baseProps} toast={toast} />);
+
+      fireEvent.click(screen.getByText("Importar datos"));
+
+      await waitFor(() => expect(openDialog).toHaveBeenCalled());
+      expect(readTextFile).not.toHaveBeenCalled();
+      expect(toast).not.toHaveBeenCalled();
+      expect(localStorage.getItem("sw_liked_v2")).toBeNull();
+    });
+
+    it("archivo válido importa las claves y avisa de recargar", async () => {
+      openDialog.mockResolvedValue("C:\\backup\\openwave-backup.json");
+      readTextFile.mockResolvedValue(
+        JSON.stringify({
+          liked: ["vid1", "vid2"],
+          history: [{ videoId: "h1" }],
+          playlists: [{ id: 1, name: "P" }],
+        }),
+      );
+      const toast = vi.fn();
+      renderWithSettings(<PageCopias {...baseProps} toast={toast} />);
+
+      fireEvent.click(screen.getByText("Importar datos"));
+
+      await waitFor(() =>
+        expect(toast).toHaveBeenCalledWith("Datos importados. Recarga la app.", "success"),
+      );
+      expect(localStorage.getItem("sw_liked_v2")).toBe(JSON.stringify(["vid1", "vid2"]));
+      expect(localStorage.getItem("sw_history_v2")).toBe(JSON.stringify([{ videoId: "h1" }]));
+      expect(localStorage.getItem("sw_playlists_v2")).toBe(JSON.stringify([{ id: 1, name: "P" }]));
+    });
+
+    it("JSON inválido avisa con error", async () => {
+      openDialog.mockResolvedValue("C:\\backup\\malo.json");
+      readTextFile.mockResolvedValue("no es json {");
+      const toast = vi.fn();
+      renderWithSettings(<PageCopias {...baseProps} toast={toast} />);
+
+      fireEvent.click(screen.getByText("Importar datos"));
+
+      await waitFor(() => expect(toast).toHaveBeenCalledWith("Archivo inválido", "error"));
+      expect(localStorage.getItem("sw_liked_v2")).toBeNull();
+    });
+
+    it("si el selector falla, avisa sin romper la página", async () => {
+      openDialog.mockRejectedValue(new Error("boom"));
+      const toast = vi.fn();
+      renderWithSettings(<PageCopias {...baseProps} toast={toast} />);
+
+      fireEvent.click(screen.getByText("Importar datos"));
+
+      await waitFor(() =>
+        expect(toast).toHaveBeenCalledWith("No se pudo abrir el selector", "error"),
+      );
+    });
   });
 });
 

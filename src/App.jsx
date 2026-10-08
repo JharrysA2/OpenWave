@@ -619,6 +619,7 @@ function AppInner() {
               liked={liked}
               history={history}
               playlists={playlists}
+              onSelectPlaylist={onSelectPlaylist}
               toast={toast}
               albumBrowseId={albumBrowseId}
               artistBrowseId={artistBrowseId}

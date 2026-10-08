@@ -9,9 +9,13 @@ vi.mock("../utils/api", () => ({
     createPlaylist: vi.fn(),
   },
 }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
+vi.mock("@tauri-apps/plugin-fs", () => ({ readFile: vi.fn() }));
 
 import { CreatePlaylistModal } from "./CreatePlaylistModal";
 import { api } from "../utils/api";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { readFile } from "@tauri-apps/plugin-fs";
 
 const defaultProps = {
   open: true,
@@ -103,5 +107,63 @@ describe("CreatePlaylistModal", () => {
     const { container } = render(<CreatePlaylistModal {...defaultProps} onClose={onClose} />);
     fireEvent.click(container.firstChild.firstChild);
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+// ── Portada con plugin-dialog (sustituye al <input type="file">) ─────────────
+
+describe("CreatePlaylistModal — portada con plugin-dialog", () => {
+  it("cancelar el selector no cambia nada ni avisa (bug: cerraba la app)", async () => {
+    openDialog.mockResolvedValue(null);
+    const toast = vi.fn();
+    render(<CreatePlaylistModal {...defaultProps} toast={toast} />);
+
+    fireEvent.click(screen.getByText("Portada"));
+
+    await waitFor(() => expect(openDialog).toHaveBeenCalled());
+    expect(readFile).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+    expect(document.querySelector("img")).toBeNull();
+  });
+
+  it("una imagen seleccionada se muestra como preview dataURL", async () => {
+    openDialog.mockResolvedValue("C:\\fotos\\portada.png");
+    readFile.mockResolvedValue(new Uint8Array([137, 80, 78, 71]));
+    const toast = vi.fn();
+    render(<CreatePlaylistModal {...defaultProps} toast={toast} />);
+
+    fireEvent.click(screen.getByText("Portada"));
+
+    // alt="" → sin rol accesible; consultamos por selector
+    await waitFor(() => expect(document.querySelector("img")).not.toBeNull());
+    const img = document.querySelector("img");
+    expect(readFile).toHaveBeenCalledWith("C:\\fotos\\portada.png");
+    expect(img.getAttribute("src")).toMatch(/^data:image\/png;base64,/);
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it("rechaza extensiones que no son imagen con toast de error", async () => {
+    openDialog.mockResolvedValue("C:\\docs\\notas.txt");
+    const toast = vi.fn();
+    render(<CreatePlaylistModal {...defaultProps} toast={toast} />);
+
+    fireEvent.click(screen.getByText("Portada"));
+
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith("Selecciona una imagen valida", "error"),
+    );
+    expect(readFile).not.toHaveBeenCalled();
+  });
+
+  it("si el selector falla, avisa sin romper el modal", async () => {
+    openDialog.mockRejectedValue(new Error("boom"));
+    const toast = vi.fn();
+    render(<CreatePlaylistModal {...defaultProps} toast={toast} />);
+
+    fireEvent.click(screen.getByText("Portada"));
+
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith("No se pudo abrir el selector", "error"),
+    );
   });
 });

@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import { TYPOGRAPHY } from "../../utils/theme";
 import { useSettings } from "../../contexts/useSettings";
 import { SettingsSection, SettingRow, SettingsChevron } from "../SettingsComponents";
@@ -32,6 +34,38 @@ export function PageCopias({ neonColor, liked, history, playlists, toast }) {
     setExporting(false);
   };
 
+  // Selector nativo (plugin-dialog) en vez de <input type="file">: el diálogo
+  // WebView2 provocaba el cierre de la app al cancelarlo.
+  const handleImport = async () => {
+    let path;
+    try {
+      path = await openDialog({
+        multiple: false,
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+    } catch {
+      toast("No se pudo abrir el selector", "error");
+      return;
+    }
+    if (!path) return; // cancelado: no pasa nada
+    try {
+      const text = await readTextFile(path);
+      const data = JSON.parse(text);
+      if (data.liked) {
+        localStorage.setItem("sw_liked_v2", JSON.stringify(data.liked));
+      }
+      if (data.history) {
+        localStorage.setItem("sw_history_v2", JSON.stringify(data.history));
+      }
+      if (data.playlists) {
+        localStorage.setItem("sw_playlists_v2", JSON.stringify(data.playlists));
+      }
+      toast("Datos importados. Recarga la app.", "success");
+    } catch {
+      toast("Archivo inválido", "error");
+    }
+  };
+
   return (
     <div style={{ padding: "20px 16px" }}>
       <SettingsSection title={t.backup}>
@@ -51,32 +85,7 @@ export function PageCopias({ neonColor, liked, history, playlists, toast }) {
           border={false}
           icon={Svg.upload}
           label={t.importData}
-          onClick={() => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = ".json";
-            input.onchange = async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              try {
-                const text = await file.text();
-                const data = JSON.parse(text);
-                if (data.liked) {
-                  localStorage.setItem("sw_liked_v2", JSON.stringify(data.liked));
-                }
-                if (data.history) {
-                  localStorage.setItem("sw_history_v2", JSON.stringify(data.history));
-                }
-                if (data.playlists) {
-                  localStorage.setItem("sw_playlists_v2", JSON.stringify(data.playlists));
-                }
-                toast("Datos importados. Recarga la app.", "success");
-              } catch {
-                toast("Archivo inválido", "error");
-              }
-            };
-            input.click();
-          }}
+          onClick={handleImport}
           right={<SettingsChevron />}
         />
       </SettingsSection>

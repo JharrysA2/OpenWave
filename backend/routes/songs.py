@@ -1,6 +1,7 @@
 """OpenWave Backend — Rutas de canciones, álbumes, artistas y cola."""
 
 import asyncio
+import random
 
 from cache import api_cache_get, api_cache_set
 from fastapi import APIRouter, Query, Request
@@ -375,6 +376,26 @@ async def record_feedback(request: Request, data: FeedbackRequest):
     return {"ok": True}
 
 
+def _rotate_fresh(tracks: list) -> list:
+    """Rotar la cola en CADA petición (refresco estilo YouTube Music).
+
+    La Up Next de YouTube Music se re-genera alrededor de la canción en
+    cada reproducción: al volver a reproducir la MISMA canción, las
+    canciones que siguen son distintas. El upstream (watch playlist o
+    búsqueda) devuelve un conjunto muy estable, y la caché lo congelaba
+    aún más — sin esta rotación el usuario veía siempre la misma cola.
+
+    La caché sigue protegiendo la llamada a YouTube (rate limit), pero ya
+    no fija el orden que se sirve: se rota el resultado de cada petición.
+    """
+    if not tracks or len(tracks) < 2:
+        return tracks
+    offset = random.randrange(len(tracks))
+    if offset == 0:
+        return list(tracks)
+    return tracks[offset:] + tracks[:offset]
+
+
 def _rerank_by_artist(tracks: list, artist_name: str) -> list:
     """Reordenar tracks: canciones del MISMO artista primero.
 
@@ -433,8 +454,14 @@ async def get_queue(
     Acepta un parámetro opcional `artist` para reordenar los
     resultados: las canciones del mismo artista aparecen primero.
 
-    Estrategia de fallback (la radio de YTM puede fallar si YouTube
-    cambia la estructura del watchNextRenderer — KeyError 'endpoint'):
+    El resultado se ROTA en cada petición (_rotate_fresh): aunque el
+    upstream devuelva lo mismo, el cliente recibe SIEMPRE un orden
+    distinto (la Up Next de YouTube Music se refresca en cada
+    reproducción; con ytmusicapi < 1.12.3 la radio devolvía
+    `KeyError 'endpoint'` y la cola salía del fallback de búsqueda).
+
+    Estrategia de fallback (por si YouTube cambia la estructura del
+    watchNextRenderer):
       1. Radio de YouTube Music (radio=True)
       2. Watch playlist normal (radio=False) — probada, funciona
       3. Búsqueda de canciones por artista/título
@@ -443,7 +470,9 @@ async def get_queue(
     require_valid_video_id(video_id)
     cached = api_cache_get(f"queue:{video_id}", ttl=600)
     if cached:
-        tracks = _rerank_by_artist(cached, artist)
+        # Cache hit: la caché solo protege la llamada a YouTube; el ORDEN
+        # que ve el usuario se renueva en cada petición (_rotate_fresh).
+        tracks = _rerank_by_artist(_rotate_fresh(cached), artist)
         return {"tracks": tracks}
 
     loop = asyncio.get_running_loop()
@@ -495,5 +524,9 @@ async def get_queue(
     # en vez de quedar bloqueado con una cola vacía durante el TTL.
     if tracks:
         api_cache_set(f"queue:{video_id}", tracks)
-    tracks = _rerank_by_artist(tracks, artist)
+    # Rotación fresca en cada petición: aunque el upstream devuelva lo
+    # mismo, cada reproducción recibe una cola con otro orden (Up Next
+    # estilo YouTube Music). El rerank de artista va DESPUÉS (orden
+    # estable: agrupa por artista preservando la rotación dentro de grupo).
+    tracks = _rerank_by_artist(_rotate_fresh(tracks), artist)
     return {"tracks": tracks}

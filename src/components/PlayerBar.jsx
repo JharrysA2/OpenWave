@@ -540,7 +540,7 @@ export const PlayerBar = memo(function PlayerBar({
                 onClick: () => onPlayModeToggle("shuffle"),
                 color: shuffleActive ? safeAccentText(accentColor) : COLORS.iconDim,
                 icon: Ic.shuffle(18),
-                title: "Shuffle",
+                title: "Aleatorio",
               },
               { onClick: onPrev, color: COLORS.iconActive, icon: Ic.prev(18), title: "Anterior" },
             ].map((btn, i) => (
@@ -651,7 +651,7 @@ export const PlayerBar = memo(function PlayerBar({
                   repeatMode === "off"
                     ? "Repetir desactivado"
                     : repeatMode === "one"
-                      ? "Repetir una vez"
+                      ? "Repetir canción"
                       : "Repetir todo",
               },
             ].map((btn, i) => (

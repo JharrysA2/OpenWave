@@ -229,6 +229,21 @@ describe("PlayerBar", () => {
     expect(onPlayModeToggle).toHaveBeenCalledWith("repeat");
   });
 
+  it("should show the shuffle title in Spanish", () => {
+    renderBar({ song });
+    expect(screen.getByTitle("Aleatorio")).toBeInTheDocument();
+  });
+
+  // Los 3 estados de repetir, en el orden del ciclo off → todo → 1 → off
+  it.each([
+    ["off", "Repetir desactivado"],
+    ["all", "Repetir todo"],
+    ["one", "Repetir canción"],
+  ])("repeatMode=%s shows the title %s", (mode, title) => {
+    renderBar({ song, repeatMode: mode });
+    expect(screen.getByTitle(title)).toBeInTheDocument();
+  });
+
   // ── Button count ──────────────────────────────────────────────────
 
   it("should render 9 buttons with a song present (includes dots)", () => {

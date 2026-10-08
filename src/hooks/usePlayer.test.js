@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { usePlayer } from "./usePlayer";
+import { usePlayer, pickNextIdx } from "./usePlayer";
 import { mockApiResponse } from "../test-utils";
 
 beforeEach(() => {
@@ -202,13 +202,13 @@ describe("usePlayer", () => {
 
   // ── Repeat mode ───────────────────────────────────────────────────────────
 
-  it("should cycle repeatMode: off → one → all → off", () => {
+  it("should cycle repeatMode: off → all → one → off", () => {
     const { result } = renderHook(() => usePlayer());
     expect(result.current.repeatMode).toBe("off");
     act(() => result.current.toggleRepeatMode());
-    expect(result.current.repeatMode).toBe("one");
-    act(() => result.current.toggleRepeatMode());
     expect(result.current.repeatMode).toBe("all");
+    act(() => result.current.toggleRepeatMode());
+    expect(result.current.repeatMode).toBe("one");
     act(() => result.current.toggleRepeatMode());
     expect(result.current.repeatMode).toBe("off");
   });
@@ -628,6 +628,7 @@ describe("usePlayer", () => {
       result.current.setQueue([songA, songB]);
       result.current.setQueueIndex(0);
       result.current.setCurrentSong(songA);
+      result.current.toggleRepeatMode(); // repeatMode = "all"
       result.current.toggleRepeatMode(); // repeatMode = "one"
       result.current.progressRef.current = 199.2;
       result.current.setDuration(200);
@@ -686,6 +687,50 @@ describe("usePlayer", () => {
     spy.mockRestore();
   });
 
+  it("crossfade honors shuffle: picks a random upcoming song (not only the next)", async () => {
+    // Regresión: antes performCrossfade leía siempre queue[idx+1] → con
+    // crossfade activo el aleatorio no hacía nada.
+    const mockFetch = mockStreamFetch();
+    const { result } = renderHook(() => usePlayer(null, [], 1)); // crossfade 1s
+
+    const songA = { videoId: "cfA", title: "A" };
+    const songB = { videoId: "cfB", title: "B" };
+    const songC = { videoId: "cfC", title: "C" };
+    const songD = { videoId: "cfD", title: "D" };
+
+    result.current.audioRef.current = createMockAudio(200);
+    result.current.nextAudioRef.current = createMockAudio(200);
+
+    await act(async () => {
+      await result.current.playSong(songA);
+      result.current.setQueue([songA, songB, songC, songD]);
+      result.current.setQueueIndex(0);
+      result.current.setCurrentSong(songA);
+      result.current.currentlyPlayingSongRef.current = songA;
+      result.current.setShuffleActive(true);
+      result.current.progressRef.current = 199.2;
+      result.current.setDuration(200);
+      result.current.setIsPlaying(true);
+    });
+
+    // Primera elección → última de las que quedan (cfD), no la siguiente
+    // (cfB); cualquier spawn posterior (el monitor puede re-dispararse con
+    // mocks que no emiten eventos) usa valores que no reordenan la cola.
+    const rand = vi.spyOn(Math, "random").mockReturnValueOnce(0.999).mockReturnValue(0);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1800));
+    });
+    rand.mockRestore();
+
+    // El crossfade eligió con shuffle: cfD, no cfB
+    expect(result.current.currentSong?.videoId).toBe("cfD");
+    // La elegida ocupa el hueco "siguiente" y la cola sigue intacta
+    expect(result.current.queue).toHaveLength(4);
+    expect(result.current.queue[1]?.videoId).toBe("cfD");
+    expect(result.current.queueIndex).toBe(1);
+    mockFetch.mockRestore();
+  });
+
   // ═══════════════════════════════════════════════════════════════════════════
   //  handleSongEnded + repeat mode
   // ═══════════════════════════════════════════════════════════════════════════
@@ -702,7 +747,8 @@ describe("usePlayer", () => {
       result.current.setQueueIndex(0);
       result.current.setCurrentSong(song);
       result.current.currentlyPlayingSongRef.current = song;
-      // repeatMode = "one"
+      // repeatMode = "one" (ciclo: off → all → one)
+      result.current.toggleRepeatMode();
       result.current.toggleRepeatMode();
     });
     expect(result.current.repeatMode).toBe("one");
@@ -835,6 +881,30 @@ describe("usePlayer", () => {
     mockFetch.mockRestore();
   });
 
+  // ── pickNextIdx: la elección de la próxima canción (compartida por        ─
+  //    handleNext Y el crossfade — antes el crossfade la bypaseaba)          ─
+
+  it("pickNextIdx: sequential when shuffle is off (-1 at the end)", () => {
+    const q = [{ videoId: "a" }, { videoId: "b" }, { videoId: "c" }];
+    expect(pickNextIdx(q, 0, false)).toBe(1);
+    expect(pickNextIdx(q, -1, false)).toBe(0); // fuera de cola → la primera
+    expect(pickNextIdx(q, 1, false)).toBe(2);
+    expect(pickNextIdx(q, 2, false)).toBe(-1); // última: no hay siguiente
+    expect(pickNextIdx([], 0, false)).toBe(-1);
+  });
+
+  it("pickNextIdx: with shuffle picks among the remaining of the SAME queue", () => {
+    const q = [{ videoId: "a" }, { videoId: "b" }, { videoId: "c" }, { videoId: "d" }];
+    const rand = vi.spyOn(Math, "random").mockReturnValue(0);
+    expect(pickNextIdx(q, 0, true)).toBe(1); // 0 → primera de las que quedan
+    rand.mockReturnValue(0.999);
+    expect(pickNextIdx(q, 0, true)).toBe(3); // última de las que quedan
+    expect(pickNextIdx(q, -1, true)).toBe(3); // fuera de cola → toda la cola
+    rand.mockRestore();
+    expect(pickNextIdx(q, 2, true)).toBe(3); // solo queda una
+    expect(pickNextIdx(q, 3, true)).toBe(-1); // última: nada por reproducir
+  });
+
   // ═══════════════════════════════════════════════════════════════════════════
   //  Regresión UI: la barra de progreso NO debe retroceder durante el crossfade
   //  Simula los eventos REALES del DOM (timeupdate/durationchange) con los
@@ -963,8 +1033,11 @@ describe("usePlayer", () => {
 
   // ── Reglas de cola: contexto vs canción dentro/fuera de la cola ──────────
 
-  it("playSong on a song already in the queue keeps the queue and jumps in place", async () => {
-    const mockFetch = mockStreamFetch();
+  it("browse click on a song already in the queue REBUILDS a fresh radio queue", async () => {
+    const mockFetch = mockStreamFetch([
+      { videoId: "rA", title: "RA" },
+      { videoId: "rB", title: "RB" },
+    ]);
     const audio = createMockAudio();
 
     const { result } = renderHook(() => usePlayer());
@@ -982,6 +1055,39 @@ describe("usePlayer", () => {
 
     await act(async () => {
       await result.current.playSong({ videoId: "s2", title: "S2" });
+    });
+
+    // La cola anterior NO se reutiliza: nueva radio alrededor de s2 con
+    // relacionadas frescas (s1 y s3 desaparecen — refresco tipo YTM).
+    await waitFor(() => expect(result.current.queue).toHaveLength(3));
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["s2", "rA", "rB"]);
+    expect(result.current.queueIndex).toBe(0);
+    expect(result.current.currentSong?.videoId).toBe("s2");
+    mockFetch.mockRestore();
+  });
+
+  it("queue panel click (fromQueue=true) keeps the queue and jumps in place", async () => {
+    const mockFetch = mockStreamFetch();
+    const audio = createMockAudio();
+
+    const { result } = renderHook(() => usePlayer());
+    result.current.audioRef.current = audio;
+
+    act(() => {
+      result.current.setQueue([
+        { videoId: "s1", title: "S1" },
+        { videoId: "s2", title: "S2" },
+        { videoId: "s3", title: "S3" },
+      ]);
+      result.current.setQueueIndex(0);
+      result.current.setCurrentSong({ videoId: "s1", title: "S1" });
+    });
+
+    await act(async () => {
+      // El wrapper del panel pone el índice y marca fromQueue
+      // (ver LyricsView: onPlaySong → setQueueIndex + playSong(s, 0, true))
+      result.current.setQueueIndex(1);
+      await result.current.playSong({ videoId: "s2", title: "S2" }, 0, true);
     });
 
     // La cola NO cambia: mismas canciones, mismo orden (en su lugar)
@@ -1144,23 +1250,21 @@ describe("usePlayer", () => {
 
     const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", true));
     result.current.audioRef.current = audio;
-    act(() => result.current.setQueue(ctx));
+    act(() => {
+      result.current.setQueue(ctx);
+      result.current.setQueueIndex(2);
+    });
 
-    // Canción YA en la cola → solo índice + relleno por debajo (0 por debajo)
+    // Canción YA en la cola viva (clic en el panel: fromQueue) → solo
+    // índice + relleno por debajo (0 por debajo)
     await act(async () => {
-      await result.current.playSong(ctx[2], 0, false);
+      await result.current.playSong(ctx[2], 0, true);
     });
     await waitFor(() => expect(result.current.queue).toHaveLength(5));
 
     // Invariante: la cola principal queda COMPLETA y en su orden;
     // lo nuevo entra SOLO por debajo.
-    expect(result.current.queue.map((s) => s.videoId)).toEqual([
-      "t0",
-      "t1",
-      "t2",
-      "rec1",
-      "rec2",
-    ]);
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["t0", "t1", "t2", "rec1", "rec2"]);
     expect(result.current.queueIndex).toBe(2);
     mockFetch.mockRestore();
   });
@@ -1176,10 +1280,13 @@ describe("usePlayer", () => {
 
     const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", false));
     result.current.audioRef.current = audio;
-    act(() => result.current.setQueue(ctx));
+    act(() => {
+      result.current.setQueue(ctx);
+      result.current.setQueueIndex(2);
+    });
 
     await act(async () => {
-      await result.current.playSong(ctx[2], 0, false);
+      await result.current.playSong(ctx[2], 0, true);
     });
 
     expect(result.current.queue.map((s) => s.videoId)).toEqual(["t0", "t1", "t2"]);
@@ -1201,11 +1308,15 @@ describe("usePlayer", () => {
 
     const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", true));
     result.current.audioRef.current = audio;
-    act(() => result.current.setQueue(ctx));
+    act(() => {
+      result.current.setQueue(ctx);
+      result.current.setQueueIndex(1);
+    });
 
-    // Última canción de la cola → el relleno entra por debajo
+    // Última canción de la cola (clic en la cola: fromQueue) → el relleno
+    // entra por debajo
     await act(async () => {
-      await result.current.playSong(ctx[1], 0, false);
+      await result.current.playSong(ctx[1], 0, true);
     });
     await waitFor(() => expect(result.current.queue).toHaveLength(3));
 
@@ -1251,10 +1362,13 @@ describe("usePlayer", () => {
 
     const { result } = renderHook(() => usePlayer(null, [], 0, "standard", "192", true));
     result.current.audioRef.current = audio;
-    act(() => result.current.setQueue(ctx));
+    act(() => {
+      result.current.setQueue(ctx);
+      result.current.setQueueIndex(1);
+    });
 
     await act(async () => {
-      await result.current.playSong(ctx[1], 0, false);
+      await result.current.playSong(ctx[1], 0, true);
     });
     // La 1ª respuesta vino vacía → la cola sigue en su sitio
     expect(result.current.queue.map((s) => s.videoId)).toEqual(["b0", "b1"]);
@@ -1366,7 +1480,7 @@ describe("usePlayer", () => {
     mockFetch.mockRestore();
   });
 
-  it("elegir una canción de la radio no cambia la cola (solo el índice)", async () => {
+  it("elegir una canción de una lista navegable SIEMPRE reconstruye la radio (cola fresca)", async () => {
     const mockFetch = mockStreamFetch([
       { videoId: "pr1", title: "PR1" },
       { videoId: "pr2", title: "PR2" },
@@ -1380,15 +1494,19 @@ describe("usePlayer", () => {
       await result.current.playSong({ videoId: "pseed", title: "PS" });
     });
     await waitFor(() => expect(result.current.queue).toHaveLength(3));
-
     const before = result.current.queue.map((s) => s.videoId);
+
+    // pr2 YA estaba en la cola vieja → aun así se reconstruye
     await act(async () => {
       await result.current.playSong({ videoId: "pr2", title: "PR2" });
     });
 
-    // La cola NO se reconstruye: mismas canciones, mismo orden
-    expect(result.current.queue.map((s) => s.videoId)).toEqual(before);
-    expect(result.current.queueIndex).toBe(2);
+    // La cola vieja desaparece (pseed fuera) y la nueva empieza en pr2
+    await waitFor(() => expect(result.current.queue.map((s) => s.videoId)).not.toEqual(before));
+    expect(result.current.queue[0].videoId).toBe("pr2");
+    expect(result.current.queue.map((s) => s.videoId)).not.toContain("pseed");
+    expect(result.current.queueIndex).toBe(0);
+    expect(result.current.currentSong?.videoId).toBe("pr2");
     mockFetch.mockRestore();
   });
 

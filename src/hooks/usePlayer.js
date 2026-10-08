@@ -68,6 +68,25 @@ const scheduleFrame =
 // canciones por debajo de la actual, se rellena el final con más abajo.
 const QUEUE_RECS_TAIL_MIN = 5;
 
+// ── pickNextIdx: próxima canción de la cola ────────────────────────────────
+//    Compartida por handleNext Y por el crossfade — los DOS caminos deben
+//    elegir igual (antes el crossfade bypaseaba el aleatorio: con crossfade
+//    activo el shuffle no hacía nada).
+//    - shuffle activo → aleatoria entre las que quedan por reproducir
+//      (siempre canciones de la MISMA cola);
+//    - si no → la siguiente.
+//    idx < 0 (canción actual fuera de la cola) → todo cuenta como "por
+//    hacer". Devuelve -1 si no queda nada por reproducir.
+export function pickNextIdx(q, idx, shuffle) {
+  if (!Array.isArray(q) || q.length === 0) return -1;
+  const from = idx < 0 ? 0 : idx + 1;
+  if (from > q.length - 1) return -1;
+  if (!shuffle || q.length < 2) return from;
+  const upcoming = q.length - from;
+  if (upcoming < 2) return from;
+  return from + Math.floor(Math.random() * upcoming);
+}
+
 export function usePlayer(
   toast,
   results = [],
@@ -147,6 +166,8 @@ export function usePlayer(
   qualityRef.current = initialQuality;
   const dlQualityRef = useRef(initialDownloadQuality); // calidad de descarga (Alta)
   dlQualityRef.current = initialDownloadQuality;
+  const shuffleActiveRef = useRef(shuffleActive); // shuffle para performCrossfade
+  shuffleActiveRef.current = shuffleActive;
   // Al cambiar Baja/Estándar/Alta se invalidan las URLs pre-cacheadas: sus
   // claves llevan la calidad (id|calidad), así que las de otra calidad no se
   // sirven por accidente.
@@ -256,17 +277,36 @@ export function usePlayer(
   //    correcto de la canción que REALMENTE estaba sonando.
   const performCrossfade = useCallback(
     async (cfId) => {
-      // Encontrar la siguiente canción en la cola
+      // Encontrar la siguiente canción en la cola — MISMA lógica que
+      // handleNext (pickNextIdx): con shuffle activo elige una aleatoria
+      // de las que quedan. Antes el crossfade bypaseaba el aleatorio y,
+      // con crossfade activo, el shuffle no hacía nada.
       const currentQ = queueRef.current;
       const currentIdx = queueIndexRef.current;
 
       let nextSong = null;
+      let targetIdx = -1;
       if (currentQ.length > 0 && currentIdx >= 0 && currentIdx < currentQ.length - 1) {
-        nextSong = currentQ[currentIdx + 1];
+        targetIdx = pickNextIdx(currentQ, currentIdx, shuffleActiveRef.current);
+        if (targetIdx >= 0) nextSong = currentQ[targetIdx];
       }
       if (!nextSong || !nextSong.videoId) {
         crossfadeActiveRef.current = false;
         return;
+      }
+
+      // SHUFFLE: intercambiar la elegida con la del hueco "siguiente"
+      // ANTES del fade, para que la cola (panel) muestre realmente lo que
+      // está sonando. Si el fade se aborta, handleNext re-elegirá: los
+      // swaps solo reordenan, nunca pierden canciones.
+      if (targetIdx !== currentIdx + 1) {
+        setQueue((q) => {
+          const n = [...q];
+          if (targetIdx < n.length && currentIdx + 1 < n.length) {
+            [n[currentIdx + 1], n[targetIdx]] = [n[targetIdx], n[currentIdx + 1]];
+          }
+          return n;
+        });
       }
 
       // Obtener stream URL
@@ -497,9 +537,12 @@ export function usePlayer(
         // _skipCache: el relleno debe poder reintentarse (la caché de5 min
         // del cliente devolvería el mismo vacío); los duplicados los filtra
         // el dedupe contra la cola viva.
-        .get(`/queue/${song.videoId}?limit=${limit}&artist=${encodeURIComponent(song.artist || "")}`, {
-          _skipCache: true,
-        })
+        .get(
+          `/queue/${song.videoId}?limit=${limit}&artist=${encodeURIComponent(song.artist || "")}`,
+          {
+            _skipCache: true,
+          },
+        )
         .then((data) => {
           if (queueRecsIdRef.current !== song.videoId) return []; // otro contexto
           if (force && !queueIsRadioRef.current) return []; // ya no es radio
@@ -601,12 +644,15 @@ export function usePlayer(
       //      mismo contexto, NO se resetea (conserva reordenos, añadidos y
       //      recomendaciones): solo salta el índice a la pista clickeada.
       //    - fromQueue = true → la cola no se toca; el índice lo pone el
-      //      caller (handleNext, handlePrev, repetición...).
-      //    - Sin contexto: si la canción YA está en la cola actual → solo
-      //      mueve el índice (permanece en su lugar, sin reconstruir).
-      //      Si está FUERA de la cola → RADIO: [canción] + relacionadas
-      //      (siempre, sin depender del ajuste). Nunca se rellena con la
-      //      lista de origen ni con resultados de búsqueda.
+      //      caller (panel de cola, handleNext, handlePrev, repetición...).
+      //    - Sin contexto (listas navegables: inicio, búsqueda, artista,
+      //      historial, "Radio"…) → RADIO SIEMPRE: la cola se reconstruye
+      //      alrededor de la canción clickeada, AUNQUE ya esté en la cola
+      //      — nunca se reutiliza la anterior. Cada reproducción recibe
+      //      una cola fresca que cambia siempre (cada clic vuelve a pedir
+      //      /queue y el backend rota el orden: refresco estilo YouTube
+      //      Music). Nunca se rellena con la lista de origen ni con
+      //      resultados de búsqueda.
       //    - Recomendaciones de colecciones (ajuste "queueRecommendations"):
       //      solo se AÑADEN AL FINAL, nunca reemplazan ni mueven nada.
 
@@ -629,7 +675,12 @@ export function usePlayer(
         } else {
           console.info(`[Queue] Context queue: ${initialQueue.length} tracks`);
           setQueue(initialQueue);
-          setQueueIndex(Math.max(0, initialQueue.findIndex((s) => s?.videoId === song.videoId)));
+          setQueueIndex(
+            Math.max(
+              0,
+              initialQueue.findIndex((s) => s?.videoId === song.videoId),
+            ),
+          );
           queueContextRef.current = contextIds;
           fetchSongIdRef.current = song.videoId;
           // Contexto nuevo → cola extra completa por debajo (si va activo).
@@ -646,25 +697,18 @@ export function usePlayer(
         fetchSongIdRef.current = song.videoId;
         maybeTopUpRecommendations(song);
       } else {
-        const inQueueIdx = queueRef.current.findIndex((s) => s?.videoId === song.videoId);
-        if (inQueueIdx >= 0) {
-          // Ya está en la cola → NO cambiar la cola: solo marcar su
-          // posición (la canción permanece en su lugar).
-          setQueueIndex(inQueueIdx);
-          fetchSongIdRef.current = song.videoId;
-          maybeTopUpRecommendations(song);
-        } else {
-          // Fuera de la cola → RADIO: la cola es [canción] + relacionadas.
-          // Siempre (sin depender del ajuste "Recomendar canciones
-          // similares"): nunca se rellena con la lista de donde vino la
-          // canción ni con resultados de búsqueda.
-          setQueue([normalizedSong]);
-          setQueueIndex(0);
-          queueContextRef.current = null;
-          queueIsRadioRef.current = true;
-          fetchSongIdRef.current = song.videoId;
-          appendRecommendations(song, { force: true, max: 15 });
-        }
+        // Sin contexto → RADIO SIEMPRE: la cola se reconstruye alrededor
+        // de la canción clickeada, aunque ya esté en la cola actual — así
+        // cada reproducción recibe una cola NUEVA (cada clic vuelve a pedir
+        // /queue y el backend rota el orden: refresco estilo YouTube Music).
+        // Nunca se rellena con la lista de donde vino la canción ni con
+        // resultados de búsqueda.
+        setQueue([normalizedSong]);
+        setQueueIndex(0);
+        queueContextRef.current = null;
+        queueIsRadioRef.current = true;
+        fetchSongIdRef.current = song.videoId;
+        appendRecommendations(song, { force: true, max: 15 });
       }
 
       // ═══ CALIDAD ALTA: reproducir a la calidad de descarga ═══════════
@@ -864,37 +908,38 @@ export function usePlayer(
       sendFeedback("skip", currentlyPlayingSongRef.current);
     }
 
-    if (queue.length > 0 && queueIndex >= 0 && queueIndex < queue.length - 1) {
-      let targetSong = queue[queueIndex + 1];
-
-      if (shuffleActive && queue.length > 1) {
-        // SHUFFLE: elegir canción aleatoria de las siguientes
-        const upcomingCount = queue.length - queueIndex - 1;
-        if (upcomingCount > 1) {
-          const randOffset = 1 + Math.floor(Math.random() * (upcomingCount - 1));
-          const targetIdx = queueIndex + 1 + randOffset;
-          targetSong = queue[targetIdx];
-          // Intercambiar la siguiente con la aleatoria
-          setQueue((q) => {
-            const newQ = [...q];
-            [newQ[queueIndex + 1], newQ[targetIdx]] = [newQ[targetIdx], newQ[queueIndex + 1]];
-            return newQ;
-          });
-        }
+    if (queue.length > 0 && queueIndex < queue.length - 1) {
+      // Hay "siguiente" (incluye queueIndex === -1: la canción actual está
+      // fuera de la cola — p. ej. el primer "siguiente" de una cola de API).
+      // La elige la MISMA lógica que el crossfade: shuffle → aleatoria de
+      // las que quedan (de la misma cola); si no → la siguiente.
+      const targetIdx = pickNextIdx(queue, queueIndex, shuffleActive);
+      const targetSong = queue[targetIdx];
+      const nextSlot = queueIndex < 0 ? 0 : queueIndex + 1;
+      if (targetIdx !== nextSlot) {
+        // SHUFFLE: intercambiar la elegida con la del hueco "siguiente"
+        // — la cola conserva todas sus canciones y su estructura (nada
+        // queda saltado sin reproducir).
+        setQueue((q) => {
+          const newQ = [...q];
+          if (targetIdx < newQ.length && nextSlot < newQ.length) {
+            [newQ[nextSlot], newQ[targetIdx]] = [newQ[targetIdx], newQ[nextSlot]];
+          }
+          return newQ;
+        });
       }
-      // Avanzar el índice y reproducir la canción correcta
-      setQueueIndex((i) => i + 1);
+      // Avanzar al hueco "siguiente" (donde ahora está la elegida)
+      setQueueIndex(nextSlot);
       await playSong(targetSong, 0, true);
-    } else if (queue.length > 0 && queueIndex === -1) {
-      // Primer "siguiente" desde cola de API (canción actual NO está en cola)
-      setQueueIndex(0);
-      await playSong(queue[0], 0, true);
     } else if (queue.length > 0 && queueIndex >= 0 && queueIndex === queue.length - 1) {
       // Última canción de la cola
       if (repeatMode === "all") {
-        // REPEAT ALL: volver al inicio de la cola
-        setQueueIndex(0);
-        await playSong(queue[0], 0, true);
+        // REPEAT ALL: volver al inicio de la cola. Con shuffle activo se
+        // empieza por una aleatoria (con la vuelta anterior ya sonaron todas).
+        const wrapIdx =
+          shuffleActive && queue.length > 1 ? Math.floor(Math.random() * queue.length) : 0;
+        setQueueIndex(wrapIdx);
+        await playSong(queue[wrapIdx], 0, true);
       } else if (queueIsRadioRef.current) {
         // Radio: nunca se acaba — al final se AÑADEN +5 relacionadas
         // (sin borrar ni mover nada de lo que ya hay) y se sigue.
@@ -922,7 +967,17 @@ export function usePlayer(
         await playSong(results[idx + 1], 0, false);
       }
     }
-  }, [queue, queueIndex, shuffleActive, repeatMode, results, currentSong, playSong, sendFeedback, appendRecommendations]); // ═══════════════════════════════════════════════════════════════════════════
+  }, [
+    queue,
+    queueIndex,
+    shuffleActive,
+    repeatMode,
+    results,
+    currentSong,
+    playSong,
+    sendFeedback,
+    appendRecommendations,
+  ]); // ═══════════════════════════════════════════════════════════════════════════
   // ⭐ Mantener handleNextRef fresco: performCrossfade lo usa como red de
   //    seguridad (failSafely) cuando el crossfade falla después de que la
   //    canción ya terminó — evita "dead air".
@@ -1166,11 +1221,14 @@ export function usePlayer(
     await handleNext();
   }, [repeatMode, playSong, handleNext, sendFeedback]);
 
-  // ── toggleRepeatMode: cicla off → one → all → off ──────────────────────
+  // ── toggleRepeatMode: cicla off → all → one → off ──────────────────────
+  //    off = no repetir al final de la cola;
+  //    all = repetir la COLA ENTERA al final;
+  //    one = repetir la MISMA canción una y otra vez (icono con "1").
   const toggleRepeatMode = useCallback(() => {
     setRepeatMode((prev) => {
-      if (prev === "off") return "one";
-      if (prev === "one") return "all";
+      if (prev === "off") return "all";
+      if (prev === "all") return "one";
       return "off";
     });
   }, []);

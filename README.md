@@ -207,8 +207,16 @@ openwave/
 | GET | `/album/{browseId}` | Detalles de álbum |
 | GET | `/artist/{browseId}` | Detalles de artista |
 | GET | `/artist/related/{browseId}` | Artistas relacionados |
-| GET | `/queue/{videoId}` | Cola de reproducción |
+| GET | `/queue/{videoId}` | Cola de reproducción (radio de YTM) |
 | POST | `/queue/feedback` | Feedback de reproducción (completada) |
+
+> `GET /queue/{videoId}` construye la radio de YouTube Music (watch playlist,
+> con fallbacks a watch playlist normal y a búsqueda) y **rota el orden en cada
+> petición**: al volver a reproducir la misma canción, la cola que llega al
+> cliente siempre cambia (refresco estilo YouTube Music; la caché de 600 s solo
+> protege la llamada a YouTube, no fija el orden). Requiere
+> `ytmusicapi>=1.12.3` — en 1.7.3 `get_watch_playlist` fallaba con
+> `KeyError 'endpoint'` y la cola salía siempre del mismo fallback de búsqueda.
 
 ### Descargas
 

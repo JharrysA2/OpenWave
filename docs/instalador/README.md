@@ -47,7 +47,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass \
 | 2 | `scripts/prepare-runtime.ps1` | `build/staging/{backend,runtime,ffmpeg}` |
 | 3 | `npx tauri build --bundles msi` | Compila y enlaza el MSI |
 | 3b | `scripts/msi-postprocess.ps1` | Tipografía del MSI enlazado: títulos sin negrita, `WixUI_Font_Bigger` a 11 pt |
-| 4 | `scripts/verify-msi.ps1` | Comprueba las tablas del MSI resultante (54 checks) |
+| 4 | `scripts/verify-msi.ps1` | **Gate automático**: lo ejecuta `package-windows.ps1` al final (74 checks); si falla, el build falla antes de dar por bueno el instalador |
 
 `prepare-runtime.ps1` es idempotente: deja `build/staging/.ready` y solo se
 vuelve a ejecutar si cambia `backend/requirements-runtime.txt`, si cambia el
@@ -386,10 +386,12 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 
 ### Regresión rápida tras cada cambio
 
-- `ruff check backend/ && python -m pytest` en `backend/` (355 tests).
-- `npm test` (frontend, 806 tests).
-- Tras recompilar: `powershell -ExecutionPolicy Bypass -File scripts\verify-msi.ps1`
-  → 67 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
+- `ruff check backend/ && python -m pytest` en `backend/` (380 tests).
+- `npm test` (frontend, 862 tests).
+- Tras recompilar: **`package-windows.ps1` ya ejecuta `verify-msi.ps1` solo**
+  (gate: si alguna comprobación falla, el build aborta). Para repetirlo a
+  mano: `powershell -ExecutionPolicy Bypass -File scripts\verify-msi.ps1`
+  → 74 comprobaciones sobre las tablas del MSI (flujo del asistente, incluido
   el modo mantenimiento, valores por defecto de las casillas, licencia embebida,
   textos de progreso de `ActionText`, tipografía de `TextStyle`, gráficos de
   marca, limpieza de INSTALLDIR y del acceso directo de Inicio heredado
@@ -480,11 +482,12 @@ También conviene saberlo al leer la plantilla: **no existe la tabla
 - **NSIS** deshabilitado (`targets: ["msi"]`); si se re-habilita hay que
   revisar `bundle.licenseFile`, que NSIS usa de otra manera.
 - **Compresión del cabinet** y CI en Windows: aún no.
-- **`ytmusicapi.get_charts()` roto** en `ytmusicapi==1.7.3`: con `GT` da
+- **`ytmusicapi.get_charts()` roto** en `ytmusicapi==1.7.3`: con `GT` daba
   `IndexError: list index out of range` (dentro de
   `ytmusicapi/mixins/explore.py`) y con `US`/`MX`, `StopIteration` — YouTube
-  Music cambió la estructura de la respuesta. El warmup de `main.py` lo
-  captura y la app sigue, pero la sección «trending» queda sin datos. No es
-  problema del instalador (falla igual en desarrollo): hay que subir
-  `ytmusicapi` o parchear el parsing.
+  Music cambió la estructura de la respuesta; la sección «trending» quedaba
+  sin datos. **Resuelto al subir a `ytmusicapi==1.12.3`** (verificado con
+  `None`/`US`/`MX`/`GT`: todas devuelven datos). Esa misma actualización
+  arregla `get_watch_playlist` (`KeyError 'endpoint'` en 1.7.3), del que
+  depende la radio/cola de reproducción.
 - La app tiene favicon y icono de ventana distintos (inconsistencia de marca).

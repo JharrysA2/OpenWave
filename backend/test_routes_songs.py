@@ -237,8 +237,9 @@ class TestArtist:
 class TestQueue:
     """Tests para /queue/{video_id}."""
 
+    @patch("routes.songs.random.randrange", return_value=0)
     @patch("routes.songs.get_ytm")
-    def test_queue_with_tracks(self, mock_get_ytm, client):
+    def test_queue_with_tracks(self, mock_get_ytm, mock_randrange, client):
         """Cola debe devolver lista de canciones recomendadas."""
         mock_ytm = MagicMock()
         mock_ytm.get_watch_playlist.return_value = {
@@ -300,9 +301,10 @@ class TestQueue:
         assert data["tracks"] == []
         mock_ytm.search.assert_not_called()
 
+    @patch("routes.songs.random.randrange", return_value=0)
     @patch("routes.songs.get_ytm")
     def test_queue_radio_breaks_uses_watch_playlist_fallback(
-        self, mock_get_ytm, client
+        self, mock_get_ytm, mock_randrange, client
     ):
         """Si la radio (radio=True) falla con KeyError, usar watch playlist normal."""
         mock_ytm = MagicMock()
@@ -379,6 +381,51 @@ class TestQueue:
         assert resp.status_code == 200
         data = resp.json()
         assert data["tracks"] == []
+
+    @patch("routes.songs.random.randrange")
+    def test_queue_cache_hit_rotates_per_request(self, mock_randrange, client):
+        """La caché protege la llamada a YouTube pero NO congela el orden:
+        cada petición recibe la cola con otra rotación (Up Next tipo YTM)."""
+        from cache import api_cache_set
+
+        cached_tracks = [
+            {"videoId": f"rot_{i}", "title": f"T{i}", "artist": "A", "duration": 100}
+            for i in range(4)
+        ]
+        api_cache_set("queue:rot_cache_vid", cached_tracks)
+
+        mock_randrange.return_value = 2
+        first = [t["videoId"] for t in client.get("/queue/rot_cache_vid").json()["tracks"]]
+        mock_randrange.return_value = 1
+        second = [t["videoId"] for t in client.get("/queue/rot_cache_vid").json()["tracks"]]
+
+        # Misma caché, distinta rotación → la cola SIEMPRE cambia
+        assert first == ["rot_2", "rot_3", "rot_0", "rot_1"]
+        assert second == ["rot_1", "rot_2", "rot_3", "rot_0"]
+        assert first != second
+
+    @patch("routes.songs.random.randrange", return_value=1)
+    @patch("routes.songs.get_ytm")
+    def test_queue_fresh_result_is_rotated(self, mock_get_ytm, mock_randrange, client):
+        """El resultado fresco de la radio también se rota por petición."""
+        mock_ytm = MagicMock()
+        mock_ytm.get_watch_playlist.return_value = {
+            "tracks": [
+                {
+                    "videoId": f"f{i}",
+                    "title": f"F{i}",
+                    "artists": [{"name": f"Art{i}"}],
+                    "duration_seconds": 100,
+                }
+                for i in (1, 2, 3)
+            ]
+        }
+        mock_get_ytm.return_value = mock_ytm
+
+        resp = client.get("/queue/fresh_rot_vid")
+        assert resp.status_code == 200
+        ids = [t["videoId"] for t in resp.json()["tracks"]]
+        assert ids == ["f2", "f3", "f1"]
 
 
 class TestSongAlbumCache:
@@ -790,8 +837,9 @@ class TestFeedbackEndpoint:
 class TestQueueWithArtist:
     """Tests para /queue/{video_id} con parámetro artist y feedback."""
 
+    @patch("routes.songs.random.randrange", return_value=0)
     @patch("routes.songs.get_ytm")
-    def test_queue_with_matching_artist(self, mock_get_ytm, client):
+    def test_queue_with_matching_artist(self, mock_get_ytm, mock_randrange, client):
         """Con artist param, tracks del mismo artista deben ir primero."""
         mock_ytm = MagicMock()
         mock_ytm.get_watch_playlist.return_value = {
@@ -837,9 +885,10 @@ class TestQueueWithArtist:
         assert tracks[2]["videoId"] == "diff_1"
         assert tracks[3]["videoId"] == "diff_2"
 
+    @patch("routes.songs.random.randrange", return_value=0)
     @patch("routes.songs.get_ytm")
-    def test_queue_without_artist_param(self, mock_get_ytm, client):
-        """Sin artist param, orden original debe mantenerse."""
+    def test_queue_without_artist_param(self, mock_get_ytm, mock_randrange, client):
+        """Sin artist param, rotación con offset 0 preserva el orden original."""
         mock_ytm = MagicMock()
         mock_ytm.get_watch_playlist.return_value = {
             "tracks": [
@@ -963,8 +1012,9 @@ class TestFeedbackIntegration:
             f"Good Artist (idx {good_idx}) should come before Skippy Artist (idx {skippy_idx})"
         )
 
+    @patch("routes.songs.random.randrange", return_value=0)
     @patch("routes.songs.get_ytm")
-    def test_feedback_does_not_break_queue(self, mock_get_ytm, client):
+    def test_feedback_does_not_break_queue(self, mock_get_ytm, mock_randrange, client):
         """Feedback sin datos relevantes no debe alterar orden."""
         # Insertar feedback para artista que NO aparece en los resultados
         self._insert_feedback(client, "unrel_1", "skip", "Unrelated Artist")

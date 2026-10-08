@@ -107,6 +107,7 @@ function AppInner() {
     currentSong,
     queue,
     queueIndex,
+    setQueueIndex,
     isPlaying,
     streamLoading,
     duration,
@@ -797,6 +798,7 @@ function AppInner() {
             onClose={handleLyricsClose}
             queue={queue}
             queueIndex={queueIndex}
+            setQueueIndex={setQueueIndex}
             playSong={playSong}
             onSeek={handleSeek}
             progressRef={progressRef}

@@ -877,7 +877,8 @@ de medición viven en `Desktop\swcheck\` (el limpiador de `%TEMP%` borra
 ficheros de ahí en minutos: no guardarlos en Temp).
 
 **Verificación en vivo con el MSI oficial (2026-10-07).** Pipeline completo
-(`package-windows` → `verify-msi` **74/74** → instalación → medición):
+(`package-windows`, que ejecuta `verify-msi` **74/74** automáticamente como
+gate → instalación → medición):
 
 - Instalación: `resources.pri` + 4 satellites en la raíz de
   `C:\Program Files\OpenWave\`, 228 assets, y el paquete registrado con

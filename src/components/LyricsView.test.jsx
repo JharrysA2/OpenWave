@@ -135,12 +135,16 @@ describe("LyricsView", () => {
     expect(screen.getByText("Artist q2")).toBeInTheDocument();
   });
 
-  it("should call playSong when a queue song is clicked", () => {
+  it("should call playSong(fromQueue) + setQueueIndex when a queue song is clicked", () => {
     const playSong = vi.fn();
+    const setQueueIndex = vi.fn();
     const queue = [song("q1")];
-    renderLyrics({ queue, playSong });
+    renderLyrics({ queue, playSong, setQueueIndex });
     fireEvent.click(screen.getByText("Song q1"));
-    expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "q1" }));
+    // Panel de cola: fromQueue=true para NO reconstruir la radio, y el
+    // índice lo pone el wrapper (setQueueIndex con la posición viva)
+    expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "q1" }), 0, true);
+    expect(setQueueIndex).toHaveBeenCalledWith(0);
   });
 
   it("should show current song highlighted in queue with queueIndex", () => {
@@ -258,12 +262,14 @@ describe("LyricsView", () => {
     expect(screen.getByText("Queue 2")).toBeInTheDocument();
   });
 
-  it("should call playSong when a queue song is clicked (via queueIndex)", () => {
+  it("should call playSong(fromQueue) when a queue song is clicked (via queueIndex)", () => {
     const playSong = vi.fn();
+    const setQueueIndex = vi.fn();
     const queue = [song("q1"), song("q2")];
-    renderLyrics({ queue, queueIndex: 0, playSong });
+    renderLyrics({ queue, queueIndex: 0, playSong, setQueueIndex });
     fireEvent.click(screen.getByText("Song q2"));
-    expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "q2" }));
+    expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "q2" }), 0, true);
+    expect(setQueueIndex).toHaveBeenCalledWith(1);
   });
 
   // ── Empty state ────────────────────────────────────────────────────────

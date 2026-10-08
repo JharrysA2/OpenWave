@@ -1291,7 +1291,8 @@ const KaraokeWords = React.memo(
             // text-shadow: interpolar el blur re-rasterizaba el glow en cada
             // frame de la transición (doble radio −10,7 pts en la pareja K;
             // el radio de32px, −4 pts por sí solo en PD/PE).
-            transition: "color .5s cubic-bezier(.25,.1,.25,1), font-weight .4s cubic-bezier(.25,.1,.25,1)",
+            transition:
+              "color .5s cubic-bezier(.25,.1,.25,1), font-weight .4s cubic-bezier(.25,.1,.25,1)",
             color: isLit ? "#ffffff" : COLORS.textTertiary,
             fontWeight: isActiveWord ? "900" : isLit ? "700" : "500",
             // Glow de un solo radio: el 32px aportaba poco halo y costaba
@@ -1412,6 +1413,7 @@ export function LyricsView({
   onClose,
   queue,
   queueIndex = -1,
+  setQueueIndex = () => {},
   playSong,
   onSeek,
   progressRef,
@@ -2542,7 +2544,15 @@ export function LyricsView({
                           isPrecached={isPrecached}
                           editMode={editMode}
                           accentColor={accentColor}
-                          onPlaySong={playSong}
+                          onPlaySong={(s) => {
+                            // Clic en la COLA: saltar al índice de la pista
+                            // dentro de la cola viva y marcar fromQueue para
+                            // que playSong NO reconstruya la radio (la cola
+                            // del panel es la cola que ya está montada).
+                            const i = queue.findIndex((x) => x?.videoId === s?.videoId);
+                            if (i >= 0) setQueueIndex(i);
+                            playSong(s, 0, true);
+                          }}
                         />
                       </div>
                     </div>

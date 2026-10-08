@@ -127,6 +127,17 @@ try {
     $clean = Join-Path $outDir "OpenWave-$version-x64-es-ES.msi"
     Copy-Item -LiteralPath $msi.FullName -Destination $clean -Force
 
+    # ── Gate: verify-msi ─────────────────────────────────────────────────────
+    #    Blinda el payload: icono del taskbar (PRI en la raíz + variantes
+    #    TargetSize/altform-unplated + AppList + BackgroundColor transparent),
+    #    identidad sparse, LaunchApplication... Si una futura actualización
+    #    lo rompe, el build FALLA aquí antes de dar por bueno el instalador.
+    #    Ver docs/PERFORMANCE.md §9.3 y §10.
+    Write-Host ''
+    Write-Host '--- verify-msi (gate) ---'
+    & (Join-Path $root 'scripts\verify-msi.ps1') -MsiPath $clean
+    if ($LASTEXITCODE -ne 0) { throw "verify-msi ha fallado (codigo $LASTEXITCODE): el payload no es valido (icono/taskbar/registro)." }
+
     $size = (Get-Item -LiteralPath $clean).Length
     $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $clean).Hash.ToLower()
 

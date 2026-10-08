@@ -178,7 +178,10 @@ if ((Test-Path -LiteralPath $dark) -and (Test-Path -LiteralPath $refBanner) -and
     $prevEap = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'   # dark.exe avisa (DARK1059) por stderr
     try {
-        & $dark $MsiPath -x $tmp | Out-Null
+        # dark.exe escribe el .wxs decompilado en el CWD: ejecutarlo desde
+        # el repo ensuciaria OpenWave-*.wxs en la raíz → correr en $tmp.
+        Push-Location -LiteralPath $tmp
+        try { & $dark $MsiPath -x $tmp | Out-Null } finally { Pop-Location }
         $ErrorActionPreference = $prevEap
         $embBanner = Join-Path $tmp 'Binary\WixUI_Bmp_Banner'
         $embDialog = Join-Path $tmp 'Binary\WixUI_Bmp_Dialog'

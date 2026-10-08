@@ -753,15 +753,60 @@ describe("usePlayer", () => {
     });
     expect(result.current.repeatMode).toBe("one");
 
-    const playMock = result.current.audioRef.current.play;
+    // ended natural: ended=true e isPlaying sigue en true (nadie lo cambia).
+    // Medir SOLO las llamadas de ESTE handleSongEnded (antes pasaba porque
+    // play() ya se había llamado en el playSong inicial — test no-ops).
+    const audio = result.current.audioRef.current;
+    audio.currentTime = 200;
+    result.current.progressRef.current = 200;
+    Object.defineProperty(audio, "ended", { value: true, writable: true, configurable: true });
+    const playMock = audio.play.mockClear();
+    const pauseMock = audio.pause.mockClear();
 
     await act(async () => {
       await result.current.handleSongEnded();
     });
 
-    // Debe reproducir la misma canción otra vez (play llamado de nuevo)
+    // Debe REINICIAR desde 0 y seguir sonando — no pausar (bug del toggle
+    // muerto: isPlaying=true tras el ended hacía pause() y nunca repetía).
     expect(result.current.currentSong?.videoId).toBe("loop");
-    expect(playMock).toHaveBeenCalled();
+    expect(playMock).toHaveBeenCalledTimes(1);
+    expect(pauseMock).not.toHaveBeenCalled();
+    expect(audio.currentTime).toBe(0);
+    expect(result.current.progressRef.current).toBe(0);
+    expect(result.current.isPlaying).toBe(true);
+  });
+
+  it("playSong same song with audio ended restarts from 0 instead of pausing", async () => {
+    // Raíz del bug de repetir: el guard de "misma canción -> toggle" debe
+    // distinguir "terminó" de "sonando" — tras ended, reanudar = repetir.
+    const { result } = renderHook(() => usePlayer());
+    const song = { videoId: "restart", title: "Restart" };
+    result.current.audioRef.current = createMockAudio(200);
+
+    await act(async () => {
+      await result.current.playSong(song);
+    });
+    expect(result.current.isPlaying).toBe(true);
+
+    const audio = result.current.audioRef.current;
+    audio.currentTime = 199.9;
+    result.current.progressRef.current = 199.9;
+    Object.defineProperty(audio, "ended", { value: true, writable: true, configurable: true });
+    const playMock = audio.play.mockClear();
+    const pauseMock = audio.pause.mockClear();
+
+    await act(async () => {
+      await result.current.playSong(song, 0, true);
+    });
+
+    expect(playMock).toHaveBeenCalledTimes(1);
+    expect(pauseMock).not.toHaveBeenCalled();
+    expect(audio.currentTime).toBe(0);
+    expect(result.current.progressRef.current).toBe(0);
+    expect(result.current.isPlaying).toBe(true);
+    // La cola no se toca (fromQueue) y no se dispara radio nueva
+    expect(result.current.currentSong?.videoId).toBe("restart");
   });
 
   it("handleSongEnded should ignore the event while a crossfade is active", async () => {

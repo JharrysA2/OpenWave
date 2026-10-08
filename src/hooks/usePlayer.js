@@ -600,7 +600,19 @@ export function usePlayer(
       if (currentSong?.videoId === song.videoId && !initialQueue) {
         const audio = audioRef.current;
         if (audio) {
-          if (isPlaying) {
+          if (audio.ended) {
+            // ⭐ La canción acaba de TERMINAR (onEnded de repeat-one, final
+            //    de cola de 1 canción con repeat-all, o clic justo tras el
+            //    final): "reanudar" = reproducir de nuevo desde 0. Sin esta
+            //    rama, isPlaying sigue en true tras el ended natural y el
+            //    toggle haría pause() → la canción se queda MUERTA y el
+            //    repeat-one nunca vuelve a sonar.
+            cancelCrossfade();
+            audio.currentTime = 0;
+            progressRef.current = 0;
+            audio.play().catch(() => {});
+            setIsPlaying(true);
+          } else if (isPlaying) {
             // Si había un crossfade en curso, cancelarlo también aquí
             cancelCrossfade();
             audio.pause();

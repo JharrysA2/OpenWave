@@ -386,7 +386,7 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 
 ### Regresión rápida tras cada cambio
 
-- `ruff check backend/ && python -m pytest` en `backend/` (380 tests).
+- `ruff check backend/ && python -m pytest` en `backend/` (386 tests).
 - `npm test` (frontend, 862 tests).
 - Tras recompilar: **`package-windows.ps1` ya ejecuta `verify-msi.ps1` solo**
   (gate: si alguna comprobación falla, el build aborta). Para repetirlo a
@@ -487,7 +487,11 @@ También conviene saberlo al leer la plantilla: **no existe la tabla
   `ytmusicapi/mixins/explore.py`) y con `US`/`MX`, `StopIteration` — YouTube
   Music cambió la estructura de la respuesta; la sección «trending» quedaba
   sin datos. **Resuelto al subir a `ytmusicapi==1.12.3`** (verificado con
-  `None`/`US`/`MX`/`GT`: todas devuelven datos). Esa misma actualización
-  arregla `get_watch_playlist` (`KeyError 'endpoint'` en 1.7.3), del que
-  depende la radio/cola de reproducción.
+  `None`/`US`/`MX`/`GT`): el endpoint responde, pero ahora devuelve playlists
+  de gráfico y artistas **sin canciones inline** — `extract_chart_items`
+  selecciona la playlist «Trending» y trae sus temas con `get_playlist`
+  (`ytm=` en los 3 callings; tests de las dos formas en `test_utils.py` y
+  `test_routes_search.py`). Esa misma actualización arregla
+  `get_watch_playlist` (`KeyError 'endpoint'` en 1.7.3), del que depende la
+  radio/cola de reproducción.
 - La app tiene favicon y icono de ventana distintos (inconsistencia de marca).

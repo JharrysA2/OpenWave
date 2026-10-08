@@ -1,8 +1,12 @@
 """Tests para backend/utils.py."""
 
+from unittest.mock import MagicMock
+
 from utils import (
+    _pick_chart_playlist,
     best_thumb,
     clean_artist_name,
+    extract_chart_items,
     fmt_num,
     fmt_song,
     fmt_thumbs,
@@ -271,3 +275,83 @@ class TestFmtSong:
         r = {"videoId": "1", "title": "T", "artists": "1.2M plays"}
         result = fmt_song(r)
         assert result["artist"] == "Desconocido"
+
+# ── extract_chart_items (trending) ─────────────────────────────────────────────
+
+
+class TestExtractChartItems:
+    """Formas de get_charts(): dict legado (canciones inline) y ytmusicapi
+    >= 1.12 (playlists de gráfico → get_playlist)."""
+
+    def test_legacy_songs_dict(self):
+        charts = {
+            "songs": {
+                "items": [
+                    {
+                        "videoId": "l1",
+                        "title": "Legacy",
+                        "artists": [{"name": "A"}],
+                        "duration_seconds": 100,
+                        "thumbnails": [],
+                    }
+                ]
+            }
+        }
+        out = extract_chart_items(charts, limit=10)
+        assert [s["videoId"] for s in out] == ["l1"]
+        assert out[0]["artist"] == "A"
+
+    def test_playlist_shape_uses_get_playlist(self):
+        """ytmusicapi >= 1.12: elige la playlist «Trending» y trae sus temas."""
+        ytm = MagicMock()
+        ytm.get_playlist.return_value = {
+            "tracks": [
+                {
+                    "videoId": "pl1",
+                    "title": "Trend 1",
+                    "artists": [{"name": "TA"}],
+                    "duration_seconds": 120,
+                    "thumbnails": [],
+                },
+                {
+                    "videoId": "pl2",
+                    "title": "Trend 2",
+                    "artists": [{"name": "TB"}],
+                    "duration_seconds": 130,
+                    "thumbnails": [],
+                },
+            ]
+        }
+        charts = {
+            "countries": {"selected": "US", "options": []},
+            "videos": [
+                {"title": "Top 100 Live Performances - US", "playlistId": "PLlive"},
+                {"title": "Trending 20 United States", "playlistId": "PLtrend"},
+                {"title": "Daily Top Music Videos - US", "playlistId": "PLdaily"},
+            ],
+            "artists": [{"title": "Drake", "browseId": "UCx"}],
+        }
+        out = extract_chart_items(charts, limit=25, ytm=ytm)
+        ytm.get_playlist.assert_called_once_with("PLtrend", limit=25)
+        assert [s["videoId"] for s in out] == ["pl1", "pl2"]
+        assert out[0]["artist"] == "TA"
+
+    def test_playlist_shape_without_ytm_is_empty(self):
+        charts = {"videos": [{"title": "Trending 20", "playlistId": "PLt"}]}
+        assert extract_chart_items(charts) == []
+
+    def test_pick_playlist_prefers_trending_then_daily(self):
+        charts = {
+            "videos": [
+                {"title": "Top 100", "playlistId": "PLtop"},
+                {"title": "Daily Top Music Videos", "playlistId": "PLdaily"},
+                {"title": "Trending 20", "playlistId": "PLtrend"},
+            ]
+        }
+        assert _pick_chart_playlist(charts) == "PLtrend"
+        del charts["videos"][2]
+        assert _pick_chart_playlist(charts) == "PLdaily"
+
+    def test_empty_charts(self):
+        assert extract_chart_items({}) == []
+        assert extract_chart_items(None) == []

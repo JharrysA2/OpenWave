@@ -298,6 +298,34 @@ class TestTrending:
         assert data["results"][0]["artist"] == "Solo Artist"
 
     @patch("routes.search.get_ytm")
+    def test_trending_playlist_shape_ytmusicapi_112(self, mock_get_ytm, client):
+        """ytmusicapi >= 1.12: charts sin canciones inline → get_playlist."""
+        mock_ytm = MagicMock()
+        mock_ytm.get_charts.return_value = {
+            "videos": [{"title": "Trending 20 United States", "playlistId": "PLtrend"}],
+            "artists": [],
+        }
+        mock_ytm.get_playlist.return_value = {
+            "tracks": [
+                {
+                    "videoId": "gp1",
+                    "title": "Chart Song",
+                    "artists": [{"name": "Chart Artist"}],
+                    "duration_seconds": 90,
+                    "thumbnails": [],
+                }
+            ]
+        }
+        mock_get_ytm.return_value = mock_ytm
+
+        resp = client.get("/trending?country=US")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["videoId"] == "gp1"
+        mock_ytm.get_playlist.assert_called_once()
+
+    @patch("routes.search.get_ytm")
     def test_trending_fallback_to_second_attempt(self, mock_get_ytm, client):
         """Si primer intento falla, debe intentar sin país."""
         mock_ytm = MagicMock()

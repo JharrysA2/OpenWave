@@ -306,7 +306,7 @@ def _startup_warmup():
 
         charts = get_ytm().get_charts(country="GT")
         if charts:
-            songs_data = extract_chart_items(charts, limit=30)
+            songs_data = extract_chart_items(charts, limit=30, ytm=get_ytm())
             if songs_data:
                 api_cache_set("trending", songs_data)
                 logger.info("warmup ✓ %d trending songs cached", len(songs_data))

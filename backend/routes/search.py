@@ -193,7 +193,7 @@ async def trending(request: Request, country: str = "US"):
         if not charts:
             return []
         try:
-            return extract_chart_items(charts, limit=25)
+            return extract_chart_items(charts, limit=25, ytm=get_ytm())
         except Exception as e:
             logger.warning("trending: %s", e)
             return []
@@ -418,7 +418,7 @@ async def home_trending_fixed(request: Request):
             else:
                 return []
 
-            songs_out = extract_chart_items(charts, limit=30)
+            songs_out = extract_chart_items(charts, limit=30, ytm=get_ytm())
         except Exception as e:
             logger.warning("trending: %s", e)
         return songs_out

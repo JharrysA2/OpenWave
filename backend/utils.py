@@ -49,12 +49,41 @@ def best_thumb(thumbnails) -> str:
     return upgrade_goog_url(best.get("url", ""))
 
 
-def extract_chart_items(charts, limit: int = 30):
+def _pick_chart_playlist(charts) -> str:
+    """Elegir la playlist de tendencia entre las de get_charts() (ytmusicapi >= 1.12).
+
+    En esa versión get_charts() ya no trae canciones inline: devuelve
+    playlists de gráfico ({title, playlistId}) en "videos" y "genres".
+    Preferencia: «Trending» → «Daily» → «Top» → la primera de la sección
+    de vídeos (los «genres» son alternativas por estilo).
+    """
+    for section in ("videos", "genres"):
+        playlists = [
+            e
+            for e in (charts.get(section) or [])
+            if isinstance(e, dict) and e.get("playlistId")
+        ]
+        if not playlists:
+            continue
+        for pref in ("trending", "daily", "top"):
+            for e in playlists:
+                if pref in (e.get("title") or "").lower():
+                    return e["playlistId"]
+        return playlists[0]["playlistId"]
+    return ""
+
+
+def extract_chart_items(charts, limit: int = 30, ytm=None):
     """Normalizar respuesta de get_charts() a lista de canciones para la UI.
 
     Unifica 3 forks previos del parsing (warmup de main.py, /trending y
     /home/trending-fixed) y garantiza el MISMO shape en caché bajo la clave
     "trending" (antes warmup guardaba items crudos y /trending, ya parseados).
+
+    ytmusicapi >= 1.12: get_charts() ya no trae canciones inline — devuelve
+    playlists de gráfico ({title, playlistId} en "videos"/"genres") y artistas.
+    En ese caso se elige la playlist de tendencia (_pick_chart_playlist) y se
+    traen sus temas con `ytm.get_playlist` (si se recibe `ytm`; sin él, vacío).
     """
     if not charts:
         return []
@@ -71,7 +100,16 @@ def extract_chart_items(charts, limit: int = 30):
         sec = charts.get(key)
         if not sec:
             continue
-        items = sec.get("items") or sec.get("content") or []
+        if isinstance(sec, dict):
+            items = sec.get("items") or sec.get("content") or []
+        elif isinstance(sec, list):
+            # >= 1.12: lista de playlists de gráfico (playlistId) — no son
+            # canciones; la rama de playlist de más abajo se encarga.
+            if sec and isinstance(sec[0], dict) and sec[0].get("playlistId"):
+                continue
+            items = sec
+        else:
+            items = []
         if items:
             candidates.extend(items)
             break
@@ -84,6 +122,15 @@ def extract_chart_items(charts, limit: int = 30):
                 if items and isinstance(items[0], dict) and items[0].get("videoId"):
                     candidates = items
                     break
+
+    # ── Forma ytmusicapi >= 1.12: playlists de gráfico, sin canciones ────
+    if not candidates and ytm is not None:
+        playlist_id = _pick_chart_playlist(charts)
+        if playlist_id:
+            pl = ytm.get_playlist(playlist_id, limit=limit)
+            if isinstance(pl, dict):
+                # ytmusicapi usa 'tracks' en playlists OLAK y 'videos' en PL…
+                candidates = pl.get("tracks") or pl.get("videos") or []
 
     out = []
     for r in candidates[:limit]:

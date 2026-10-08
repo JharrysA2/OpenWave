@@ -3,10 +3,12 @@ import { FONT } from "../../constants";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, TYPOGRAPHY, GLASS } from "../../utils/theme";
 import { BTN_SHAPES, getBtnShapeStyle } from "../../utils/playerStyles";
 import { useOverlayLayer } from "../../hooks/useOverlayLayer";
+import { useEscClose } from "../../hooks/useEscape";
 
 export function BtnShapeModal({ accent, settings, updateSetting, onClose }) {
   // Se monta/desmonta con createPortal desde PageApariencia → siempre "abierto"
   useOverlayLayer(true);
+  useEscClose(true, onClose);
 
   return (
     <div

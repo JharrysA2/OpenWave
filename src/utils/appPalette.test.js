@@ -40,9 +40,7 @@ describe("APP_COLORS (paleta del color de la app)", () => {
 
   it("colores oscuros se aclaran y muy claros se oscurecen (siempre visibles)", () => {
     // Oscuro → "que los botones sean un poco blancos": se aclara para verse.
-    expect(getLuminance(deriveTheme("#2563eb").accent)).toBeGreaterThan(
-      getLuminance("#2563eb"),
-    );
+    expect(getLuminance(deriveTheme("#2563eb").accent)).toBeGreaterThan(getLuminance("#2563eb"));
     // Muy claro → "que los botones sean un poco oscuros": se modera un poco.
     expect(getLuminance(deriveTheme("#ffffff").accent)).toBeLessThan(getLuminance("#ffffff"));
   });

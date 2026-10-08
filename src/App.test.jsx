@@ -5,7 +5,13 @@ import { act, render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { api } from "./utils/api";
 import { winCtrl } from "./utils/windowControls";
-import { __expireBootGrace, __resetHealth, isHeartbeatRunning, markOffline, markOnline } from "./utils/backendHealth";
+import {
+  __expireBootGrace,
+  __resetHealth,
+  isHeartbeatRunning,
+  markOffline,
+  markOnline,
+} from "./utils/backendHealth";
 import { contrastRatio, deriveTheme } from "./utils/colorTheme";
 import App from "./App";
 
@@ -402,6 +408,72 @@ describe("App — Componente principal", () => {
     expect(screen.queryByTestId("settings-panel")).not.toBeInTheDocument();
   });
 
+  // ── ESC = atrás ────────────────────────────────────────────────────────────
+
+  it("ESC desde Historial vuelve a Inicio", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText("Historial"));
+    expect(await screen.findByTestId("history-view")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(await screen.findByTestId("home-view")).toBeInTheDocument();
+    expect(screen.queryByTestId("history-view")).not.toBeInTheDocument();
+  });
+
+  it("ESC desde Descargas vuelve a Inicio", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText("Descargas"));
+    expect(await screen.findByTestId("downloads-view")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(await screen.findByTestId("home-view")).toBeInTheDocument();
+    expect(screen.queryByTestId("downloads-view")).not.toBeInTheDocument();
+  });
+
+  it("ESC en Inicio no hace nada (no hay dónde «atrás»)", () => {
+    render(<App />);
+    expect(screen.getByTestId("home-view")).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByTestId("home-view")).toBeInTheDocument();
+  });
+
+  it("ESC cierra la vista de detalle (álbum) y vuelve a la vista anterior", async () => {
+    const fetchMock = vi.fn((input) => {
+      const u = String(input);
+      if (u.includes("/song/album/")) return jsonResponse({ browseId: "MPRE_test123" });
+      if (u.includes("/health")) return jsonResponse({ status: "ok" });
+      return jsonResponse({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    fireEvent.click(screen.getByTestId("open-song-options"));
+    expect(await screen.findByTestId("song-options-sheet")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("go-to-album"));
+    await waitFor(() => expect(screen.queryByTestId("song-options-sheet")).not.toBeInTheDocument());
+    // El detalle (álbum) tapa la home…
+    await waitFor(() => expect(screen.queryByTestId("home-view")).not.toBeInTheDocument());
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    // …y ESC vuelve a la vista anterior
+    expect(await screen.findByTestId("home-view")).toBeInTheDocument();
+  });
+
+  it("ESC con Ajustes abierto no navega por debajo (lo cierra el propio panel)", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("settings-btn"));
+    expect(await screen.findByTestId("settings-panel")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    // App cede: el ESC de Ajustes vive en SettingsPanel (useEscClose), que en
+    // este test está mockeado sin ESC → el panel sigue montado, sin navegar.
+    expect(screen.getByTestId("settings-panel")).toBeInTheDocument();
+  });
+
   // ── Player Bar ──────────────────────────────────────────────────────────────
 
   it("should render the PlayerBar with no song by default", () => {
@@ -514,12 +586,8 @@ describe("App — Componente principal", () => {
     fireEvent.click(screen.getByTestId("go-to-album"));
 
     // Sin el fix, Ajustes seguía abierto y tapaba la vista de detalle
-    await waitFor(() =>
-      expect(screen.queryByTestId("settings-panel")).not.toBeInTheDocument(),
-    );
-    expect(
-      fetchMock.mock.calls.some(([u]) => String(u).includes("/song/album/vid123")),
-    ).toBe(true);
+    await waitFor(() => expect(screen.queryByTestId("settings-panel")).not.toBeInTheDocument());
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes("/song/album/vid123"))).toBe(true);
     // La pantalla de letras se cierra para no tapar el detalle
     expect(mockSetLyricsOpen).toHaveBeenCalledWith(false);
     // El sheet de opciones se cierra solo
@@ -543,9 +611,9 @@ describe("App — Componente principal", () => {
     fireEvent.click(screen.getByTestId("go-to-artist"));
 
     await waitFor(() => expect(mockSetLyricsOpen).toHaveBeenCalledWith(false));
-    expect(
-      fetchMock.mock.calls.some(([u]) => String(u).includes("/search?q=Test%20Artist")),
-    ).toBe(true);
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes("/search?q=Test%20Artist"))).toBe(
+      true,
+    );
   });
 
   it("no muestra el toast «Error de reproducción» si el audio falla (petición)", () => {

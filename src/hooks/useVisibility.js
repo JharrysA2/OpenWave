@@ -62,8 +62,7 @@ export function useVisibility() {
 
   const reconcile = useCallback(() => {
     const seq = ++seqRef.current;
-    const docVisible =
-      typeof document === "undefined" || document.visibilityState !== "hidden";
+    const docVisible = typeof document === "undefined" || document.visibilityState !== "hidden";
 
     if (!docVisible) {
       // Documento oculto: congelado YA y sin IPC (la música no depende de esto).
@@ -79,8 +78,7 @@ export function useVisibility() {
       if (seq !== seqRef.current) return; // otra reconciliación más reciente manda
       minimizedRef.current = min;
       const nowVisible =
-        typeof document === "undefined" ||
-        (document.visibilityState !== "hidden" && !min);
+        typeof document === "undefined" || (document.visibilityState !== "hidden" && !min);
       setVisible(nowVisible);
     });
   }, []);

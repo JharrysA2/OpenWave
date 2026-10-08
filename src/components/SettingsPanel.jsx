@@ -5,6 +5,7 @@ import { Ic } from "../icons/Icons";
 import { useSettings } from "../contexts/useSettings";
 import { SettingRow, SettingsSection, SettingsChevron } from "./SettingsComponents";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
+import { useEscClose } from "../hooks/useEscape";
 import {
   PageApariencia,
   PageReproductor,
@@ -52,6 +53,10 @@ export default function SettingsPanel({
   }, [open]);
 
   useOverlayLayer(open);
+  // ESC = «atrás» dentro de Ajustes: subpágina → menú, menú → cerrar el
+  // panel. La pila de useEscClose garantiza que un modal interno (color de
+  // app, barra de reproducción…) esté encima y reciba el ESC primero.
+  useEscClose(open, () => (page ? setPage(null) : onClose()));
 
   if (!open) return null;
 

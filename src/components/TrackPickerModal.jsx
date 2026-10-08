@@ -4,6 +4,7 @@ import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
+import { useEscClose } from "../hooks/useEscape";
 
 export function TrackPickerModal({ open, playlist, tracks, loadingTracks, onClose, onConfirm }) {
   const [selected, setSelected] = useState(new Set());
@@ -20,6 +21,7 @@ export function TrackPickerModal({ open, playlist, tracks, loadingTracks, onClos
     });
 
   useOverlayLayer(open);
+  useEscClose(open, onClose);
 
   if (!open) return null;
 

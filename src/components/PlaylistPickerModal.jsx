@@ -2,6 +2,7 @@ import React from "react";
 import { FONT } from "../constants";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
+import { useEscClose } from "../hooks/useEscape";
 import { api } from "../utils/api";
 import { Ic } from "../icons/Icons";
 
@@ -15,6 +16,7 @@ export function PlaylistPickerModal({
   onClose,
 }) {
   useOverlayLayer(open);
+  useEscClose(open, onClose);
 
   if (!open) return null;
 

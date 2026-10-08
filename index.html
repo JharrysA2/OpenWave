@@ -185,6 +185,19 @@
       }
 
       /* ═══════════════════════════════════════════════════════════════════════
+         HOME SHELF — banda horizontal arrastrable de la home
+         grab en reposo; mientras dura el arrastre (clase .is-dragging que
+         pone useDragScroll) el grabbing manda también sobre las tarjetas,
+         que llevan cursor: pointer en línea. */
+      .home-shelf {
+        cursor: grab;
+      }
+      .home-shelf.is-dragging,
+      .home-shelf.is-dragging * {
+        cursor: grabbing !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════
          LIQUID GLASS — Player Bar pseudo-element for subtle shine
          ════════════════════════════════════════════════════════════════════ */
       .player-bar {

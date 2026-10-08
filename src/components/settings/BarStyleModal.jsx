@@ -4,10 +4,12 @@ import { COLORS, RADIUS, SPACING, TRANSITIONS, TYPOGRAPHY, GLASS } from "../../u
 import { BAR_STYLES } from "../../utils/playerStyles";
 import { BarPreview } from "../SettingsComponents";
 import { useOverlayLayer } from "../../hooks/useOverlayLayer";
+import { useEscClose } from "../../hooks/useEscape";
 
 export function BarStyleModal({ accent, settings, updateSetting, onClose }) {
   // Se monta/desmonta con createPortal desde PageApariencia → siempre "abierto"
   useOverlayLayer(true);
+  useEscClose(true, onClose);
 
   return (
     <div

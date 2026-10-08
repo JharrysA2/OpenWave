@@ -172,9 +172,7 @@ describe("SearchView", () => {
     const results = [song("1")];
     renderSearch({ results, query: "test", playSong });
     fireEvent.click(screen.getByText("Song 1"));
-    expect(playSong).toHaveBeenCalledWith(
-      expect.objectContaining({ videoId: "1" }),
-    );
+    expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "1" }));
   });
 
   it("should call toggleLike when like button is clicked", () => {
@@ -293,9 +291,7 @@ describe("SearchView", () => {
     const videoResults = [song("v1")];
     renderSearch({ searchTab: "videos", videoResults, playSong });
     fireEvent.click(screen.getByText("Song v1"));
-    expect(playSong).toHaveBeenCalledWith(
-      expect.objectContaining({ videoId: "v1" }),
-    );
+    expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "v1" }));
   });
 
   // ── Estados de error con código reportable ────────────────────────────

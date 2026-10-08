@@ -1241,6 +1241,35 @@ describe("LyricsView — reloj de karaoke con overlay", () => {
   });
 });
 
+// ── ESC = atrás (pila de overlays: primero lo de arriba) ─────────────────
+
+describe("LyricsView — ESC = atrás", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) return Promise.resolve({ lyrics: null, source: "test" });
+      if (path.startsWith("/queue/")) return Promise.resolve({ tracks: [] });
+      return Promise.resolve({});
+    });
+  });
+
+  it("ESC cierra primero el popover de configuración y después la pantalla", () => {
+    const onClose = vi.fn();
+    renderLyrics({ onClose });
+    fireEvent.click(screen.getByTitle("Configuración de letras"));
+    expect(screen.getByText("Buscar letras")).toBeInTheDocument(); // popover abierto
+
+    // 1ª ESC → solo el popover (la pantalla de letras no se va por detrás)
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByText("Buscar letras")).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    // 2ª ESC → la pantalla de letras
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  CSP con nonce de Tauri — las keyframes SOLO pueden vivir en index.html.
 //

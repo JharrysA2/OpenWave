@@ -194,7 +194,10 @@ export const hsvToHex = ({ h, s, v }) => {
   else if (hp >= 4 && hp < 5) rgb = [x, 0, c];
   else if (hp >= 5) rgb = [c, 0, x];
   const m = v - c;
-  const to = (n) => Math.round((n + m) * 255).toString(16).padStart(2, "0");
+  const to = (n) =>
+    Math.round((n + m) * 255)
+      .toString(16)
+      .padStart(2, "0");
   return `#${to(rgb[0])}${to(rgb[1])}${to(rgb[2])}`;
 };
 

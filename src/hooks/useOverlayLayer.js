@@ -17,7 +17,10 @@ function subscribe(listener) {
   return () => listeners.delete(listener);
 }
 
-function isOverlayActive() {
+// Exportado como respaldo de useEscBack (hooks/useEscape.js): una capa que
+// monte useOverlayLayer sin registrarse en la pila de ESC sigue bloqueando
+// la navegación con la tecla Escape.
+export function isOverlayActive() {
   return openOverlays > 0;
 }
 

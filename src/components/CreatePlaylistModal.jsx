@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
+import { useEscClose } from "../hooks/useEscape";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
@@ -45,6 +46,7 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
   const inputRef = useRef(null);
   const creatingRef = useRef(false);
   useOverlayLayer(open);
+  useEscClose(open, onClose);
 
   useEffect(() => {
     if (open) {

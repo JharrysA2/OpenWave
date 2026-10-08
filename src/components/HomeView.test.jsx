@@ -321,3 +321,50 @@ describe("HomeView", () => {
     expect(card.style.backdropFilter ?? "").toBe("");
   });
 });
+
+// ── Bandas horizontales (shelves) — el inicio en filas con scroll-x ─────
+
+describe("HomeView — bandas horizontales", () => {
+  it("cada sección es una banda con scroll-x, sin wrap (fila única)", () => {
+    const history = Array.from({ length: 12 }, (_, i) => song(`${i}`));
+    renderHome({ history });
+    const shelf = screen.getByTestId("grid-recents");
+    expect(shelf.style.display).toBe("flex");
+    expect(shelf.style.overflowX).toBe("auto");
+    expect(shelf.style.overflowY).toBe("hidden");
+    expect(shelf.style.flexWrap).toBe(""); // fila única: sin envoltorio
+    expect(shelf).toHaveClass("home-shelf");
+    // Las 12 van como hijos directos de la MISMA fila (no en rejilla)
+    expect(shelf.children).toHaveLength(12);
+  });
+
+  it("las tarjetas llevan ancho fijo para que la fila haga scroll", () => {
+    renderHome({ history: [song("a"), song("b")] });
+    const shelf = screen.getByTestId("grid-recents");
+    expect(shelf.children.length).toBeGreaterThan(0);
+    for (const card of shelf.children) {
+      expect(card.style.width).toBe("180px");
+      expect(card.style.flex).toBe("0 0 180px");
+    }
+  });
+
+  it("arrastrar la banda la scrollea y el gesto NO dispara la canción", () => {
+    const playSong = vi.fn();
+    const history = Array.from({ length: 8 }, (_, i) => song(`${i}`));
+    renderHome({ history, playSong });
+    const shelf = screen.getByTestId("grid-recents");
+
+    fireEvent.mouseDown(shelf, { button: 0, clientX: 500 });
+    fireEvent.mouseMove(window, { clientX: 300 }); // dx = -200
+    expect(shelf.scrollLeft).toBe(200);
+    fireEvent.mouseUp(window);
+
+    // El click que cierra el arrastre queda suprimido (no reproduce)
+    fireEvent.click(screen.getByText("Song 0"));
+    expect(playSong).not.toHaveBeenCalled();
+
+    // Un click normal, en cambio, sí reproduce
+    fireEvent.click(screen.getByText("Song 0"));
+    expect(playSong).toHaveBeenCalledTimes(1);
+  });
+});

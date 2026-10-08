@@ -3,12 +3,12 @@ import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { api } from "../utils/api";
+import { useDragScroll } from "../hooks/useDragScroll";
 import {
   COLORS,
   RADIUS,
   SPACING,
   TYPOGRAPHY,
-  LAYOUTS,
   withAlpha,
   ANIMATIONS,
   GLASS,
@@ -112,6 +112,44 @@ function SectionHeader({ children, delay = 120 }) {
   );
 }
 
+/** Ancho fijo de tarjeta dentro de una banda (fila única con scroll-x). */
+const SHELF_CARD = "0 0 180px";
+
+/**
+ * Banda horizontal de una sección: fila única con scroll horizontal y
+ * arrastre con el ratón (useDragScroll) en lugar de rejilla apilada — el
+ * inicio deja de verse amontonado y el resto de la fila se ve arrastrando
+ * (shift+rueda y trackpad, en horizontal, ya funcionan nativos).
+ *
+ * El aire de padding (compensado arriba con margen negativo para no separar
+ * el header) da sitio al glow/float de las tarjetas y a la barra de scroll
+ * horizontal sin que se recorten ni cambie el ritmo entre secciones.
+ */
+function Shelf({ testid, children }) {
+  const { ref, onMouseDown, onClickCapture, onDragStart } = useDragScroll();
+  return (
+    <div
+      data-testid={testid}
+      ref={ref}
+      className="home-shelf"
+      onMouseDown={onMouseDown}
+      onClickCapture={onClickCapture}
+      onDragStart={onDragStart}
+      style={{
+        display: "flex",
+        gap: SPACING.card.gap,
+        overflowX: "auto",
+        overflowY: "hidden",
+        padding: "20px 6px 16px 0",
+        marginTop: "-20px",
+        marginBottom: "12px",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /**
  * Tarjeta de la rejilla: canción, álbum o cualquier entidad con cover.
  * Estilo congelado: sin backdrop-filter por tarjeta (regresión de GPU),
@@ -150,6 +188,9 @@ function FeedCard({
           ? `0 0 16px ${withAlpha(accentColor, "33")}, inset 0 1px 0 rgba(255,255,255,.06)`
           : "none",
         position: "relative",
+        // Banda horizontal: ancho fijo por tarjeta (la fila hace scroll-x).
+        width: "180px",
+        flex: SHELF_CARD,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = isPlaying
@@ -311,6 +352,9 @@ function PlaylistCard({ playlist, index, accentColor, onClick }) {
         borderRadius: RADIUS.card,
         cursor: "pointer",
         position: "relative",
+        // Mismo ancho fijo que FeedCard: caben en la banda con scroll-x.
+        width: "180px",
+        flex: SHELF_CARD,
         transition:
           "background .2s cubic-bezier(.16,1,.3,1), transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
       }}
@@ -542,10 +586,7 @@ export default function HomeView({
       {status === "ready" && recentsItems.length > 0 && (
         <>
           <SectionHeader delay={120}>Recientes</SectionHeader>
-          <div
-            data-testid="grid-recents"
-            style={{ ...LAYOUTS.cardGrid, marginBottom: SPACING.section.marginBottom }}
-          >
+          <Shelf testid="grid-recents">
             {recentsItems.map((song, i) => (
               <FeedCard
                 key={song.videoId || `r-${i}`}
@@ -559,7 +600,7 @@ export default function HomeView({
                 openOptions={openOptions}
               />
             ))}
-          </div>
+          </Shelf>
         </>
       )}
 
@@ -567,10 +608,7 @@ export default function HomeView({
       {status === "ready" && forYouItems.length > 0 && (
         <>
           <SectionHeader delay={300}>Para ti</SectionHeader>
-          <div
-            data-testid="grid-for-you"
-            style={{ ...LAYOUTS.cardGrid, marginBottom: SPACING.section.marginBottom }}
-          >
+          <Shelf testid="grid-for-you">
             {forYouItems.map((song, i) => (
               <FeedCard
                 key={song.videoId || `f-${i}`}
@@ -584,7 +622,7 @@ export default function HomeView({
                 openOptions={openOptions}
               />
             ))}
-          </div>
+          </Shelf>
         </>
       )}
 
@@ -592,10 +630,7 @@ export default function HomeView({
       {status === "ready" && trendingItems.length > 0 && (
         <>
           <SectionHeader delay={360}>Tendencias</SectionHeader>
-          <div
-            data-testid="grid-trending"
-            style={{ ...LAYOUTS.cardGrid, marginBottom: SPACING.section.marginBottom }}
-          >
+          <Shelf testid="grid-trending">
             {trendingItems.map((song, i) => (
               <FeedCard
                 key={song.videoId || `t-${i}`}
@@ -609,7 +644,7 @@ export default function HomeView({
                 openOptions={openOptions}
               />
             ))}
-          </div>
+          </Shelf>
         </>
       )}
 
@@ -617,10 +652,7 @@ export default function HomeView({
       {status === "ready" && albumItems.length > 0 && (
         <>
           <SectionHeader delay={420}>Álbumes</SectionHeader>
-          <div
-            data-testid="grid-albums"
-            style={{ ...LAYOUTS.cardGrid, marginBottom: SPACING.section.marginBottom }}
-          >
+          <Shelf testid="grid-albums">
             {albumItems.map((album, i) => (
               <FeedCard
                 key={album.browseId || `a-${i}`}
@@ -635,7 +667,7 @@ export default function HomeView({
                 }
               />
             ))}
-          </div>
+          </Shelf>
         </>
       )}
 
@@ -643,10 +675,7 @@ export default function HomeView({
       {status === "ready" && playlists.length > 0 && (
         <>
           <SectionHeader delay={480}>Tus playlists</SectionHeader>
-          <div
-            data-testid="grid-playlists"
-            style={{ ...LAYOUTS.cardGrid, marginBottom: SPACING.section.marginBottom }}
-          >
+          <Shelf testid="grid-playlists">
             {playlists.map((pl, i) => (
               <PlaylistCard
                 key={pl.id || `p-${i}`}
@@ -656,7 +685,7 @@ export default function HomeView({
                 onClick={() => onSelectPlaylist?.(pl)}
               />
             ))}
-          </div>
+          </Shelf>
         </>
       )}
 

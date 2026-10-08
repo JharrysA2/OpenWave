@@ -4,6 +4,7 @@ import { COLORS, RADIUS, SPACING, TRANSITIONS, TYPOGRAPHY, GLASS } from "../../u
 import { APP_COLORS } from "../../utils/appPalette";
 import { deriveTheme, hexToHsv, hsvToHex } from "../../utils/colorTheme";
 import { useOverlayLayer } from "../../hooks/useOverlayLayer";
+import { useEscClose } from "../../hooks/useEscape";
 import { useSettings } from "../../contexts/useSettings";
 import { Ic } from "../../icons/Icons";
 
@@ -30,6 +31,7 @@ const normHex = (s) => `#${String(s).replace(/^#/, "").toLowerCase()}`;
 export function AppColorModal({ accent, onClose }) {
   // Se monta/desmonta con createPortal desde PageApariencia → siempre "abierto"
   useOverlayLayer(true);
+  useEscClose(true, onClose);
 
   const { settings, updateSetting, t } = useSettings();
   const appColor = settings.appColor || "#a78bfa";

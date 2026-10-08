@@ -13,6 +13,7 @@ import { useSearch } from "./hooks/useSearch";
 import { useLibrary } from "./hooks/useLibrary";
 import { useToast } from "./hooks/useToast";
 import { useSongOptions } from "./hooks/useSongOptions";
+import { useEscBack } from "./hooks/useEscape";
 import { useSavedEntities } from "./hooks/useSavedEntities";
 import { useEntityOptions } from "./hooks/useEntityOptions";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -535,6 +536,29 @@ function AppInner() {
     setSelectedPlaylist(null);
     setTab("home");
   }, []);
+
+  // ── ESC = atrás ─────────────────────────────────────────────────────────────
+  //    Con cualquier overlay montado no se navega (lo cierra useEscClose si
+  //    está en su pila); sin overlay, ESC «sale» de la vista actual: detalle
+  //    de álbum/artista → la sección de la que vino, vista de playlist →
+  //    Inicio, cualquier otra vista → Inicio. Desde Inicio no hay nada atrás.
+  //    Ajustes se excluye aquí: su ESC (volver al menú / cerrar el panel) vive
+  //    en el propio SettingsPanel vía useEscClose, para no cerrarlo por detrás
+  //    de un modal interno.
+  const handleEscBack = useCallback(() => {
+    if (showSettingsPanel) return;
+    if (albumBrowseId || artistBrowseId) {
+      goBackFromDetail();
+      return;
+    }
+    if (tab === "playlist") {
+      handlePlaylistBack();
+      return;
+    }
+    if (tab !== "home") setTab("home");
+  }, [showSettingsPanel, albumBrowseId, artistBrowseId, goBackFromDetail, tab, handlePlaylistBack]);
+
+  useEscBack(handleEscBack);
 
   const handlePlaylistUpdated = useCallback(() => refreshPlaylists(), [refreshPlaylists]);
 

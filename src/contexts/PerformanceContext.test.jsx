@@ -369,11 +369,7 @@ describe("app-hidden → app-sleep — ciclo de congelado por visibilidad", () =
 function PerfProbe() {
   const { visible, sleeping } = usePerformance();
   return (
-    <div
-      data-testid="perf-probe"
-      data-visible={String(visible)}
-      data-sleeping={String(sleeping)}
-    />
+    <div data-testid="perf-probe" data-visible={String(visible)} data-sleeping={String(sleeping)} />
   );
 }
 

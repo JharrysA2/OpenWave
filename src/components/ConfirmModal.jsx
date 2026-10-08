@@ -3,6 +3,7 @@ import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { COLORS, RADIUS, TRANSITIONS, GLASS } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
+import { useEscClose } from "../hooks/useEscape";
 
 export function ConfirmModal({
   open,
@@ -14,6 +15,7 @@ export function ConfirmModal({
   danger = true,
 }) {
   useOverlayLayer(open);
+  useEscClose(open, onCancel);
 
   if (!open) return null;
 

@@ -4,6 +4,7 @@ import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
+import { useEscClose } from "../hooks/useEscape";
 
 /**
  * Hoja de opciones generalizada para álbum y artista — misma estética que
@@ -29,6 +30,7 @@ export function EntityOptionsSheet({
   const [hoverIdx, setHoverIdx] = React.useState(null);
 
   useOverlayLayer(open && !!entity);
+  useEscClose(open && !!entity, onClose);
 
   if (!entity) return null;
 

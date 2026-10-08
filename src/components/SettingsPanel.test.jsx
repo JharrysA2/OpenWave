@@ -43,6 +43,50 @@ describe("SettingsPanel", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // ── ESC = atrás ────────────────────────────────────────────────────────
+
+  it("ESC en el menú principal cierra el panel", () => {
+    const onClose = vi.fn();
+    renderPanel({ onClose });
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("ESC en una subpágina vuelve al menú (sin cerrar el panel)", () => {
+    const onClose = vi.fn();
+    renderPanel({ onClose });
+    fireEvent.click(screen.getByText("Apariencia"));
+    expect(screen.getByText("Tema")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText("Ajustes Generales")).toBeInTheDocument(); // menú otra vez
+    expect(screen.queryByText("Tema")).not.toBeInTheDocument();
+  });
+
+  it("ESC con un modal interno cierra PRIMERO el modal (la pila manda)", () => {
+    const onClose = vi.fn();
+    renderPanel({ onClose });
+    fireEvent.click(screen.getByText("Apariencia"));
+    fireEvent.click(screen.getByText("Color de la app"));
+    expect(screen.getByText("Cancelar")).toBeInTheDocument(); // paleta abierta
+
+    // 1ª ESC → el modal de arriba, el panel queda intacto
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByText("Cancelar")).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    // 2ª ESC → subpágina al menú
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText("Ajustes Generales")).toBeInTheDocument();
+
+    // 3ª ESC → cerrar el panel
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   // ── Main sections ──────────────────────────────────────────────────────
 
   it("should render main menu sections", () => {

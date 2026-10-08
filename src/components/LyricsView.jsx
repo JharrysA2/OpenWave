@@ -26,6 +26,7 @@ import { codeFromReason } from "../utils/errorCodes";
 import { StatusState } from "./StatusState";
 import { useSettings } from "../contexts/useSettings";
 import { useOverlayLayer, useOverlayActive } from "../hooks/useOverlayLayer";
+import { useEscClose } from "../hooks/useEscape";
 import { usePerformance } from "../contexts/PerformanceContext";
 
 // ── dnd-kit: Drag & Drop para reordenar cola ─────────────────────────────
@@ -277,14 +278,9 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
   // Overlay a pantalla completa: pausa las animaciones infinitas de detrás
   // (ver useOverlayLayer y html.overlay-open en index.html).
   useOverlayLayer(true);
-
-  React.useEffect(() => {
-    const handler = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  // ESC cierra este modal, y SOLO si es la capa de encima (la pila de
+  // useEscape resuelve si hay algo aún más arriba).
+  useEscClose(true, onClose);
 
   return (
     <div
@@ -1455,6 +1451,11 @@ export function LyricsView({
   const wordListRef = useRef(null); // palabras de esa línea (se recortan solo al cambiar)
   // ── Settings modal ──────────────────────────────────────────────────
   const [showLyricsSettings, setShowLyricsSettings] = useState(false);
+  // ESC = «atrás» en la pantalla de letras: primero el popover de
+  // configuración, después la propia pantalla. La pila de useEscClose
+  // decide cuál está encima (y los modales internos, aún más).
+  useEscClose(true, onClose);
+  useEscClose(showLyricsSettings, () => setShowLyricsSettings(false));
   const [reloadCounter, setReloadCounter] = useState(0); // fuerza re-fetch
   // Código reportable del último fallo al traer la letra: sin esto, un error
   // de red se mostraba como "Letras no encontradas" (falso negativo).

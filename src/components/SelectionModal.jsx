@@ -4,6 +4,7 @@ import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, TRANSITIONS, SHADOWS, GLASS, withAlpha } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
+import { useEscClose } from "../hooks/useEscape";
 
 export function SelectionModal({ open, onClose, songs, currentSong, onDelete }) {
   const [selected, setSelected] = useState(new Set());
@@ -13,6 +14,7 @@ export function SelectionModal({ open, onClose, songs, currentSong, onDelete }) 
   }, [open]);
 
   useOverlayLayer(open && !!songs);
+  useEscClose(open && !!songs, onClose);
 
   if (!open || !songs) return null;
 

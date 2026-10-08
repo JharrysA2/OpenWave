@@ -5,6 +5,7 @@ import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, SPACING, SHADOWS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
+import { useEscClose } from "../hooks/useEscape";
 import { useSettings } from "../contexts/useSettings";
 
 export function SongOptionsSheet({
@@ -86,6 +87,7 @@ export function SongOptionsSheet({
   };
 
   useOverlayLayer(open && !!song);
+  useEscClose(open && !!song, onClose);
 
   if (!song) return null;
 

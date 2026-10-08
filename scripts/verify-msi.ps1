@@ -428,10 +428,13 @@ $checks = [ordered]@{
             ([string]$_[3]) -like '*-Mode Unregister*'
         }) -and
         [bool]($iseq | Where-Object { $_[0] -eq 'UnregisterIdentity' -and ([string]$_[1]) -like '*REMOVE*ALL*' -and ([string]$_[1]) -like '*UPGRADINGPRODUCTCODE*' })
-    'Identidad: autolanzado tras RegisterIdentity (arranca ya con identidad)' =
+    'Identidad: autolanzado tras RegisterIdentity (AUTOLAUNCHAPP; /qn sin él no lanza)' =
         [bool]($iseqSeq | Where-Object {
             $_[0] -eq 'LaunchApplication' -and $_[1] -match '^\d+$' -and
             [int]$_[1] -gt ([int](@($iseqSeq | Where-Object { $_[0] -eq 'RegisterIdentity' })[0][1]))
+        }) -and
+        [bool]($iseq | Where-Object {
+            $_[0] -eq 'LaunchApplication' -and ([string]$_[1]) -like '*AUTOLAUNCHAPP*'
         })
 
     # ── Icono del taskbar (esquinas transparentes): set completo + PRI externo ──

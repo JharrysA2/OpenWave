@@ -876,6 +876,36 @@ sets de 105 en msix y en el MSI, y `BackgroundColor` del msix. Los scripts
 de medición viven en `Desktop\swcheck\` (el limpiador de `%TEMP%` borra
 ficheros de ahí en minutos: no guardarlos en Temp).
 
+**Verificación en vivo con el MSI oficial (2026-10-07).** Pipeline completo
+(`package-windows` → `verify-msi` **74/74** → instalación → medición):
+
+- Instalación: `resources.pri` + 4 satellites en la raíz de
+  `C:\Program Files\OpenWave\`, 228 assets, y el paquete registrado con
+  `PackageRootFolder = C:\Program Files\OpenWave`. Gotcha: un `msiexec /qn`
+  lanzado **sin elevar** muere con error 1730 en `RemoveExistingProducts`
+  (la instalación silenciosa no puede mostrar UAC: «Elevation prompt
+  disabled for silent installs»); hay que elevar (`Start-Process -Verb
+  RunAs`). Las reinstalaciones menores (`/i` repetido) devuelven 0.
+- **Oscuro**: esquinas del tile = `(34,36,36)` = fondo del botón, igual que
+  Terminal y Brave → sin placa. **Claro**: esquinas = `(177,189,234)` =
+  fondo del botón → sin placa. Tema devuelto a oscuro (Apps=0/System=0).
+- Task Manager: grupo único «OpenWave (7)» con el icono de la onda morada
+  (captura verificada); entrada única en Start (`Get-StartApps` = 1).
+- Activación: `IApplicationActivationManager.ActivateApplication` (la API
+  que usa el clic de Inicio) devuelve `S_OK` y crea el proceso. La ruta
+  `explorer.exe shell:AppsFolder\…` usada por los scripts de test falló 2
+  veces justo tras el re-registro del MSI y funcionó después — matiz de
+  caché del shell, no del paquete: los caminos reales de usuario (clic en
+  Inicio vía API de activación y lanzamiento directo del exe, que es lo
+  que usa la SAC `LaunchApplication`) quedaron verificados ✓.
+- Auto-lanzado: `msiexec /qn` **no** lanza la app al terminar
+  (`LaunchApplication` exige `AUTOLAUNCHAPP`, que solo pone el diálogo de
+  salida de la instalación con UI; en silencioso hay que pasar
+  `AUTOLAUNCHAPP=1`). La instalación normal (con UI) sí lanza al final.
+  Ojo: si la app está corriendo durante la instalación, la SAC la mata al
+  re-registrar el paquete y el lanzamiento puede perder la carrera — dejar
+  que el usuario relance o pasar `AUTOLAUNCHAPP=1`.
+
 ## Regla de oro
 
 Todo estilo con impacto potencial en GPU/CPU (backdrop-filter nuevo,

@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+import os
+import subprocess
 import urllib.request
 from contextlib import suppress
 from pathlib import Path
@@ -22,6 +24,16 @@ from logging_config import get_logger
 from utils import get_mp3_path
 
 logger = get_logger(__name__)
+
+
+def _ffmpeg_binary(ffmpeg_dir: str | None) -> str:
+    """Binario de ffmpeg a partir del directorio ya localizado (o el PATH)."""
+    if ffmpeg_dir:
+        for name in ("ffmpeg.exe", "ffmpeg"):
+            cand = Path(ffmpeg_dir) / name
+            if cand.is_file():
+                return str(cand)
+    return "ffmpeg"
 
 
 def do_download(
@@ -83,13 +95,6 @@ def do_download(
             "format": "18/bestaudio/best",
             "extractor_args": {"youtube": {"player_client": ["android"]}},
             "outtmpl": str(MUSIC_DIR / f"{video_id}.%(ext)s"),
-            "postprocessors": [
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "mp3",
-                    "preferredquality": str(quality),
-                }
-            ],
             "progress_hooks": [_hook],
             "quiet": True,
             "no_warnings": True,
@@ -110,12 +115,56 @@ def do_download(
             with yt_dlp.YoutubeDL(_ydl_opts) as ydl:
                 ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
 
-            if not mp3_path.exists():
-                for ext in ("m4a", "webm", "ogg", "opus", "mp4"):
-                    alt = MUSIC_DIR / f"{video_id}.{ext}"
-                    if alt.exists():
-                        alt.rename(mp3_path)
-                        break
+            # ── Conversión ATÓMICA a MP3 ───────────────────────────────
+            # Sin el postprocesador FFmpegExtractAudio de yt-dlp: ese PP
+            # escribe el .mp3 FINAL directamente (temp_path == new_path),
+            # así que mientras ffmpeg convierte, get_mp3_path().exists()
+            # ya devuelve True con un archivo PARCIAL — y el modo «Alta»
+            # (ensureDownloaded / stream/exists / pre-cache) lo interpreta
+            # como «descarga lista» y reproducía un stub de 15-30 s (los
+            # bytes parciales del MP3 a 192 kb/s) en vez de la canción.
+            # Aquí la conversión va a `.part` y solo `os.replace` publica
+            # el .mp3: desde entonces exists() ⇒ COMPLETO (mismo patrón
+            # de escritura atómica que _build_low_quality en streaming.py).
+            src = next(
+                (
+                    MUSIC_DIR / f"{video_id}.{ext}"
+                    for ext in ("mp4", "m4a", "webm", "ogg", "opus")
+                    if (MUSIC_DIR / f"{video_id}.{ext}").exists()
+                ),
+                None,
+            )
+            if src is None:
+                raise RuntimeError("yt-dlp no produjo ningún archivo de audio")
+            tmp = MUSIC_DIR / f"{video_id}.mp3.part"
+            try:
+                subprocess.run(
+                    [
+                        _ffmpeg_binary(_ffmpeg_dir),
+                        "-y",
+                        "-i",
+                        str(src),
+                        "-vn",
+                        "-acodec",
+                        "libmp3lame",
+                        "-b:a",
+                        f"{quality}k",
+                        # El destino termina en .part: declarar el contenedor.
+                        "-f",
+                        "mp3",
+                        str(tmp),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    timeout=300,
+                )
+                # El .mp3 final solo aparece COMPLETO con este rename.
+                os.replace(tmp, mp3_path)
+            finally:
+                with suppress(OSError):
+                    tmp.unlink(missing_ok=True)
+            with suppress(OSError):
+                src.unlink(missing_ok=True)
 
         download_progress[video_id] = {"status": "saving", "progress": 100}
 

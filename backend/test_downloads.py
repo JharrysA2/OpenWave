@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from downloads import do_download, get_mp3_path
@@ -40,8 +40,12 @@ class TestDoDownload:
     @patch("downloads.Path.exists")
     @patch("downloads.get_mp3_path")
     @patch("yt_dlp.YoutubeDL")
+    @patch("downloads.subprocess.run")
+    @patch("downloads.os.replace")
     def test_successful_download(
         self,
+        mock_os_replace,
+        mock_subprocess_run,
         mock_ydl_cls,
         mock_path,
         mock_exists,
@@ -58,7 +62,10 @@ class TestDoDownload:
         mp3_mock.exists.return_value = False
         mock_path.return_value = mp3_mock
 
-        mock_exists.return_value = False
+        # 1ª llamada (clase Path.exists): el .mp4 fuente ya está tras
+        # ydl.download → entra en la conversión. El .mp3 final se consulta
+        # vía mp3_mock (exists=False → descarga), no por la clase.
+        mock_exists.side_effect = [True]
 
         mock_conn = MagicMock()
         mock_get_db.return_value.__enter__.return_value = mock_conn
@@ -86,6 +93,12 @@ class TestDoDownload:
         )
 
         mock_ydl.download.assert_called_once()
+        # Conversión atómica: ffmpeg escribe en .part y solo os.replace
+        # publica el .mp3 final.
+        mock_subprocess_run.assert_called_once()
+        conv_cmd = mock_subprocess_run.call_args[0][0]
+        assert conv_cmd[-1].endswith(".mp3.part")
+        mock_os_replace.assert_called_once()
         mock_conn.execute.assert_called()
         sql = mock_conn.execute.call_args[0][0]
         assert "INSERT INTO downloads" in sql
@@ -339,3 +352,136 @@ class TestDoDownload:
             assert data["videoId"] == "meta_vid"
             assert data["title"] == "Meta Song"
             assert data["duration"] == 300
+
+    @patch("downloads.COVERS_DIR")
+    @patch("downloads.LYRICS_DIR")
+    @patch("downloads.get_db")
+    @patch("downloads.urllib.request.urlopen")
+    @patch("yt_dlp.YoutubeDL")
+    @patch("lyrics.get_lyrics", new=AsyncMock())
+    def test_conversion_is_atomic(
+        self,
+        mock_ydl_cls,
+        mock_urlopen,
+        mock_get_db,
+        mock_lyrics_dir,
+        mock_covers_dir,
+        tmp_path,
+    ):
+        """La conversión a MP3 no publica el .mp3 final hasta estar COMPLETO.
+
+        Regresión del bug «Calidad Alta: canciones de 15-30 s»: el
+        postprocesador FFmpegExtractAudio de yt-dlp escribía el .mp3 FINAL
+        directamente (temp_path == new_path), así que stream/exists
+        devolvía «descarga lista» con el archivo a medias y el reproductor
+        reproducía solo los primeros bytes (≈15-30 s a 192 kb/s).
+        """
+        vid = "atomicvid00"
+        final = tmp_path / f"{vid}.mp3"
+        part = tmp_path / f"{vid}.mp3.part"
+        src_file = tmp_path / f"{vid}.mp4"
+        seen = {}
+
+        def fake_ydl_download(urls):
+            # yt-dlp solo produce el .mp4 fuente; convertimos nosotros.
+            src_file.write_bytes(b"video-completo")
+
+        def fake_ffmpeg(cmd, **kwargs):
+            # Durante la conversión el .mp3 FINAL aún no existe...
+            assert not final.exists()
+            seen["cmd"] = cmd
+            Path(cmd[-1]).write_bytes(b"mp3-conversion-done")
+            # ...incluso con el temporal ya escrito.
+            assert not final.exists()
+            return MagicMock()
+
+        mock_ydl = MagicMock()
+        mock_ydl.download.side_effect = fake_ydl_download
+        mock_ydl_cls.return_value.__enter__.return_value = mock_ydl
+
+        mock_conn = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_conn
+
+        with (
+            patch("downloads.MUSIC_DIR", tmp_path),
+            patch("downloads.get_mp3_path", lambda _v: final),
+            patch("downloads.subprocess.run", side_effect=fake_ffmpeg),
+        ):
+            do_download(
+                video_id=vid,
+                title="Atomic",
+                artist="Artist",
+                thumbnail="",
+                duration=100,
+                quality="320",
+            )
+
+        # El .mp3 final solo apareció con el rename → siempre COMPLETO.
+        assert final.exists()
+        assert final.read_bytes() == b"mp3-conversion-done"
+        assert not part.exists()  # sin temporales colgados
+        assert not src_file.exists()  # fuente eliminada tras convertir
+        cmd = seen["cmd"]
+        assert cmd[-1].endswith(".mp3.part")  # ffmpeg escribe en .part
+        assert "-b:a" in cmd and "320k" in cmd  # bitrate elegido respetado
+
+        from downloads import download_progress
+
+        assert download_progress[vid]["status"] == "done"
+
+    @patch("downloads.COVERS_DIR")
+    @patch("downloads.LYRICS_DIR")
+    @patch("downloads.get_db")
+    @patch("downloads.urllib.request.urlopen")
+    @patch("yt_dlp.YoutubeDL")
+    @patch("lyrics.get_lyrics", new=AsyncMock())
+    def test_conversion_failure_leaves_no_partial(
+        self,
+        mock_ydl_cls,
+        mock_urlopen,
+        mock_get_db,
+        mock_lyrics_dir,
+        mock_covers_dir,
+        tmp_path,
+    ):
+        """Si ffmpeg falla a mitad, NO se publica ningún .mp3 parcial."""
+        vid = "failconv000"
+        final = tmp_path / f"{vid}.mp3"
+        part = tmp_path / f"{vid}.mp3.part"
+        src_file = tmp_path / f"{vid}.mp4"
+
+        def fake_ydl_download(urls):
+            src_file.write_bytes(b"video-completo")
+
+        def failing_ffmpeg(cmd, **kwargs):
+            Path(cmd[-1]).write_bytes(b"a-mitad")  # murió a media carrera
+            raise RuntimeError("ffmpeg exited 1")
+
+        mock_ydl = MagicMock()
+        mock_ydl.download.side_effect = fake_ydl_download
+        mock_ydl_cls.return_value.__enter__.return_value = mock_ydl
+
+        mock_conn = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_conn
+
+        with (
+            patch("downloads.MUSIC_DIR", tmp_path),
+            patch("downloads.get_mp3_path", lambda _v: final),
+            patch("downloads.subprocess.run", side_effect=failing_ffmpeg),
+        ):
+            do_download(
+                video_id=vid,
+                title="Fail",
+                artist="Artist",
+                thumbnail="",
+                duration=100,
+            )
+
+        from downloads import download_progress
+
+        assert download_progress[vid]["status"] == "error"
+        # Jamás un .mp3 parcial visible; el temporal se limpia y la fuente
+        # queda para que el reintento re-convierta sin re-descargar.
+        assert not final.exists()
+        assert not part.exists()
+        assert src_file.exists()

@@ -498,3 +498,24 @@ describe("PageRendimiento", () => {
     expect(screen.getByText("Render por software — modo bajo consumo")).toBeInTheDocument();
   });
 });
+
+// ── Barra lateral (Apariencia → General) ──────────────────────────────────
+
+describe("PageApariencia — barra lateral", () => {
+  it("muestra el toggle de la barra lateral y persiste el cambio", () => {
+    renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
+    expect(screen.getByText("Mostrar barra lateral")).toBeInTheDocument();
+    expect(screen.getByText(/Muestra u oculta la navegación/)).toBeInTheDocument();
+
+    const toggle = screen.getByRole("switch", { name: "Mostrar barra lateral" });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    expect(JSON.parse(localStorage.getItem("sw_settings_v1")).sidebarVisible).toBe(false);
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+    expect(JSON.parse(localStorage.getItem("sw_settings_v1")).sidebarVisible).toBe(true);
+  });
+});

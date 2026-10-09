@@ -56,4 +56,8 @@ export const DEFAULT_SETTINGS = {
   // Spotify/YTM). Solo AÑADE debajo, nunca reemplaza ni mueve la cola.
   // Por defecto apagado: la cola queda "pura" (solo el contexto elegido).
   queueRecommendations: false,
+  // Barra lateral retráctil: visible u oculta con animación. Se alterna con
+  // el botón « (cabecera del sidebar), el botón » flotante o Ctrl+B, y desde
+  // Ajustes → Apariencia. Persistida con el resto de ajustes.
+  sidebarVisible: true,
 };

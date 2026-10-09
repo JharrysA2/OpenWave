@@ -907,3 +907,82 @@ describe("App — Contraste y overlayOpacity", () => {
     expect(root.style.getPropertyValue("--neon-btn-hover")).toBe("");
   });
 });
+
+// ── Barra lateral retráctil ────────────────────────────────────────────────────
+
+describe("Barra lateral retráctil", () => {
+  it("el botón « la retrae y el botón » flotante la vuelve a mostrar", () => {
+    const { container } = render(<App />);
+    const sidebar = container.querySelector(".app-sidebar");
+    expect(sidebar.getAttribute("data-state")).toBe("open");
+    expect(sidebar.style.width).toBe("200px");
+    expect(screen.queryByTestId("sidebar-show-btn")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("sidebar-collapse-btn"));
+    expect(sidebar.getAttribute("data-state")).toBe("closed");
+    expect(sidebar.style.width).toBe("0px");
+    expect(screen.getByTestId("sidebar-show-btn")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("sidebar-show-btn"));
+    expect(sidebar.getAttribute("data-state")).toBe("open");
+    expect(sidebar.style.width).toBe("200px");
+    expect(screen.queryByTestId("sidebar-show-btn")).not.toBeInTheDocument();
+  });
+
+  it("la visibilidad elegida queda persistida en los ajustes", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("sidebar-collapse-btn"));
+    // En este archivo SW_SETTINGS_KEY está mockeado como "sw_settings"
+    expect(JSON.parse(localStorage.getItem("sw_settings")).sidebarVisible).toBe(false);
+    fireEvent.click(screen.getByTestId("sidebar-show-btn"));
+    expect(JSON.parse(localStorage.getItem("sw_settings")).sidebarVisible).toBe(true);
+  });
+
+  it("arranca oculta si los ajustes guardados dicen sidebarVisible=false", () => {
+    localStorage.setItem("sw_settings", JSON.stringify({ sidebarVisible: false }));
+    const { container } = render(<App />);
+    const sidebar = container.querySelector(".app-sidebar");
+    expect(sidebar.style.width).toBe("0px");
+    // El núcleo (con la marca y la nav) queda visibility:hidden: fuera del
+    // tab-order y de los clics mientras la barra está retraída
+    expect(sidebar.firstElementChild.style.visibility).toBe("hidden");
+    expect(screen.getByTestId("sidebar-show-btn")).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-collapse-btn")).toBeInTheDocument();
+  });
+
+  it("Ctrl+B alterna mostrar/ocultar; Ctrl+Shift+B y ESC no", () => {
+    const { container } = render(<App />);
+    const sidebar = container.querySelector(".app-sidebar");
+    expect(sidebar.style.width).toBe("200px");
+
+    fireEvent.keyDown(window, { key: "b", ctrlKey: true });
+    expect(sidebar.style.width).toBe("0px");
+    expect(screen.getByTestId("sidebar-show-btn")).toBeInTheDocument();
+
+    // Mayúsculas también cuentan (Ctrl+B real con Caps Lock / Shift implícito)
+    fireEvent.keyDown(window, { key: "B", ctrlKey: true });
+    expect(sidebar.style.width).toBe("200px");
+
+    // Ctrl+Shift+B queda fuera (atajos combinados del sistema)
+    fireEvent.keyDown(window, { key: "b", ctrlKey: true, shiftKey: true });
+    expect(sidebar.style.width).toBe("200px");
+
+    // ESC sigue siendo "atrás": no retrae la barra (espec congelada)
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(sidebar.style.width).toBe("200px");
+  });
+
+  it("la animación es transición de ancho con recorte y núcleo a ancho fijo", () => {
+    const { container } = render(<App />);
+    const sidebar = container.querySelector(".app-sidebar");
+    expect(sidebar.style.overflow).toBe("hidden");
+    expect(sidebar.style.transition).toContain("width");
+    // El interior va a ancho fijo: durante la retracción el texto se
+    // recorta, nunca se "exprime"
+    const core = sidebar.firstElementChild;
+    expect(core.style.width).toBe("200px");
+    expect(core.style.transition).toContain("transform");
+    expect(core.style.transition).toContain("opacity");
+    expect(core.style.transition).toContain("visibility");
+  });
+});

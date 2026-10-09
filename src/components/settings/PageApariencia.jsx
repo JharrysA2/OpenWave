@@ -309,6 +309,19 @@ export function PageApariencia({ neonColor }) {
 
       <SettingsSection title="General">
         <SettingRow
+          icon={Svg.rectangle}
+          label={t.sidebarVisible}
+          desc={t.sidebarVisibleDesc}
+          right={
+            <SettingsToggle
+              aria-label={t.sidebarVisible}
+              value={settings.sidebarVisible !== false}
+              onChange={(v) => updateSetting("sidebarVisible", v)}
+              accent={accent}
+            />
+          }
+        />
+        <SettingRow
           icon={Svg.clock}
           label={t.showProgressTime}
           desc={t.showProgressTimeDesc}

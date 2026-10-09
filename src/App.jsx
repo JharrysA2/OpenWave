@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspens
 // ── Importaciones del proyecto refactorizado ──────────────────────────────────
 import { FONT } from "./constants";
 import { api } from "./utils/api";
-import { ANIMATIONS } from "./utils/theme";
+import { ANIMATIONS, GLASS } from "./utils/theme";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { PerformanceProvider } from "./contexts/PerformanceContext";
 import { useSettings } from "./contexts/useSettings";
@@ -43,7 +43,7 @@ const LyricsView = React.memo(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function AppInner() {
-  const { settings } = useSettings();
+  const { settings, updateSetting } = useSettings();
 
   // ── Hooks personalizados ────────────────────────────────────────────────────
   const { toasts, show: toast } = useToast();
@@ -560,6 +560,28 @@ function AppInner() {
 
   useEscBack(handleEscBack);
 
+  // ── Barra lateral retráctil ────────────────────────────────────────────────
+  // Visible u oculta según el ajuste persistido (por defecto visible).
+  // Se alterna con el botón « de la cabecera, el botón » flotante, desde
+  // Ajustes → Apariencia y con Ctrl+B. La app no usa contentEditable, así
+  // que el atajo no choca con ningún "negrita" del sistema.
+  const sidebarVisible = settings.sidebarVisible !== false;
+  const toggleSidebar = useCallback(
+    () => updateSetting("sidebarVisible", !sidebarVisible),
+    [sidebarVisible, updateSetting],
+  );
+
+  useEffect(() => {
+    const onCtrlB = (e) => {
+      if (e.key?.toLowerCase() !== "b") return;
+      if (!e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      e.preventDefault();
+      toggleSidebar();
+    };
+    window.addEventListener("keydown", onCtrlB);
+    return () => window.removeEventListener("keydown", onCtrlB);
+  }, [toggleSidebar]);
+
   const handlePlaylistUpdated = useCallback(() => refreshPlaylists(), [refreshPlaylists]);
 
   const handleToggleLyrics = useCallback(() => setLyricsOpen((v) => !v), [setLyricsOpen]);
@@ -620,7 +642,63 @@ function AppInner() {
           onSelectPlaylist={onSelectPlaylist}
           onOpenSettings={onOpenSettings}
           onCreatePlaylist={onCreatePlaylist}
+          visible={sidebarVisible}
+          onToggle={toggleSidebar}
         />
+
+        {/* ── Mostrar barra lateral: botón » mientras esté oculta ── */}
+        {!sidebarVisible && (
+          <button
+            data-testid="sidebar-show-btn"
+            onClick={toggleSidebar}
+            title="Mostrar barra lateral"
+            aria-label="Mostrar barra lateral"
+            style={{
+              position: "absolute",
+              left: "10px",
+              top: "10px",
+              zIndex: 6,
+              width: "34px",
+              height: "34px",
+              borderRadius: "10px",
+              ...GLASS.btn,
+              color: "rgba(255,255,255,.75)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition:
+                "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
+              ...ANIMATIONS.fadeIn(0),
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = "scale(0.9)";
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "rgba(255,255,255,.95)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "rgba(255,255,255,.75)";
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9.5 6 L15.5 12 L9.5 18" />
+            </svg>
+          </button>
+        )}
 
         {/* Main content */}
         <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>

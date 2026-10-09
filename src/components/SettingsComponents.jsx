@@ -99,9 +99,12 @@ export function SettingsSection({ title, children }) {
   );
 }
 
-export function SettingsToggle({ value, onChange, accent }) {
+export function SettingsToggle({ value, onChange, accent, "aria-label": ariaLabel }) {
   return (
     <div
+      role="switch"
+      aria-checked={!!value}
+      aria-label={ariaLabel}
       onClick={() => onChange(!value)}
       style={{
         width: "44px",

@@ -357,7 +357,7 @@ export function AppColorModal({ accent, onClose }) {
                   padding: "10px 12px",
                   borderRadius: RADIUS.default,
                   border: `1px solid ${COLORS.borderLight}`,
-                  background: "rgba(255,255,255,.05)",
+                  background: COLORS.surfaceNav,
                   color: COLORS.textPrimary,
                   fontFamily: FONT,
                   fontSize: "13px",

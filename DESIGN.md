@@ -50,8 +50,6 @@ colors:
   surface-variant: '#333535'
   bg-player: '#05050a'
   accent-fallback: '#7c3aed'
-  card-overlay: rgba(255, 255, 255, 0.04)
-  card-hover: rgba(255, 255, 255, 0.08)
 typography:
   display-lyrics:
     fontFamily: DM Sans
@@ -166,7 +164,7 @@ A core rhythm of 4px-6px increments is used for internal component spacing. Tigh
 Elevation in this design system is conveyed through **chromatic light and transparency** rather than physical shadows. 
 
 1.  **Glassmorphism:** Overlays (modals, sheets, settings panel) use a base `rgba(0,0,0,.2)` transparency with a heavy backdrop-blur (minimum 20px, `blur(40px)` on the modal glass surface) to maintain legibility while hinting at the content beneath. Static chrome — sidebar, title bar, search bar, connection banner — keeps the translucent base **without** backdrop blur: nothing animates behind it (see `docs/PERFORMANCE.md` §1/§7).
-2.  **Tonal Layers:** Cards use a subtle `4%` white opacity for resting states and `8%` for hover states.
+2.  **Tonal Layers (M3):** Flat surfaces step through the Material 3 `surfaceContainer*` ladder already defined in this palette — `surfaceContainerLow` (#1a1c1c) for resting cards and fills, `surfaceContainer` (#1e2020) for row/nav hovers, `surfaceContainerHigh` (#282a2b) for card hovers and `surfaceContainerHighest` (#333535) for focused selections. `GLASS.card` renders `surfaceContainer → surfaceContainerLowest` as its resting gradient (and `GLASS.cardHover` `Highest → Container`). Depth by tone, never by blur (docs/PERFORMANCE.md §1/§7).
 3.  **Neon Glows:** Active elements (like the currently playing track or a focused button) emit light. This is achieved via a layered box-shadow using the current `--neon` variable.
 4.  **Background Tints:** Radial gradients (`radial-gradient(ellipse at 30% 20%, ${accentColor}12 0%, transparent 70%)`) are placed behind content to create a cohesive atmosphere that shifts with the music.
 
@@ -186,16 +184,16 @@ Borders are strictly reserved for "Active" states, using a 1.5px stroke in the c
 
 ### Buttons & Chips
 - **Primary Play Button:** Pill-shaped, uses the current neon accent as background. Features a `scale(1.1)` hover transition and a `0 0 12px` glow.
-- **Navigation Items:** 12px radius, transparent background. On hover, apply `--bg-card-hover` and a subtle Y-axis lift of -2px.
+- **Navigation Items:** 12px radius, transparent background. On hover, apply `surfaceNav` (`surfaceContainer`, #1e2020) and a subtle Y-axis lift of -2px.
 
 ### Cards (Album/Playlist)
-- Background: `--bg-card` (4% white opacity).
+- Background: tonal gradient `surfaceContainer → surfaceContainerLowest` (`GLASS.card`); on hover, `surfaceContainerHighest → surfaceContainer` (`GLASS.cardHover`).
 - Transition: Smooth scale and Y-axis translation using `cubic-bezier(.16, 1, .3, 1)`.
 - Border: On focus/active, apply `1.5px solid var(--neon-border)`.
 
 ### Lists & Row Items
 - Song rows use a tight 8px vertical padding. 
-- Background appears only on hover or active selection, utilizing `--neon-18` for the active track and `--bg-card-hover` for mouse-over.
+- Background appears only on hover or active selection, utilizing `--neon-18` for the active track, `surfaceNav` (`surfaceContainer`) for mouse-over and `surfaceCardHover` (`surfaceContainerHigh`) for selection.
 
 ### Input Fields
 - Search Bar: 12px radius, `--bg-searchbar` (6% white opacity).

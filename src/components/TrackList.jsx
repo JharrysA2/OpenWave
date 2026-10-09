@@ -83,7 +83,7 @@ export default function TrackList({
                 ? `2px solid ${accentColor}`
                 : LAYOUTS.songRow(isActive, accentColor).borderLeft || "2px solid transparent",
               background: isSelected
-                ? `rgba(255,255,255,.08)`
+                ? COLORS.surfaceCardHover
                 : isDragging
                   ? "rgba(255,255,255,.03)"
                   : undefined,

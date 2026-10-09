@@ -88,8 +88,6 @@ const PALETTE = {
   // Especiales OpenWave
   bgPlayer: "#05050a",
   accentFallback: "#7c3aed",
-  cardOverlay: "rgba(255, 255, 255, 0.04)",
-  cardHover: "rgba(255, 255, 255, 0.08)",
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -115,10 +113,16 @@ export const COLORS = {
   surfacePureBlack: "#000000",
   surfacePlayer: PALETTE.bgPlayer,
   surfaceSidebar: "rgba(0,0,0,.2)",
-  surfaceCard: PALETTE.cardOverlay,
-  surfaceCardHover: PALETTE.cardHover,
-  surfaceSearchbar: "rgba(255,255,255,.06)",
-  surfaceNav: "rgba(255,255,255,.05)",
+  // ── Escalera tonal M3 cableada (roles que YA estaban en PALETTE) ─────────
+  // Superficies planas (tarjetas, filas, rellenos de modal): profundidad por
+  // TONO de la escalera `surfaceContainer*` en vez de blanco translúcido —
+  // la filosofía de elevación de Material 3 y la de PERFORMANCE.md §1/§7
+  // (capas planas SIN blur). Los acentos/estados activos siguen siendo
+  // `--neon-*`; los cristales de shell/overlays no se tocan.
+  surfaceCard: PALETTE.surfaceContainerLow, // reposo (antes blanco 4%)
+  surfaceCardHover: PALETTE.surfaceContainerHigh, // hover (antes blanco 8%)
+  surfaceSearchbar: "rgba(255,255,255,.06)", // chrome de shell, se queda cristal
+  surfaceNav: PALETTE.surfaceContainer, // hover de filas (antes blanco 5%)
   surfaceSettings: "rgba(5,5,10,.97)",
   surfaceTitleBar: "rgba(10,10,15,.92)",
   surfaceCoverBg: "#111",
@@ -655,17 +659,19 @@ export const GLASS = {
   /** Card / Album card — Liquid Glass SIN backdrop-filter: todos los
    *  consumidores (LibraryCard, AlbumCardRow, quick picks de Home) ya lo
    *  optaban out por medición — el blur por tarjeta creaba un backdrop root
-   *  por fila sobre fondos estáticos. Gradiente, borde y sombra se conservan. */
+   *  por fila sobre fondos estáticos. Gradiente, borde y sombra se conservan.
+   *  Fondo ahora por ESCALERA TONAL M3 (surfaceContainer→Lowest, opaco):
+   *  profundidad sin blur y sin re-blurar en cada repintado de detrás. */
   card: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
+    background: `linear-gradient(135deg, ${PALETTE.surfaceContainer} 0%, ${PALETTE.surfaceContainerLowest} 100%)`,
     border: "1px solid rgba(255,255,255,.08)",
     borderColor: "rgba(255,255,255,.08)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 4px 16px rgba(0,0,0,.2)",
   },
 
-  /** Card hover — Liquid Glass */
+  /** Card hover — Liquid Glass + escalera tonal M3 (Highest→Container) */
   cardHover: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.05) 100%)",
+    background: `linear-gradient(135deg, ${PALETTE.surfaceContainerHighest} 0%, ${PALETTE.surfaceContainer} 100%)`,
     border: "1px solid rgba(255,255,255,.15)",
     borderColor: "rgba(255,255,255,.15)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), 0 8px 24px rgba(0,0,0,.3)",

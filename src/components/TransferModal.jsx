@@ -152,7 +152,7 @@ export function TransferModal({ open, onClose, title, emptyMessage, playlists = 
                     flexShrink: 0,
                     background: pl.color
                       ? `linear-gradient(135deg, ${pl.color}55, ${pl.color}11)`
-                      : "linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.02))",
+                      : GLASS.card.background,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",

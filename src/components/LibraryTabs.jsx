@@ -19,7 +19,7 @@ export default React.memo(function LibraryTabs({ tabs, value, onChange, accentCo
         gap: "6px",
         marginBottom: "18px",
         padding: "3px",
-        background: "rgba(255,255,255,.04)",
+        background: COLORS.surfaceCard,
         borderRadius: RADIUS.pill,
         width: "fit-content",
         fontFamily: FONT,

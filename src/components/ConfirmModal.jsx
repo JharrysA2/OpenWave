@@ -172,7 +172,7 @@ export function ConfirmModal({
               transition: TRANSITIONS.fast,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,.08)";
+              e.currentTarget.style.background = COLORS.surfaceCardHover;
               e.currentTarget.style.color = "rgba(255,255,255,.9)";
             }}
             onMouseLeave={(e) => {

@@ -42,6 +42,28 @@ describe("theme — materiales translúcidos", () => {
     expect(GLASS.playBtn("#00ff00").background).toContain("#00ff00");
   });
 
+  it("la escalera tonal M3 está cableada: superficies planas sin blanco translúcido", () => {
+    // Los roles surfaceContainer* YA existían en PALETTE (DESIGN.md), pero
+    // estaban dormidos: los fills usaban blanco 4/5/8%. Desde la ronda M3
+    // van por tono (profundidad sin blur, PERFORMANCE.md §1/§7).
+    expect(COLORS.surfaceCard).toBe("#1a1c1c"); // Low — reposo
+    expect(COLORS.surfaceNav).toBe("#1e2020"); // Container — hover de filas
+    expect(COLORS.surfaceCardHover).toBe("#282a2b"); // High — hover de tarjetas
+    expect(COLORS.surfaceCard).not.toContain("rgba");
+    expect(COLORS.surfaceNav).not.toContain("rgba");
+    expect(COLORS.surfaceCardHover).not.toContain("rgba");
+
+    // GLASS.card / cardHover: degradado por tonos de la escalera, sin blur
+    expect(GLASS.card.background).toContain("#1e2020");
+    expect(GLASS.card.background).toContain("#0c0f0f");
+    expect(GLASS.cardHover.background).toContain("#333535");
+    expect(GLASS.cardHover.background).toContain("#1e2020");
+    expect(GLASS.card.background).not.toContain("rgba(255,255,255");
+    expect(GLASS.cardHover.background).not.toContain("rgba(255,255,255");
+    expect(GLASS.card.backdropFilter).toBeUndefined();
+    expect(GLASS.cardHover.backdropFilter).toBeUndefined();
+  });
+
   it("solo hay blur donde hay movimiento detrás o es modal (player sí; shell no)", () => {
     // Regla de presupuesto (docs/PERFORMANCE.md §1/§7): backdrop-filter solo
     // donde hay movimiento real por detrás (player: scroll de vistas y

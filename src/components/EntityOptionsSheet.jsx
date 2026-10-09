@@ -350,7 +350,7 @@ export function EntityOptionsSheet({
                 cursor: "pointer",
                 // Realce tenue (antes: blanco .08 sobre el cristal de la hoja,
                 // que se veía como cristal doblado y muy blanco).
-                background: hoverIdx === i ? "rgba(255,255,255,.05)" : "transparent",
+                background: hoverIdx === i ? COLORS.surfaceNav : "transparent",
                 color: btn.color || COLORS.textPlayerTitle,
                 fontFamily: FONT,
                 fontSize: "12.5px",

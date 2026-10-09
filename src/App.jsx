@@ -16,6 +16,7 @@ import { useSongOptions } from "./hooks/useSongOptions";
 import { useEscBack } from "./hooks/useEscape";
 import { useSavedEntities } from "./hooks/useSavedEntities";
 import { useEntityOptions } from "./hooks/useEntityOptions";
+import { useMediaSession } from "./hooks/useMediaSession";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { TrackPickerModal } from "./components/TrackPickerModal";
 import { SelectionModal } from "./components/SelectionModal";
@@ -144,6 +145,21 @@ function AppInner() {
     moveDown,
     moveInQueue,
   } = player;
+
+  // ── Tarjeta de medios de la taskbar de Windows (SMTC) ────────────────────
+  // Publica título/artista/portada de la canción actual (y no el «OpenWave»
+  // genérico de la ventana) + cablea play/pausa/prev/next del SO al
+  // reproductor. Todo con feature-detection: ver hooks/useMediaSession.js.
+  useMediaSession({
+    currentSong,
+    isPlaying,
+    duration,
+    togglePlay,
+    handleNext,
+    handlePrev,
+    handleSeek,
+    audioRef,
+  });
 
   // ── Navegación a detalle: Álbum / Artista ─────────────────────────────
   const [albumBrowseId, setAlbumBrowseId] = useState(null);

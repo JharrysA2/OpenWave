@@ -650,6 +650,7 @@ function AppInner() {
         {!sidebarVisible && (
           <button
             data-testid="sidebar-show-btn"
+            className="sidebar-show-btn"
             onClick={toggleSidebar}
             title="Mostrar barra lateral"
             aria-label="Mostrar barra lateral"
@@ -661,7 +662,12 @@ function AppInner() {
               width: "34px",
               height: "34px",
               borderRadius: "10px",
-              ...GLASS.btn,
+              // Liquid Glass canónico de superficie flotante sobre contenido
+              // en movimiento (mismo cristal que Toasts/popups): gradiente,
+              // rim light, sombra flotante y backdrop blur(6px) sin saturate.
+              // perf-blur-off / perf-solid / app-hidden / app-sleep lo apagan
+              // solos; html.overlay-open lo apaga vía .sidebar-show-btn.
+              ...GLASS.popup,
               color: "rgba(255,255,255,.75)",
               cursor: "pointer",
               display: "flex",

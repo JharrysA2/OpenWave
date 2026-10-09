@@ -921,6 +921,12 @@ describe("Barra lateral retráctil", () => {
     fireEvent.click(screen.getByTestId("sidebar-collapse-btn"));
     expect(sidebar.getAttribute("data-state")).toBe("closed");
     expect(sidebar.style.width).toBe("0px");
+    // El botón » flotante lleva el Liquid Glass canónico de superficies
+    // flotantes (GLASS.popup): cristal esmerilado con rim light y blur 6px
+    const showBtn = screen.getByTestId("sidebar-show-btn");
+    expect(showBtn.className).toBe("sidebar-show-btn");
+    expect(showBtn.style.backdropFilter).toContain("blur(6px)");
+    expect(showBtn.style.boxShadow).toContain("inset 0 1px 0");
     expect(screen.getByTestId("sidebar-show-btn")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("sidebar-show-btn"));

@@ -87,7 +87,7 @@ describe("useOverlayLayer — pausa de animaciones detrás de un overlay", () =>
     // esta regla cada repintado de detrás (progreso a 5 Hz, karaoke) les
     // cuesta un re-blur por frame para un resultado tapado por el scrim.
     const html = readProjectFile("index.html");
-    for (const sel of [".app-sidebar", ".app-titlebar", ".app-searchbar"]) {
+    for (const sel of [".app-sidebar", ".app-titlebar", ".app-searchbar", ".sidebar-show-btn"]) {
       expect(html).toContain(`html.overlay-open ${sel}`);
     }
     expect(html).toMatch(
@@ -106,6 +106,9 @@ describe("useOverlayLayer — pausa de animaciones detrás de un overlay", () =>
     expect(readProjectFile("src/components/TitleBar.jsx")).toContain('className="app-titlebar"');
     expect(readProjectFile("src/components/SearchBar.jsx")).toContain('className="app-searchbar"');
     expect(readProjectFile("src/components/PlayerBar.jsx")).toContain('className="player-bar"');
+    // El botón » flotante de la barra lateral lleva cristal (GLASS.popup,
+    // blur 6px) y queda DETRÁS de los overlays → misma regla de apagado.
+    expect(readProjectFile("src/App.jsx")).toContain('className="sidebar-show-btn"');
   });
 
   it("el pulse del home lleva la clase que pausa html.overlay-open", () => {

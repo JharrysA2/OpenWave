@@ -137,7 +137,12 @@ export default function ArtistView({
   // Preview de la página del artista: las 5 más populares. El botón de
   // «Ver todas» abre la pantalla dedicada con el catálogo COMPLETO.
   const displaySongs = artist.songs?.slice(0, 5) || [];
-  const allAlbums = [...(artist.albums || []), ...(artist.singles || [])];
+  // Álbumes + singles del más reciente al más antiguo (sin año al final).
+  // El backend ya ordena cada sección, pero aquí se mezclan las dos.
+  const yearOf = (a) => (/^\d{4}$/.test(String(a.year || "")) ? Number(a.year) : -1);
+  const allAlbums = [...(artist.albums || []), ...(artist.singles || [])].sort(
+    (a, b) => yearOf(b) - yearOf(a),
+  );
 
   return (
     <div

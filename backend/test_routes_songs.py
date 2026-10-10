@@ -1209,8 +1209,9 @@ class TestArtistAllAlbums:
         resp = client.get("/artist/artist_alb/albums")
         assert resp.status_code == 200
         data = resp.json()
-        # Deduplicado: al1 venía en la primera página Y en la continuación
-        assert [a["browseId"] for a in data["albums"]] == ["al1", "al2"]
+        # Deduplicado: al1 venía en la primera página Y en la continuación.
+        # Orden: del más reciente al más viejo (al2 2021 antes que al1 2020).
+        assert [a["browseId"] for a in data["albums"]] == ["al2", "al1"]
         # Se pagina albums Y singles con limit=None (TODOS)
         mock_ytm.get_artist_albums.assert_any_call("UCabc", "params_albums", limit=None)
         mock_ytm.get_artist_albums.assert_any_call(
@@ -1239,3 +1240,118 @@ class TestArtistAllAlbums:
         resp = client.get("/artist/artist_fail/albums")
         assert resp.status_code == 200
         assert [a["browseId"] for a in resp.json()["albums"]] == ["ok1"]
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_all_albums_newest_first_no_year_last(self, mock_get_ytm, client):
+        """El endpoint paginado ordena de lo más reciente a lo más viejo.
+
+        Los álbumes sin año (o con año no numérico) se quedan al final
+        conservando su orden relativo (sort estable).
+        """
+        mock_ytm = MagicMock()
+        mock_ytm.get_artist.return_value = {
+            "name": "Order Artist",
+            "albums": {
+                "browseId": "UCorder",
+                "params": None,
+                "results": [
+                    {
+                        "browseId": "a20",
+                        "title": "2020",
+                        "year": "2020",
+                        "thumbnails": [],
+                    },
+                    {
+                        "browseId": "a24",
+                        "title": "2024",
+                        "year": "2024",
+                        "thumbnails": [],
+                    },
+                    {
+                        "browseId": "a_na",
+                        "title": "SinAnio",
+                        "year": "",
+                        "thumbnails": [],
+                    },
+                    {
+                        "browseId": "a_x",
+                        "title": "Raro",
+                        "year": "n/a",
+                        "thumbnails": [],
+                    },
+                    {
+                        "browseId": "a21",
+                        "title": "2021",
+                        "year": "2021",
+                        "thumbnails": [],
+                    },
+                ],
+            },
+            "singles": {"results": []},
+        }
+        mock_get_ytm.return_value = mock_ytm
+
+        resp = client.get("/artist/artist_order/albums")
+        assert resp.status_code == 200
+        ids = [a["browseId"] for a in resp.json()["albums"]]
+        assert ids == ["a24", "a21", "a20", "a_na", "a_x"]
+
+
+class TestArtistAlbumOrder:
+    """Orden cronológico inverso también en /artist/{id} (carruseles)."""
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_page_sections_sorted_newest_first(self, mock_get_ytm, client):
+        """/artist/{id} ordena cada sección y deja los sin año al final."""
+        mock_ytm = MagicMock()
+        mock_ytm.get_artist.return_value = {
+            "name": "Chrono Artist",
+            "thumbnails": [],
+            "songs": {"results": []},
+            "albums": {
+                "results": [
+                    {
+                        "browseId": "old",
+                        "title": "Old",
+                        "year": "2015",
+                        "thumbnails": [],
+                    },
+                    {
+                        "browseId": "new",
+                        "title": "New",
+                        "year": "2024",
+                        "thumbnails": [],
+                    },
+                    {
+                        "browseId": "mid",
+                        "title": "Mid",
+                        "year": "2020",
+                        "thumbnails": [],
+                    },
+                    {"browseId": "na", "title": "NoYear", "year": "", "thumbnails": []},
+                ]
+            },
+            "singles": {
+                "results": [
+                    {
+                        "browseId": "s15",
+                        "title": "S15",
+                        "year": "2015",
+                        "thumbnails": [],
+                    },
+                    {
+                        "browseId": "s23",
+                        "title": "S23",
+                        "year": "2023",
+                        "thumbnails": [],
+                    },
+                ]
+            },
+        }
+        mock_get_ytm.return_value = mock_ytm
+
+        resp = client.get("/artist/artist_chrono")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert [a["browseId"] for a in data["albums"]] == ["new", "mid", "old", "na"]
+        assert [s["browseId"] for s in data["singles"]] == ["s23", "s15"]

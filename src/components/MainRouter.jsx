@@ -151,6 +151,30 @@ export const MainRouter = React.memo(function MainRouter({
     );
   }
 
+  // ── «Todas las canciones del artista» (pantalla dedicada) ──────────
+  //    Va DESPUÉS del álbum (si desde aquí se navega a un álbum manda
+  //    ese) pero ANTES que la página del artista, que queda debajo como
+  //    «atrás» (ESC/back cierra solo este estado). Si esta rama va después
+  //    del artista, artistBrowseId siguen activo al apilar y MainRouter
+  //    devuelve ArtistView: el botón «Ver todas» no hacía nada visible.
+  if (artistSongs?.browseId) {
+    return (
+      <Suspense fallback={<div>Cargando canciones del artista...</div>}>
+        <ArtistSongsView
+          browseId={artistSongs.browseId}
+          name={artistSongs.name}
+          accentColor={neonColor}
+          currentSong={currentSong}
+          playSong={playSong}
+          toggleLike={toggleLike}
+          liked={liked}
+          openOptions={openOptions}
+          onBack={closeArtistSongs}
+        />
+      </Suspense>
+    );
+  }
+
   if (artistBrowseId) {
     const handleGoToAlbum = (album) => {
       if (album?.browseId) goToAlbum(album.browseId);
@@ -172,28 +196,6 @@ export const MainRouter = React.memo(function MainRouter({
           isArtistFollowed={isArtistFollowed}
           toggleFollow={toggleFollow}
           openEntityOptions={openEntityOptions}
-        />
-      </Suspense>
-    );
-  }
-
-  // ── «Todas las canciones del artista» (pantalla dedicada) ──────────
-  //    Va DESPUÉS del álbum (si desde aquí se navega a un álbum manda
-  //    ese) pero ANTES que la página del artista, que queda debajo como
-  //    «atrás» (ESC/back cierra solo este estado).
-  if (artistSongs?.browseId) {
-    return (
-      <Suspense fallback={<div>Cargando canciones del artista...</div>}>
-        <ArtistSongsView
-          browseId={artistSongs.browseId}
-          name={artistSongs.name}
-          accentColor={neonColor}
-          currentSong={currentSong}
-          playSong={playSong}
-          toggleLike={toggleLike}
-          liked={liked}
-          openOptions={openOptions}
-          onBack={closeArtistSongs}
         />
       </Suspense>
     );

@@ -44,6 +44,20 @@ def _fmt_artist_album(r: dict, default_type: str = "Album") -> dict:
     }
 
 
+def _sort_newest_first(items: list) -> list:
+    """Álbumes del más reciente al más antiguo (sin año parseable al final).
+
+    YouTube Music devuelve los álbumes en su propio orden (destacados,
+    recomendados…); el usuario los quiere cronológicos inversos. Los que no
+    traen año se quedan al final conservando su orden relativo (sort estable).
+    """
+    return sorted(
+        items,
+        key=lambda it: int(it["year"]) if str(it.get("year", "")).isdigit() else -1,
+        reverse=True,
+    )
+
+
 logger = get_logger(__name__)
 
 router = APIRouter()
@@ -241,8 +255,10 @@ async def get_artist(browse_id: str):
             if thumb
             else [],
             "songs": songs,
-            "albums": [_fmt_artist_album(r) for r in albums_raw],
-            "singles": [_fmt_artist_album(r, "Single") for r in singles_raw],
+            "albums": _sort_newest_first([_fmt_artist_album(r) for r in albums_raw]),
+            "singles": _sort_newest_first(
+                [_fmt_artist_album(r, "Single") for r in singles_raw]
+            ),
         }
 
     result = await loop.run_in_executor(None, _do)
@@ -294,7 +310,7 @@ async def get_artist_all_albums(browse_id: str):
                     continue
                 seen.add(bid)
                 items.append(item)
-            out[section] = items
+            out[section] = _sort_newest_first(items)
         return out
 
     result = await loop.run_in_executor(None, _do)

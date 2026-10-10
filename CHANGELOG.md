@@ -34,7 +34,21 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   `api.js` sirve la última respuesta conocida (aunque haya expirado) en
   vez de lanzar error.
 
+### Changed
+
+- **Álbumes del artista en orden cronológico inverso**: la sección
+  «Álbumes» (y el endpoint `/artist/{id}/albums`) ahora muestra todo de
+  lo más reciente a lo más viejo; los álbumes sin año se quedan al
+  final. Antes seguían el orden arbitrario de YouTube Music.
+
 ### Fixed
+
+- **Botón «Ver todas las canciones» que no hacía nada**: la rama de
+  `MainRouter` para la pantalla dedicada estaba DESPUÉS de la del
+  artista; como `artistBrowseId` sigue activo al apilar, la página del
+  artista volvía a ganar y la vista nueva nunca se renderizaba. Ahora
+  `artistSongs` tiene prioridad (y hay test de integración que cubre el
+  orden de ramas).
 
 - **MSI con backend obsoleto**: empaquetar con `-SkipRuntime` reutilizaba
   `build\staging` sin refrescar la copia de `backend\`, así el instalador

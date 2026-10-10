@@ -203,4 +203,34 @@ describe("ArtistView — «Ver todas las canciones» y álbumes completos", () =
     // Sin romper: la primera página de get_artist se queda visible
     expect(screen.queryByText("No se pudo cargar el artista")).not.toBeInTheDocument();
   });
+
+  it("ordena los álbumes de lo más reciente a lo más viejo (sin año al final)", async () => {
+    api.get.mockImplementation((path) => {
+      if (path.startsWith("/artist/related")) return Promise.resolve({ results: [] });
+      if (path.endsWith("/albums")) {
+        return Promise.resolve({
+          albums: [
+            { browseId: "a99", title: "Viejo 1999", thumbnail: "x.jpg", year: "1999" },
+            { browseId: "a24", title: "Nuevo 2024", thumbnail: "x.jpg", year: "2024" },
+          ],
+          singles: [
+            { browseId: "s21", title: "Single 2021", thumbnail: "x.jpg", year: "2021" },
+            { browseId: "sXX", title: "Sin año", thumbnail: "x.jpg", year: "" },
+          ],
+        });
+      }
+      return Promise.resolve(artistData);
+    });
+    render(<ArtistView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("Nuevo 2024")).toBeInTheDocument();
+      expect(screen.getByText("Sin año")).toBeInTheDocument();
+    });
+    // La sección «Álbumes» pinta la lista combinada en este orden:
+    const section = screen.getByText("Álbumes").parentElement.textContent;
+    const at = (t) => section.indexOf(t);
+    expect(at("Nuevo 2024")).toBeLessThan(at("Single 2021"));
+    expect(at("Single 2021")).toBeLessThan(at("Viejo 1999"));
+    expect(at("Viejo 1999")).toBeLessThan(at("Sin año"));
+  });
 });

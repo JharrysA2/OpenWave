@@ -34,6 +34,15 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   `api.js` sirve la última respuesta conocida (aunque haya expirado) en
   vez de lanzar error.
 
+### Fixed
+
+- **MSI con backend obsoleto**: empaquetar con `-SkipRuntime` reutilizaba
+  `build\staging` sin refrescar la copia de `backend\`, así el instalador
+  podía llevar un backend viejo junto a un exe nuevo. `verify-msi.ps1`
+  ahora exige que el hash de código del staging coincida con el del
+  repositorio (nueva comprobación 75/75), y el build se relanzó sin
+  `-SkipRuntime` para que el payload lleve el código real de esta ronda.
+
 ## [1.0.0] - 2026-10-09
 
 Primera versión completa y terminada.

@@ -154,6 +154,35 @@ if (Test-Path -LiteralPath $stagingMain) {
     }
 }
 
+# Staging fresco respecto al repo: payBackendFresh solo valida MSI == staging.
+# Si el staging quedo obsoleto (p. ej. empaquetar con -SkipRuntime tras cambiar
+# backend\*.py), el MSI es fiel a un backend VIEJO y el check de arriba pasa.
+# Aqui se cierra la cadena: el hash de codigo del marcador .ready debe coincidir
+# con el del backend del repo (mismo algoritmo que prepare-runtime.ps1).
+function Get-RepoBackendCodeHash([string]$backendRoot) {
+    $files = @(Get-ChildItem -Path $backendRoot -Recurse -File -Filter '*.py' | Where-Object {
+        $_.FullName -notmatch '\\(venv|\.venv|__pycache__|\.pytest_cache|\.ruff_cache)\\' -and
+        $_.Name -notlike 'test_*' -and
+        $_.Name -ne 'conftest.py'
+    } | Sort-Object FullName)
+    $parts = foreach ($f in $files) {
+        $rel = $f.FullName.Substring($backendRoot.Length).TrimStart('\')
+        '{0} {1}' -f $rel.ToLowerInvariant(), (Get-FileHash -Algorithm SHA256 -LiteralPath $f.FullName).Hash.ToLower()
+    }
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes(($parts -join "`n"))
+    ([BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '').ToLower()
+}
+$stagingMarkerPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'build\staging\.ready'
+$repoBackendHash = Get-RepoBackendCodeHash (Join-Path (Split-Path -Parent $PSScriptRoot) 'backend')
+$stagingBackendFresh = $false
+if (Test-Path -LiteralPath $stagingMarkerPath) {
+    try {
+        $stgMarker = Get-Content -Raw -LiteralPath $stagingMarkerPath | ConvertFrom-Json
+        $stagingBackendFresh = ($stgMarker.backendHash -eq $repoBackendHash)
+    } catch { $stagingBackendFresh = $false }
+}
+
 $dialogNames = @($dialogs | ForEach-Object { $_[0] })
 $optControls = @($controls | Where-Object { $_[0] -eq 'OptionsDlg' })
 $flow = @($events | Where-Object { $_[0] -in @('InstallDirDlg', 'VerifyReadyDlg', 'OptionsDlg', 'WelcomeDlg', 'LicenseAgreementDlg', 'MaintenanceWelcomeDlg', 'MaintenanceTypeDlg') })
@@ -357,6 +386,7 @@ $checks = [ordered]@{
         [bool]($dirs | Where-Object { $_[0] -eq 'INSTALLDIR' -and ([string]$_[2]) -like '*OpenWave*' })
     'Payload: backend empaquetado (backend\main.py)' = ($payBackend.Count -eq 1)
     'Payload: main.py del MSI identico al staging (sin backend viejo)' = $payBackendFresh
+    'Staging: hash de codigo del backend == repo (staging no obsoleto)' = $stagingBackendFresh
     'Payload: Python embebido (runtime\python.exe)' = ($payPython.Count -eq 1)
     'Payload: ffmpeg (ffmpeg\ffmpeg.exe)' = ($payFfmpeg.Count -eq 1)
     'Mantenimiento: bienvenida y seleccion (MaintenanceWelcome/TypeDlg)' =

@@ -13,6 +13,7 @@ from ytmusic_client import get_ytm
 from utils import (
     best_thumb_raw,
     clean_artist_name,
+    enrich_local_flags,
     fmt_num,
     fmt_song,
     fmt_thumbs,
@@ -28,6 +29,19 @@ def _get_artist_browse_id(data):
         if aid:
             return aid
     return ""
+
+
+def _fmt_artist_album(r: dict, default_type: str = "Album") -> dict:
+    """Normalizar un álbum/single del artista (respuesta ytmusicapi)."""
+    raw_t = r.get("thumbnails") or []
+    return {
+        "browseId": r.get("browseId", ""),
+        "title": r.get("title", ""),
+        "year": r.get("year", ""),
+        "type": r.get("type") or default_type,
+        "thumbnail": best_thumb_raw(raw_t),
+        "thumbnails": fmt_thumbs(raw_t),
+    }
 
 
 logger = get_logger(__name__)
@@ -157,6 +171,9 @@ async def get_album(browse_id: str):
                     }
                 )
             album_raw_thumbs = data.get("thumbnails", [])
+            # downloaded/coverLocal por pista: reproduce el MP3 local si ya
+            # está descargado (sin streaming, sin internet).
+            enrich_local_flags(tracks)
             return {
                 "title": data.get("title", ""),
                 "artist": ", ".join(
@@ -211,17 +228,6 @@ async def get_artist(browse_id: str):
         songs_raw = (data.get("songs") or {}).get("results") or []
         songs = [fmt_song(s) for s in songs_raw if s.get("videoId")][:10]
 
-        def _fmt_album(r):
-            raw_t = r.get("thumbnails") or []
-            return {
-                "browseId": r.get("browseId", ""),
-                "title": r.get("title", ""),
-                "year": r.get("year", ""),
-                "type": r.get("type", "Album"),
-                "thumbnail": best_thumb_raw(raw_t),
-                "thumbnails": fmt_thumbs(raw_t),
-            }
-
         albums_raw = (data.get("albums") or {}).get("results") or []
         singles_raw = (data.get("singles") or {}).get("results") or []
         return {
@@ -235,12 +241,109 @@ async def get_artist(browse_id: str):
             if thumb
             else [],
             "songs": songs,
-            "albums": [_fmt_album(r) for r in albums_raw],
-            "singles": [_fmt_album(r) for r in singles_raw],
+            "albums": [_fmt_artist_album(r) for r in albums_raw],
+            "singles": [_fmt_artist_album(r, "Single") for r in singles_raw],
         }
 
     result = await loop.run_in_executor(None, _do)
     api_cache_set(f"artist:{browse_id}", result)
+    return result
+
+
+@router.get("/artist/{browse_id}/albums")
+async def get_artist_all_albums(browse_id: str):
+    """TODOS los álbumes y singles del artista (con paginación completa).
+
+    `get_artist` solo trae el primer carrusel de cada sección; aquí se
+    pagina con `get_artist_albums(browseId, params, limit=None)` usando
+    los params de continuación que ytmusicapi expone en cada sección —
+    así aparecen absolutamente todos los álbumes del artista.
+    """
+    cached = api_cache_get(f"artist_albums:{browse_id}", ttl=3600)
+    if cached:
+        return cached
+
+    loop = asyncio.get_running_loop()
+
+    def _do():
+        ytm = get_ytm()
+        data = ytm.get_artist(browse_id)
+
+        out = {}
+        for section, default_type in (("albums", "Album"), ("singles", "Single")):
+            sec = data.get(section) or {}
+            results = list(sec.get("results") or [])
+            params = sec.get("params")
+            sec_browse = sec.get("browseId") or browse_id
+            if params and sec_browse:
+                try:
+                    more = ytm.get_artist_albums(sec_browse, params, limit=None) or []
+                    results.extend(more)
+                except Exception as e:
+                    # Sin continuación seguimos con la primera página:
+                    # mejor mostrar los disponibles que fallar entero.
+                    logger.warning(
+                        "artist %s %s continuation: %s", browse_id, section, e
+                    )
+            seen: set = set()
+            items = []
+            for r in results:
+                item = _fmt_artist_album(r, default_type)
+                bid = item["browseId"]
+                if not bid or bid in seen:
+                    continue
+                seen.add(bid)
+                items.append(item)
+            out[section] = items
+        return out
+
+    result = await loop.run_in_executor(None, _do)
+    api_cache_set(f"artist_albums:{browse_id}", result)
+    return result
+
+
+@router.get("/artist/{browse_id}/songs")
+async def get_artist_all_songs(browse_id: str):
+    """TODAS las canciones del artista (pantalla «Ver todas»).
+
+    get_artist no expone continuación de canciones, pero su shelf inicial
+    trae el browseId de la playlist VL con el catálogo completo del
+    artista: `get_playlist(id, limit=None)` lo trae entero. Sin ese id
+    (algunos artistas), fallback a la búsqueda de canciones del artista.
+    """
+    cached = api_cache_get(f"artist_songs:{browse_id}", ttl=3600)
+    if cached:
+        return cached
+
+    loop = asyncio.get_running_loop()
+
+    def _do():
+        ytm = get_ytm()
+        data = ytm.get_artist(browse_id)
+        name = data.get("name", "")
+        pl_id = (data.get("songs") or {}).get("browseId") or ""
+        tracks: list = []
+        if pl_id:
+            try:
+                pl = ytm.get_playlist(pl_id, limit=None)
+                tracks = [
+                    fmt_song(t) for t in (pl.get("tracks") or []) if t.get("videoId")
+                ]
+            except Exception as e:
+                logger.warning("artist songs %s: %s", browse_id, e)
+        if not tracks and name:
+            try:
+                hits = ytm.search(name, filter="songs", limit=100)
+                tracks = [fmt_song(h) for h in hits if h.get("videoId")]
+            except Exception as e:
+                logger.warning("artist songs fallback %s: %s", browse_id, e)
+        return {"name": name, "songs": tracks}
+
+    result = await loop.run_in_executor(None, _do)
+    # No cachear vacíos: un fallo transitorio no debe congelar la vista
+    # «todas las canciones» vacía durante el TTL.
+    if result["songs"]:
+        api_cache_set(f"artist_songs:{browse_id}", result)
     return result
 
 

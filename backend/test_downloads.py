@@ -98,7 +98,13 @@ class TestDoDownload:
         mock_subprocess_run.assert_called_once()
         conv_cmd = mock_subprocess_run.call_args[0][0]
         assert conv_cmd[-1].endswith(".mp3.part")
-        mock_os_replace.assert_called_once()
+        # Tags ID3: título/artista embebidos en el MP3 (portada no, porque
+        # cover_path.exists() es False en este test).
+        assert "-metadata" in conv_cmd
+        assert "title=Test Song" in conv_cmd
+        assert "artist=Test Artist" in conv_cmd
+        # Escrituras atómicas: cover .part→.jpg y audio .part→.mp3.
+        assert mock_os_replace.call_count == 2
         mock_conn.execute.assert_called()
         sql = mock_conn.execute.call_args[0][0]
         assert "INSERT INTO downloads" in sql
@@ -252,7 +258,7 @@ class TestDoDownload:
         mock_lyrics_dir,
         mock_covers_dir,
     ):
-        """Thumbnails de googleusercontent deben upgradearse a HD."""
+        """Thumbnails de googleusercontent deben upgradearse a MÁXIMA calidad."""
         mock_ydl = MagicMock()
         mock_ydl_cls.return_value.__enter__.return_value = mock_ydl
 
@@ -285,12 +291,10 @@ class TestDoDownload:
             duration=200,
         )
 
-        # Verificar que se usó URL HD (primer call a urlopen)
+        # Verificar que se usó la URL de MÁXIMA calidad (primer call a
+        # urlopen): googleusercontent admitido hasta w2048 (antes w576).
         first_call_request = mock_urlopen.call_args_list[0][0][0]
-        assert (
-            "w576" in first_call_request.full_url
-            or "576" in first_call_request.full_url
-        )
+        assert "w2048" in first_call_request.full_url
 
     @patch("downloads.COVERS_DIR")
     @patch("downloads.LYRICS_DIR")
@@ -485,3 +489,183 @@ class TestDoDownload:
         assert not final.exists()
         assert not part.exists()
         assert src_file.exists()
+
+
+class TestCoverCandidates:
+    """cover_candidates: orden de portadas de MEJOR a peor calidad."""
+
+    def test_ytimg_maxres_first(self):
+        from downloads import cover_candidates
+
+        cands = cover_candidates(
+            "https://i.ytimg.com/vi/abc123/mqdefault.jpg",
+            [
+                {
+                    "url": "https://i.ytimg.com/vi/abc123/hq720.jpg",
+                    "width": 720,
+                    "height": 405,
+                },
+                {
+                    "url": "https://i.ytimg.com/vi/abc123/mqdefault.jpg",
+                    "width": 320,
+                    "height": 180,
+                },
+            ],
+        )
+        # La resolución MÁXIMA va primero (maxresdefault) y la thumbnail
+        # suelta queda como último recurso.
+        assert cands[0] == "https://i.ytimg.com/vi/abc123/maxresdefault.jpg"
+        assert "https://i.ytimg.com/vi/abc123/hq720.jpg" in cands
+        assert cands[-1] == "https://i.ytimg.com/vi/abc123/mqdefault.jpg"
+
+    def test_google_w2048_first(self):
+        from downloads import cover_candidates
+
+        cands = cover_candidates(
+            "https://lh3.googleusercontent.com/xx=w120",
+            [
+                {
+                    "url": "https://lh3.googleusercontent.com/xx=w576",
+                    "width": 576,
+                    "height": 576,
+                }
+            ],
+        )
+        assert cands[0] == "https://lh3.googleusercontent.com/xx=w2048-h2048-l90-rj"
+
+    def test_no_thumbnails_falls_to_thumbnail(self):
+        from downloads import cover_candidates
+
+        assert cover_candidates("https://x.example/c.jpg", []) == [
+            "https://x.example/c.jpg"
+        ]
+
+
+class TestDownloadCoverEmbed:
+    """Portada embebida (APIC) + tags ID3 en el MP3 descargado."""
+
+    @patch("downloads.COVERS_DIR")
+    @patch("downloads.LYRICS_DIR")
+    @patch("downloads.get_db")
+    @patch("downloads.urllib.request.urlopen")
+    @patch("downloads.os.replace")
+    @patch("downloads.subprocess.run")
+    @patch("downloads.Path.exists")
+    @patch("downloads.get_mp3_path")
+    @patch("yt_dlp.YoutubeDL")
+    def test_download_embeds_cover_and_metadata(
+        self,
+        mock_ydl_cls,
+        mock_path,
+        mock_exists,
+        mock_subprocess_run,
+        mock_os_replace,
+        mock_urlopen,
+        mock_get_db,
+        mock_lyrics_dir,
+        mock_covers_dir,
+    ):
+        """Cover ya en disco → se embebe con attached_pic + tags completos."""
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__.return_value = mock_ydl
+
+        mp3_mock = MagicMock(spec=Path)
+        mp3_mock.exists.return_value = False
+        mock_path.return_value = mp3_mock
+        mock_exists.return_value = True  # el fuente .mp4 "existe" (src detect)
+
+        mock_conn = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_conn
+
+        mock_cover_path = MagicMock(spec=Path)
+        mock_cover_path.exists.return_value = True  # cover YA en disco
+        mock_covers_dir.__truediv__.return_value = mock_cover_path
+
+        mock_lyric_path = MagicMock(spec=Path)
+        mock_lyric_path.exists.return_value = True  # .lrc ya guardado
+        mock_lyrics_dir.__truediv__.return_value = mock_lyric_path
+
+        do_download(
+            video_id="embed_vid",
+            title="Song",
+            artist="Art",
+            thumbnail="",
+            duration=100,
+            album_title="Album X",
+            year="2021",
+        )
+
+        mock_subprocess_run.assert_called_once()
+        cmd = mock_subprocess_run.call_args[0][0]
+        # Portada embebida: mapa 0:a + 1:v, attached_pic y disposition
+        assert "-map" in cmd
+        assert "1:v:0" in cmd
+        assert "attached_pic" in cmd
+        # Tags ID3 completos
+        assert "title=Song" in cmd
+        assert "artist=Art" in cmd
+        assert "album=Album X" in cmd
+        assert "date=2021" in cmd
+        # La cover ya existía: no se vuelve a descargar
+        mock_urlopen.assert_not_called()
+
+    @patch("downloads.COVERS_DIR")
+    @patch("downloads.LYRICS_DIR")
+    @patch("downloads.get_db")
+    @patch("downloads.urllib.request.urlopen")
+    @patch("downloads.os.replace")
+    @patch("downloads.subprocess.run")
+    @patch("downloads.Path.exists")
+    @patch("downloads.get_mp3_path")
+    @patch("yt_dlp.YoutubeDL")
+    def test_download_retries_with_itag18(
+        self,
+        mock_ydl_cls,
+        mock_path,
+        mock_exists,
+        mock_subprocess_run,
+        mock_os_replace,
+        mock_urlopen,
+        mock_get_db,
+        mock_lyrics_dir,
+        mock_covers_dir,
+    ):
+        """Si bestaudio 403ea, se reintenta con la cadena histórica (18)."""
+        from yt_dlp.utils import DownloadError
+
+        mock_ydl = MagicMock()
+        mock_ydl.download.side_effect = [DownloadError("403 Forbidden"), None]
+        mock_ydl_cls.return_value.__enter__.return_value = mock_ydl
+
+        mp3_mock = MagicMock(spec=Path)
+        mp3_mock.exists.return_value = False
+        mock_path.return_value = mp3_mock
+        mock_exists.return_value = True
+
+        mock_conn = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_conn
+
+        mock_cover_path = MagicMock(spec=Path)
+        mock_cover_path.exists.return_value = False
+        mock_covers_dir.__truediv__.return_value = mock_cover_path
+        mock_urlopen.side_effect = Exception("sin red")
+
+        mock_lyric_path = MagicMock(spec=Path)
+        mock_lyric_path.exists.return_value = True  # saltar paso de letras
+        mock_lyrics_dir.__truediv__.return_value = mock_lyric_path
+
+        do_download(
+            video_id="retry_vid",
+            title="Retry",
+            artist="Art",
+            thumbnail="https://x.example/c.jpg",
+            duration=100,
+        )
+
+        assert mock_ydl_cls.call_count == 2
+        first_opts = mock_ydl_cls.call_args_list[0][0][0]
+        second_opts = mock_ydl_cls.call_args_list[1][0][0]
+        assert first_opts["format"].startswith("bestaudio")
+        assert second_opts["format"] == "18/bestaudio/best"
+        # La descarga terminó bien pese al reintento
+        assert mock_subprocess_run.call_count == 1

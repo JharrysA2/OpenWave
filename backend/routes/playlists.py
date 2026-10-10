@@ -5,6 +5,8 @@ import asyncio
 from db import _parse_thumbs_json, db_import_playlists, get_db
 from fastapi import APIRouter, Request
 
+from utils import enrich_local_flags
+
 router = APIRouter()
 
 
@@ -118,6 +120,9 @@ async def get_playlist_songs(pid: int):
                 "duration": d.get("duration", 0),
             }
         )
+    # downloaded/coverLocal: reproductor local + portada de disco para las
+    # canciones de la playlist que ya están descargadas (funciona sin internet).
+    enrich_local_flags(songs)
     return songs
 
 

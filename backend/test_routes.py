@@ -129,6 +129,29 @@ class TestThumbnailProxy:
         resp = client.get("/thumbnail-proxy")
         assert resp.status_code == 422
 
+    def test_local_cover_urls_allowed(self):
+        """Portadas locales (descargadas) pasan la whitelist del proxy."""
+        from main import _THUMB_ALLOWED
+
+        local = "http://127.0.0.1:8765/music/covers/abc123.jpg"
+        assert any(p.match(local) for p in _THUMB_ALLOWED)
+        assert any(
+            p.match("http://localhost:8765/music/covers/x.jpg") for p in _THUMB_ALLOWED
+        )
+
+    def test_loopback_only_for_covers(self):
+        """El hueco loopback es SOLO covers: otras rutas/LAN siguen bloqueadas."""
+        from main import _THUMB_ALLOWED
+
+        blocked = [
+            "http://127.0.0.1:8765/stream/abc",  # stream: no vía proxy
+            "http://127.0.0.1:8765/admin",
+            "http://192.168.1.5/music/covers/x.jpg",  # LAN: SSRF no
+            "http://127.0.0.1.evil.com/music/covers/x.jpg",
+        ]
+        for url in blocked:
+            assert not any(p.match(url) for p in _THUMB_ALLOWED), url
+
 
 class TestHome:
     def test_quick_picks(self, client):

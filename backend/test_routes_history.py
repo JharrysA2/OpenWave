@@ -172,3 +172,39 @@ class TestHistoryClear:
         client.delete("/history/all")
         resp = client.delete("/history/all")
         assert resp.status_code == 200
+
+
+class TestHistoryLocalFlags:
+    """GET /history marca downloaded/coverLocal (reproducción offline)."""
+
+    def test_history_marks_downloaded_and_cover_local(self, client):
+        """Con MP3+cover en disco, la entrada sale marcada como local."""
+        import config as cfg
+
+        client.post(
+            "/history",
+            json={"videoId": "hist_v1", "title": "T", "artist": "A", "duration": 100},
+        )
+        (cfg.MUSIC_DIR / "hist_v1.mp3").write_bytes(b"mp3")
+        (cfg.COVERS_DIR / "hist_v1.jpg").write_bytes(b"jpg")
+        try:
+            resp = client.get("/history")
+            assert resp.status_code == 200
+            item = next(i for i in resp.json() if i["videoId"] == "hist_v1")
+            assert item["downloaded"] is True
+            assert item["coverLocal"] == "/music/covers/hist_v1.jpg"
+        finally:
+            (cfg.MUSIC_DIR / "hist_v1.mp3").unlink(missing_ok=True)
+            (cfg.COVERS_DIR / "hist_v1.jpg").unlink(missing_ok=True)
+
+    def test_history_without_assets_not_marked(self, client):
+        """Sin MP3 en disco, downloaded=False y coverLocal vacío."""
+        client.post(
+            "/history",
+            json={"videoId": "hist_v2", "title": "T", "artist": "A", "duration": 100},
+        )
+        resp = client.get("/history")
+        assert resp.status_code == 200
+        item = next(i for i in resp.json() if i["videoId"] == "hist_v2")
+        assert item["downloaded"] is False
+        assert item["coverLocal"] == ""

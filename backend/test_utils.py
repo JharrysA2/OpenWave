@@ -356,3 +356,59 @@ class TestExtractChartItems:
     def test_empty_charts(self):
         assert extract_chart_items({}) == []
         assert extract_chart_items(None) == []
+
+
+# ── Assets locales (offline): downloaded / coverLocal ──────────────────────────
+
+
+class TestLocalAssets:
+    """cover_local_url / enrich_local_flags / fmt_song con assets en disco."""
+
+    def test_cover_local_url_and_enrich(self):
+        import config as cfg
+
+        from utils import cover_local_url, enrich_local_flags
+
+        (cfg.MUSIC_DIR / "vid_assets_c1.mp3").write_bytes(b"mp3")
+        (cfg.COVERS_DIR / "vid_assets_c1.jpg").write_bytes(b"jpg")
+        try:
+            assert cover_local_url("vid_assets_c1") == "/music/covers/vid_assets_c1.jpg"
+            assert cover_local_url("vid_assets_missing") == ""
+            assert cover_local_url("../evil") == ""
+
+            items = [
+                {"videoId": "vid_assets_c1"},
+                {"videoId": "vid_assets_missing"},
+                {"title": "sin id"},
+            ]
+            enrich_local_flags(items)
+            assert items[0]["downloaded"] is True
+            assert items[0]["coverLocal"] == "/music/covers/vid_assets_c1.jpg"
+            assert items[1]["downloaded"] is False
+            assert items[1]["coverLocal"] == ""
+            assert "downloaded" not in items[2]
+        finally:
+            (cfg.MUSIC_DIR / "vid_assets_c1.mp3").unlink(missing_ok=True)
+            (cfg.COVERS_DIR / "vid_assets_c1.jpg").unlink(missing_ok=True)
+
+    def test_fmt_song_marks_local_assets(self):
+        import config as cfg
+
+        (cfg.MUSIC_DIR / "vid_assets_fmt.mp3").write_bytes(b"mp3")
+        (cfg.COVERS_DIR / "vid_assets_fmt.jpg").write_bytes(b"jpg")
+        try:
+            song = fmt_song(
+                {"videoId": "vid_assets_fmt", "title": "T", "artists": [{"name": "A"}]}
+            )
+            assert song["downloaded"] is True
+            assert song["coverLocal"] == "/music/covers/vid_assets_fmt.jpg"
+        finally:
+            (cfg.MUSIC_DIR / "vid_assets_fmt.mp3").unlink(missing_ok=True)
+            (cfg.COVERS_DIR / "vid_assets_fmt.jpg").unlink(missing_ok=True)
+
+    def test_fmt_song_without_assets(self):
+        song = fmt_song(
+            {"videoId": "vid_assets_none", "title": "T", "artists": [{"name": "A"}]}
+        )
+        assert song["downloaded"] is False
+        assert song["coverLocal"] == ""

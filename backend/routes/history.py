@@ -5,6 +5,8 @@ import asyncio
 from db import db_get_history, db_import_history, db_log_history, get_db
 from fastapi import APIRouter, Query, Request
 
+from utils import enrich_local_flags
+
 router = APIRouter()
 
 
@@ -12,7 +14,12 @@ router = APIRouter()
 async def get_history(limit: int = Query(100, ge=1, le=500)):
     """Obtener historial de reproducción."""
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, db_get_history, limit)
+    items = await loop.run_in_executor(None, db_get_history, limit)
+    # downloaded/coverLocal: el historial reproduce el MP3 local (sin
+    # streaming) y muestra la portada de disco cuando la canción ya está
+    # descargada — también sin internet.
+    enrich_local_flags(items)
+    return items
 
 
 @router.post("/history")

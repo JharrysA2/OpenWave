@@ -75,6 +75,13 @@ function renderLyrics(props = {}) {
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 
+// Estado persistente limpio en CADA test: tanto la caché de letras
+// persistidas (sw_lyrics_cache_v1, nueva) como los overrides y ajustes no
+// deben filtrarse de un test a otro.
+beforeEach(() => {
+  localStorage.clear();
+});
+
 describe("LyricsView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1315,5 +1322,131 @@ describe("CSP con nonce — keyframes solo en index.html", () => {
     const html = readProjectFile("index.html");
     expect(html).toContain("@keyframes sw-modal-in");
     expect(html).toContain("@keyframes sw-bg-spin");
+  });
+});
+
+// ── B6: letras persistidas en localStorage + fondo local (offline) ──────────
+
+describe("LyricsView — letras persistidas (sobreviven recargas sin internet)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) {
+        return Promise.resolve({ lyrics: null, source: "test" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("usa la letra persistida en localStorage sin volver a pedirla", async () => {
+    localStorage.setItem(
+      "sw_lyrics_cache_v1",
+      JSON.stringify({
+        persistvid: {
+          lyrics: ["[00:01.00] línea guardada", "[00:05.00] otra línea"],
+          source: "lrclib",
+          at: Date.now(),
+        },
+      }),
+    );
+
+    renderLyrics({ song: song("persistvid") });
+
+    await waitFor(() => {
+      expect(screen.getByText(/línea guardada/)).toBeInTheDocument();
+    });
+    // Sin fetch: la pantalla se monta con lo que había en disco del navegador
+    expect(mockApiGet).not.toHaveBeenCalledWith(expect.stringContaining("/lyrics/persistvid"));
+  });
+
+  it("persiste las letras recién recibidas para la próxima apertura", async () => {
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) {
+        return Promise.resolve({ lyrics: ["[00:02.00] letra fresca"], source: "lrclib" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+
+    renderLyrics({ song: song("freshvid") });
+
+    await waitFor(() => {
+      expect(screen.getByText(/letra fresca/)).toBeInTheDocument();
+    });
+    const stored = JSON.parse(localStorage.getItem("sw_lyrics_cache_v1"));
+    expect(stored.freshvid?.lyrics).toEqual(["[00:02.00] letra fresca"]);
+    expect(stored.freshvid?.source).toBe("lrclib");
+  });
+
+  it("«Recargar letras» limpia la persistida (vuelve a ir a la fuente)", async () => {
+    localStorage.setItem(
+      "sw_lyrics_cache_v1",
+      JSON.stringify({
+        reloadvid: { lyrics: ["vieja línea"], source: "lrclib", at: Date.now() },
+      }),
+    );
+    renderLyrics({ song: song("reloadvid") });
+    await waitFor(() => {
+      expect(screen.getByText(/vieja línea/)).toBeInTheDocument();
+    });
+
+    // Modal de configuración → «Recargar letras»: borra la persistida
+    fireEvent.click(screen.getByTitle("Configuración de letras"));
+    fireEvent.click(screen.getByText("Recargar letras"));
+
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem("sw_lyrics_cache_v1"));
+      expect(stored.reloadvid).toBeUndefined();
+    });
+    // …y la recarga va a la fuente (fetch de nuevo)
+    await waitFor(() => {
+      expect(mockApiGet).toHaveBeenCalledWith(expect.stringContaining("/lyrics/reloadvid"));
+    });
+  });
+
+  it("el fondo con blur apunta a la portada LOCAL de la canción descargada", async () => {
+    // Image simulado: jsdom no carga recursos, así disparamos onload a mano
+    // y la capa queda con la URL de origen (el proxy de la portada local).
+    class FakeImage {
+      set src(v) {
+        this._src = v;
+        queueMicrotask(() => this.onload && this.onload());
+      }
+      get src() {
+        return this._src;
+      }
+    }
+    vi.stubGlobal("Image", FakeImage);
+
+    const localUrl = "http://127.0.0.1:8765/music/covers/bglocal.jpg";
+    const { container } = renderLyrics({
+      song: song("bglocal", {
+        downloaded: true,
+        coverLocal: "/music/covers/bglocal.jpg",
+        thumbnails: [
+          { url: localUrl, width: 4096, height: 4096 },
+          { url: "https://example.com/bglocal.jpg", width: 200, height: 200 },
+        ],
+      }),
+    });
+
+    const bg = container.querySelector('[data-testid="lyrics-bg"]');
+    expect(bg).toBeTruthy();
+    await waitFor(() => {
+      // bgThumb = thumbnail MÁS GRANDE = la portada local (width 4096) →
+      // el fondo sale de disco, no de internet.
+      expect(bg.style.backgroundImage).toContain("/thumbnail-proxy?url=");
+      expect(bg.style.backgroundImage).toContain(encodeURIComponent(localUrl));
+    });
   });
 });

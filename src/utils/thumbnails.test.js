@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   generateThumbsHD,
   withHDThumbnails,
+  withLocalCover,
+  localCoverUrl,
   getCoverSources,
   googleThumbBase,
   googleThumbnails,
@@ -229,5 +231,77 @@ describe("thumbnails — getCoverSources", () => {
       src: YT_URL,
     });
     expect(allSrcs).toEqual(["https://example.com/array.jpg"]);
+  });
+});
+
+describe("thumbnails — portada local (canciones descargadas)", () => {
+  const localSong = {
+    videoId: "abc",
+    thumbnail: "https://i.ytimg.com/vi/abc/mqdefault.jpg",
+    downloaded: true,
+    coverLocal: "/music/covers/abc.jpg",
+    thumbnails: [
+      { url: "https://i.ytimg.com/vi/abc/maxresdefault.jpg", width: 1280, height: 720 },
+      { url: "https://i.ytimg.com/vi/abc/mqdefault.jpg", width: 320, height: 180 },
+    ],
+  };
+
+  it("localCoverUrl resuelve contra la API base y exige downloaded", () => {
+    expect(localCoverUrl(localSong)).toBe("http://127.0.0.1:8765/music/covers/abc.jpg");
+    expect(localCoverUrl({ ...localSong, downloaded: false })).toBeNull();
+    expect(localCoverUrl({ ...localSong, coverLocal: "" })).toBeNull();
+    expect(localCoverUrl(null)).toBeNull();
+    // URLs absolutas se respetan tal cual
+    expect(localCoverUrl({ ...localSong, coverLocal: "http://127.0.0.1:8765/other.jpg" })).toBe(
+      "http://127.0.0.1:8765/other.jpg",
+    );
+  });
+
+  it("withLocalCover inserta la portada local como PRIMERA fuente", () => {
+    const out = withLocalCover(localSong);
+    expect(out.thumbnails).toHaveLength(3);
+    expect(out.thumbnails[0].url).toBe("http://127.0.0.1:8765/music/covers/abc.jpg");
+    expect(out.thumbnails[0].width).toBeGreaterThan(out.thumbnails[1].width);
+    // El resto de campos intactos
+    expect(out.thumbnail).toBe(localSong.thumbnail);
+    expect(out.downloaded).toBe(true);
+  });
+
+  it("withLocalCover es idempotente (misma identidad si ya está inyectada)", () => {
+    const once = withLocalCover(localSong);
+    const twice = withLocalCover(once);
+    expect(twice).toBe(once);
+  });
+
+  it("withLocalCover no hace nada sin download/coverLocal", () => {
+    const notDownloaded = { ...localSong, downloaded: false };
+    expect(withLocalCover(notDownloaded)).toBe(notDownloaded);
+    const noCover = { ...localSong, coverLocal: "" };
+    expect(withLocalCover(noCover)).toBe(noCover);
+  });
+
+  it("withHDThumbnails inyecta la local incluso con thumbnails[] 2+ ya existentes", () => {
+    const out = withHDThumbnails(localSong);
+    expect(out.thumbnails[0].url).toContain("/music/covers/abc.jpg");
+    // `thumbnail` (src directo / colores) sigue en la fuente remota garantizada
+    expect(out.thumbnail).toBe("https://i.ytimg.com/vi/abc/mqdefault.jpg");
+  });
+
+  it("con thumbnails[] generados, la local sigue siendo la primera del srcset", () => {
+    const out = withHDThumbnails({
+      videoId: "gen1",
+      thumbnail: YT_URL,
+      downloaded: true,
+      coverLocal: "/music/covers/gen1.jpg",
+    });
+    const { allSrcs } = getCoverSources(out);
+    expect(allSrcs[0]).toContain("/music/covers/gen1.jpg");
+    expect(allSrcs.length).toBeGreaterThan(1);
+  });
+
+  it("canción NO descargada: sin inyección (todo remoto)", () => {
+    const out = withHDThumbnails({ ...localSong, downloaded: false });
+    expect(out.thumbnails).toHaveLength(2);
+    expect(out.thumbnails.some((t) => t.url.includes("/music/covers/"))).toBe(false);
   });
 });

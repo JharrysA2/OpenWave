@@ -10,6 +10,7 @@ const DownloadsView = React.lazy(() => import("./DownloadsView"));
 const PlaylistView = React.lazy(() => import("./PlaylistView"));
 const AlbumView = React.lazy(() => import("./AlbumView"));
 const ArtistView = React.lazy(() => import("./ArtistView"));
+const ArtistSongsView = React.lazy(() => import("./ArtistSongsView"));
 const SettingsPanel = React.lazy(() => import("./SettingsPanel"));
 
 export const MainRouter = React.memo(function MainRouter({
@@ -34,8 +35,11 @@ export const MainRouter = React.memo(function MainRouter({
   toast,
   albumBrowseId,
   artistBrowseId,
+  artistSongs,
   goToArtist,
   goToAlbum,
+  goToArtistSongs,
+  closeArtistSongs,
   goBackFromDetail,
   tab,
   currentSong,
@@ -163,10 +167,33 @@ export const MainRouter = React.memo(function MainRouter({
           openOptions={openOptions}
           onGoToAlbum={handleGoToAlbum}
           onGoToRelatedArtist={goToArtist}
+          onOpenArtistSongs={goToArtistSongs}
           onBack={goBackFromDetail}
           isArtistFollowed={isArtistFollowed}
           toggleFollow={toggleFollow}
           openEntityOptions={openEntityOptions}
+        />
+      </Suspense>
+    );
+  }
+
+  // ── «Todas las canciones del artista» (pantalla dedicada) ──────────
+  //    Va DESPUÉS del álbum (si desde aquí se navega a un álbum manda
+  //    ese) pero ANTES que la página del artista, que queda debajo como
+  //    «atrás» (ESC/back cierra solo este estado).
+  if (artistSongs?.browseId) {
+    return (
+      <Suspense fallback={<div>Cargando canciones del artista...</div>}>
+        <ArtistSongsView
+          browseId={artistSongs.browseId}
+          name={artistSongs.name}
+          accentColor={neonColor}
+          currentSong={currentSong}
+          playSong={playSong}
+          toggleLike={toggleLike}
+          liked={liked}
+          openOptions={openOptions}
+          onBack={closeArtistSongs}
         />
       </Suspense>
     );

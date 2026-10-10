@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { api } from "../utils/api";
-import { withHDThumbnails } from "../utils/thumbnails";
+import { withHDThumbnails, withLocalCover } from "../utils/thumbnails";
 import { getLyricsOverride } from "../utils/lyricsOverrides";
 import { usePerformance } from "../contexts/PerformanceContext";
 
@@ -210,6 +210,7 @@ export function usePlayer(
         artist_browse_id: song.artistBrowseId || "",
         // Misma palanca que SongOptionsSheet: Ajustes → Calidad de descarga.
         quality: dlQualityRef.current || "192",
+        year: song.year || "",
       });
       downloadAskedRef.current.add(song.videoId);
       return true;
@@ -256,7 +257,9 @@ export function usePlayer(
       if (!thumbnailCacheRef.current[song.videoId]) {
         thumbnailCacheRef.current[song.videoId] = song.thumbnails;
       }
-      return song;
+      // Canción descargada → portada local de disco como primera fuente
+      // (offline-first; identidad estable si no hay coverLocal).
+      return withLocalCover(song);
     }
 
     // Verificar cache primero

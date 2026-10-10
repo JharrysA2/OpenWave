@@ -10,17 +10,23 @@ from config import LYRICS_DIR
 from logging_config import get_logger
 from ytmusic_client import get_ytm
 
-from utils import fmt_song
+from utils import fmt_song, is_valid_video_id
 
 logger = get_logger(__name__)
 
 
 async def get_local_lyrics(video_id: str):
     """Obtener letras locales (.lrc) de una canción descargada."""
-    lrc_path = LYRICS_DIR / f"{video_id}.lrc"
-    if not lrc_path.exists():
+    if not is_valid_video_id(video_id):
         return {"lyrics": None}
-    lines = lrc_path.read_text(encoding="utf-8").splitlines()
+    lrc_path = LYRICS_DIR / f"{video_id}.lrc"
+    try:
+        if not lrc_path.exists():
+            return {"lyrics": None}
+        lines = lrc_path.read_text(encoding="utf-8").splitlines()
+    except OSError as e:
+        logger.warning("local lyrics %s: %s", video_id, e)
+        return {"lyrics": None}
     return {"lyrics": [ln for ln in lines if ln.strip()]}
 
 
@@ -222,11 +228,19 @@ async def search_lyrics_multi(
 
 
 async def get_lyrics(video_id: str, title: str = "", artist: str = ""):
-    """Auto-fetch lyrics: LRCLib exacta → LRCLib búsqueda → YTMusic nativa."""
+    """Auto-fetch lyrics: local (.lrc) → LRCLib exacta → LRCLib → YTMusic."""
     cache_key = f"lyrics:{video_id}"
     cached = api_cache_get(cache_key, ttl=3600)
     if cached is not None:
         return {"lyrics": cached}
+
+    # ── Local-first: la canción descargada guarda su .lrc al descargarla.
+    #    Leerlo de disco funciona SIN internet y al instante; solo si no
+    #    existe se va a las fuentes remotas de abajo.
+    local = await get_local_lyrics(video_id)
+    if local.get("lyrics"):
+        api_cache_set(cache_key, local["lyrics"], ttl=3600)
+        return {"lyrics": local["lyrics"], "source": "local"}
 
     loop = asyncio.get_running_loop()
 

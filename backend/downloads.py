@@ -36,6 +36,44 @@ def _ffmpeg_binary(ffmpeg_dir: str | None) -> str:
     return "ffmpeg"
 
 
+def cover_candidates(thumbnail: str, thumbnails: list | None) -> list:
+    """URLs de portada ordenadas de MEJOR a peor calidad.
+
+    Prioriza la resolución más alta del array thumbnails[] (y su variante
+    maxresdefault de ytimg / w2048 de googleusercontent, que suelen ser la
+    resolución máxima real) y deja la `thumbnail` suelta como último
+    recurso. Cada candidata se intenta en orden hasta que una descarga.
+    """
+    cands: list = []
+
+    def _push(u):
+        if u and u not in cands:
+            cands.append(u)
+
+    best = ""
+    raw = thumbnails or []
+    if isinstance(raw, list) and raw:
+        valid = [t for t in raw if isinstance(t, dict) and t.get("url")]
+        if valid:
+            best = max(
+                valid,
+                key=lambda t: (t.get("width") or 0) * (t.get("height") or 0),
+            ).get("url", "")
+
+    if "googleusercontent.com" in best:
+        _push(best.split("=")[0] + "=w2048-h2048-l90-rj")
+    if "ytimg.com" in best:
+        # …/vi/{id}/hq720.jpg → …/vi/{id}/maxresdefault.jpg (máxima)
+        parts = best.split("/")
+        if len(parts) > 1:
+            _push("/".join(parts[:-1]) + "/maxresdefault.jpg")
+    _push(best)
+    if thumbnail and "googleusercontent.com" in thumbnail:
+        _push(thumbnail.split("=")[0] + "=w2048-h2048-l90-rj")
+    _push(thumbnail)
+    return cands
+
+
 def do_download(
     video_id: str,
     title: str,
@@ -48,11 +86,13 @@ def do_download(
     artist_browse_id: str = "",
     thumbnails: list = None,
     quality: str = "192",
+    year: str = "",
 ):
-    """Descargar canción: audio MP3 + cover + letras.
+    """Descargar canción: audio MP3 (tags ID3 + portada embebida) + cover + letras.
 
     `quality` = bitrate MP3 elegido en el cliente (Ajustes → Reproductor y
     sonido): "128" | "192" | "320". Cualquier otro valor cae a 192.
+    `year` (opcional) va al tag ID3 `date` y al sidecar de metadata.
     """
     if str(quality) not in ("128", "192", "320"):
         quality = "192"
@@ -88,11 +128,44 @@ def do_download(
         if not _ffmpeg_dir:
             logger.info("ffmpeg.exe not found, using system PATH")
 
-        # ── 2. Descargar audio ────────────────────────────────────────
+        # ── 2. Portada en MÁXIMA calidad (ANTES del audio: la embebemos
+        #       en los tags ID3 del MP3) ─────────────────────────────────
+        cover_path = COVERS_DIR / f"{video_id}.jpg"
+        if not cover_path.exists():
+            got_cover = False
+            for cand in cover_candidates(thumbnail, thumbnails):
+                tmp_cover = COVERS_DIR / f"{video_id}.jpg.part"
+                try:
+                    req = urllib.request.Request(
+                        cand,
+                        headers={"User-Agent": "Mozilla/5.0", "Referer": ""},
+                    )
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        data = resp.read()
+                    if not data:
+                        continue
+                    # Escritura ATÓMICA: el .jpg final solo aparece completo.
+                    tmp_cover.write_bytes(data)
+                    os.replace(tmp_cover, cover_path)
+                    got_cover = True
+                    break
+                except Exception as ce:
+                    logger.debug(
+                        "cover candidate failed %s (%s): %s", video_id, cand, ce
+                    )
+                    with suppress(OSError):
+                        tmp_cover.unlink(missing_ok=True)
+            if not got_cover:
+                logger.warning("Cover art failed %s", video_id)
+
+        # ── 3. Descargar audio ────────────────────────────────────────
         _ydl_opts = {
-            # client "android" (itag 18): único que sirve el archivo completo;
-            # el default restringe rangos a ~512KB y devuelve HTTP 403.
-            "format": "18/bestaudio/best",
+            # Mejor fuente de AUDIO disponible (m4a/opus de mayor bitrate
+            # que el muxed) con caída al itag 18 (360p) dentro de la propia
+            # cadena de selectores. El client "android" es el único que
+            # sirve el archivo completo: el default restringe rangos a
+            # ~512KB y devuelve HTTP 403.
+            "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/18/best",
             "extractor_args": {"youtube": {"player_client": ["android"]}},
             "outtmpl": str(MUSIC_DIR / f"{video_id}.%(ext)s"),
             "progress_hooks": [_hook],
@@ -112,8 +185,18 @@ def do_download(
             logger.info("skip yt-dlp %s: MP3 ya descargado", video_id)
             download_progress[video_id] = {"status": "converting", "progress": 100}
         else:
-            with yt_dlp.YoutubeDL(_ydl_opts) as ydl:
-                ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+            try:
+                with yt_dlp.YoutubeDL(_ydl_opts) as ydl:
+                    ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+            except yt_dlp.utils.DownloadError as e:
+                # Reintento con la cadena histórica (itag 18 primero): en
+                # algunos vídeos el bestaudio baja pero 403ea al descargar
+                # los bytes; el muxed 18 siempre funciona. Copia de opts:
+                # la primera configuración queda intacta (auditoría/tests).
+                logger.warning("bestaudio falló %s (%s): reintento 18", video_id, e)
+                _ydl_opts = {**_ydl_opts, "format": "18/bestaudio/best"}
+                with yt_dlp.YoutubeDL(_ydl_opts) as ydl:
+                    ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
 
             # ── Conversión ATÓMICA a MP3 ───────────────────────────────
             # Sin el postprocesador FFmpegExtractAudio de yt-dlp: ese PP
@@ -138,22 +221,41 @@ def do_download(
                 raise RuntimeError("yt-dlp no produjo ningún archivo de audio")
             tmp = MUSIC_DIR / f"{video_id}.mp3.part"
             try:
+                # Tags ID3 + portada embebida (APIC): el MP3 queda con su
+                # información dentro — se ve en cualquier reproductor externo.
+                cmd = [_ffmpeg_binary(_ffmpeg_dir), "-y", "-i", str(src)]
+                embed_cover = cover_path.exists()
+                if embed_cover:
+                    cmd += ["-i", str(cover_path), "-map", "0:a:0", "-map", "1:v:0"]
+                    # -c:v mjpeg sin bitrate: el JPEG de portada ya viene
+                    # comprimido; attached_pic + id3v2.3 = cover estándar.
+                    cmd += [
+                        "-c:v",
+                        "mjpeg",
+                        "-id3v2_version",
+                        "3",
+                        "-disposition:v:0",
+                        "attached_pic",
+                        "-metadata:s:v",
+                        "title=Album cover",
+                        "-metadata:s:v",
+                        "comment=Cover (front)",
+                    ]
+                else:
+                    cmd += ["-vn"]
+                cmd += ["-acodec", "libmp3lame", "-b:a", f"{quality}k"]
+                if title:
+                    cmd += ["-metadata", f"title={title}"]
+                if artist:
+                    cmd += ["-metadata", f"artist={artist}"]
+                if album_title:
+                    cmd += ["-metadata", f"album={album_title}"]
+                if year:
+                    cmd += ["-metadata", f"date={year}"]
+                # El destino termina en .part: declarar el contenedor.
+                cmd += ["-f", "mp3", str(tmp)]
                 subprocess.run(
-                    [
-                        _ffmpeg_binary(_ffmpeg_dir),
-                        "-y",
-                        "-i",
-                        str(src),
-                        "-vn",
-                        "-acodec",
-                        "libmp3lame",
-                        "-b:a",
-                        f"{quality}k",
-                        # El destino termina en .part: declarar el contenedor.
-                        "-f",
-                        "mp3",
-                        str(tmp),
-                    ],
+                    cmd,
                     check=True,
                     capture_output=True,
                     timeout=300,
@@ -168,22 +270,6 @@ def do_download(
 
         download_progress[video_id] = {"status": "saving", "progress": 100}
 
-        # ── 3. Descargar cover art ────────────────────────────────────
-        cover_path = COVERS_DIR / f"{video_id}.jpg"
-        if not cover_path.exists() and thumbnail:
-            try:
-                hd_thumb = thumbnail
-                if "googleusercontent.com" in thumbnail:
-                    hd_thumb = thumbnail.split("=")[0] + "=w576-h576-l90-rj"
-                req = urllib.request.Request(
-                    hd_thumb,
-                    headers={"User-Agent": "Mozilla/5.0", "Referer": ""},
-                )
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    cover_path.write_bytes(resp.read())
-            except Exception as ce:
-                logger.warning("Cover art failed %s: %s", video_id, ce)
-
         # ── 4. Descargar letras (importación directa, sin self-request) ─
         lyrics_path = LYRICS_DIR / f"{video_id}.lrc"
         if not lyrics_path.exists():
@@ -193,7 +279,14 @@ def do_download(
                 result = asyncio.run(_get_lyrics(video_id, title, artist))
                 lrc = result.get("lyrics")
                 if isinstance(lrc, list) and lrc:
-                    lyrics_path.write_text("\n".join(lrc), encoding="utf-8")
+                    # Escritura atómica (mismo patrón que el MP3 y el cover).
+                    tmp_lrc = LYRICS_DIR / f"{video_id}.lrc.part"
+                    try:
+                        tmp_lrc.write_text("\n".join(lrc), encoding="utf-8")
+                        os.replace(tmp_lrc, lyrics_path)
+                    finally:
+                        with suppress(OSError):
+                            tmp_lrc.unlink(missing_ok=True)
             except Exception as le:
                 logger.warning("Lyrics failed %s: %s", video_id, le)
 
@@ -206,6 +299,10 @@ def do_download(
                         "videoId": video_id,
                         "title": title,
                         "artist": artist,
+                        "album": album_title,
+                        "albumType": album_type,
+                        "year": year,
+                        "quality": str(quality),
                         "thumbnail": thumbnail,
                         "duration": duration,
                         "cover": str(cover_path) if cover_path.exists() else None,

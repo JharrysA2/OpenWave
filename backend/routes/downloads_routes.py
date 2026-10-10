@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse
 from logging_config import get_logger
 from rate_limit import limiter
 
-from utils import require_valid_video_id
+from utils import cover_local_url, require_valid_video_id
 
 logger = get_logger(__name__)
 
@@ -51,6 +51,7 @@ async def start_download(video_id: str, request: Request):
         kwargs={
             "thumbnails": body.get("thumbnails", []),
             "quality": body.get("quality", "") or "192",
+            "year": body.get("year", "") or "",
         },
         daemon=True,
     )
@@ -105,6 +106,7 @@ def _download_album_thread(key: str, body: dict, tracks: list):
                 artist_browse_id=body.get("artistBrowseId", ""),
                 thumbnails=t.get("thumbnails") or body.get("thumbnails") or [],
                 quality=body.get("quality", "") or "192",
+                year=body.get("year", "") or "",
             )
             if download_progress.get(vid, {}).get("status") == "error":
                 errors += 1
@@ -208,6 +210,7 @@ async def list_downloads():
                     "thumbnails": parsed_thumbs,
                     "duration": r["duration"],
                     "downloaded": True,
+                    "coverLocal": cover_local_url(r["video_id"]),
                     "size": size,
                     "albumTitle": r["album_title"] or "",
                     "albumType": r["album_type"] or "",

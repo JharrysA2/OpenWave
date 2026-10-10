@@ -1084,3 +1084,158 @@ class TestFeedbackIntegration:
         # Ambos son "otros", y tienen score neutral (0.5), orden original preservado
         assert tracks[0]["videoId"] == "t1"
         assert tracks[1]["videoId"] == "t2"
+
+
+class TestArtistAllSongs:
+    """Tests para /artist/{browse_id}/songs — catálogo COMPLETO del artista."""
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_all_songs_from_playlist(self, mock_get_ytm, client):
+        """Usa el browseId VL (playlist completa) del shelf de canciones."""
+        mock_ytm = MagicMock()
+        mock_ytm.get_artist.return_value = {
+            "name": "Full Artist",
+            "songs": {"browseId": "VLfullartist123", "results": []},
+        }
+        mock_ytm.get_playlist.return_value = {
+            "tracks": [
+                {
+                    "videoId": f"vid{i}",
+                    "title": f"Song {i}",
+                    "artists": [{"name": "Full Artist"}],
+                }
+                for i in range(15)
+            ]
+        }
+        mock_get_ytm.return_value = mock_ytm
+
+        resp = client.get("/artist/artist_full/songs")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["name"] == "Full Artist"
+        assert len(data["songs"]) == 15
+        # LÍMITE CLAVE: limit=None trae TODAS las canciones (sin recorte)
+        mock_ytm.get_playlist.assert_called_once_with("VLfullartist123", limit=None)
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_all_songs_fallback_search(self, mock_get_ytm, client):
+        """Sin browseId VL: fallback a búsqueda de canciones del artista."""
+        mock_ytm = MagicMock()
+        mock_ytm.get_artist.return_value = {
+            "name": "NoVL Artist",
+            "songs": {"browseId": None},
+        }
+        mock_ytm.get_playlist.side_effect = AssertionError("no debe llamarse")
+        mock_ytm.search.return_value = [
+            {"videoId": "s1", "title": "T", "artists": [{"name": "NoVL Artist"}]}
+        ]
+        mock_get_ytm.return_value = mock_ytm
+
+        resp = client.get("/artist/artist_novl/songs")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["songs"]) == 1
+        assert data["songs"][0]["videoId"] == "s1"
+        mock_ytm.search.assert_called_once()
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_all_songs_cache_hit(self, mock_get_ytm, client):
+        """Segunda petición sirve de caché sin tocar ytmusicapi."""
+        mock_ytm = MagicMock()
+        mock_ytm.get_artist.return_value = {
+            "name": "Cache Artist",
+            "songs": {"browseId": "VLcache1"},
+        }
+        mock_ytm.get_playlist.return_value = {
+            "tracks": [{"videoId": "c1", "title": "C"}]
+        }
+        mock_get_ytm.return_value = mock_ytm
+
+        first = client.get("/artist/artist_cache/songs")
+        assert first.status_code == 200
+        calls = mock_ytm.get_playlist.call_count
+
+        second = client.get("/artist/artist_cache/songs")
+        assert second.status_code == 200
+        assert second.json()["songs"] == first.json()["songs"]
+        assert mock_ytm.get_playlist.call_count == calls
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_all_songs_empty_not_cached(self, mock_get_ytm, client):
+        """Resultado vacío NO se cachea: el siguiente intento reintenta."""
+        mock_ytm = MagicMock()
+        mock_ytm.get_artist.return_value = {"name": "", "songs": {}}
+        mock_ytm.search.return_value = []
+        mock_get_ytm.return_value = mock_ytm
+
+        client.get("/artist/artist_empty/songs")
+        client.get("/artist/artist_empty/songs")
+        assert mock_ytm.get_artist.call_count == 2
+
+
+class TestArtistAllAlbums:
+    """Tests para /artist/{browse_id}/albums — TODOS los álbumes paginados."""
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_all_albums_paginated(self, mock_get_ytm, client):
+        """Pagina con get_artist_albums(params, limit=None) y deduplica."""
+        mock_ytm = MagicMock()
+        mock_ytm.get_artist.return_value = {
+            "name": "Album Artist",
+            "albums": {
+                "browseId": "UCabc",
+                "params": "params_albums",
+                "results": [
+                    {
+                        "browseId": "al1",
+                        "title": "First",
+                        "year": "2020",
+                        "thumbnails": [],
+                    }
+                ],
+            },
+            "singles": {
+                "browseId": "UCabc",
+                "params": "params_singles",
+                "results": [],
+            },
+        }
+        mock_ytm.get_artist_albums.return_value = [
+            {"browseId": "al1", "title": "First", "year": "2020", "thumbnails": []},
+            {"browseId": "al2", "title": "Second", "year": "2021", "thumbnails": []},
+        ]
+        mock_get_ytm.return_value = mock_ytm
+
+        resp = client.get("/artist/artist_alb/albums")
+        assert resp.status_code == 200
+        data = resp.json()
+        # Deduplicado: al1 venía en la primera página Y en la continuación
+        assert [a["browseId"] for a in data["albums"]] == ["al1", "al2"]
+        # Se pagina albums Y singles con limit=None (TODOS)
+        mock_ytm.get_artist_albums.assert_any_call("UCabc", "params_albums", limit=None)
+        mock_ytm.get_artist_albums.assert_any_call(
+            "UCabc", "params_singles", limit=None
+        )
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_all_albums_continuation_failure_keeps_first_page(
+        self, mock_get_ytm, client
+    ):
+        """Fallo en la continuación: se sirve la primera página igual."""
+        mock_ytm = MagicMock()
+        mock_ytm.get_artist.return_value = {
+            "name": "Failing Artist",
+            "albums": {
+                "browseId": "UCfail",
+                "params": "p1",
+                "results": [
+                    {"browseId": "ok1", "title": "OK", "year": "2019", "thumbnails": []}
+                ],
+            },
+        }
+        mock_ytm.get_artist_albums.side_effect = RuntimeError("boom")
+        mock_get_ytm.return_value = mock_ytm
+
+        resp = client.get("/artist/artist_fail/albums")
+        assert resp.status_code == 200
+        assert [a["browseId"] for a in resp.json()["albums"]] == ["ok1"]

@@ -326,3 +326,50 @@ class TestPlaylistsSongs:
         data = resp.json()
         assert len(data) == 1
         assert data[0]["song_count"] == 0
+
+
+class TestPlaylistSongsLocalFlags:
+    """GET /playlists/{pid}/songs marca downloaded/coverLocal (offline)."""
+
+    def _add_song(self, client, pid, video_id):
+        client.post(
+            f"/playlists/{pid}/songs",
+            json={
+                "videoIds": [video_id],
+                "songs": [
+                    {
+                        "videoId": video_id,
+                        "title": "T",
+                        "artist": "A",
+                        "duration": 100,
+                    }
+                ],
+            },
+        )
+
+    def test_songs_marked_when_downloaded(self, client):
+        import config as cfg
+
+        client.post("/playlists", json={"name": "PL Local"})
+        pid = client.get("/playlists").json()[0]["id"]
+        self._add_song(client, pid, "pl_v1")
+        (cfg.MUSIC_DIR / "pl_v1.mp3").write_bytes(b"mp3")
+        (cfg.COVERS_DIR / "pl_v1.jpg").write_bytes(b"jpg")
+        try:
+            resp = client.get(f"/playlists/{pid}/songs")
+            assert resp.status_code == 200
+            song = next(s for s in resp.json() if s["videoId"] == "pl_v1")
+            assert song["downloaded"] is True
+            assert song["coverLocal"] == "/music/covers/pl_v1.jpg"
+        finally:
+            (cfg.MUSIC_DIR / "pl_v1.mp3").unlink(missing_ok=True)
+            (cfg.COVERS_DIR / "pl_v1.jpg").unlink(missing_ok=True)
+
+    def test_songs_not_marked_without_mp3(self, client):
+        client.post("/playlists", json={"name": "PL Remota"})
+        pid = client.get("/playlists").json()[0]["id"]
+        self._add_song(client, pid, "pl_v2")
+        resp = client.get(f"/playlists/{pid}/songs")
+        song = next(s for s in resp.json() if s["videoId"] == "pl_v2")
+        assert song["downloaded"] is False
+        assert song["coverLocal"] == ""

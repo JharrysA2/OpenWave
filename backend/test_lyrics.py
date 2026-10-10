@@ -250,3 +250,34 @@ class TestGetLyrics:
 
         assert result["lyrics"] == ["YT Line 1", "YT Line 2"]
         assert result["source"] == "ytmusic"
+
+
+class TestLocalFirstLyrics:
+    """Letras locales (.lrc guardado al descargar) mandan sobre la red."""
+
+    @pytest.mark.asyncio
+    async def test_local_lrc_returned_without_network(self):
+        """Si existe el .lrc, get_lyrics lo sirve sin ir a la red (offline)."""
+        import config as cfg
+
+        lrc = cfg.LYRICS_DIR / "local_first_vid.lrc"
+        lrc.write_text("[00:01] línea uno\n[00:05] línea dos\n", encoding="utf-8")
+        try:
+            with (
+                patch("lyrics.api_cache_get", return_value=None),
+                patch("httpx.AsyncClient") as mock_cls,
+            ):
+                result = await get_lyrics("local_first_vid", title="X", artist="Y")
+            mock_cls.assert_not_called()
+            assert result["source"] == "local"
+            assert result["lyrics"] == ["[00:01] línea uno", "[00:05] línea dos"]
+        finally:
+            lrc.unlink(missing_ok=True)
+
+    @pytest.mark.asyncio
+    async def test_local_lrc_invalid_id_ignored(self):
+        """video_id inválido no toca el filesystem (path traversal)."""
+        from lyrics import get_local_lyrics
+
+        result = await get_local_lyrics("../etc/passwd")
+        assert result == {"lyrics": None}

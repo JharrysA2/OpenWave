@@ -17,8 +17,19 @@
 
 // ── Patrones / resoluciones ──────────────────────────────────────────────────
 
+import { API } from "../constants";
+
 /** Extrae el videoId de una URL de YouTube (i.ytimg.com/vi/{id}/...) */
 export const YT_THUMB_REGEX = /\/vi\/([a-zA-Z0-9_-]+)\//;
+
+/**
+ * Ancho sintético de la portada local (covers/{id}.jpg descargada con la
+ * canción): al ser el mayor del array, getCoverSources la coloca PRIMERA
+ * (fallback y srcset) — así las canciones descargadas muestran su portada
+ * de disco sin depender de internet, y MusicCover cae a las remotas si el
+ * fichero local desaparece.
+ */
+const LOCAL_THUMB_WIDTH = 4096;
 
 /**
  * Resoluciones estándar de YouTube, de mayor a menor.
@@ -66,6 +77,35 @@ export function youtubeVideoIdFromUrl(url) {
 export function googleThumbBase(url) {
   if (!isGoogleThumbUrl(url)) return null;
   return url.split("=")[0];
+}
+
+/**
+ * URL ABSOLUTA de la portada local de una canción descargada, o null.
+ *
+ * El backend marca `coverLocal` ("/music/covers/{id}.jpg", servida por el
+ * mount /music) junto a `downloaded`. Aquí se resuelve contra la API base
+ * (en Tauri el origen es tauri://localhost: una ruta relativa no cargaría)
+ * solo cuando la canción está descargada — sin descargar no hay fichero.
+ */
+export function localCoverUrl(song) {
+  if (!song?.coverLocal || !song?.downloaded) return null;
+  if (/^https?:\/\//i.test(song.coverLocal)) return song.coverLocal;
+  return `${API}${song.coverLocal.startsWith("/") ? "" : "/"}${song.coverLocal}`;
+}
+
+/**
+ * Inserta la portada local (si existe) como PRIMERA fuente de thumbnails[].
+ * Dedupe: si ya está inyectada devuelve el mismo objeto (identidad estable).
+ */
+export function withLocalCover(song) {
+  const localUrl = localCoverUrl(song);
+  if (!localUrl) return song;
+  const thumbs = Array.isArray(song.thumbnails) ? song.thumbnails : [];
+  if (thumbs.some((t) => t?.url === localUrl)) return song;
+  return {
+    ...song,
+    thumbnails: [{ url: localUrl, width: LOCAL_THUMB_WIDTH, height: LOCAL_THUMB_WIDTH }, ...thumbs],
+  };
 }
 
 // ── Generadores ──────────────────────────────────────────────────────────────
@@ -133,11 +173,15 @@ export function generateThumbsHD(srcUrl, videoId) {
 export function withHDThumbnails(song) {
   if (!song || !song.videoId) return song;
 
-  if (Array.isArray(song.thumbnails) && song.thumbnails.length >= 2) return song;
+  // Portada local (canción descargada): primera fuente en TODOS los casos,
+  // incluso cuando ya trae thumbnails[] HD del backend.
+  if (Array.isArray(song.thumbnails) && song.thumbnails.length >= 2) {
+    return withLocalCover(song);
+  }
 
   const srcUrl = song.thumbnail || song.thumbnails?.[0]?.url;
   const thumbs = generateThumbsHD(srcUrl, song.videoId);
-  if (!thumbs) return song;
+  if (!thumbs) return withLocalCover(song);
 
   // `thumbnail` se usa como src directo (imgs sin fallback) y para extraer
   // colores en el canvas, así que apuntamos a la calidad MÁXIMA GARANTIZADA:
@@ -145,11 +189,11 @@ export function withHDThumbnails(song) {
   //   • YouTube (array desc) → mqdefault, la única que existe SIEMPRE
   //     (maxresdefault 404ea en muchos videos).
   // En ambos casos es el ÚLTIMO elemento del array canónico.
-  return {
+  return withLocalCover({
     ...song,
     thumbnails: thumbs,
     thumbnail: thumbs[thumbs.length - 1].url,
-  };
+  });
 }
 
 // ── Consumo en UI (MusicCover) ───────────────────────────────────────────────

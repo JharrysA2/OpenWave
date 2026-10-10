@@ -80,6 +80,7 @@ export function SongOptionsSheet({
         artist_browse_id: song.artistBrowseId || "",
         // Calidad elegida en Ajustes → Reproductor y sonido (128/192/320).
         quality: settings.downloadQuality || "192",
+        year: song.year || "",
       });
     } catch {
       fail();

@@ -21,6 +21,7 @@ import {
   setLyricsOverride,
   clearLyricsOverride,
 } from "../utils/lyricsOverrides";
+import { getStoredLyrics, storeLyrics, clearStoredLyrics } from "../utils/lyricsCache";
 import { preblurToDataUrl } from "../utils/imageBlur";
 import { codeFromReason } from "../utils/errorCodes";
 import { StatusState } from "./StatusState";
@@ -1467,6 +1468,7 @@ export function LyricsView({
   // Recargar la letra desde cero (botón del estado de error y del modal).
   const reloadLyrics = useCallback(() => {
     clearLyricsOverride(song?.videoId);
+    clearStoredLyrics(song?.videoId);
     setReloadCounter((c) => c + 1);
     skipCacheRef.current = true;
   }, [song?.videoId]);
@@ -1614,6 +1616,19 @@ export function LyricsView({
       return; // Usó cache, no necesita fetch
     }
 
+    // Persistida en localStorage (sobrevive a recargas/reinicios): sin ella,
+    // abrir la app sin internet dejaba la pantalla de letras vacía aunque
+    // la canción se hubiera escuchado antes con conexión.
+    if (!skipCacheRef.current) {
+      const stored = getStoredLyrics(videoId);
+      if (stored) {
+        if (lyricsCacheRef?.current) lyricsCacheRef.current[videoId] = stored;
+        processLyricsData(stored);
+        setLoading(false);
+        return;
+      }
+    }
+
     // No hay cache (o reload forzado), fetch normal
     api
       .get(
@@ -1623,8 +1638,10 @@ export function LyricsView({
         // ⭐ Reflejar en el cache lo que se mostró: sin esto, "Recargar letras"
         //    dejaba la pantalla con la letra fresca pero al reabrir volvía la
         //    vieja que seguía cacheada.
-        if (Array.isArray(data?.lyrics) && data.lyrics.length > 0 && lyricsCacheRef?.current) {
-          lyricsCacheRef.current[videoId] = data;
+        if (Array.isArray(data?.lyrics) && data.lyrics.length > 0) {
+          if (lyricsCacheRef?.current) lyricsCacheRef.current[videoId] = data;
+          // …y persistirla: la próxima apertura sin internet la sirve ya.
+          storeLyrics(videoId, data);
         }
         processLyricsData(data);
       })

@@ -32,6 +32,7 @@ export default function ArtistView({
   openOptions,
   onGoToAlbum,
   onGoToRelatedArtist,
+  onOpenArtistSongs,
   onBack,
   isArtistFollowed,
   toggleFollow,
@@ -59,7 +60,6 @@ export default function ArtistView({
   };
   const [relatedArtists, setRelatedArtists] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAllSongs, setShowAllSongs] = useState(false);
 
   // Hover declarativo de los botones de acción (estilos recalculados en
   // render; nunca quedan "pegados" ni pisan el estado Siguiendo).
@@ -74,7 +74,6 @@ export default function ArtistView({
     setLoading(true);
     setArtist(null);
     setLoadError(null);
-    setShowAllSongs(false);
     api
       .get(`/artist/${encodeURIComponent(browseId)}`)
       .then((d) => {
@@ -90,6 +89,34 @@ export default function ArtistView({
       .then((d) => setRelatedArtists(d?.results || []))
       .catch(() => {});
   }, [browseId]);
+
+  // ── Álbumes COMPLETOS ────────────────────────────────────────────────
+  //    get_artist solo trae el primer carrusel de álbumes/singles; el
+  //    endpoint paginado (/artist/{id}/albums) trae ABSOLUTAMENTE todos.
+  //    Se cargan en segundo plano y rellenan el scroll horizontal cuando
+  //    llegan, sin retrasar la apertura de la página del artista.
+  useEffect(() => {
+    if (!browseId || !artist?.browseId) return;
+    let cancelled = false;
+    api
+      .get(`/artist/${encodeURIComponent(browseId)}/albums`)
+      .then((d) => {
+        if (cancelled || !d) return;
+        setArtist((prev) =>
+          prev
+            ? {
+                ...prev,
+                albums: d.albums?.length ? d.albums : prev.albums,
+                singles: d.singles?.length ? d.singles : prev.singles,
+              }
+            : prev,
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [browseId, artist?.browseId]);
 
   if (loading) {
     return <SkeletonArtistView />;
@@ -107,7 +134,9 @@ export default function ArtistView({
     );
   }
 
-  const displaySongs = showAllSongs ? artist.songs : artist.songs?.slice(0, 5);
+  // Preview de la página del artista: las 5 más populares. El botón de
+  // «Ver todas» abre la pantalla dedicada con el catálogo COMPLETO.
+  const displaySongs = artist.songs?.slice(0, 5) || [];
   const allAlbums = [...(artist.albums || []), ...(artist.singles || [])];
 
   return (
@@ -496,9 +525,9 @@ export default function ArtistView({
                 );
               })}
             </div>
-            {artist.songs?.length > 5 && (
+            {artist.songs?.length > 0 && (
               <button
-                onClick={() => setShowAllSongs(!showAllSongs)}
+                onClick={() => onOpenArtistSongs?.({ browseId, name: artist.name || "" })}
                 style={{
                   width: "100%",
                   padding: "10px",
@@ -516,9 +545,7 @@ export default function ArtistView({
                 onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceNav)}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                {showAllSongs
-                  ? "Mostrar menos"
-                  : `Mostrar más (${artist.songs.length - 5} restantes)`}
+                Ver todas las canciones
               </button>
             )}
           </div>

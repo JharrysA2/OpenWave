@@ -165,6 +165,9 @@ function AppInner() {
   // ── Navegación a detalle: Álbum / Artista ─────────────────────────────
   const [albumBrowseId, setAlbumBrowseId] = useState(null);
   const [artistBrowseId, setArtistBrowseId] = useState(null);
+  // Pantalla «Todas las canciones del artista» ({browseId, name}): estado
+  // propio para que «atrás»/ESC vuelva al artista, no a la sección.
+  const [artistSongs, setArtistSongs] = useState(null);
   const [prevTab, setPrevTab] = useState(null); // para volver atrás
 
   // Cierra las vistas de detalle (álbum/artista) al cambiar de pestaña/lista:
@@ -173,6 +176,7 @@ function AppInner() {
   const closeDetailViews = useCallback(() => {
     setAlbumBrowseId(null);
     setArtistBrowseId(null);
+    setArtistSongs(null);
   }, []);
 
   // ── Estado de UI ────────────────────────────────────────────────────────────
@@ -224,12 +228,12 @@ function AppInner() {
       // Click en la sección ya activa → volver a Inicio (así se "sale" de
       // Me gusta/Descargas pulsando su propia entrada en la sidebar). Desde
       // una vista de detalle, en cambio, se cierra y muestra su sección.
-      const inDetail = !!albumBrowseId || !!artistBrowseId;
+      const inDetail = !!albumBrowseId || !!artistBrowseId || !!artistSongs;
       setTab((prev) => (t !== "home" && !inDetail && prev === t ? "home" : t));
       closeDetailViews();
       setShowSettingsPanel(false);
     },
-    [albumBrowseId, artistBrowseId, closeDetailViews],
+    [albumBrowseId, artistBrowseId, artistSongs, closeDetailViews],
   );
 
   const onCreatePlaylist = useCallback(
@@ -354,6 +358,7 @@ function AppInner() {
       setPrevTab(tab);
       setAlbumBrowseId(bid);
       setArtistBrowseId(null);
+      setArtistSongs(null);
     },
     [tab],
   );
@@ -366,14 +371,29 @@ function AppInner() {
         setPrevTab(tab);
         setArtistBrowseId(browseIdOrArtistName.browseId);
         setAlbumBrowseId(null);
+        setArtistSongs(null);
         return;
       }
       setPrevTab(tab);
       setArtistBrowseId(browseIdOrArtistName);
       setAlbumBrowseId(null);
+      setArtistSongs(null);
     },
     [tab],
   );
+
+  // ── Pantalla «Todas las canciones del artista» ─────────────────────
+  //    Abrir: apila sobre la página del artista. Cerrar (atrás/ESC):
+  //    solo se limpia este estado → MainRouter vuelve a mostrar
+  //    ArtistView (caché: instantáneo).
+  const goToArtistSongs = useCallback((payload) => {
+    const bid = typeof payload === "string" ? payload : payload?.browseId;
+    if (!bid) return;
+    setShowSettingsPanel(false);
+    setArtistSongs({ browseId: bid, name: payload?.name || "" });
+  }, []);
+
+  const closeArtistSongs = useCallback(() => setArtistSongs(null), []);
 
   /** Ir a álbum desde una canción (buscar browseId vía API) */
   const goToAlbumFromSong = useCallback(
@@ -391,6 +411,7 @@ function AppInner() {
           setPrevTab(tab);
           setAlbumBrowseId(d.browseId);
           setArtistBrowseId(null);
+          setArtistSongs(null);
         } else {
           toast("Álbum no encontrado", "info");
         }
@@ -421,6 +442,7 @@ function AppInner() {
           setPrevTab(tab);
           setArtistBrowseId(artists[0].browseId);
           setAlbumBrowseId(null);
+          setArtistSongs(null);
         } else {
           toast(`No se encontró el artista: ${song.artist}`, "info");
         }
@@ -434,6 +456,7 @@ function AppInner() {
   const goBackFromDetail = useCallback(() => {
     setAlbumBrowseId(null);
     setArtistBrowseId(null);
+    setArtistSongs(null);
     setTab(prevTab || "home");
   }, [prevTab]);
 
@@ -566,6 +589,12 @@ function AppInner() {
   //    de un modal interno.
   const handleEscBack = useCallback(() => {
     if (showSettingsPanel) return;
+    // «Todas las canciones»: ESC vuelve a la página del artista (que
+    // sigue montada debajo), no a la sección de origen.
+    if (artistSongs) {
+      closeArtistSongs();
+      return;
+    }
     if (albumBrowseId || artistBrowseId) {
       goBackFromDetail();
       return;
@@ -575,7 +604,16 @@ function AppInner() {
       return;
     }
     if (tab !== "home") setTab("home");
-  }, [showSettingsPanel, albumBrowseId, artistBrowseId, goBackFromDetail, tab, handlePlaylistBack]);
+  }, [
+    showSettingsPanel,
+    artistSongs,
+    closeArtistSongs,
+    albumBrowseId,
+    artistBrowseId,
+    goBackFromDetail,
+    tab,
+    handlePlaylistBack,
+  ]);
 
   useEscBack(handleEscBack);
 
@@ -750,8 +788,11 @@ function AppInner() {
               toast={toast}
               albumBrowseId={albumBrowseId}
               artistBrowseId={artistBrowseId}
+              artistSongs={artistSongs}
               goToArtist={goToArtist}
               goToAlbum={goToAlbum}
+              goToArtistSongs={goToArtistSongs}
+              closeArtistSongs={closeArtistSongs}
               goBackFromDetail={goBackFromDetail}
               tab={tab}
               currentSong={currentSong}

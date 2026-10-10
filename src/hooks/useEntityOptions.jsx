@@ -67,6 +67,7 @@ export function useEntityOptions({
         artistBrowseId: album.artistBrowseId || "",
         thumbnail: album.thumbnail || "",
         thumbnails: album.thumbnails || [],
+        year: album.year || "",
         quality: downloadQuality || "192",
         tracks: list.map((t) => ({
           videoId: t.videoId,

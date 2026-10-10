@@ -53,10 +53,21 @@ function cacheGet(path, options = {}) {
   const entry = apiCache.get(path);
   if (!entry) return null;
   if (Date.now() - entry.timestamp > CACHE_TTL) {
-    apiCache.delete(path);
+    // Expirada para la caché "fresca" (se re-fetcha), pero NO se borra:
+    // sirve de respaldo (staleGet) si el backend queda inaccesible.
     return null;
   }
   return entry.data;
+}
+
+/**
+ * Caché CADUCADA de un path (o null). Se usa cuando el fetch falla por
+ * red: con el backend caído, servir la última respuesta conocida deja la
+ * app navegable offline en vez de lanzar error.
+ */
+function staleGet(path) {
+  const entry = apiCache.get(path);
+  return entry ? entry.data : null;
 }
 
 function cacheSet(path, data) {
@@ -192,7 +203,20 @@ export const api = {
     }
 
     // Fetch desde el servidor
-    const data = await _fetch(path, options);
+    let data;
+    try {
+      data = await _fetch(path, options);
+    } catch (err) {
+      // Solo errores de RED (status 0): el backend no responde. Con él
+      // caído se sirve la última respuesta conocida (aunque expirada) —
+      // la biblioteca/letras siguen navegables sin conexión. Un 4xx/5xx
+      // sí se propaga: el servidor respondió y no tiene esa cosa.
+      if (err?.status === 0) {
+        const stale = staleGet(path);
+        if (stale !== null) return stale;
+      }
+      throw err;
+    }
 
     // Cachear + normalizar thumbnails (solo respuestas JSON con objetos)
     if (data && typeof data === "object" && !Array.isArray(data)) {
@@ -322,6 +346,10 @@ export const api = {
           thumbnail: s.thumbnail || "",
           thumbnails: Array.isArray(s.thumbnails) ? s.thumbnails : [],
           duration: s.duration || 0,
+          // Marcas locales del backend: reproducción desde el MP3 de disco
+          // y portada local (covers/) — funcionan sin internet.
+          downloaded: !!s.downloaded,
+          coverLocal: s.coverLocal || "",
         }));
       })
       .catch((err) => {

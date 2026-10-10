@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from config import MUSIC_DIR
+from config import COVERS_DIR, MUSIC_DIR
 from fastapi import HTTPException
 
 # video_id de YouTube: solo caracteres URL-safe sin separadores de path.
@@ -153,6 +153,9 @@ def extract_chart_items(charts, limit: int = 30, ytm=None):
                 "duration": r.get("duration_seconds") or 0,
             }
         )
+    # Marcas locales (offline): tendencia se reproduce desde el MP3 local
+    # cuando ya está descargada, con su portada de disco.
+    enrich_local_flags(out)
     return out
 
 
@@ -305,6 +308,11 @@ def fmt_song(r: dict) -> dict:
     raw_thumbs = r.get("thumbnails") or r.get("thumbnail") or []
     thumbs = fmt_thumbs(raw_thumbs)
 
+    # Assets locales (offline): el flag `downloaded` hace que el frontend
+    # reproduzca el MP3 de disco en vez de streaming, y `coverLocal` apunta
+    # a la portada guardada con la descarga (mount /music).
+    downloaded = bool(vid) and get_mp3_path(vid).exists()
+
     return {
         "videoId": vid,
         "title": r.get("title", "Sin título"),
@@ -319,7 +327,8 @@ def fmt_song(r: dict) -> dict:
         "thumbnail": thumbs[-1]["url"] if thumbs else best_thumb(raw_thumbs),
         "thumbnails": thumbs,
         "duration": r.get("duration_seconds") or parse_duration(r.get("duration")),
-        "downloaded": get_mp3_path(vid).exists(),
+        "downloaded": downloaded,
+        "coverLocal": cover_local_url(vid) if downloaded else "",
     }
 
 
@@ -332,6 +341,50 @@ def get_mp3_path(video_id: str) -> Path:
     if not is_valid_video_id(video_id):
         raise ValueError(f"video_id inválido: {video_id!r}")
     return MUSIC_DIR / f"{video_id}.mp3"
+
+
+def get_cover_path(video_id: str) -> Path:
+    """Ruta a la portada descargada (covers/{video_id}.jpg)."""
+    if not is_valid_video_id(video_id):
+        raise ValueError(f"video_id inválido: {video_id!r}")
+    return COVERS_DIR / f"{video_id}.jpg"
+
+
+def cover_local_url(video_id: str) -> str:
+    """URL de la portada local si existe en disco (la sirve el mount /music).
+
+    Devuelve ruta relativa ("/music/covers/{id}.jpg"): el frontend la
+    resuelve contra su API base. Vacío si no hay portada descargada.
+    """
+    if not is_valid_video_id(video_id):
+        return ""
+    try:
+        if get_cover_path(video_id).exists():
+            return f"/music/covers/{video_id}.jpg"
+    except OSError:
+        pass
+    return ""
+
+
+def enrich_local_flags(items: list) -> list:
+    """Marcar `downloaded` y `coverLocal` en una lista de canciones.
+
+    Reproducción sin conexión: con `downloaded` el frontend reproduce el
+    MP3 local (GET /stream/{id}) en vez de hacer streaming, y con
+    `coverLocal` usa la portada de disco (GET /music/covers/{id}.jpg)
+    aunque no haya internet. Escritura in-place sobre items ya parseados
+    (historial, playlists, tendencia…).
+    """
+    for it in items or []:
+        vid = it.get("videoId") or ""
+        if not vid or not is_valid_video_id(vid):
+            continue
+        try:
+            it["downloaded"] = get_mp3_path(vid).exists()
+        except OSError:
+            it["downloaded"] = False
+        it["coverLocal"] = cover_local_url(vid)
+    return items
 
 
 def fmt_num(val) -> str:

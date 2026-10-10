@@ -228,6 +228,12 @@ _THUMB_ALLOWED = [
     re.compile(r"^https://yt3\.googleusercontent\.com/"),
     re.compile(r"^https://music[\w-]*\.apple\.com/"),
     re.compile(r"^https://is[\d]-ssl\.mzstatic\.com/"),
+    # Portadas LOCALES del propio backend (canciones descargadas): la capa
+    # con blur de la pantalla de letras las sirve desde disco — funciona sin
+    # internet y el canvas de pre-difuminado queda CORS-limpio. Solo loopback
+    # y solo el path de covers (nada de otras rutas ni hosts de la LAN).
+    re.compile(r"^https?://127\.0\.0\.1(:\d+)?/music/covers/"),
+    re.compile(r"^https?://localhost(:\d+)?/music/covers/"),
 ]
 
 

@@ -16,6 +16,7 @@ import ArtistView from "./ArtistView";
 import { api } from "../utils/api";
 
 const artistData = {
+  browseId: "art1",
   name: "Test Artist",
   thumbnail: "artist.jpg",
   songs: [
@@ -23,6 +24,15 @@ const artistData = {
     { videoId: "s2", title: "Song 2", artist: "Test Artist", thumbnail: "b.jpg" },
   ],
   albums: [{ browseId: "alb1", title: "Album 1", thumbnail: "alb.jpg" }],
+};
+
+const allAlbumsData = {
+  albums: [
+    { browseId: "alb1", title: "Album 1", thumbnail: "alb.jpg" },
+    { browseId: "alb2", title: "Album 2", thumbnail: "alb2.jpg" },
+    { browseId: "alb3", title: "Album 3", thumbnail: "alb3.jpg" },
+  ],
+  singles: [{ browseId: "sng1", title: "Single 1", thumbnail: "sng.jpg" }],
 };
 
 const defaultProps = {
@@ -35,6 +45,7 @@ const defaultProps = {
   openOptions: vi.fn(),
   onGoToAlbum: vi.fn(),
   onGoToRelatedArtist: vi.fn(),
+  onOpenArtistSongs: vi.fn(),
   onBack: vi.fn(),
 };
 
@@ -43,6 +54,9 @@ beforeEach(() => {
   api.get.mockImplementation((path) => {
     if (path.startsWith("/artist/related")) {
       return Promise.resolve({ results: [] });
+    }
+    if (path.endsWith("/albums")) {
+      return Promise.resolve(allAlbumsData);
     }
     return Promise.resolve(artistData);
   });
@@ -123,5 +137,70 @@ describe("ArtistView", () => {
     expect(banner).toBeTruthy();
     expect(banner.style.filter).toContain("blur(8px)");
     expect(banner.style.filter).not.toContain("12px");
+  });
+});
+
+describe("ArtistView — «Ver todas las canciones» y álbumes completos", () => {
+  it("should open the full-songs screen with the artist id and name", async () => {
+    const onOpenArtistSongs = vi.fn();
+    render(<ArtistView {...defaultProps} onOpenArtistSongs={onOpenArtistSongs} />);
+    await waitFor(() => {
+      expect(screen.getByText("Ver todas las canciones")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("Ver todas las canciones"));
+    expect(onOpenArtistSongs).toHaveBeenCalledWith({
+      browseId: "art1",
+      name: "Test Artist",
+    });
+  });
+
+  it("should preview only the top 5 songs (el catálogo va en la pantalla nueva)", async () => {
+    api.get.mockImplementation((path) => {
+      if (path.startsWith("/artist/related")) return Promise.resolve({ results: [] });
+      if (path.endsWith("/albums")) return Promise.resolve({ albums: [], singles: [] });
+      return Promise.resolve({
+        ...artistData,
+        songs: Array.from({ length: 8 }, (_, i) => ({
+          videoId: `v${i}`,
+          title: `Top ${i}`,
+          artist: "Test Artist",
+          thumbnail: "x.jpg",
+        })),
+      });
+    });
+    render(<ArtistView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("Top 0")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Top 4")).toBeInTheDocument();
+    expect(screen.queryByText("Top 5")).not.toBeInTheDocument();
+  });
+
+  it("should fetch ALL albums from the paginated endpoint and render them", async () => {
+    render(<ArtistView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("Album 1")).toBeInTheDocument();
+    });
+    // El endpoint paginado se pide y sus resultados se pintan (2 extra + 1 single)
+    expect(api.get).toHaveBeenCalledWith("/artist/art1/albums");
+    await waitFor(() => {
+      expect(screen.getByText("Album 2")).toBeInTheDocument();
+      expect(screen.getByText("Album 3")).toBeInTheDocument();
+      expect(screen.getByText("Single 1")).toBeInTheDocument();
+    });
+  });
+
+  it("keeps the first page when the paginated albums call fails", async () => {
+    api.get.mockImplementation((path) => {
+      if (path.startsWith("/artist/related")) return Promise.resolve({ results: [] });
+      if (path.endsWith("/albums")) return Promise.reject(new Error("net"));
+      return Promise.resolve(artistData);
+    });
+    render(<ArtistView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("Album 1")).toBeInTheDocument();
+    });
+    // Sin romper: la primera página de get_artist se queda visible
+    expect(screen.queryByText("No se pudo cargar el artista")).not.toBeInTheDocument();
   });
 });

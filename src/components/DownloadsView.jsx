@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
+import { filterSongs } from "../utils/songFilter";
 import { ConfirmModal } from "./ConfirmModal";
 import { StatusState } from "./StatusState";
 import {
@@ -16,6 +17,7 @@ import {
 } from "../utils/theme";
 import LibraryTabs from "./LibraryTabs";
 import TrackList from "./TrackList";
+import { SearchBar } from "./SearchBar";
 import { AlbumGridCard } from "./LibraryCard";
 import { useLibraryGroups } from "../hooks/useLibraryGroups";
 import { useMultiSelect } from "../hooks/useMultiSelect";
@@ -61,6 +63,8 @@ export default function DownloadsView({
   const [showTransferModal, setShowTransferModal] = useState(false);
   // Hover declarativo del hero: "shuffle" | "play" | "clear" (null = ninguno).
   const [heroHover, setHeroHover] = useState(null);
+  // Buscador local de la pestaña Canciones (filtra la lista en memoria).
+  const [songQuery, setSongQuery] = useState("");
 
   // ── Selección múltiple (solo pestaña Canciones, estilo PlaylistView) ──
   const {
@@ -72,9 +76,10 @@ export default function DownloadsView({
     resetSelect,
   } = useMultiSelect();
 
-  // La selección no atraviesa pestañas: se descarta al cambiar.
+  // La selección y la búsqueda no atraviesan pestañas: se descartan al cambiar.
   useEffect(() => {
     resetSelect();
+    setSongQuery("");
   }, [tab, resetSelect]);
 
   // Canciones normalizadas (mismo shape que cualquier lista de la app)
@@ -98,6 +103,8 @@ export default function DownloadsView({
   );
 
   const { albums } = useLibraryGroups(songs);
+  // Lista de canciones filtrada por el buscador local (vacío = todo).
+  const filteredSongs = filterSongs(songs, songQuery);
 
   // ── Confirmaciones: "Eliminar todo" o solo la selección ──
   const handleConfirm = async () => {
@@ -406,52 +413,66 @@ export default function DownloadsView({
         (songs.length === 0 ? (
           <div style={EMPTY_STYLE}>Descarga canciones para escucharlas sin conexión</div>
         ) : (
-          <TrackList
-            songs={songs}
-            currentSong={currentSong}
-            accentColor={accentColor}
-            onPlay={(song) => playSong(song, 0, false, songs)}
-            openOptions={openOptions}
-            selectMode={selectMode}
-            selected={selected}
-            toggleSelect={toggleSelect}
-            badgeFor={(song) => (
-              <span
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  flexShrink: 0,
-                  marginRight: "6px",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "9px",
-                    color: SUCCESS,
-                    fontWeight: "800",
-                    background: withAlpha(SUCCESS, "1a"),
-                    borderRadius: RADIUS.pill,
-                    padding: "2px 8px",
-                    letterSpacing: ".2px",
-                  }}
-                >
-                  OFFLINE
-                </span>
-                {song.size > 0 && (
+          <>
+            <div style={{ marginBottom: "12px" }}>
+              <SearchBar
+                value={songQuery}
+                onChange={setSongQuery}
+                placeholder="Buscar en Descargas"
+                accentColor={accentColor}
+              />
+            </div>
+            {filteredSongs.length === 0 ? (
+              <div style={EMPTY_STYLE}>Sin resultados para «{songQuery}»</div>
+            ) : (
+              <TrackList
+                songs={filteredSongs}
+                currentSong={currentSong}
+                accentColor={accentColor}
+                onPlay={(song) => playSong(song, 0, false, filteredSongs)}
+                openOptions={openOptions}
+                selectMode={selectMode}
+                selected={selected}
+                toggleSelect={toggleSelect}
+                badgeFor={(song) => (
                   <span
                     style={{
-                      fontSize: "10px",
-                      color: "rgba(255,255,255,.35)",
-                      fontWeight: "700",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      flexShrink: 0,
+                      marginRight: "6px",
                     }}
                   >
-                    {fmtSize(song.size)}
+                    <span
+                      style={{
+                        fontSize: "9px",
+                        color: SUCCESS,
+                        fontWeight: "800",
+                        background: withAlpha(SUCCESS, "1a"),
+                        borderRadius: RADIUS.pill,
+                        padding: "2px 8px",
+                        letterSpacing: ".2px",
+                      }}
+                    >
+                      OFFLINE
+                    </span>
+                    {song.size > 0 && (
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          color: "rgba(255,255,255,.35)",
+                          fontWeight: "700",
+                        }}
+                      >
+                        {fmtSize(song.size)}
+                      </span>
+                    )}
                   </span>
                 )}
-              </span>
+              />
             )}
-          />
+          </>
         ))}
 
       {tab === "albums" &&

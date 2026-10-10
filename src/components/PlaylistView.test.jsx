@@ -202,3 +202,98 @@ describe("PlaylistView", () => {
     expect(screen.queryByTestId("status-state")).toBeNull();
   });
 });
+
+describe("PlaylistView — buscador local", () => {
+  const searchSongs = [
+    {
+      videoId: "s1",
+      title: "Bohemian Rhapsody",
+      artist: "Queen",
+      thumbnail: "a.jpg",
+      duration: 120,
+    },
+    { videoId: "s2", title: "Yellow", artist: "Coldplay", thumbnail: "b.jpg", duration: 130 },
+  ];
+
+  beforeEach(() => {
+    api.fetchPlaylistSongs.mockResolvedValue(searchSongs);
+  });
+
+  it("filtra las canciones de la playlist mientras se escribe", async () => {
+    render(<PlaylistView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("Bohemian Rhapsody")).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en esta playlist"), {
+      target: { value: "queen" },
+    });
+    expect(screen.getByText("Bohemian Rhapsody")).toBeInTheDocument();
+    expect(screen.queryByText("Yellow")).not.toBeInTheDocument();
+  });
+
+  it("es insensible a mayúsculas y acentos", async () => {
+    api.fetchPlaylistSongs.mockResolvedValue([
+      {
+        videoId: "s3",
+        title: "Música Ligera",
+        artist: "Soda Stereo",
+        thumbnail: "c.jpg",
+        duration: 100,
+      },
+    ]);
+    render(<PlaylistView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("Música Ligera")).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en esta playlist"), {
+      target: { value: "MUSICA" },
+    });
+    expect(screen.getByText("Música Ligera")).toBeInTheDocument();
+  });
+
+  it("muestra aviso sin resultados y la X restaura la lista", async () => {
+    render(<PlaylistView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("Yellow")).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en esta playlist"), {
+      target: { value: "zzz" },
+    });
+    expect(screen.getByText("Sin resultados para «zzz»")).toBeInTheDocument();
+    expect(screen.queryByText("Yellow")).not.toBeInTheDocument();
+    const clear = document.querySelector(".app-searchbar button");
+    expect(clear).toBeTruthy();
+    fireEvent.click(clear);
+    expect(screen.getByText("Bohemian Rhapsody")).toBeInTheDocument();
+  });
+
+  it("desactiva el arrastrar-reordenar mientras hay consulta activa", async () => {
+    render(<PlaylistView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("Bohemian Rhapsody")).toBeInTheDocument();
+    });
+    // Sin filtro: las filas SÍ son arrastrables
+    expect(document.querySelector('[draggable="true"]')).toBeTruthy();
+    fireEvent.change(screen.getByPlaceholderText("Buscar en esta playlist"), {
+      target: { value: "queen" },
+    });
+    // Con filtro: los índices no corresponden a la lista real → no arrastrable
+    expect(document.querySelector('[draggable="true"]')).toBeNull();
+  });
+
+  it("la consulta no sobrevive al cambiar de playlist", async () => {
+    const { rerender } = render(<PlaylistView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("Bohemian Rhapsody")).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en esta playlist"), {
+      target: { value: "zzz" },
+    });
+    expect(screen.getByText(/Sin resultados/)).toBeInTheDocument();
+    rerender(<PlaylistView {...defaultProps} playlist={{ id: 2, name: "Otra" }} />);
+    await waitFor(() => {
+      expect(screen.getByText("Bohemian Rhapsody")).toBeInTheDocument();
+    });
+    expect(screen.getByPlaceholderText("Buscar en esta playlist").value).toBe("");
+  });
+});

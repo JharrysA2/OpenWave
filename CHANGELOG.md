@@ -33,6 +33,15 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 - **Biblioteca navegable sin backend**: si una petición GET falla por red,
   `api.js` sirve la última respuesta conocida (aunque haya expirado) en
   vez de lanzar error.
+- **Buscador local en «Me gusta», «Historial», «Descargas» y
+  Playlist**: una barra glass (la misma de Inicio/Búsqueda) filtra en
+  memoria las canciones de esa pantalla mientras escribes — título,
+  artista(s) y álbum, sin red y sin tocar el catálogo global. La
+  comparación es insensible a mayúsculas y acentos («musica» encuentra
+  «Música»); sin coincidencias muestra un aviso con la consulta. En
+  Playlist, mientras hay consulta activa se desactiva el
+  arrastrar-reordenar porque los índices no corresponden a la lista
+  completa; al cambiar de playlist la consulta se limpia.
 
 ### Changed
 
@@ -56,6 +65,15 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   ahora exige que el hash de código del staging coincida con el del
   repositorio (nueva comprobación 75/75), y el build se relanzó sin
   `-SkipRuntime` para que el payload lleve el código real de esta ronda.
+
+- **Tipografía inconsistente en botones, inputs y varios modales**: el
+  navegador NO hereda la fuente en los controles de formulario
+  (`button`/`input`/`select`/`textarea` usaban la del sistema —Segoe/Arial—
+  en vez de DM Sans: «Reproducir todo», «Aleatorio», «Limpiar», los
+  botones de ConfirmModal/CreatePlaylistModal…). Regla global
+  `font-family: inherit` en `dynamic-theme.css` (más `body` como red de
+  seguridad para contenido montado en `<body>` por portales); los
+  estilos inline con familia propia siguen mandando.
 
 ## [1.0.0] - 2026-10-09
 

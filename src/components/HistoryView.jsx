@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
+import { filterSongs } from "../utils/songFilter";
 import { ConfirmModal } from "./ConfirmModal";
 import { StatusState } from "./StatusState";
+import { SearchBar } from "./SearchBar";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, ANIMATIONS } from "../utils/theme";
 import SongRow from "./SongRow";
 
@@ -20,6 +22,9 @@ export default function HistoryView({
   toast,
 }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  // Buscador local: filtra el historial en memoria (sin red).
+  const [songQuery, setSongQuery] = useState("");
+  const filteredHistory = filterSongs(history, songQuery);
 
   // La biblioteca entera falló (backend caído): NUNCA se pinta como
   // «No hay historial aún» — estado de error con código + Reintentar.
@@ -243,7 +248,7 @@ export default function HistoryView({
         </div>
       </div>
 
-      {/* ── Lista ─────────────────────────────────── */}
+      {/* ── Lista (con buscador local) ────────────── */}
       {history.length === 0 ? (
         <div
           style={{
@@ -257,26 +262,50 @@ export default function HistoryView({
           No hay historial aún
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          {history.map((song, i) => {
-            const isActive = currentSong?.videoId === song.videoId;
-            return (
-              <SongRow
-                key={song.videoId || i}
-                song={song}
-                isActive={isActive}
-                accentColor={accentColor}
-                index={i}
-                onClick={() => playSong(song)}
-                coverSrc={song.thumbnail || song.thumbnails?.[0]?.url}
-                subtitle={`${song.artist} · ${song.playCount || 1} reproducción${
-                  song.playCount !== 1 ? "es" : ""
-                }`}
-                onOpenOptions={openOptions}
-              />
-            );
-          })}
-        </div>
+        <>
+          <div style={{ marginBottom: "12px" }}>
+            <SearchBar
+              value={songQuery}
+              onChange={setSongQuery}
+              placeholder="Buscar en el historial"
+              accentColor={accentColor}
+            />
+          </div>
+          {filteredHistory.length === 0 ? (
+            <div
+              style={{
+                padding: "60px 20px",
+                textAlign: "center",
+                color: "rgba(255,255,255,.3)",
+                fontSize: "14px",
+                fontWeight: "600",
+              }}
+            >
+              Sin resultados para «{songQuery}»
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              {filteredHistory.map((song, i) => {
+                const isActive = currentSong?.videoId === song.videoId;
+                return (
+                  <SongRow
+                    key={song.videoId || i}
+                    song={song}
+                    isActive={isActive}
+                    accentColor={accentColor}
+                    index={i}
+                    onClick={() => playSong(song)}
+                    coverSrc={song.thumbnail || song.thumbnails?.[0]?.url}
+                    subtitle={`${song.artist} · ${song.playCount || 1} reproducción${
+                      song.playCount !== 1 ? "es" : ""
+                    }`}
+                    onOpenOptions={openOptions}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       <ConfirmModal

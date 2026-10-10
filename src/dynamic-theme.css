@@ -161,3 +161,25 @@ input[type="range"]::-moz-range-thumb {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
+
+/* ── Tipografía consistente de la app ─────────────────────────────────
+   La raíz de App declara FONT, pero cualquier contenido montado en
+   <body> por un portal (modales, mute del player) caería en la fuente
+   del sistema; body fija la misma familia que constants.FONT. */
+body {
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+
+/* ── Tipografía consistente en controles de formulario ───────────────
+   El UA stylesheet NO hereda la fuente en botones/inputs/selects
+   (se pintaban con la fuente del sistema —Segoe/Arial— en vez de la
+   DM Sans de la app: botones de «Reproducir todo», «Limpiar», los de
+   los modales…). Como estos elementos SÍ heredan si nadie lo impide,
+   basta devolverles font-family: inherit. Los estilos inline con
+   fontFamily propio siguen mandando por encima de esta regla. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}

@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
+import { filterSongs } from "../utils/songFilter";
 import { MusicCover } from "./MusicCover";
 import { ConfirmModal } from "./ConfirmModal";
 import { StatusState } from "./StatusState";
+import { SearchBar } from "./SearchBar";
 import TrackList from "./TrackList";
 import { useMultiSelect } from "../hooks/useMultiSelect";
 import { TransferModal } from "./TransferModal";
@@ -30,6 +32,8 @@ export default function PlaylistView({
   const [editName, setEditName] = useState(playlist?.name || "");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
+  // Buscador local: filtra las canciones de ESTA playlist (sin red).
+  const [songQuery, setSongQuery] = useState("");
 
   // Ref siempre fresco de los ids descargados — se usa al cargar las canciones
   // y se re-sincroniza si la lista de descargas cambia con la vista abierta.
@@ -76,6 +80,7 @@ export default function PlaylistView({
 
   useEffect(() => {
     if (!playlist?.id) return;
+    setSongQuery("");
     loadSongs();
   }, [playlist?.id, loadSongs]);
 
@@ -93,6 +98,10 @@ export default function PlaylistView({
       return changed ? next : prev;
     });
   }, [downloadedIds]);
+
+  // Lista filtrada por el buscador local (vacío = todas).
+  const filteredSongs = filterSongs(songs, songQuery);
+  const isFiltering = !!songQuery.trim();
 
   // ── Save edited name ──
   const saveName = async () => {
@@ -667,24 +676,50 @@ export default function PlaylistView({
           Esta playlist está vacía. Agrega canciones desde el menú de opciones.
         </div>
       ) : (
-        <TrackList
-          songs={songs}
-          currentSong={currentSong}
-          accentColor={accentColor}
-          onPlay={(song) => playSong(song, 0, false, songs)}
-          openOptions={openOptions}
-          onRemove={handleRemoveSong}
-          selectMode={selectMode}
-          selected={selected}
-          toggleSelect={toggleSelect}
-          dragEnabled
-          dragIdx={dragIdx ?? -1}
-          dragOverIdx={dragOverIdx ?? -1}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onDragEnd={handleDragEnd}
-        />
+        <>
+          <div style={{ marginBottom: "12px" }}>
+            <SearchBar
+              value={songQuery}
+              onChange={setSongQuery}
+              placeholder="Buscar en esta playlist"
+              accentColor={accentColor}
+            />
+          </div>
+          {filteredSongs.length === 0 ? (
+            <div
+              style={{
+                padding: "60px 20px",
+                textAlign: "center",
+                color: "rgba(255,255,255,.3)",
+                fontSize: "14px",
+                fontWeight: "600",
+              }}
+            >
+              Sin resultados para «{songQuery}»
+            </div>
+          ) : (
+            <TrackList
+              songs={filteredSongs}
+              currentSong={currentSong}
+              accentColor={accentColor}
+              onPlay={(song) => playSong(song, 0, false, filteredSongs)}
+              openOptions={openOptions}
+              onRemove={handleRemoveSong}
+              selectMode={selectMode}
+              selected={selected}
+              toggleSelect={toggleSelect}
+              // Reordenar solo con la lista COMPLETA visible: los índices
+              // del drag no corresponden a la lista real si hay filtro.
+              dragEnabled={!isFiltering}
+              dragIdx={dragIdx ?? -1}
+              dragOverIdx={dragOverIdx ?? -1}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+            />
+          )}
+        </>
       )}
 
       {/* ── Transfer Modal ─────────────────────────── */}

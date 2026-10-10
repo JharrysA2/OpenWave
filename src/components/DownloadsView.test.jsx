@@ -371,3 +371,49 @@ describe("DownloadsView", () => {
     expect(screen.getByTestId("hero-play")).toBeInTheDocument();
   });
 });
+
+describe("DownloadsView — buscador local", () => {
+  const searchDownloads = [
+    song("a", { title: "Bohemian Rhapsody", artist: "Queen" }),
+    song("b", { title: "Yellow", artist: "Coldplay" }),
+  ];
+
+  it("filtra las descargas mientras se escribe", () => {
+    renderDownloads({ downloads: searchDownloads });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en Descargas"), {
+      target: { value: "coldplay" },
+    });
+    expect(screen.getByText("Yellow")).toBeInTheDocument();
+    expect(screen.queryByText("Bohemian Rhapsody")).not.toBeInTheDocument();
+  });
+
+  it("es insensible a mayúsculas y acentos", () => {
+    renderDownloads({ downloads: [song("c", { title: "Música Ligera" })] });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en Descargas"), {
+      target: { value: "MUSICA" },
+    });
+    expect(screen.getByText("Música Ligera")).toBeInTheDocument();
+  });
+
+  it("muestra aviso sin resultados y la X restaura la lista", () => {
+    renderDownloads({ downloads: searchDownloads });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en Descargas"), {
+      target: { value: "zzz" },
+    });
+    expect(screen.getByText("Sin resultados para «zzz»")).toBeInTheDocument();
+    expect(screen.queryByText("Yellow")).not.toBeInTheDocument();
+    const clear = document.querySelector(".app-searchbar button");
+    expect(clear).toBeTruthy();
+    fireEvent.click(clear);
+    expect(screen.getByText("Bohemian Rhapsody")).toBeInTheDocument();
+    expect(screen.getByText("Yellow")).toBeInTheDocument();
+  });
+
+  it("la barra no aparece si no hay descargas (estado vacío)", () => {
+    renderDownloads();
+    expect(screen.queryByPlaceholderText("Buscar en Descargas")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Descarga canciones para escucharlas sin conexión"),
+    ).toBeInTheDocument();
+  });
+});

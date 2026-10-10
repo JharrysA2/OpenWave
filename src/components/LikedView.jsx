@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
+import { filterSongs } from "../utils/songFilter";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, LAYOUTS, ANIMATIONS } from "../utils/theme";
 import LibraryTabs from "./LibraryTabs";
 import TrackList from "./TrackList";
+import { SearchBar } from "./SearchBar";
 import { AlbumGridCard, ArtistGridCard } from "./LibraryCard";
 import { useMultiSelect } from "../hooks/useMultiSelect";
 import { TransferModal } from "./TransferModal";
@@ -41,6 +43,8 @@ export default function LikedView({
   // Hover declarativo del hero: "shuffle" | "play" (null = ninguno).
   const [heroHover, setHeroHover] = useState(null);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  // Buscador local de la pestaña Canciones (filtra la lista en memoria).
+  const [songQuery, setSongQuery] = useState("");
 
   // ── Selección múltiple (solo pestaña Canciones, estilo PlaylistView) ──
   const {
@@ -52,10 +56,14 @@ export default function LikedView({
     resetSelect,
   } = useMultiSelect();
 
-  // La selección no atraviesa pestañas: se descarta al cambiar.
+  // La selección y la búsqueda no atraviesan pestañas: se descartan al cambiar.
   useEffect(() => {
     resetSelect();
+    setSongQuery("");
   }, [tab, resetSelect]);
+
+  // Lista de canciones filtrada por el buscador local (vacío = todo).
+  const filteredSongs = filterSongs(likedSongs, songQuery);
 
   // ── Reproducción por pestaña ─────────────────────────────────────
   // Canciones: Reproducir = primera canción, Aleatorio = cola barajada.
@@ -306,18 +314,32 @@ export default function LikedView({
         (likedSongs.length === 0 ? (
           <div style={EMPTY_STYLE}>Dale me gusta a canciones para verlas aquí</div>
         ) : (
-          <TrackList
-            songs={likedSongs}
-            currentSong={currentSong}
-            accentColor={accentColor}
-            onPlay={(song) => playSong(song, 0, false, likedSongs)}
-            openOptions={openOptions}
-            liked={liked}
-            onToggleLike={toggleLike}
-            selectMode={selectMode}
-            selected={selected}
-            toggleSelect={toggleSelect}
-          />
+          <>
+            <div style={{ marginBottom: "12px" }}>
+              <SearchBar
+                value={songQuery}
+                onChange={setSongQuery}
+                placeholder="Buscar en Me gusta"
+                accentColor={accentColor}
+              />
+            </div>
+            {filteredSongs.length === 0 ? (
+              <div style={EMPTY_STYLE}>Sin resultados para «{songQuery}»</div>
+            ) : (
+              <TrackList
+                songs={filteredSongs}
+                currentSong={currentSong}
+                accentColor={accentColor}
+                onPlay={(song) => playSong(song, 0, false, filteredSongs)}
+                openOptions={openOptions}
+                liked={liked}
+                onToggleLike={toggleLike}
+                selectMode={selectMode}
+                selected={selected}
+                toggleSelect={toggleSelect}
+              />
+            )}
+          </>
         ))}
 
       {tab === "albums" &&

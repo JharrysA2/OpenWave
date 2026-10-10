@@ -365,3 +365,56 @@ describe("LikedView", () => {
     expect(activeTab.style.color).toContain("var(--neon-fg)");
   });
 });
+
+describe("LikedView — buscador local de canciones", () => {
+  const searchSongs = [
+    song("a", { title: "Bohemian Rhapsody", artist: "Queen" }),
+    song("b", { title: "Yellow", artist: "Coldplay" }),
+  ];
+
+  it("filtra la lista mientras se escribe (solo coincidencias)", async () => {
+    render(<LikedView {...defaultProps} likedSongs={searchSongs} />);
+    await waitFor(() => {
+      expect(screen.getByText("Bohemian Rhapsody")).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en Me gusta"), {
+      target: { value: "coldplay" },
+    });
+    expect(screen.queryByText("Bohemian Rhapsody")).not.toBeInTheDocument();
+    expect(screen.getByText("Yellow")).toBeInTheDocument();
+  });
+
+  it("es insensible a mayúsculas y acentos", async () => {
+    render(<LikedView {...defaultProps} likedSongs={[song("c", { title: "Música Ligera" })]} />);
+    await waitFor(() => {
+      expect(screen.getByText("Música Ligera")).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en Me gusta"), {
+      target: { value: "MUSICA" },
+    });
+    expect(screen.getByText("Música Ligera")).toBeInTheDocument();
+  });
+
+  it("muestra aviso sin resultados y la X de la barra restaura la lista", async () => {
+    render(<LikedView {...defaultProps} likedSongs={searchSongs} />);
+    await waitFor(() => {
+      expect(screen.getByText("Yellow")).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en Me gusta"), {
+      target: { value: "zzz" },
+    });
+    expect(screen.getByText("Sin resultados para «zzz»")).toBeInTheDocument();
+    expect(screen.queryByText("Yellow")).not.toBeInTheDocument();
+    // La X (botón con icono, sin texto) del SearchBar vacía la consulta
+    const clear = document.querySelector(".app-searchbar button");
+    expect(clear).toBeTruthy();
+    fireEvent.click(clear);
+    expect(screen.getByText("Bohemian Rhapsody")).toBeInTheDocument();
+    expect(screen.getByText("Yellow")).toBeInTheDocument();
+  });
+
+  it("la barra no aparece si no hay canciones (estado vacío)", () => {
+    render(<LikedView {...defaultProps} likedSongs={[]} />);
+    expect(screen.queryByPlaceholderText("Buscar en Me gusta")).not.toBeInTheDocument();
+  });
+});

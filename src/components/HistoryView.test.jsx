@@ -176,3 +176,52 @@ describe("HistoryView", () => {
     expect(screen.queryByTestId("status-state")).toBeNull();
   });
 });
+
+describe("HistoryView — buscador local", () => {
+  const searchHistory = [
+    song("a", { title: "Bohemian Rhapsody", artist: "Queen" }),
+    song("b", { title: "Yellow", artist: "Coldplay" }),
+  ];
+
+  it("filtra el historial mientras se escribe", () => {
+    renderHistory({ history: searchHistory });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en el historial"), {
+      target: { value: "queen" },
+    });
+    expect(screen.getByText("Bohemian Rhapsody")).toBeInTheDocument();
+    expect(screen.queryByText("Yellow")).not.toBeInTheDocument();
+  });
+
+  it("es insensible a mayúsculas y acentos", () => {
+    renderHistory({ history: [song("c", { title: "Música Ligera" })] });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en el historial"), {
+      target: { value: "MUSICA" },
+    });
+    expect(screen.getByText("Música Ligera")).toBeInTheDocument();
+  });
+
+  it("muestra aviso sin resultados y vaciar la consulta restaura la lista", () => {
+    renderHistory({ history: searchHistory });
+    fireEvent.change(screen.getByPlaceholderText("Buscar en el historial"), {
+      target: { value: "zzz" },
+    });
+    expect(screen.getByText("Sin resultados para «zzz»")).toBeInTheDocument();
+    expect(screen.queryByText("Yellow")).not.toBeInTheDocument();
+    const clear = document.querySelector(".app-searchbar button");
+    expect(clear).toBeTruthy();
+    fireEvent.click(clear);
+    expect(screen.getByText("Bohemian Rhapsody")).toBeInTheDocument();
+    expect(screen.getByText("Yellow")).toBeInTheDocument();
+  });
+
+  it("la barra no aparece si el historial está vacío", () => {
+    renderHistory();
+    expect(screen.queryByPlaceholderText("Buscar en el historial")).not.toBeInTheDocument();
+    expect(screen.getByText("No hay historial aún")).toBeInTheDocument();
+  });
+
+  it("con estado de error no se pinta el buscador", () => {
+    renderHistory({ status: "error", errorCode: "E500" });
+    expect(screen.queryByPlaceholderText("Buscar en el historial")).not.toBeInTheDocument();
+  });
+});

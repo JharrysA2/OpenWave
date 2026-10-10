@@ -64,9 +64,7 @@ def test_windows_los_datos_van_a_programdata(tmp_path):
         "PROGRAMDATA": str(tmp_path / "ProgramData"),
         "LOCALAPPDATA": str(tmp_path / "Local"),
     }
-    ruta = config._resolver_datos_dir(
-        _bloqueo(tmp_path), entorno, es_windows=True
-    )
+    ruta = config._resolver_datos_dir(_bloqueo(tmp_path), entorno, es_windows=True)
     assert ruta == tmp_path / "ProgramData" / "OpenWave"
     # El gate debe haber creado la carpeta al comprobar escritura.
     assert ruta.is_dir()
@@ -75,9 +73,7 @@ def test_windows_los_datos_van_a_programdata(tmp_path):
 def test_windows_sin_programdata_cae_en_localappdata(tmp_path):
     """Sin PROGRAMDATA (o sin valor) sigue funcionando por usuario."""
     entorno = {"LOCALAPPDATA": str(tmp_path / "Local")}
-    ruta = config._resolver_datos_dir(
-        _bloqueo(tmp_path), entorno, es_windows=True
-    )
+    ruta = config._resolver_datos_dir(_bloqueo(tmp_path), entorno, es_windows=True)
     assert ruta == tmp_path / "Local" / "OpenWave"
 
 
@@ -86,9 +82,7 @@ def test_windows_programdata_no_escribible_cae_en_localappdata(tmp_path):
     pd = tmp_path / "ProgramData"
     pd.write_text("", encoding="utf-8")  # un fichero nunca es escribible
     entorno = {"PROGRAMDATA": str(pd), "LOCALAPPDATA": str(tmp_path / "Local")}
-    ruta = config._resolver_datos_dir(
-        _bloqueo(tmp_path), entorno, es_windows=True
-    )
+    ruta = config._resolver_datos_dir(_bloqueo(tmp_path), entorno, es_windows=True)
     assert ruta == tmp_path / "Local" / "OpenWave"
 
 
@@ -98,9 +92,7 @@ def test_windows_la_env_sigue_mandando_sobre_programdata(tmp_path):
         "OPENWAVE_DATA_DIR": str(tmp_path / "portable"),
         "PROGRAMDATA": str(tmp_path / "ProgramData"),
     }
-    ruta = config._resolver_datos_dir(
-        _bloqueo(tmp_path), entorno, es_windows=True
-    )
+    ruta = config._resolver_datos_dir(_bloqueo(tmp_path), entorno, es_windows=True)
     assert ruta == tmp_path / "portable"
 
 
@@ -110,9 +102,7 @@ def test_en_linux_programdata_no_manda(tmp_path):
         "PROGRAMDATA": str(tmp_path / "ProgramData"),
         "XDG_DATA_HOME": str(tmp_path / "xdg"),
     }
-    ruta = config._resolver_datos_dir(
-        _bloqueo(tmp_path), entorno, es_windows=False
-    )
+    ruta = config._resolver_datos_dir(_bloqueo(tmp_path), entorno, es_windows=False)
     assert ruta == tmp_path / "xdg" / "OpenWave"
 
 

@@ -809,6 +809,43 @@ describe("usePlayer", () => {
     expect(result.current.currentSong?.videoId).toBe("restart");
   });
 
+  it("playSong avisa con toast cuando fallan ambos intentos y no queda «sonando»", async () => {
+    // Política de errores de reproducción (v1): ambos intentos fallidos →
+    // mensaje flotante (variant "error") + isPlaying revertido a false.
+    mockStreamFetch();
+    const toast = vi.fn();
+    const { result } = renderHook(() => usePlayer(toast));
+
+    const song = { videoId: "dead-src-v1", title: "Src muerto" };
+    result.current.audioRef.current = createMockAudio(200, false); // play() rechaza
+
+    await act(async () => {
+      await result.current.playSong(song);
+    });
+
+    expect(result.current.isPlaying).toBe(false);
+    expect(toast).toHaveBeenCalledWith("No se pudo reproducir la canción", "error");
+    expect(result.current.streamLoading).toBe(false);
+  });
+
+  it("togglePlay revierte a pausado si play() rechaza (no deja la UI «sonando»)", async () => {
+    const { result } = renderHook(() => usePlayer());
+    const song = { videoId: "resume-dead", title: "Reanudar muerta" };
+    const audio = createMockAudio(200, false);
+    Object.defineProperty(audio, "ended", { value: false, writable: true, configurable: true });
+    result.current.audioRef.current = audio;
+
+    await act(async () => {
+      result.current.setCurrentSong(song);
+    });
+    await act(async () => {
+      result.current.togglePlay();
+    });
+
+    await waitFor(() => expect(result.current.isPlaying).toBe(false));
+    expect(audio.play).toHaveBeenCalledTimes(1);
+  });
+
   it("handleSongEnded should ignore the event while a crossfade is active", async () => {
     // crossfadeDuration = 10s → el fade sigue en curso al llamar handleSongEnded.
     const mockFetch = mockStreamFetch();

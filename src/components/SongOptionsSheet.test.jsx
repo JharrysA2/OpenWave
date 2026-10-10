@@ -1,6 +1,6 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { SongOptionsSheet } from "./SongOptionsSheet";
 import { SettingsProvider } from "../contexts/SettingsContext";
 import { mockApiResponse } from "../test-utils";
@@ -227,5 +227,84 @@ describe("SongOptionsSheet", () => {
       fireEvent.click(closeBtn);
       expect(onClose).toHaveBeenCalled();
     }
+  });
+
+  // ── Descarga robusta (bug auditoría v1: botón clavado en «0 %») ───────────
+
+  describe("descarga con fallos", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("si el POST de descarga falla, avisa y el botón vuelve a «Descargar»", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => Promise.reject(new Error("429 rate limit"))),
+      );
+      const toast = vi.fn();
+      renderSheet({ song, open: true, toast });
+
+      fireEvent.click(screen.getByText("Descargar"));
+
+      await waitFor(() => expect(toast).toHaveBeenCalledWith("Error en la descarga", "error"));
+      // dlPct se resetea: sin «0 %» clavado sin salida
+      expect(screen.getByText("Descargar")).toBeInTheDocument();
+    });
+
+    it("si el SSE de progreso muere, avisa y no se queda en «0 %»", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => Promise.resolve(mockApiResponse({ ok: true }))),
+      );
+      let esInstance = null;
+      vi.stubGlobal(
+        "EventSource",
+        class {
+          constructor() {
+            esInstance = this;
+          }
+          close() {}
+        },
+      );
+      const toast = vi.fn();
+      renderSheet({ song, open: true, toast });
+
+      fireEvent.click(screen.getByText("Descargar"));
+      await waitFor(() => expect(esInstance).not.toBeNull());
+
+      // La conexión SSE cae (backend reiniciado, red…) → mismo aviso
+      act(() => esInstance.onerror(new Event("error")));
+
+      await waitFor(() => expect(toast).toHaveBeenCalledWith("Error en la descarga", "error"));
+      expect(screen.getByText("Descargar")).toBeInTheDocument();
+    });
+
+    it("frames no-JSON en el SSE se ignoran sin romper el progreso", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => Promise.resolve(mockApiResponse({ ok: true }))),
+      );
+      let esInstance = null;
+      vi.stubGlobal(
+        "EventSource",
+        class {
+          constructor() {
+            esInstance = this;
+          }
+          close() {}
+        },
+      );
+      const toast = vi.fn();
+      renderSheet({ song, open: true, toast });
+
+      fireEvent.click(screen.getByText("Descargar"));
+      await waitFor(() => expect(esInstance).not.toBeNull());
+
+      act(() => esInstance.onmessage({ data: "no-json{" }));
+      expect(toast).not.toHaveBeenCalledWith("Error en la descarga", "error");
+
+      act(() => esInstance.onmessage({ data: JSON.stringify({ progress: 42 }) }));
+      expect(await screen.findByText("42%")).toBeInTheDocument();
+    });
   });
 });

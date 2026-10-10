@@ -3,6 +3,7 @@ import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
 import { ConfirmModal } from "./ConfirmModal";
+import { StatusState } from "./StatusState";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, ANIMATIONS } from "../utils/theme";
 import SongRow from "./SongRow";
 
@@ -13,9 +14,35 @@ export default function HistoryView({
   playSong,
   openOptions,
   onHistoryCleared,
+  status,
+  errorCode,
+  onRetry,
   toast,
 }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // La biblioteca entera falló (backend caído): NUNCA se pinta como
+  // «No hay historial aún» — estado de error con código + Reintentar.
+  if (status === "error") {
+    return (
+      <div
+        style={{
+          padding: SPACING.content.pad,
+          fontFamily: FONT,
+          overflowY: "auto",
+          height: "100%",
+          paddingBottom: "90px",
+        }}
+      >
+        <StatusState
+          code={errorCode}
+          title="No se pudo cargar el historial"
+          onRetry={onRetry}
+          accentColor={accentColor || "#a78bfa"}
+        />
+      </div>
+    );
+  }
 
   const handleClearHistory = async () => {
     await api.deleteHistory(toast);

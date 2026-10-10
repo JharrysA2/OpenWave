@@ -85,14 +85,10 @@ def _resolver_datos_dir(
             if _dir_escribible(candidato):
                 return candidato
         # Fallback por usuario: funciona sin privilegios.
-        base = entorno.get("LOCALAPPDATA") or str(
-            Path.home() / "AppData" / "Local"
-        )
+        base = entorno.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
         return Path(base) / "OpenWave"
 
-    base = entorno.get("XDG_DATA_HOME") or str(
-        Path.home() / ".local" / "share"
-    )
+    base = entorno.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
     return Path(base) / "OpenWave"
 
 

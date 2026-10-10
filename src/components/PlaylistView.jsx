@@ -4,6 +4,7 @@ import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
 import { MusicCover } from "./MusicCover";
 import { ConfirmModal } from "./ConfirmModal";
+import { StatusState } from "./StatusState";
 import TrackList from "./TrackList";
 import { useMultiSelect } from "../hooks/useMultiSelect";
 import { TransferModal } from "./TransferModal";
@@ -24,6 +25,7 @@ export default function PlaylistView({
 }) {
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(playlist?.name || "");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -48,26 +50,34 @@ export default function PlaylistView({
   const [showTransferModal, setShowTransferModal] = useState(false);
 
   // ── Load songs ──
+  //  Exponido como retry: un fallo de red muestra estado de error con
+  //  «Reintentar», NUNCA «Esta playlist está vacía» (bug: el error se
+  //  tragaba y se pintaba como vacío).
+  const loadSongs = useCallback(async () => {
+    if (!playlist?.id) return;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const data = await api.fetchPlaylistSongs(playlist.id);
+      // Marcar las canciones descargadas para que usePlayer reproduzca el
+      // archivo local (offline) en vez de pedir stream al backend.
+      setSongs(
+        (data || []).map((s) =>
+          downloadedIdsRef.current?.has(s.videoId) ? { ...s, downloaded: true } : s,
+        ),
+      );
+    } catch (err) {
+      setSongs([]);
+      setLoadError(err || new Error("load failed"));
+    } finally {
+      setLoading(false);
+    }
+  }, [playlist?.id]);
+
   useEffect(() => {
     if (!playlist?.id) return;
-    let cancelled = false;
-    setLoading(true);
-    api.fetchPlaylistSongs(playlist.id, toast).then((data) => {
-      if (!cancelled) {
-        // Marcar las canciones descargadas para que usePlayer reproduzca el
-        // archivo local (offline) en vez de pedir stream al backend.
-        setSongs(
-          (data || []).map((s) =>
-            downloadedIdsRef.current?.has(s.videoId) ? { ...s, downloaded: true } : s,
-          ),
-        );
-        setLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [playlist?.id, toast]);
+    loadSongs();
+  }, [playlist?.id, loadSongs]);
 
   // Mantener `downloaded` al día si cambia la lista de descargas con la
   // playlist abierta (nueva descarga o borrado desde otra vista).
@@ -637,6 +647,13 @@ export default function PlaylistView({
         >
           Cargando...
         </div>
+      ) : loadError ? (
+        <StatusState
+          code={loadError?.code}
+          title="No se pudo cargar la playlist"
+          onRetry={loadSongs}
+          accentColor={accentColor || "#a78bfa"}
+        />
       ) : songs.length === 0 ? (
         <div
           style={{

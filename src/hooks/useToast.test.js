@@ -138,4 +138,26 @@ describe("useToast", () => {
     expect(result.current.toasts[0].msg).toBe("First toast");
     expect(result.current.toasts[1].msg).toBe("Second toast");
   });
+
+  it("should not stack a duplicate of the same visible message+type", () => {
+    const { result } = renderHook(() => useToast());
+
+    act(() => {
+      result.current.show("No se pudo reproducir la canción", "error");
+      result.current.show("No se pudo reproducir la canción", "error");
+    });
+
+    expect(result.current.toasts).toHaveLength(1);
+  });
+
+  it("should still stack same message with different type", () => {
+    const { result } = renderHook(() => useToast());
+
+    act(() => {
+      result.current.show("Listo", "info");
+      result.current.show("Listo", "success");
+    });
+
+    expect(result.current.toasts).toHaveLength(2);
+  });
 });

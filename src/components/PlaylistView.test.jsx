@@ -59,7 +59,7 @@ describe("PlaylistView", () => {
       expect(screen.getByText("Song A")).toBeInTheDocument();
     });
     expect(screen.getByText("Song B")).toBeInTheDocument();
-    expect(api.fetchPlaylistSongs).toHaveBeenCalledWith(1, expect.any(Function));
+    expect(api.fetchPlaylistSongs).toHaveBeenCalledWith(1);
   });
 
   it("should show loading text while fetching", () => {
@@ -172,5 +172,33 @@ describe("PlaylistView", () => {
       .find((b) => b.style.background === "rgb(255, 255, 255)");
     expect(play).toBeTruthy();
     expect(play.style.color).toContain("var(--neon-fg)");
+  });
+
+  // ── Error de red ≠ playlist vacía (bug de la auditoría v1) ─────────────────
+
+  it("un fallo de carga muestra estado de error con Reintentar, nunca «vacía»", async () => {
+    api.fetchPlaylistSongs.mockRejectedValueOnce(
+      Object.assign(new Error("conn"), { code: "E-CNX-01" }),
+    );
+    api.fetchPlaylistSongs.mockResolvedValue(songs); // el retry tiene éxito
+
+    render(<PlaylistView {...defaultProps} />);
+
+    await waitFor(() => expect(screen.getByTestId("status-state")).toBeInTheDocument());
+    expect(screen.getByText("No se pudo cargar la playlist")).toBeInTheDocument();
+    expect(screen.queryByText(/Está vacía/)).toBeNull();
+
+    // Reintentar vuelve a pedir las canciones y renderiza la lista
+    fireEvent.click(screen.getByTestId("status-retry"));
+    await waitFor(() => expect(screen.getByText("Song A")).toBeInTheDocument());
+  });
+
+  it("carga OK con cero canciones sí muestra el estado vacío (no el de error)", async () => {
+    api.fetchPlaylistSongs.mockResolvedValue([]);
+    render(<PlaylistView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText(/Esta playlist está vacía/)).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("status-state")).toBeNull();
   });
 });

@@ -16,9 +16,21 @@ import {
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 vi.mock("@tauri-apps/plugin-fs", () => ({ readTextFile: vi.fn() }));
+vi.mock("../utils/api", () => ({
+  api: {
+    // Como en los tests previos (sin mock): el backend no está → loadStats
+    // de PageAlmacenamiento cae a stats=undefined ("No disponible").
+    get: vi.fn(() => Promise.reject(new Error("backend no disponible"))),
+    post: vi.fn(() => Promise.resolve({})),
+    fetchPlaylistSongs: vi.fn(() => Promise.resolve([])),
+    importHistory: vi.fn(() => Promise.resolve({ ok: true, imported: 0 })),
+    importPlaylists: vi.fn(() => Promise.resolve({ ok: true, restored: 0 })),
+  },
+}));
 
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
+import { api } from "../utils/api";
 
 // ── PageAcercaDe ───────────────────────────────────────────────────────────
 
@@ -339,33 +351,21 @@ describe("PageApariencia", () => {
 // ── PageContenido ───────────────────────────────────────────────────────
 
 describe("PageContenido", () => {
-  it("should render content section", () => {
-    renderWithSettings(<PageContenido neonColor="#a78bfa" />);
-    expect(screen.getByText("Proveedor de letras")).toBeInTheDocument();
-  });
-
-  it("should render LrcLib toggle", () => {
-    renderWithSettings(<PageContenido neonColor="#a78bfa" />);
-    expect(screen.getByText("LrcLib")).toBeInTheDocument();
-  });
-
-  it("should render KuGou toggle", () => {
-    renderWithSettings(<PageContenido neonColor="#a78bfa" />);
-    expect(screen.getByText("KuGou")).toBeInTheDocument();
-  });
-
-  it("should render LrcLib toggle as clickable", () => {
-    renderWithSettings(<PageContenido neonColor="#a78bfa" />);
-    const lrcLibRow = screen.getByText("LrcLib").parentElement.parentElement;
-    expect(lrcLibRow.querySelector("div[style*='cursor']")).toBeInTheDocument();
-  });
-
   it("should render default search tab SegBtn", () => {
     renderWithSettings(<PageContenido neonColor="#a78bfa" />);
     expect(screen.getByText("Búsqueda")).toBeInTheDocument();
     expect(screen.getByText("Pestaña de búsqueda por defecto")).toBeInTheDocument();
     expect(screen.getByText("Música")).toBeInTheDocument();
     expect(screen.getByText("Vídeos")).toBeInTheDocument();
+  });
+
+  it("no muestra los toggles muertos de proveedor de letras (lrcLib/kuGou)", () => {
+    // Regresión: LrcLib y KuGou no tenían consumidor en el backend y se
+    // eliminaron de la v1 — no deben volver a aparecer.
+    renderWithSettings(<PageContenido neonColor="#a78bfa" />);
+    expect(screen.queryByText("LrcLib")).not.toBeInTheDocument();
+    expect(screen.queryByText("KuGou")).not.toBeInTheDocument();
+    expect(screen.queryByText("Proveedor de letras")).not.toBeInTheDocument();
   });
 });
 
@@ -404,12 +404,14 @@ describe("PageCopias", () => {
     expect(screen.getByText("Importar datos")).toBeInTheDocument();
   });
 
-  it("should trigger export when clicked", () => {
+  it("should trigger export when clicked (incluye las canciones de cada playlist)", async () => {
     const toast = vi.fn();
+    api.fetchPlaylistSongs.mockResolvedValue([{ videoId: "s1", title: "Canción" }]);
     renderWithSettings(<PageCopias {...baseProps} toast={toast} />);
     fireEvent.click(screen.getByText("Exportar datos"));
-    // Export creates a blob and triggers download; verify toast was called
-    expect(toast).toHaveBeenCalledWith("Datos exportados", "success");
+    // Export ahora es async: recarga las canciones de cada playlist
+    await waitFor(() => expect(toast).toHaveBeenCalledWith("Datos exportados", "success"));
+    expect(api.fetchPlaylistSongs).toHaveBeenCalledWith("pl1");
   });
 
   // ── Importar con plugin-dialog (sustituye al <input type="file">) ─────────
@@ -435,26 +437,67 @@ describe("PageCopias", () => {
       expect(localStorage.getItem("sw_liked_v2")).toBeNull();
     });
 
-    it("archivo válido importa las claves y avisa de recargar", async () => {
+    it("archivo válido importa de verdad (backend) y refresca la biblioteca", async () => {
+      openDialog.mockResolvedValue("C:\\backup\\openwave-backup.json");
+      const backup = {
+        liked: ["vid1", "vid2"],
+        history: [{ videoId: "h1", title: "Historial" }],
+        playlists: [{ id: 1, name: "P", songs: [{ videoId: "p1", title: "C" }] }],
+      };
+      readTextFile.mockResolvedValue(JSON.stringify(backup));
+      const toast = vi.fn();
+      const refreshLibrary = vi.fn();
+      renderWithSettings(
+        <PageCopias {...baseProps} toast={toast} refreshLibrary={refreshLibrary} />,
+      );
+
+      fireEvent.click(screen.getByText("Importar datos"));
+
+      await waitFor(() => expect(toast).toHaveBeenCalledWith("Datos importados", "success"));
+      // Historial y playlists van al backend (SQLite), no a claves muertas
+      expect(api.importHistory).toHaveBeenCalledWith(backup.history);
+      expect(api.importPlaylists).toHaveBeenCalledWith(backup.playlists);
+      expect(localStorage.getItem("sw_liked_v2")).toBe(JSON.stringify(["vid1", "vid2"]));
+      expect(localStorage.getItem("sw_history_v2")).toBeNull();
+      expect(localStorage.getItem("sw_playlists_v2")).toBeNull();
+      // La UI se refresca sola: sin «Recarga la app»
+      expect(refreshLibrary).toHaveBeenCalled();
+    });
+
+    it("backup antiguo solo con liked: no toca el backend y aun así avisa", async () => {
+      openDialog.mockResolvedValue("C:\\backup\\solo-liked.json");
+      readTextFile.mockResolvedValue(JSON.stringify({ liked: ["a1"] }));
+      const toast = vi.fn();
+      renderWithSettings(<PageCopias {...baseProps} toast={toast} />);
+
+      fireEvent.click(screen.getByText("Importar datos"));
+
+      await waitFor(() => expect(toast).toHaveBeenCalledWith("Datos importados", "success"));
+      expect(api.importHistory).not.toHaveBeenCalled();
+      expect(api.importPlaylists).not.toHaveBeenCalled();
+      expect(localStorage.getItem("sw_liked_v2")).toBe(JSON.stringify(["a1"]));
+    });
+
+    it("si el backend está caído, avisa con error (y se puede reintentar)", async () => {
       openDialog.mockResolvedValue("C:\\backup\\openwave-backup.json");
       readTextFile.mockResolvedValue(
-        JSON.stringify({
-          liked: ["vid1", "vid2"],
-          history: [{ videoId: "h1" }],
-          playlists: [{ id: 1, name: "P" }],
-        }),
+        JSON.stringify({ liked: ["vid1"], history: [{ videoId: "h1" }] }),
       );
+      api.importHistory.mockRejectedValueOnce(new Error("backend caído"));
       const toast = vi.fn();
       renderWithSettings(<PageCopias {...baseProps} toast={toast} />);
 
       fireEvent.click(screen.getByText("Importar datos"));
 
       await waitFor(() =>
-        expect(toast).toHaveBeenCalledWith("Datos importados. Recarga la app.", "success"),
+        expect(toast).toHaveBeenCalledWith(
+          "No se pudo importar. ¿Está activo el backend?",
+          "error",
+        ),
       );
-      expect(localStorage.getItem("sw_liked_v2")).toBe(JSON.stringify(["vid1", "vid2"]));
-      expect(localStorage.getItem("sw_history_v2")).toBe(JSON.stringify([{ videoId: "h1" }]));
-      expect(localStorage.getItem("sw_playlists_v2")).toBe(JSON.stringify([{ id: 1, name: "P" }]));
+      // La importación es reintentable (endpoints idempotentes): no se
+      // confirma con éxito parcial.
+      expect(localStorage.getItem("sw_liked_v2")).toBeNull();
     });
 
     it("JSON inválido avisa con error", async () => {

@@ -55,6 +55,112 @@ class TestPlaylistsCreate:
         assert r2.json()["id"] > r1.json()["id"]
 
 
+class TestPlaylistsImport:
+    """Tests para POST /playlists/import — restauración desde copia de seguridad."""
+
+    def test_import_empty_body(self, client):
+        """Importar sin playlists debe responder ok con 0."""
+        resp = client.post("/playlists/import", json={})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["restored"] == 0
+
+    def test_import_non_list(self, client):
+        """playlists no-lista se trata como vacío (sin error)."""
+        resp = client.post("/playlists/import", json={"playlists": "nope"})
+        assert resp.status_code == 200
+        assert resp.json()["restored"] == 0
+
+    def test_import_creates_playlist_with_songs(self, client):
+        """Crea la playlist con metadatos y sus canciones completas."""
+        playlists = [
+            {
+                "name": "Copia 2026",
+                "color": "#a78bfa",
+                "cover": "cover.jpg",
+                "songs": [
+                    {
+                        "videoId": "imp_s1",
+                        "title": "Canción 1",
+                        "artist": "Artista",
+                        "duration": 60,
+                        "thumbnail": "t1",
+                        "thumbnails": [{"url": "t1", "width": 100}],
+                    },
+                    {"videoId": "imp_s2", "title": "Canción 2", "artist": "Artista"},
+                    {"title": "sin videoId — se ignora"},
+                ],
+            }
+        ]
+        resp = client.post("/playlists/import", json={"playlists": playlists})
+        assert resp.status_code == 200
+        assert resp.json()["restored"] == 1
+
+        lists = client.get("/playlists").json()
+        target = next(p for p in lists if p["name"] == "Copia 2026")
+        assert target["song_count"] == 2
+        assert target["color"] == "#a78bfa"
+
+        songs = {
+            s["videoId"]: s
+            for s in client.get(f"/playlists/{target['id']}/songs").json()
+        }
+        assert songs["imp_s1"]["title"] == "Canción 1"
+        assert songs["imp_s1"]["duration"] == 60
+        assert songs["imp_s1"]["thumbnails"] == [{"url": "t1", "width": 100}]
+
+    def test_import_merges_by_name_and_is_idempotent(self, client):
+        """Re-importar con el mismo nombre fusiona: sin duplicados ni playlists extra."""
+        first = [
+            {
+                "name": "Fusion",
+                "songs": [{"videoId": "mg1", "title": "Uno", "artist": "A"}],
+            }
+        ]
+        client.post("/playlists/import", json={"playlists": first})
+        # Re-import con una canción nueva + una repetida
+        second = [
+            {
+                "name": "Fusion",
+                "songs": [
+                    {"videoId": "mg1", "title": "Uno", "artist": "A"},
+                    {"videoId": "mg2", "title": "Dos", "artist": "A"},
+                ],
+            }
+        ]
+        resp = client.post("/playlists/import", json={"playlists": second})
+        assert resp.json()["restored"] == 1
+
+        lists = client.get("/playlists").json()
+        named = [p for p in lists if p["name"] == "Fusion"]
+        assert len(named) == 1
+        assert named[0]["song_count"] == 2
+
+    def test_import_skips_invalid_songs(self, client):
+        """Canciones sin videoId o duplicadas dentro de la copia se ignoran."""
+        playlists = [
+            {
+                "name": "Rara",
+                "songs": [
+                    {"title": "sin id"},
+                    {"videoId": "dup", "title": "A", "artist": "X"},
+                    {"videoId": "dup", "title": "A repetida", "artist": "X"},
+                ],
+            }
+        ]
+        client.post("/playlists/import", json={"playlists": playlists})
+        lists = client.get("/playlists").json()
+        target = next(p for p in lists if p["name"] == "Rara")
+        assert target["song_count"] == 1
+
+    def test_import_playlist_without_name_uses_default(self, client):
+        """Playlist sin nombre usa el nombre por defecto (como el create)."""
+        client.post("/playlists/import", json={"playlists": [{"songs": []}]})
+        lists = client.get("/playlists").json()
+        assert any(p["name"] == "Nueva playlist" for p in lists)
+
+
 class TestPlaylistsUpdate:
     """Tests para actualizar playlists."""
 

@@ -10,6 +10,7 @@ export function AudioElements({
   setDuration,
   handleSongEnded,
   handleAudioError,
+  pauseHistory = false,
   toast,
 }) {
   const audioProps = {
@@ -18,7 +19,15 @@ export function AudioElements({
       if (e.target !== audioRef.current) return;
       progressRef.current = e.target.currentTime;
       const song30 = currentlyPlayingSongRef.current;
-      if (e.target.currentTime >= 30 && song30 && loggedSongRef.current !== song30.videoId) {
+      // Ajuste «Pausar historial de escuchas»: con él activo NO se registra
+      // nada (ni se marca como logueado, para que al desactivarlo la canción
+      // en curso se registre en el siguiente tick).
+      if (
+        !pauseHistory &&
+        e.target.currentTime >= 30 &&
+        song30 &&
+        loggedSongRef.current !== song30.videoId
+      ) {
         loggedSongRef.current = song30.videoId;
         api.logHistory(song30, toast);
       }

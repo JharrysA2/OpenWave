@@ -37,10 +37,13 @@ describe("Toasts", () => {
 
   // ── Estilos por tipo ────────────────────────────────────────────────────────
 
-  it("should apply error background color for error type toasts", () => {
+  it("should apply error background as liquid-glass black gradient for error toasts", () => {
     render(<Toasts toasts={[errorToast]} />);
     const toastDiv = screen.getByText("Error crítico").closest("div");
-    expect(toastDiv).toHaveStyle({ background: "rgba(69,10,10,.88)" });
+    // Liquid Glass B/N (petición): vidrio oscuro, nunca rojos
+    expect(toastDiv.style.background).toContain("linear-gradient");
+    expect(toastDiv.style.background).toContain("rgba(0,0,0,.88)");
+    expect(toastDiv.style.background).not.toContain("69,10,10");
   });
 
   it("should apply success background color for success type toasts", () => {
@@ -56,10 +59,10 @@ describe("Toasts", () => {
     expect(toastDiv.style.background).toContain("linear-gradient");
   });
 
-  it("should apply error text color for error type toasts", () => {
+  it("should apply white text color for error type toasts (blanco y negro)", () => {
     render(<Toasts toasts={[errorToast]} />);
     const toastDiv = screen.getByText("Error crítico").closest("div");
-    expect(toastDiv).toHaveStyle({ color: "#fca5a5" });
+    expect(toastDiv).toHaveStyle({ color: "#ffffff" });
   });
 
   it("should apply success text color for success type toasts", () => {

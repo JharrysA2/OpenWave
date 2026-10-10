@@ -256,6 +256,7 @@ async def song_details(video_id: str):
 
     def _do():
         out = {"videoId": video_id}
+        ok = True  # solo cachea si la extracción COMPLETA no falló
         try:
             data = get_ytm().get_song(video_id)
             vd = data.get("videoDetails") or {}
@@ -292,10 +293,15 @@ async def song_details(video_id: str):
                     break
         except Exception as e:
             logger.warning("song details %s: %s", video_id, e)
-        return out
+            # Fallo puntual (red/YTM caído): se devuelve lo parcial PERO NO se
+            # cachea — de lo contrario un solo error envenenaría la caché de
+            # 1 h y el panel «Detalles» se quedaría vacío hasta expirarla.
+            ok = False
+        return out, ok
 
-    result = await loop.run_in_executor(None, _do)
-    api_cache_set(f"details:{video_id}", result)
+    result, cached_ok = await loop.run_in_executor(None, _do)
+    if cached_ok:
+        api_cache_set(f"details:{video_id}", result)
     return result
 
 

@@ -18,6 +18,13 @@ function dismissSplash() {
   setTimeout(() => splash.remove(), 700);
 }
 
+// Última red de seguridad: promesas rechazadas sin catch (fallos de red,
+// APIs de Tauri…) quedan registradas en consola con contexto, en vez de
+// desaparecer silenciosamente.
+window.addEventListener("unhandledrejection", (e) => {
+  console.error("[OpenWave] Promesa rechazada sin catch:", e.reason);
+});
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />

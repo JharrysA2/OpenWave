@@ -458,7 +458,9 @@ def _extract_audio_url_sync(video_id: str, quality: str = "standard") -> tuple:
         #    Funciona anónimamente, no requiere cookies ni JS runtime, y sus
         #    URLs aceptan rangos completos (los demás clients dan 403).
         try:
-            url, headers = _ydl_get_url(video_id, quality=quality)  # client="" → default
+            url, headers = _ydl_get_url(
+                video_id, quality=quality
+            )  # client="" → default
             cache_url(key, url, headers)
             box[0], box[1] = url, headers
             return url, headers
@@ -603,7 +605,9 @@ async def stream_audio_generator(video_id: str, quality: str = "standard"):
                     yield chunk
             return
         except Exception as e:
-            logger.warning("stream %s baja no disponible (%s); usando itag 18", video_id, e)
+            logger.warning(
+                "stream %s baja no disponible (%s); usando itag 18", video_id, e
+            )
 
     fmt = QUALITY_FORMATS[quality]
     try:

@@ -386,8 +386,8 @@ Compilar, **cerrar la app si está abierta** y ejecutar el MSI.
 
 ### Regresión rápida tras cada cambio
 
-- `ruff check backend/ && python -m pytest` en `backend/` (386 tests).
-- `npm test` (frontend, 862 tests).
+- `ruff check backend/ && python -m pytest` en `backend/` (399 tests).
+- `npm test` (frontend, 938 tests).
 - Tras recompilar: **`package-windows.ps1` ya ejecuta `verify-msi.ps1` solo**
   (gate: si alguna comprobación falla, el build aborta). Para repetirlo a
   mano: `powershell -ExecutionPolicy Bypass -File scripts\verify-msi.ps1`

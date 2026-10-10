@@ -252,7 +252,9 @@ class TestErroresConCodigo:
             assert "fallo interno simulado" not in data["detail"]
             # Este 500 nace FUERA de CORSMiddleware: sin repetir la cabecera
             # el webview no podría leer el cuerpo (ni el `code`).
-            assert resp.headers["access-control-allow-origin"] == "http://localhost:1420"
+            assert (
+                resp.headers["access-control-allow-origin"] == "http://localhost:1420"
+            )
         finally:
             app.router.routes = [
                 r
@@ -273,9 +275,7 @@ class TestErroresConCodigo:
             status_code=429,
             headers={"Retry-After": "42"},
         )
-        mocker.patch.object(
-            main, "_rate_limit_exceeded_handler", return_value=original
-        )
+        mocker.patch.object(main, "_rate_limit_exceeded_handler", return_value=original)
         request = Request(
             {
                 "type": "http",

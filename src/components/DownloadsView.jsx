@@ -3,6 +3,7 @@ import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
 import { ConfirmModal } from "./ConfirmModal";
+import { StatusState } from "./StatusState";
 import {
   COLORS,
   RADIUS,
@@ -45,6 +46,9 @@ export default function DownloadsView({
   openOptions,
   onDownloadsCleared,
   onDownloadsRemoved,
+  status,
+  errorCode,
+  onRetry,
   toast,
   openEntityOptions,
   goToAlbum,
@@ -209,6 +213,29 @@ export default function DownloadsView({
     onMouseEnter: () => setHeroHover(key),
     onMouseLeave: () => setHeroHover((k) => (k === key ? null : k)),
   });
+
+  // La biblioteca entera falló (backend caído): NUNCA se pinta como
+  // «Descargas vacías» — estado de error con código + Reintentar.
+  if (status === "error") {
+    return (
+      <div
+        style={{
+          padding: SPACING.content.pad,
+          fontFamily: FONT,
+          overflowY: "auto",
+          height: "100%",
+          paddingBottom: "90px",
+        }}
+      >
+        <StatusState
+          code={errorCode}
+          title="No se pudieron cargar las descargas"
+          onRetry={onRetry}
+          accentColor={accentColor || "#a78bfa"}
+        />
+      </div>
+    );
+  }
 
   return (
     <div

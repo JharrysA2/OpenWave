@@ -89,7 +89,9 @@ class TestExtractAudioUrlSync:
     @patch("streaming.get_cached_url", return_value=(None, None))
     @patch("streaming._ydl_get_url", return_value=("https://stream.url/audio", {}))
     @patch("streaming.cache_url")
-    def test_quality_passed_to_ydl_and_cache(self, mock_cache, mock_ydl, mock_get_cached):
+    def test_quality_passed_to_ydl_and_cache(
+        self, mock_cache, mock_ydl, mock_get_cached
+    ):
         """La calidad pedida llega a la escalera de formatos y a la caché."""
         _extract_audio_url_sync("vid_q", "low")
         mock_ydl.assert_called_once_with("vid_q", quality="low")

@@ -2,7 +2,7 @@
 
 import asyncio
 
-from db import _parse_thumbs_json, get_db
+from db import _parse_thumbs_json, db_import_playlists, get_db
 from fastapi import APIRouter, Request
 
 router = APIRouter()
@@ -57,6 +57,17 @@ async def create_playlist(request: Request):
             "cover": cover,
             "song_count": 0,
         }
+
+
+@router.post("/playlists/import")
+async def import_playlists(request: Request):
+    """Restaurar playlists desde una copia de seguridad (fusión por nombre)."""
+    body = await request.json()
+    playlists = body.get("playlists") or []
+    if not isinstance(playlists, list):
+        playlists = []
+    restored = db_import_playlists(playlists)
+    return {"ok": True, "restored": restored}
 
 
 @router.put("/playlists/{pid}")

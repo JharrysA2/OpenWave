@@ -6,8 +6,13 @@ export function useToast() {
   const [toasts, setToasts] = useState([]);
 
   const show = useCallback((msg, type = "info") => {
+    // Dedup: si el MISMO mensaje+tipo ya está en pantalla no se apila otra
+    // copia (un mismo error puede venir de dos fuentes — p.ej. playSong y el
+    // evento error del <audio>). El timer del toast original sigue vigente.
     const id = ++_nextId;
-    setToasts((t) => [...t, { id, msg, type }]);
+    setToasts((t) =>
+      t.some((x) => x.msg === msg && x.type === type) ? t : [...t, { id, msg, type }],
+    );
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3000);
   }, []);
 

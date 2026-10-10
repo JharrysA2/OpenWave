@@ -349,4 +349,25 @@ describe("DownloadsView", () => {
     expect(play.style.background).toBe("rgb(255, 255, 255)");
     expect(play.style.color).toContain("var(--neon-fg)");
   });
+
+  // ── Error ≠ vacío (bug de la auditoría v1) ─────────────────────────────────
+
+  it("status=error muestra estado con código y Reintentar, no «Descargas vacías»", () => {
+    const onRetry = vi.fn();
+    renderDownloads({ status: "error", errorCode: "E-CNX-01", onRetry });
+
+    expect(screen.getByTestId("status-state")).toBeInTheDocument();
+    expect(screen.getByText("No se pudieron cargar las descargas")).toBeInTheDocument();
+    expect(screen.queryByTestId("hero-play")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("status-retry"));
+    expect(onRetry).toHaveBeenCalled();
+  });
+
+  it("status=ready sin descargas sí muestra la vista vacía (no la de error)", () => {
+    renderDownloads({ status: "ready" });
+    expect(screen.queryByTestId("status-state")).toBeNull();
+    // El hero sigue presente: la vista es «sin descargas», no «error»
+    expect(screen.getByTestId("hero-play")).toBeInTheDocument();
+  });
 });

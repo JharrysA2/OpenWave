@@ -7,6 +7,7 @@ import re
 import sqlite3
 import threading
 from contextlib import contextmanager, suppress
+from datetime import UTC, datetime
 
 from config import DB_FILE
 from logging_config import get_logger
@@ -253,6 +254,126 @@ def db_log_history(entry: dict):
                 entry.get("albumType", "") or "",
             ),
         )
+
+
+def db_import_history(entries: list) -> int:
+    """Importar historial desde una copia de seguridad (fusión, nunca sustituye).
+
+    Devuelve el número de entradas válidas insertadas. Si la entrada ya existe
+    se conserva el mayor `play_count` y la `last_played_at` más reciente; los
+    demás metadatos se actualizan con los de la copia.
+    """
+    imported = 0
+    with _db_lock, get_db() as conn:
+        for e in entries:
+            if not isinstance(e, dict):
+                continue
+            vid = (e.get("videoId") or "").strip()
+            if not vid:
+                continue
+            thumbnails_json = json.dumps(e.get("thumbnails") or [], ensure_ascii=False)
+            play_count = int(e.get("playCount") or 0) or 1
+            last_played = e.get("lastPlayedAt") or datetime.now(UTC).strftime(
+                "%Y-%m-%dT%H:%M:%S"
+            )
+            conn.execute(
+                """INSERT INTO history(video_id,title,artist,thumbnail,duration,
+                   thumbnails,play_count,last_played_at,
+                   album_browse_id,artist_browse_id,album_title,album_type)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(video_id) DO UPDATE SET
+                       play_count = MAX(COALESCE(history.play_count,1),
+                                        COALESCE(excluded.play_count,1)),
+                       last_played_at = MAX(COALESCE(history.last_played_at,''),
+                                            COALESCE(excluded.last_played_at,'')),
+                       title = excluded.title, artist = excluded.artist,
+                       thumbnail = excluded.thumbnail, duration = excluded.duration,
+                       thumbnails = excluded.thumbnails,
+                       album_browse_id = excluded.album_browse_id,
+                       artist_browse_id = excluded.artist_browse_id,
+                       album_title = excluded.album_title,
+                       album_type = excluded.album_type""",
+                (
+                    vid,
+                    e.get("title") or "",
+                    e.get("artist") or "",
+                    e.get("thumbnail") or "",
+                    int(e.get("duration") or 0),
+                    thumbnails_json,
+                    play_count,
+                    last_played,
+                    e.get("albumBrowseId") or "",
+                    e.get("artistBrowseId") or "",
+                    e.get("albumTitle") or "",
+                    e.get("albumType") or "",
+                ),
+            )
+            imported += 1
+    return imported
+
+
+def db_import_playlists(playlists: list) -> int:
+    """Restaurar playlists desde una copia de seguridad.
+
+    Fusiona por nombre: si ya existe una playlist con ese nombre se le añaden
+    SOLO las canciones que falten (re-importar es idempotente, sin duplicados);
+    si no existe, se crea con sus canciones. Devuelve el nº de playlists
+    restauradas/creadas.
+    """
+    restored = 0
+    with _db_lock, get_db() as conn:
+        by_name = {}
+        for r in conn.execute("SELECT id, name FROM playlists").fetchall():
+            by_name.setdefault(r["name"], r["id"])
+
+        for pl in playlists:
+            if not isinstance(pl, dict):
+                continue
+            name = (pl.get("name") or "").strip() or "Nueva playlist"
+            songs = [s for s in (pl.get("songs") or []) if isinstance(s, dict)]
+
+            pid = by_name.get(name)
+            if pid is None:
+                cur = conn.execute(
+                    "INSERT INTO playlists(name, color, cover) VALUES(?, ?, ?)",
+                    (name, pl.get("color"), pl.get("cover")),
+                )
+                pid = cur.lastrowid
+                by_name[name] = pid
+
+            have = {
+                row["video_id"]
+                for row in conn.execute(
+                    "SELECT video_id FROM playlist_songs WHERE playlist_id=?", (pid,)
+                ).fetchall()
+            }
+            for s in songs:
+                vid = (s.get("videoId") or s.get("video_id") or "").strip()
+                if not vid or vid in have:
+                    continue
+                have.add(vid)
+                thumbs = s.get("thumbnails")
+                thumbs_json = (
+                    json.dumps(thumbs, ensure_ascii=False)
+                    if isinstance(thumbs, list)
+                    else "[]"
+                )
+                conn.execute(
+                    """INSERT INTO playlist_songs(playlist_id, video_id, title,
+                       artist, thumbnail, thumbnails, duration)
+                       VALUES(?,?,?,?,?,?,?)""",
+                    (
+                        pid,
+                        vid,
+                        s.get("title") or "",
+                        s.get("artist") or "",
+                        s.get("thumbnail") or "",
+                        thumbs_json,
+                        int(s.get("duration") or 0),
+                    ),
+                )
+            restored += 1
+    return restored
 
 
 def db_get_history(limit: int = 100):

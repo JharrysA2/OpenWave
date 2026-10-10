@@ -2,7 +2,7 @@
 
 import asyncio
 
-from db import db_get_history, db_log_history, get_db
+from db import db_get_history, db_import_history, db_log_history, get_db
 from fastapi import APIRouter, Query, Request
 
 router = APIRouter()
@@ -32,6 +32,17 @@ async def delete_history_entries(request: Request):
         for vid in video_ids:
             conn.execute("DELETE FROM history WHERE video_id=?", (vid,))
     return {"ok": True}
+
+
+@router.post("/history/import")
+async def import_history(request: Request):
+    """Importar historial desde una copia de seguridad (fusión, sin duplicar)."""
+    body = await request.json()
+    entries = body.get("entries") or []
+    if not isinstance(entries, list):
+        entries = []
+    imported = db_import_history(entries)
+    return {"ok": True, "imported": imported}
 
 
 @router.delete("/history/all")

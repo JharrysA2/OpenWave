@@ -104,6 +104,7 @@ function AppInner() {
     settings.playbackQuality || "standard",
     settings.downloadQuality || "192",
     settings.queueRecommendations ?? false,
+    settings.pauseHistory ?? false,
   );
   const {
     currentSong,
@@ -299,11 +300,13 @@ function AppInner() {
       try {
         if (!e.target.paused && e.target.currentTime > 0) return;
       } catch {}
-      // No se muestra NINGÚN error de reproducción al usuario (petición):
-      // se deja solo constancia en consola para diagnóstico.
+      // Errores de reproducción visibles (petición): mensaje flotante con
+      // estilo liquid glass en blanco y negro (Toast pinta el variant "error").
+      // useToast deduplica si el mismo fallo llega también de playSong.
       console.warn(`[audio] playback error (code=${code})`);
+      toast("No se pudo reproducir la canción", "error");
     },
-    [proxyRetryRef],
+    [proxyRetryRef, toast],
   );
 
   // ── Wrapper de toggleLike que también envía feedback ───────────────────────
@@ -808,6 +811,7 @@ function AppInner() {
         setDuration={setDuration}
         handleSongEnded={handleSongEnded}
         handleAudioError={handleAudioError}
+        pauseHistory={settings.pauseHistory ?? false}
         toast={toast}
       />
 

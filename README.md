@@ -10,7 +10,7 @@ App de música para PC usando **Tauri + React + FastAPI + ytmusicapi**.
 - ✅ Descarga offline con yt-dlp
 - ✅ UI oscura con glassmorphism (True Liquid Glass)
 - ✅ Instalador .MSI para Windows
-- ✅ Suite de **tests**: 552 tests unitarios (Vitest) + e2e (Playwright) + Pytest
+- ✅ Suite de **tests**: 938 tests unitarios (Vitest) + e2e (Playwright) + Pytest
 
 ---
 
@@ -74,7 +74,7 @@ npm run tauri dev
 | `scripts/generate-license.ps1` | (Windows) Genera `build/windows/licencia.txt` para el diálogo de licencia del MSI |
 | `scripts/prepare-runtime.ps1` | (Windows) Prepara Python embebido + dependencias + ffmpeg en `build/staging` |
 | `scripts/package-windows.ps1` | (Windows) Construye el instalador MSI completo → `build/windows/` |
-| `scripts/verify-msi.ps1` | (Windows) Verificación estática del MSI compilado: 61 comprobaciones sobre sus tablas y su payload, sin instalar |
+| `scripts/verify-msi.ps1` | (Windows) Verificación estática del MSI compilado: 74 comprobaciones sobre sus tablas y su payload, sin instalar |
 
 Guía completa del instalador (pasos, decisiones de diseño y checklist de
 aceptación): **[docs/instalador/README.md](docs/instalador/README.md)**.
@@ -97,7 +97,7 @@ openwave/
 │   ├── App.jsx                ← Entry point (enrutado, dynamic theme, player)
 │   ├── main.jsx
 │   ├── constants.js
-│   ├── components/            ← 23 componentes UI
+│   ├── components/            ← 54 componentes UI
 │   │   ├── AlbumView.jsx          HomeView.jsx        PlaylistView.jsx
 │   │   ├── ArtistView.jsx         LikedView.jsx       SearchView.jsx
 │   │   ├── ConfirmModal.jsx       LyricsView.jsx      SelectionModal.jsx
@@ -261,10 +261,10 @@ openwave/
 
 - **ESLint** — Reglas para React 18 + JSX + Hooks
 - **Prettier** — Formateo automático
-- **Vitest** — 735 tests unitarios en 46 ficheros (componentes, hooks y utils del frontend)
+- **Vitest** — 938 tests unitarios en 54 ficheros (componentes, hooks y utils del frontend)
 - **Playwright** — Tests e2e (navegación, búsqueda, reproducción, settings, librería)
 - **Ruff** — Linter y formatter para Python backend
-- **Pytest** — Tests del backend (rutas, DB, streaming, descargas, letras, utils)
+- **Pytest** — 399 tests del backend (rutas, DB, streaming, descargas, letras, utils)
 - **Husky + lint-staged** — Pre-commit hook que ejecuta Prettier + ESLint automáticamente
 - **GitHub Actions CI** — Frontend: lint + formato + build + `npm test`; Backend: ruff + pytest
 

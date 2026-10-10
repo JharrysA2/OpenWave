@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FONT } from "../constants";
 import { api } from "../utils/api";
 import { Ic } from "../icons/Icons";
@@ -28,6 +28,9 @@ export function SongOptionsSheet({
   const [showDetails, setShowDetails] = useState(false);
   const [details, setDetails] = useState(null);
   const { settings } = useSettings();
+  // El EventSource vive en una ref para poder cerrarlo al desmontar el sheet
+  // (si no, la conexión SSE queda huérfana tras cada descarga).
+  const esRef = useRef(null);
 
   useEffect(() => {
     if (!open) {
@@ -36,6 +39,8 @@ export function SongOptionsSheet({
       setDetails(null);
     }
   }, [open]);
+
+  useEffect(() => () => esRef.current?.close(), []);
 
   const fetchDetails = async () => {
     if (details) {
@@ -55,21 +60,47 @@ export function SongOptionsSheet({
     if (!song || song.downloaded || dlPct !== null) return;
     setDlPct(0);
     if (onDownloadStart) onDownloadStart(song);
-    await api.post(`/download/${song.videoId}`, {
-      title: song.title,
-      artist: song.artist,
-      thumbnail: song.thumbnail,
-      thumbnails: song.thumbnails || [],
-      duration: song.duration,
-      album_title: song.album || song.albumTitle || "",
-      album_browse_id: song.albumBrowseId || "",
-      artist_browse_id: song.artistBrowseId || "",
-      // Calidad elegida en Ajustes → Reproductor y sonido (128/192/320).
-      quality: settings.downloadQuality || "192",
-    });
-    const es = new EventSource(`${api.base}/download/progress/${song.videoId}`);
+    // Todo el flujo está protegido: sin catch, cualquier fallo (rate limit
+    // de 5/min, backend caído, SSE muerto) dejaba el botón clavado en «0 %»
+    // sin aviso ni salida.
+    const fail = () => {
+      setDlPct(null);
+      esRef.current?.close();
+      toast("Error en la descarga", "error");
+    };
+    try {
+      await api.post(`/download/${song.videoId}`, {
+        title: song.title,
+        artist: song.artist,
+        thumbnail: song.thumbnail,
+        thumbnails: song.thumbnails || [],
+        duration: song.duration,
+        album_title: song.album || song.albumTitle || "",
+        album_browse_id: song.albumBrowseId || "",
+        artist_browse_id: song.artistBrowseId || "",
+        // Calidad elegida en Ajustes → Reproductor y sonido (128/192/320).
+        quality: settings.downloadQuality || "192",
+      });
+    } catch {
+      fail();
+      return;
+    }
+
+    let es;
+    try {
+      es = new EventSource(`${api.base}/download/progress/${song.videoId}`);
+    } catch {
+      fail();
+      return;
+    }
+    esRef.current = es;
     es.onmessage = (e) => {
-      const d = JSON.parse(e.data);
+      let d;
+      try {
+        d = JSON.parse(e.data);
+      } catch {
+        return; // frame no-JSON: ignorar y seguir esperando el progreso
+      }
       setDlPct(d.progress || 0);
       if (d.downloaded || d.status === "done") {
         setDlPct(null);
@@ -79,11 +110,12 @@ export function SongOptionsSheet({
         onClose();
       }
       if (d.status === "error") {
-        setDlPct(null);
-        es.close();
-        toast("Error en la descarga", "error");
+        fail();
       }
     };
+    // Conexión SSE rota (reinicio del backend, red): mismo aviso que un
+    // error del propio proceso de descarga.
+    es.onerror = fail;
   };
 
   useOverlayLayer(open && !!song);

@@ -44,6 +44,7 @@ export default function SettingsPanel({
   history,
   playlists,
   toast,
+  refreshLibrary,
 }) {
   const { t } = useSettings();
   const [page, setPage] = useState(null);
@@ -114,6 +115,7 @@ export default function SettingsPanel({
           history={history}
           playlists={playlists}
           toast={toast}
+          refreshLibrary={refreshLibrary}
         />
       ),
     },

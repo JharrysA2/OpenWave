@@ -65,6 +65,76 @@ class TestHistoryDelete:
             assert entry["videoId"] != sample_song["videoId"]
 
 
+class TestHistoryImport:
+    """Tests para POST /history/import — restauración desde copia de seguridad."""
+
+    def test_import_empty_body(self, client):
+        """Importar sin entradas debe responder ok con 0."""
+        resp = client.post("/history/import", json={})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["imported"] == 0
+
+    def test_import_non_list_entries(self, client):
+        """entries no-lista se trata como vacío (sin error)."""
+        resp = client.post("/history/import", json={"entries": "nope"})
+        assert resp.status_code == 200
+        assert resp.json()["imported"] == 0
+
+    def test_import_inserts_entries_with_counts(self, client):
+        """Inserta entradas válidas conservando playCount y metadatos."""
+        entries = [
+            {
+                "videoId": "imp_v1",
+                "title": "Importada 1",
+                "artist": "Artista 1",
+                "duration": 120,
+                "playCount": 5,
+                "lastPlayedAt": "2026-01-01T10:00:00",
+                "thumbnails": [{"url": "u1", "width": 100}],
+            },
+            {"videoId": "imp_v2", "title": "Importada 2", "artist": "Artista 2"},
+            {"videoId": "", "title": "sin id — se ignora"},
+            "no-dict",
+        ]
+        resp = client.post("/history/import", json={"entries": entries})
+        assert resp.status_code == 200
+        assert resp.json()["imported"] == 2
+
+        hist = {h["videoId"]: h for h in client.get("/history").json()}
+        assert "imp_v1" in hist
+        assert hist["imp_v1"]["title"] == "Importada 1"
+        assert hist["imp_v1"]["playCount"] == 5
+        assert hist["imp_v1"]["lastPlayedAt"] == "2026-01-01T10:00:00"
+        assert hist["imp_v1"]["thumbnails"] == [{"url": "u1", "width": 100}]
+        assert "imp_v2" in hist
+        assert hist["imp_v2"]["playCount"] >= 1
+
+    def test_import_merges_without_losing_counts(self, client):
+        """Fusión: conserva el mayor play_count tanto al subir como al bajar."""
+        client.post("/history", json={"videoId": "imp_merge", "title": "Original"})
+        # Import con más reproducciones → sube
+        client.post(
+            "/history/import",
+            json={
+                "entries": [{"videoId": "imp_merge", "title": "Nueva", "playCount": 7}]
+            },
+        )
+        hist = {h["videoId"]: h for h in client.get("/history").json()}
+        assert hist["imp_merge"]["playCount"] == 7
+        assert hist["imp_merge"]["title"] == "Nueva"
+        # Re-import con menos → NO pierde el máximo
+        client.post(
+            "/history/import",
+            json={
+                "entries": [{"videoId": "imp_merge", "title": "Nueva", "playCount": 2}]
+            },
+        )
+        hist = {h["videoId"]: h for h in client.get("/history").json()}
+        assert hist["imp_merge"]["playCount"] == 7
+
+
 class TestHistoryClear:
     """Tests para DELETE /history/all — limpiar todo el historial."""
 

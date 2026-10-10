@@ -63,6 +63,40 @@ class TestSongDetails:
         data = resp.json()
         assert data["videoId"] == "error_vid"
 
+    @patch("routes.songs.get_ytm")
+    def test_song_details_failure_is_not_cached(self, mock_get_ytm, client):
+        """Un fallo puntual NO debe envenenar la caché de 1 h: el siguiente
+        intento vuelve a consultar en vez de servir el resultado vacío."""
+        mock_ytm = MagicMock()
+        mock_ytm.get_song.side_effect = [
+            Exception("timeout puntual"),
+            {
+                "videoDetails": {"title": "Recuperada", "viewCount": "1000"},
+                "microformat": {"microformatDataRenderer": {"genre": "Pop"}},
+            },
+        ]
+        mock_ytm.get_watch_playlist.return_value = {
+            "tracks": [
+                {
+                    "artists": [{"name": "Artista R"}],
+                    "album": {"name": "Album R", "year": "2026"},
+                }
+            ]
+        }
+        mock_ytm.search.return_value = [{"videoId": "recov_vid", "plays": "1K"}]
+        mock_get_ytm.return_value = mock_ytm
+
+        # 1ª llamada: falla → parcial (sin título) y sin cachear
+        r1 = client.get("/song/details/recov_vid")
+        assert r1.status_code == 200
+        assert r1.json().get("title") != "Recuperada"
+
+        # 2ª llamada: reintenta de verdad y llega el dato
+        r2 = client.get("/song/details/recov_vid")
+        assert r2.status_code == 200
+        assert r2.json()["title"] == "Recuperada"
+        assert mock_ytm.get_song.call_count == 2
+
 
 class TestSongAlbum:
     """Tests para /song/album/{video_id}."""
@@ -395,9 +429,13 @@ class TestQueue:
         api_cache_set("queue:rot_cache_vid", cached_tracks)
 
         mock_randrange.return_value = 2
-        first = [t["videoId"] for t in client.get("/queue/rot_cache_vid").json()["tracks"]]
+        first = [
+            t["videoId"] for t in client.get("/queue/rot_cache_vid").json()["tracks"]
+        ]
         mock_randrange.return_value = 1
-        second = [t["videoId"] for t in client.get("/queue/rot_cache_vid").json()["tracks"]]
+        second = [
+            t["videoId"] for t in client.get("/queue/rot_cache_vid").json()["tracks"]
+        ]
 
         # Misma caché, distinta rotación → la cola SIEMPRE cambia
         assert first == ["rot_2", "rot_3", "rot_0", "rot_1"]

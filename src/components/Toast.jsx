@@ -19,6 +19,8 @@ export function Toasts({ toasts }) {
       {toasts.map((t) => (
         <div
           key={t.id}
+          role="status"
+          aria-live="polite"
           style={{
             padding: "10px 16px",
             borderRadius: RADIUS.card,
@@ -26,9 +28,12 @@ export function Toasts({ toasts }) {
             fontWeight: "700",
             fontFamily: FONT,
             ...GLASS.popup,
+            // Errores: Liquid Glass en blanco y negro (petición) — vidrio
+            // oscuro puro, texto blanco, borde blanco sutil. Sin rojos ni
+            // colores "raros".
             background:
               t.type === "error"
-                ? "rgba(69,10,10,.88)"
+                ? "linear-gradient(135deg, rgba(18,18,20,.94), rgba(0,0,0,.88))"
                 : t.type === "success"
                   ? "rgba(5,46,22,.88)"
                   : GLASS.popup.background,
@@ -39,13 +44,13 @@ export function Toasts({ toasts }) {
               : {}),
             color:
               t.type === "error"
-                ? "#fca5a5"
+                ? "#ffffff"
                 : t.type === "success"
                   ? "#86efac"
                   : COLORS.textPlayerTitle,
             border: `1px solid ${
               t.type === "error"
-                ? withAlpha(COLORS.errorColor, "4d")
+                ? "rgba(255,255,255,.45)"
                 : t.type === "success"
                   ? withAlpha(COLORS.successColor, "4d")
                   : GLASS.popup.borderColor

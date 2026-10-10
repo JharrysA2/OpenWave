@@ -41,7 +41,11 @@ async def stream_url(request: Request, video_id: str, quality: str = "standard")
     if quality == "low":
         warm_low_quality(video_id)
         base = str(request.base_url).rstrip("/")
-        return {"url": f"{base}/stream/quality/{video_id}", "headers": {}, "duration": 0}
+        return {
+            "url": f"{base}/stream/quality/{video_id}",
+            "headers": {},
+            "duration": 0,
+        }
     try:
         url, headers = await get_audio_url(video_id, quality)
         return {"url": url, "headers": headers, "duration": 0}

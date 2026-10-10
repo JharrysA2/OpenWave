@@ -94,6 +94,7 @@ export function usePlayer(
   initialQuality = "standard",
   initialDownloadQuality = "192",
   queueRecommendations = false,
+  pauseHistory = false,
 ) {
   const [currentSong, setCurrentSong] = useState(null);
   const [queue, setQueue] = useState(() => loadPersistedQueue().queue);
@@ -143,6 +144,11 @@ export function usePlayer(
   // Ref de la setting para que playSong no se re-cree al cambiar el toggle.
   const queueRecsEnabledRef = useRef(queueRecommendations);
   queueRecsEnabledRef.current = queueRecommendations;
+  // Mismo patrón para «Pausar historial»: ref siempre fresca para que el
+  // log del crossfade (performCrossfade) no arrastre el valor antiguo ni
+  // re-cree el callback al alternar el ajuste.
+  const pauseHistoryRef = useRef(pauseHistory);
+  pauseHistoryRef.current = pauseHistory;
   // Petición de recomendaciones en vuelo: se reutiliza (en vez de duplicar)
   // y permite que handleNext espere el relleno al final de la cola.
   const queueRecsPendingRef = useRef(null); // clave videoId|limit|max en vuelo
@@ -489,11 +495,11 @@ export function usePlayer(
           .catch(() => {});
       }
 
-      // Log 30s si aplica
+      // Log 30s si aplica (respetando «Pausar historial de escuchas»)
       if (normalizedNext?.videoId) {
         setTimeout(() => {
           const s30 = currentlyPlayingSongRef.current;
-          if (s30 && loggedSongRef.current !== s30.videoId) {
+          if (!pauseHistoryRef.current && s30 && loggedSongRef.current !== s30.videoId) {
             loggedSongRef.current = s30.videoId;
             api.logHistory(s30, () => {}).catch(() => {});
           }
@@ -610,7 +616,7 @@ export function usePlayer(
             cancelCrossfade();
             audio.currentTime = 0;
             progressRef.current = 0;
-            audio.play().catch(() => {});
+            audio.play().catch(() => setIsPlaying(false));
             setIsPlaying(true);
           } else if (isPlaying) {
             // Si había un crossfade en curso, cancelarlo también aquí
@@ -618,7 +624,7 @@ export function usePlayer(
             audio.pause();
             setIsPlaying(false);
           } else {
-            audio.play().catch(() => {});
+            audio.play().catch(() => setIsPlaying(false));
             setIsPlaying(true);
           }
         }
@@ -802,10 +808,13 @@ export function usePlayer(
               proxyRetryRef.current = false;
             }, 2000);
           } else {
-            // Segundo intento también falló — sin aviso al usuario (petición):
-            // el error queda solo en consola.
+            // Segundo intento también falló → aviso al usuario (petición):
+            // mensaje flotante liquid glass en blanco y negro (variant
+            // "error" de Toast). useToast deduplica si handleAudioError
+            // emitió ya el mismo mensaje por el evento error del <audio>.
             console.error("Play error (both attempts):", e);
             setIsPlaying(false);
+            toast?.("No se pudo reproducir la canción", "error");
           }
         } finally {
           setStreamLoading(false);
@@ -824,6 +833,7 @@ export function usePlayer(
       ensureDownloaded,
       appendRecommendations,
       maybeTopUpRecommendations,
+      toast,
     ],
   );
 
@@ -839,7 +849,9 @@ export function usePlayer(
       audio.pause();
       setIsPlaying(false);
     } else {
-      audio.play().catch(() => {});
+      // Si play() rechaza (src muerto), la UI NO debe quedarse «sonando»:
+      // se revierte a pausado. El aviso lo emite handleAudioError en App.
+      audio.play().catch(() => setIsPlaying(false));
       setIsPlaying(true);
     }
   }, [isPlaying, currentSong]);

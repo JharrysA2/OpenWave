@@ -263,6 +263,28 @@ export const api = {
     }
   },
 
+  // ── Copias de seguridad (fusión idempotente en el backend) ─────────────────
+
+  /**
+   * Restaurar historial desde una copia. POST /history/import hace merge
+   * (conserva el mayor play_count), por lo que reintentar es seguro.
+   */
+  async importHistory(entries) {
+    const r = await this.post("/history/import", { entries });
+    invalidatePrefix("/history");
+    return r;
+  },
+
+  /**
+   * Restaurar playlists (con canciones) desde una copia. El backend fusiona
+   * por nombre — re-importar no duplica playlists ni canciones.
+   */
+  async importPlaylists(playlists) {
+    const r = await this.post("/playlists/import", { playlists });
+    invalidatePrefix("/playlists");
+    return r;
+  },
+
   // ── Playlists ───────────────────────────────────────────────────────────────
 
   fetchPlaylists: (toast) =>
@@ -287,7 +309,7 @@ export const api = {
         return [];
       }),
 
-  fetchPlaylistSongs: (pid, toast) =>
+  fetchPlaylistSongs: (pid) =>
     api
       .get(`/playlists/${pid}/songs`, { _skipCache: true })
       .then((d) => {
@@ -303,8 +325,11 @@ export const api = {
         }));
       })
       .catch((err) => {
-        _handleError(err, toast);
-        return [];
+        // Se PROPAGA (no se traga): así PlaylistView distingue «error de
+        // red» de «playlist vacía» y muestra estado con Reintentar en vez
+        // del vacío engañoso.
+        console.warn("[API]", err.message, err.code ? `[${err.code}]` : "");
+        throw err;
       }),
 
   createPlaylist: (data, toast) =>

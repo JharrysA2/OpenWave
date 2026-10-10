@@ -99,6 +99,7 @@ export const MainRouter = React.memo(function MainRouter({
           history={history}
           playlists={playlists}
           toast={toast}
+          refreshLibrary={onRetryLibrary}
         />
       </Suspense>
     );
@@ -267,6 +268,9 @@ export const MainRouter = React.memo(function MainRouter({
             accentColor={neonColor}
             playSong={playSong}
             openOptions={openOptions}
+            status={libraryStatus}
+            errorCode={libraryErrorCode}
+            onRetry={onRetryLibrary}
             toast={toast}
             onHistoryCleared={onHistoryCleared}
           />
@@ -282,6 +286,9 @@ export const MainRouter = React.memo(function MainRouter({
             accentColor={neonColor}
             playSong={playSong}
             openOptions={openOptions}
+            status={libraryStatus}
+            errorCode={libraryErrorCode}
+            onRetry={onRetryLibrary}
             toast={toast}
             onDownloadsCleared={onDownloadsCleared}
             onDownloadsRemoved={onDownloadsRemoved}

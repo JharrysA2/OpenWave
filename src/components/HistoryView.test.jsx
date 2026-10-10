@@ -155,4 +155,24 @@ describe("HistoryView", () => {
     expect(play).toBeTruthy();
     expect(play.style.color).toContain("var(--neon-fg)");
   });
+
+  // ── Error ≠ vacío (bug de la auditoría v1) ─────────────────────────────────
+
+  it("status=error muestra estado con código y Reintentar, no «No hay historial»", () => {
+    const onRetry = vi.fn();
+    renderHistory({ status: "error", errorCode: "E-CNX-01", onRetry });
+
+    expect(screen.getByTestId("status-state")).toBeInTheDocument();
+    expect(screen.getByText("No se pudo cargar el historial")).toBeInTheDocument();
+    expect(screen.queryByText("No hay historial aún")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("status-retry"));
+    expect(onRetry).toHaveBeenCalled();
+  });
+
+  it("status=ready con lista vacía sí muestra el estado vacío (no el de error)", () => {
+    renderHistory({ status: "ready" });
+    expect(screen.getByText("No hay historial aún")).toBeInTheDocument();
+    expect(screen.queryByTestId("status-state")).toBeNull();
+  });
 });

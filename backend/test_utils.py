@@ -276,6 +276,7 @@ class TestFmtSong:
         result = fmt_song(r)
         assert result["artist"] == "Desconocido"
 
+
 # ── extract_chart_items (trending) ─────────────────────────────────────────────
 
 

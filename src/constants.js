@@ -14,8 +14,6 @@ export const DEFAULT_SETTINGS = {
   blurStyle: "blur",
   defaultTab: "home",
   crossfade: 5,
-  lrcLib: true,
-  kuGou: true,
   pauseHistory: false,
   playerBtnShape: "circle",
   playerBarStyle: "line",

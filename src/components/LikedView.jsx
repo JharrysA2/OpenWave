@@ -321,6 +321,9 @@ export default function LikedView({
                 onChange={setSongQuery}
                 placeholder="Buscar en Me gusta"
                 accentColor={accentColor}
+                glowOnFocus
+                clearCircle
+                height="44px"
               />
             </div>
             {filteredSongs.length === 0 ? (

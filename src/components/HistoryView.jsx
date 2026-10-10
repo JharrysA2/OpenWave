@@ -269,6 +269,9 @@ export default function HistoryView({
               onChange={setSongQuery}
               placeholder="Buscar en el historial"
               accentColor={accentColor}
+              glowOnFocus
+              clearCircle
+              height="44px"
             />
           </div>
           {filteredHistory.length === 0 ? (

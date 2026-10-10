@@ -683,6 +683,9 @@ export default function PlaylistView({
               onChange={setSongQuery}
               placeholder="Buscar en esta playlist"
               accentColor={accentColor}
+              glowOnFocus
+              clearCircle
+              height="44px"
             />
           </div>
           {filteredSongs.length === 0 ? (

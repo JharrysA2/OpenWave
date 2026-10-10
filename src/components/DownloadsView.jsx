@@ -420,6 +420,9 @@ export default function DownloadsView({
                 onChange={setSongQuery}
                 placeholder="Buscar en Descargas"
                 accentColor={accentColor}
+                glowOnFocus
+                clearCircle
+                height="44px"
               />
             </div>
             {filteredSongs.length === 0 ? (

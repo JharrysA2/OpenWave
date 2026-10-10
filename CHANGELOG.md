@@ -4,6 +4,36 @@ Todo los cambios notables de OpenWave se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Pantalla «Todas las canciones del artista»**: nuevo botón en la página
+  del artista que abre una vista dedicada con el catálogo COMPLETO
+  (`GET /artist/{id}/songs`: la playlist VL entera con fallback de
+  búsqueda, sin recorte de 5-10 canciones) y navegación ESC/atrás que
+  vuelve al artista.
+- **Álbumes completos del artista**: el scroll horizontal de la página del
+  artista ahora carga TODOS los álbumes y singles en segundo plano
+  (`GET /artist/{id}/albums` paginado con `get_artist_albums(limit=None)`,
+  deduplicado y cacheado) — antes solo aparecía el primer carrusel.
+- **Descargas con máxima calidad**: la fuente de audio pasa a `bestaudio`
+  (m4a/opus de mayor bitrate, con reintento automático al itag 18 si
+  falla), la portada se guarda en la resolución más alta disponible
+  (maxres/w2048, con candidatas de fallback) y el MP3 lleva tags ID3 con
+  título/artista/álbum/año y la portada embebida (`attached_pic`).
+- **Offline-first**: las canciones descargadas se reproducen desde el MP3
+  local en TODAS las vistas (historial, playlists, tendencia, álbum,
+  búsquedas — antes solo en playlists), sus portadas se sirven desde
+  disco (`/music/covers/{id}.jpg`, primera fuente del srcset) y la letra
+  se lee del `.lrc` guardado sin ir a la red.
+- **Letras persistidas**: las letras automáticas quedan en localStorage
+  por canción y sobreviven a recargas/reinicios sin internet («Recargar
+  letras» las limpia y vuelve a la fuente).
+- **Biblioteca navegable sin backend**: si una petición GET falla por red,
+  `api.js` sirve la última respuesta conocida (aunque haya expirado) en
+  vez de lanzar error.
+
 ## [1.0.0] - 2026-10-09
 
 Primera versión completa y terminada.
@@ -65,4 +95,5 @@ Primera versión completa y terminada.
 - **Copias de seguridad**: la importación de historia y playlists se escribía
   a claves `localStorage` que nadie leía y aun así decía «Datos importados».
 
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.0.0

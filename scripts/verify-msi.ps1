@@ -356,10 +356,10 @@ $checks = [ordered]@{
         [bool](Ev 'LicenseAgreementDlg' 'Next' 'NewDialog' | Where-Object { $_[3] -eq 'InstallDirDlg' })
     'Licencia: control LicenseText con RTF inline (un solo {\rtf1)' = [bool]($licText) -and
         ([regex]::Matches($licText, '\{\\rtf1').Count -eq 1) -and $licText.StartsWith('{\rtf1')
-    'Licencia: terminos + GPL-3.0 completos en el texto' =
-        $licText.Contains('GNU GENERAL PUBLIC LICENSE') -and
-        $licText.Contains('OpenWave') -and
-        $licText.Contains('END OF TERMS AND CONDITIONS')
+    'Licencia: terminos + CC BY-NC 4.0 completos en el texto' =
+        $licText.Contains('Attribution-NonCommercial 4.0 International') -and
+        $licText.Contains('creativecommons.org/licenses/by-nc/4.0') -and
+        $licText.Contains('OpenWave')
     'Licencia: llaves RTF balanceadas' =
         ([regex]::Matches($licText, '\{').Count -eq [regex]::Matches($licText, '\}').Count)
     'Licencia: aceptacion obligatoria (casilla LicenseAccepted)' =

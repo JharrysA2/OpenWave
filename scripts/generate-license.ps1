@@ -3,7 +3,7 @@
   Genera el texto de licencia que muestra el instalador MSI de OpenWave.
 
 .DESCRIPTION
-  Concatena docs/instalador/TERMINOS.txt (español) + LICENSE (GPL-3.0) y
+  Concatena docs/instalador/TERMINOS.txt (español) + LICENSE (CC BY-NC 4.0) y
   escribe DOS ficheros en build\windows:
 
   * licencia.txt -> el que usa bundle.licenseFile (tauri.conf.json). Es un

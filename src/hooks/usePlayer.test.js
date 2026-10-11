@@ -611,6 +611,122 @@ describe("usePlayer", () => {
     mockFetch.mockRestore();
   });
 
+  it("la misma canción CON contexto (initialQueue) pausa, no reinicia", async () => {
+    // Regresión: el toggle era solo sin contexto — un clic en la misma
+    // pista desde un álbum/playlist/favoritos REINICIABA desde 0.
+    const mockFetch = mockStreamFetch();
+    const { result } = renderHook(() => usePlayer(null, [], 10));
+
+    const songA = { videoId: "songA", title: "Song A" };
+    const songB = { videoId: "songB", title: "Song B" };
+    const list = [songA, songB];
+
+    result.current.audioRef.current = createMockAudio(200);
+
+    await act(async () => {
+      await result.current.playSong(songA, 0, false, list);
+    });
+    const audio = result.current.audioRef.current;
+    expect(result.current.isPlaying).toBe(true);
+    const srcAfterFirst = audio.getAttribute("src");
+    expect(srcAfterFirst).toBeTruthy();
+    const playCalls = audio.play.mock.calls.length;
+
+    // Clic en la MISMA canción con la misma lista de contexto
+    await act(async () => {
+      await result.current.playSong(songA, 0, false, list);
+    });
+
+    expect(result.current.isPlaying).toBe(false); // pausó
+    expect(audio.getAttribute("src")).toBe(srcAfterFirst); // sin recarga
+    expect(audio.currentTime).toBe(0); // el reloj no se reinició
+    expect(audio.play.mock.calls.length).toBe(playCalls); // sin play() nuevo
+    expect(result.current.queueIndex).toBe(0);
+    mockFetch.mockRestore();
+  });
+
+  it("tras la pausa, el segundo clic en la misma canción REANUDA", async () => {
+    const mockFetch = mockStreamFetch();
+    const { result } = renderHook(() => usePlayer(null, [], 10));
+
+    const songA = { videoId: "songA", title: "Song A" };
+    const songB = { videoId: "songB", title: "Song B" };
+    const list = [songA, songB];
+
+    result.current.audioRef.current = createMockAudio(200);
+
+    await act(async () => {
+      await result.current.playSong(songA, 0, false, list);
+    });
+    const audio = result.current.audioRef.current;
+    const playCalls = audio.play.mock.calls.length;
+
+    await act(async () => {
+      await result.current.playSong(songA, 0, false, list); // pausa
+    });
+    expect(result.current.isPlaying).toBe(false);
+
+    await act(async () => {
+      await result.current.playSong(songA, 0, false, list); // reanuda
+    });
+    expect(result.current.isPlaying).toBe(true);
+    expect(audio.play.mock.calls.length).toBe(playCalls + 1); // sí un play() nuevo
+    expect(audio.getAttribute("src")).toBeTruthy(); // sin recarga
+    mockFetch.mockRestore();
+  });
+
+  it("con contexto de OTRA lista, re-ancla la cola sin recargar el audio", async () => {
+    // Canción sonando desde radio (cola = [songA]); el usuario abre una
+    // playlist [songB, songA] y clica songA (la que suena): pausa Y la
+    // cola pasa a ser la playlist con el índice en songA.
+    const mockFetch = mockStreamFetch();
+    const { result } = renderHook(() => usePlayer(null, [], 10));
+
+    const songA = { videoId: "songA", title: "Song A" };
+    const songB = { videoId: "songB", title: "Song B" };
+    const playlist = [songB, songA];
+
+    result.current.audioRef.current = createMockAudio(200);
+
+    await act(async () => {
+      await result.current.playSong(songA); // radio: cola [songA]
+    });
+    const audio = result.current.audioRef.current;
+    const srcAfterFirst = audio.getAttribute("src");
+
+    await act(async () => {
+      await result.current.playSong(songA, 0, false, playlist);
+    });
+
+    expect(result.current.isPlaying).toBe(false);
+    expect(result.current.queue.map((s) => s.videoId)).toEqual(["songB", "songA"]);
+    expect(result.current.queueIndex).toBe(1);
+    expect(audio.getAttribute("src")).toBe(srcAfterFirst); // sin recarga
+    mockFetch.mockRestore();
+  });
+
+  it("startFrom explícito en la misma canción hace seek, no toggle", async () => {
+    // Fallback del clic en la letra (onSeek ausente): playSong(song, time)
+    // debe posicionar el reloj, no pausar.
+    const mockFetch = mockStreamFetch();
+    const { result } = renderHook(() => usePlayer(null, [], 10));
+
+    const songA = { videoId: "songA", title: "Song A" };
+    result.current.audioRef.current = createMockAudio(200);
+
+    await act(async () => {
+      await result.current.playSong(songA); // empieza en 0
+    });
+
+    await act(async () => {
+      await result.current.playSong(songA, 30); // mismo vídeo + startFrom
+    });
+
+    expect(result.current.isPlaying).toBe(true);
+    expect(result.current.audioRef.current.currentTime).toBe(30);
+    mockFetch.mockRestore();
+  });
+
   it("crossfade should NOT trigger in repeat-one mode", async () => {
     // Con repeat-one activo no hay "siguiente" que mezclar: el replay lo
     // maneja handleSongEnded al terminar de forma natural.

@@ -122,6 +122,16 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   anterior, así que la letra nueva arrancaba a media altura o abajo.
   Ahora cada canción empieza en el inicio de su letra.
 
+- **Clic en la canción que ya suena reiniciaba en vez de
+  pausar/reanudar**: el toggle existía pero solo SIN contexto — desde
+  álbum, playlist, favoritos o descargas (que pasan su lista), el clic
+  en la misma pista volvía a cargar el audio desde el segundo 0. Ahora
+  la pausa/reanuda funciona desde cualquier vista (el clic con lista
+  re-ancla además la cola a ese contexto sin recargar el audio, para que
+  «Reproducir todo» siga montando la cola de la lista); la única
+  excepción es un `startFrom` explícito (seek desde la letra), que
+  posiciona el reloj como antes.
+
 ### Removed
 
 - **`TrackPickerModal` y `SelectionModal` (UI muerta)**: ninguno de los

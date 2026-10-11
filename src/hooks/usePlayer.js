@@ -605,8 +605,38 @@ export function usePlayer(
     async (song, startFrom = 0, fromQueue = false, initialQueue = null) => {
       if (!song || !song.videoId) return;
 
-      // ⭐ If same song is already playing, toggle pause/resume instead of restart
-      if (currentSong?.videoId === song.videoId && !initialQueue) {
+      // ⭐ Mismo vídeo ya sonando → PAUSA/REANUDA, nunca reiniciar.
+      //    Antes el toggle era SOLO sin contexto (!initialQueue): un clic
+      //    en la misma canción desde álbum/playlist/favoritos/descargas
+      //    REINICIABA la pista desde 0. Única excepción: startFrom
+      //    explícito (fallback del clic en la letra → seek), que debe
+      //    posicionar el reloj y no toggear.
+      if (currentSong?.videoId === song.videoId && !startFrom) {
+        // Re-anclar la cola al contexto del clic SIN recargar el audio:
+        // si la vista pasó su lista («Reproducir todo», clic en la misma
+        // pista de un álbum…), la cola pasa a ser esa lista y el índice a
+        // esa pista; si ya era ese contexto, solo se confirma el índice.
+        if (Array.isArray(initialQueue) && initialQueue.length > 0) {
+          const contextIds = initialQueue.map((s) => s?.videoId);
+          const sameContext =
+            queueContextRef.current != null &&
+            queueContextRef.current.length === contextIds.length &&
+            queueContextRef.current.every((id, i) => id === contextIds[i]);
+          if (!sameContext) {
+            setQueue(initialQueue);
+            queueContextRef.current = contextIds;
+            queueIsRadioRef.current = false;
+            queueRecsIdRef.current = song.videoId;
+          }
+          setQueueIndex(
+            Math.max(
+              0,
+              initialQueue.findIndex((s) => s?.videoId === song.videoId),
+            ),
+          );
+          fetchSongIdRef.current = song.videoId;
+          maybeTopUpRecommendations(song);
+        }
         const audio = audioRef.current;
         if (audio) {
           if (audio.ended) {

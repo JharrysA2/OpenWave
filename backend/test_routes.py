@@ -130,27 +130,51 @@ class TestThumbnailProxy:
         assert resp.status_code == 422
 
     def test_local_cover_urls_allowed(self):
-        """Portadas locales (descargadas) pasan la whitelist del proxy."""
-        from main import _THUMB_ALLOWED
+        """Portadas locales (descargadas) pasan las reglas del proxy."""
+        from main import _thumb_url_allowed
 
-        local = "http://127.0.0.1:8765/music/covers/abc123.jpg"
-        assert any(p.match(local) for p in _THUMB_ALLOWED)
-        assert any(
-            p.match("http://localhost:8765/music/covers/x.jpg") for p in _THUMB_ALLOWED
-        )
+        assert _thumb_url_allowed("http://127.0.0.1:8765/music/covers/abc123.jpg")
+        assert _thumb_url_allowed("http://localhost:8765/music/covers/x.jpg")
+        # Con querystring (cache-busting) el path sigue siendo covers/
+        assert _thumb_url_allowed("http://127.0.0.1:8765/music/covers/a.jpg?v=1")
 
     def test_loopback_only_for_covers(self):
-        """El hueco loopback es SOLO covers: otras rutas/LAN siguen bloqueadas."""
-        from main import _THUMB_ALLOWED
+        """El hueco loopback es SOLO covers: otras rutas/LAN siguen bloqueadas.
+
+        Regresión de seguridad (auditoría pre-1.0.0): el check anterior era
+        `re.match` por PREFIJO, pero httpx normaliza `..` al hacer la
+        petición, así que `.../music/covers/../../history` servía el
+        historial/descargas del usuario a cualquier web. Todas estas URLs
+        deben morir ANTES de tocar la red.
+        """
+        from main import _thumb_url_allowed
 
         blocked = [
-            "http://127.0.0.1:8765/stream/abc",  # stream: no vía proxy
+            # La ruta de ataque: escapes con .. (crudos o codificados)
+            "http://127.0.0.1:8765/music/covers/../../history",
+            "http://127.0.0.1:8765/music/covers/%2e%2e/%2e%2e/downloads",
+            "http://localhost:8765/music/covers/../../../etc/passwd",
+            # Loopback correcto pero fuera de /music/covers/
+            "http://127.0.0.1:8765/stream/abc",
             "http://127.0.0.1:8765/admin",
-            "http://192.168.1.5/music/covers/x.jpg",  # LAN: SSRF no
+            "http://127.0.0.1:8765/history",
+            # Puerto arbitrario (escaneo de puertos vía proxy)
+            "http://127.0.0.1:9999/music/covers/x.jpg",
+            "http://127.0.0.1/music/covers/x.jpg",  # sin puerto
+            # LAN y host look-alike
+            "http://192.168.1.5/music/covers/x.jpg",
             "http://127.0.0.1.evil.com/music/covers/x.jpg",
+            "http://localhost.evil.com:8765/music/covers/x.jpg",
         ]
         for url in blocked:
-            assert not any(p.match(url) for p in _THUMB_ALLOWED), url
+            assert not _thumb_url_allowed(url), url
+
+        # Lo externo permitido sigue pasando (whitelist de CDNs).
+        from main import _THUMB_ALLOWED
+
+        assert any(
+            p.match("https://i.ytimg.com/vi/x/mqdefault.jpg") for p in _THUMB_ALLOWED
+        )
 
 
 class TestHome:

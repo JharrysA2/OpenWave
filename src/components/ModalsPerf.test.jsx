@@ -5,8 +5,6 @@ import { ConfirmModal } from "./ConfirmModal";
 import { CreatePlaylistModal } from "./CreatePlaylistModal";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { TransferModal } from "./TransferModal";
-import { TrackPickerModal } from "./TrackPickerModal";
-import { SelectionModal } from "./SelectionModal";
 import { SongOptionsSheet } from "./SongOptionsSheet";
 import { EntityOptionsSheet } from "./EntityOptionsSheet";
 import SettingsPanel from "./SettingsPanel";
@@ -67,28 +65,6 @@ const overlays = [
     />,
   ],
   ["TransferModal", <TransferModal key="d" open onClose={noop} playlists={[]} onSelect={noop} />],
-  [
-    "TrackPickerModal",
-    <TrackPickerModal
-      key="e"
-      open
-      playlist={{ name: "Mi lista" }}
-      tracks={[song]}
-      onClose={noop}
-      onConfirm={noop}
-    />,
-  ],
-  [
-    "SelectionModal",
-    <SelectionModal
-      key="f"
-      open
-      songs={[song]}
-      currentSong={null}
-      onClose={noop}
-      onDelete={noop}
-    />,
-  ],
   [
     "SongOptionsSheet",
     <SongOptionsSheet
@@ -165,7 +141,7 @@ describe("presupuesto de glass en overlays", () => {
   });
 
   it("solo la superficie de cristal difumina: blur(40px), nunca 10/8px ni saturate", () => {
-    renderWithSettings(overlays[7][1]); // EntityOptionsSheet (hoja con acciones)
+    renderWithSettings(overlays[5][1]); // EntityOptionsSheet (hoja con acciones)
     const html = document.body.innerHTML;
     expect(html).not.toContain("blur(10px)");
     expect(html).not.toContain("blur(8px)");

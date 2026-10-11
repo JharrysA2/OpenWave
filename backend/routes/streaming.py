@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from logging_config import get_logger
 from range_utils import range_file_response
 from streaming import (
+    TRANSCODE_EXECUTOR,
     ensure_low_quality_sync,
     get_audio_url,
     prefetch,
@@ -64,7 +65,9 @@ async def stream_quality_low(request: Request, video_id: str):
     require_valid_video_id(video_id)
     loop = asyncio.get_running_loop()
     try:
-        path = await loop.run_in_executor(None, ensure_low_quality_sync, video_id)
+        path = await loop.run_in_executor(
+            TRANSCODE_EXECUTOR, ensure_low_quality_sync, video_id
+        )
     except Exception as e:
         raise HTTPException(502, f"Audio en baja calidad no disponible: {e}") from e
     if not path.exists():
@@ -99,7 +102,9 @@ async def stream_play(request: Request, video_id: str, quality: str = "standard"
     if quality == "low":
         try:
             loop = asyncio.get_running_loop()
-            path = await loop.run_in_executor(None, ensure_low_quality_sync, video_id)
+            path = await loop.run_in_executor(
+                TRANSCODE_EXECUTOR, ensure_low_quality_sync, video_id
+            )
             if path.exists():
                 return range_file_response(str(path), "audio/mp4", range_header)
         except Exception as e:
@@ -115,7 +120,9 @@ async def stream_play(request: Request, video_id: str, quality: str = "standard"
             media_type="audio/mp4",
             headers={
                 "Cache-Control": "no-cache",
-                "Access-Control-Allow-Origin": "*",
+                # Sin Access-Control-Allow-Origin a mano: lo añade el
+                # middleware CORS con el origen real de la app (un `*`
+                # hacía legible el audio desde cualquier web).
                 "X-Content-Type-Options": "nosniff",
                 # Sin esto el GZipMiddleware comprime el stream: Content-Range
                 # (upstream) dejaría de corresponderse con los bytes servidos.
@@ -132,7 +139,7 @@ async def stream_play(request: Request, video_id: str, quality: str = "standard"
             media_type="audio/mp4",
             headers={
                 "Cache-Control": "no-cache",
-                "Access-Control-Allow-Origin": "*",
+                # Ver comentario arriba: el origen lo pone el middleware CORS.
                 "X-Content-Type-Options": "nosniff",
                 "Content-Encoding": "identity",
                 # Este fallback no puede servir rangos: ser honestos para que

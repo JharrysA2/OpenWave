@@ -22,15 +22,23 @@ serde_json = "1"
 window-vibrancy = "0.6"
 # Para SetCurrentProcessExplicitAppUserModelID (agrupación en la barra de
 # tareas y el Administrador de Tareas: WebView2 → «OpenWave»).
+# En [target.'cfg(windows)'.dependencies] más abajo: la compila SOLO
+# Windows. Incondicional, en Linux/WSL se arrastraba windows-future y
+# `cargo check` revienta con E0425 (y no aporta nada fuera de Windows).
+# Fijadas exactas: son las últimas compatibles con tauri 2.10.3 (2.8.x/2.6.x
+# exigen tauri ^2.12 y arrastrarían wry/tray-icon — specs congeladas).
+tauri-plugin-dialog = "=2.7.3"
+tauri-plugin-fs = "=2.5.2"
+
+# SetCurrentProcessExplicitAppUserModelID y el hook de la barra de título:
+# API de Win32, solo tiene sentido compilarlo en Windows (ver comentario
+# en [dependencies]). Mismas features, cero cambio de versiones.
+[target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
-# Fijadas exactas: son las últimas compatibles con tauri 2.10.3 (2.8.x/2.6.x
-# exigen tauri ^2.12 y arrastrarían wry/tray-icon — specs congeladas).
-tauri-plugin-dialog = "=2.7.3"
-tauri-plugin-fs = "=2.5.2"
 
 [features]
 default = ["custom-protocol"]

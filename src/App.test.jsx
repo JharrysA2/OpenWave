@@ -179,16 +179,6 @@ vi.mock("./components/SongOptionsSheet", () => ({
     ) : null,
 }));
 
-vi.mock("./components/TrackPickerModal", () => ({
-  TrackPickerModal: ({ open, onClose }) =>
-    open ? <div data-testid="track-picker-modal">Track Picker</div> : null,
-}));
-
-vi.mock("./components/SelectionModal", () => ({
-  SelectionModal: ({ open, songs, onDelete }) =>
-    open ? <div data-testid="selection-modal">Selection - {songs?.length} songs</div> : null,
-}));
-
 vi.mock("./components/PlayerBar", () => ({
   PlayerBar: ({ song, isPlaying, onPlayPause, onNext, onPrev }) => (
     <div data-testid="player-bar">
@@ -506,16 +496,6 @@ describe("App — Componente principal", () => {
   it("should not show SongOptionsSheet initially", () => {
     render(<App />);
     expect(screen.queryByTestId("song-options-sheet")).not.toBeInTheDocument();
-  });
-
-  it("should not show TrackPickerModal initially", () => {
-    render(<App />);
-    expect(screen.queryByTestId("track-picker-modal")).not.toBeInTheDocument();
-  });
-
-  it("should not show SelectionModal initially", () => {
-    render(<App />);
-    expect(screen.queryByTestId("selection-modal")).not.toBeInTheDocument();
   });
 
   // ── Custom Title Bar ─────────────────────────────────────────────────────────

@@ -261,7 +261,26 @@ async def get_artist(browse_id: str):
             ),
         }
 
-    result = await loop.run_in_executor(None, _do)
+    try:
+        result = await loop.run_in_executor(None, _do)
+    except Exception as e:
+        # YTMusic puede fallar o cambiar de formato: degradar a la forma
+        # vacía (la vista pinta su estado) en vez de 500 E-INT-00.
+        logger.warning("artist %s: %s", browse_id, e)
+        result = None
+    if not result:
+        return {
+            "browseId": browse_id,
+            "name": "",
+            "subscribers": "",
+            "views": "",
+            "description": "",
+            "thumbnail": "",
+            "thumbnails": [],
+            "songs": [],
+            "albums": [],
+            "singles": [],
+        }
     api_cache_set(f"artist:{browse_id}", result)
     return result
 
@@ -313,7 +332,15 @@ async def get_artist_all_albums(browse_id: str):
             out[section] = _sort_newest_first(items)
         return out
 
-    result = await loop.run_in_executor(None, _do)
+    try:
+        result = await loop.run_in_executor(None, _do)
+    except Exception as e:
+        logger.warning("artist albums %s: %s", browse_id, e)
+        result = None
+    if not result:
+        # Fallo de YTMusic: forma vacía (ArtistView fusiona albums+singles)
+        # y SIN caché — un fallo transitorio no debe congelar la sección.
+        return {"albums": [], "singles": []}
     api_cache_set(f"artist_albums:{browse_id}", result)
     return result
 
@@ -355,7 +382,13 @@ async def get_artist_all_songs(browse_id: str):
                 logger.warning("artist songs fallback %s: %s", browse_id, e)
         return {"name": name, "songs": tracks}
 
-    result = await loop.run_in_executor(None, _do)
+    try:
+        result = await loop.run_in_executor(None, _do)
+    except Exception as e:
+        logger.warning("artist songs %s: %s", browse_id, e)
+        result = None
+    if not result:
+        return {"name": "", "songs": []}
     # No cachear vacíos: un fallo transitorio no debe congelar la vista
     # «todas las canciones» vacía durante el TTL.
     if result["songs"]:
@@ -461,7 +494,11 @@ async def get_related_artists(browse_id: str):
             )
         return related
 
-    result = await loop.run_in_executor(None, _do)
+    try:
+        result = await loop.run_in_executor(None, _do)
+    except Exception as e:
+        logger.warning("artist related %s: %s", browse_id, e)
+        result = []
     if result:
         api_cache_set(f"artist_related:{browse_id}", result)
     return {"results": result}

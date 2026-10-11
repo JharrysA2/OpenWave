@@ -533,3 +533,33 @@ class TestDownloadAlbum:
         found = [s for s in resp.json() if s["videoId"] == "brws_ids_vid"]
         assert found and found[0]["albumBrowseId"] == "MPREb_x"
         assert found[0]["artistBrowseId"] == "UC_y"
+
+
+class TestSseTimeout:
+    """Tope de tiempo del SSE de progreso (regresión: spinner infinito).
+
+    Sin tope, un yt-dlp colgado contestaba {"status": "downloading"}
+    para SIEMPRE: conexión abierta indefinida en el cliente.
+    """
+
+    def test_progress_times_out_instead_of_hanging(self, client, mocker):
+        """Con estado nunca terminado, el SSE cierra con error timeout."""
+        mocker.patch("routes.downloads_routes._SSE_MAX_SECONDS", 0.0)
+        mocker.patch.dict(
+            "routes.downloads_routes.download_progress",
+            {"hang_vid": {"status": "downloading", "progress": 10}},
+            clear=True,
+        )
+        resp = client.get("/download/progress/hang_vid")
+        assert resp.status_code == 200
+        # El evento inicial SÍ se emitió y después el cierre por timeout
+        assert '"status": "downloading"' in resp.text
+        assert '"error": "timeout"' in resp.text
+
+    def test_album_progress_times_out(self, client, mocker):
+        """El SSE del álbum también cierra (mismo bucle, otro prefijo)."""
+        mocker.patch("routes.downloads_routes._SSE_MAX_SECONDS", 0.0)
+        mocker.patch.dict("routes.downloads_routes.download_progress", {}, clear=True)
+        resp = client.get("/download/progress/album/alb_hang")
+        assert resp.status_code == 200
+        assert '"error": "timeout"' in resp.text

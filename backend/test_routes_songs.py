@@ -1355,3 +1355,43 @@ class TestArtistAlbumOrder:
         data = resp.json()
         assert [a["browseId"] for a in data["albums"]] == ["new", "mid", "old", "na"]
         assert [s["browseId"] for s in data["singles"]] == ["s23", "s15"]
+
+
+class TestArtistDegradation:
+    """YTMusic caído o con formato nuevo: degradar a forma vacía, no 500.
+
+    Auditoría pre-1.0.0: /artist* no tenía manejo de fallo — cualquier
+    excepción de ytmusicapi salía como 500 E-INT-00 y mataba la vista
+    (el resto de endpoints ya degradaba con un patrón equivalente).
+    """
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_info_failure_returns_empty(self, mock_get_ytm, client):
+        mock_get_ytm.side_effect = RuntimeError("yt cambió de formato")
+        resp = client.get("/artist/UC_degraded")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["name"] == ""
+        assert data["songs"] == []
+        assert data["albums"] == [] and data["singles"] == []
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_albums_failure_returns_empty(self, mock_get_ytm, client):
+        mock_get_ytm.side_effect = RuntimeError("yt cambió de formato")
+        resp = client.get("/artist/UC_degraded/albums")
+        assert resp.status_code == 200
+        assert resp.json() == {"albums": [], "singles": []}
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_songs_failure_returns_empty(self, mock_get_ytm, client):
+        mock_get_ytm.side_effect = RuntimeError("yt cambió de formato")
+        resp = client.get("/artist/UC_degraded/songs")
+        assert resp.status_code == 200
+        assert resp.json() == {"name": "", "songs": []}
+
+    @patch("routes.songs.get_ytm")
+    def test_artist_related_failure_returns_empty(self, mock_get_ytm, client):
+        mock_get_ytm.side_effect = RuntimeError("yt cambió de formato")
+        resp = client.get("/artist/related/UC_degraded")
+        assert resp.status_code == 200
+        assert resp.json() == {"results": []}

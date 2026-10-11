@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import subprocess
+import threading
 import urllib.request
 from contextlib import suppress
 from pathlib import Path
@@ -24,6 +25,28 @@ from logging_config import get_logger
 from utils import get_mp3_path
 
 logger = get_logger(__name__)
+
+# ── Lock POR VÍDEO ────────────────────────────────────────────────────────────
+# Dos descargas concurrentes del mismo video_id (individual + pista de un
+# álbum, o dos álbumes) pasaban ambas el check `mp3_path.exists()` y
+# escribían el MISMO `MUSIC_DIR/{id}.mp3.part`: dos ffmpeg entrelazados y,
+# peor aún, el `os.replace` de uno publicaba un MP3 mientras el otro siguió
+# escribiendo por el descriptor ya renombrado — rompiendo la invariante
+# «exists() ⇒ COMPLETO» (la que lee el modo Alta para precachear).
+# Serializar por vídeo lo cierra: la segunda hebra espera y al entrar ve el
+# MP3 ya publicado (su camino es no-op). El lock de BD (_db_lock) siempre se
+# toma por dentro, sin ciclos posibles.
+_download_locks_guard = threading.Lock()
+_download_locks: dict = {}
+
+
+def _get_download_lock(video_id: str) -> threading.Lock:
+    with _download_locks_guard:
+        lock = _download_locks.get(video_id)
+        if lock is None:
+            lock = threading.Lock()
+            _download_locks[video_id] = lock
+        return lock
 
 
 def _ffmpeg_binary(ffmpeg_dir: str | None) -> str:
@@ -106,6 +129,10 @@ def do_download(
         elif d["status"] == "finished":
             download_progress[video_id] = {"status": "converting", "progress": 100}
 
+    # Ver comentario de `_get_download_lock`: si otra hebra está descargando
+    # este vídeo, esta espera aquí y al entrar el exists() la hace no-op.
+    _lock = _get_download_lock(video_id)
+    _lock.acquire()
     try:
         # ── 1. Buscar ffmpeg ──────────────────────────────────────────
         # Prioridad al ffmpeg empaquetado junto a la app (MSI) o al
@@ -351,3 +378,5 @@ def do_download(
             "error": str(e),
         }
         logger.error("Download Error %s: %s", video_id, e)
+    finally:
+        _lock.release()

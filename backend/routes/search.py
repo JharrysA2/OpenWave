@@ -95,7 +95,15 @@ async def search(request: Request, q: str, limit: int = Query(25, ge=1, le=100))
 
         return {"results": songs, "artists": artists, "albums": albums}
 
-    result = await loop.run_in_executor(None, _do)
+    try:
+        result = await loop.run_in_executor(None, _do)
+    except Exception as e:
+        # YTMusic caído o con formato nuevo: la vista pinta su estado en
+        # vez de recibir 500 E-INT-00 (mismo patrón que /search/videos).
+        logger.warning("search %s: %s", q, e)
+        result = None
+    if not result:
+        return {"results": [], "artists": [], "albums": []}
     api_cache_set(f"search2:{q}", result)
     return result
 
@@ -253,9 +261,16 @@ async def home_quick_picks(request: Request):
                 break
         return songs
 
-    songs = await loop.run_in_executor(None, _read)
-    api_cache_set("home:quick-picks", songs)
-    return {"results": songs}
+    try:
+        songs = await loop.run_in_executor(None, _read)
+    except Exception as e:
+        logger.warning("quick-picks: %s", e)
+        songs = None
+    # Solo cachear con contenido: un fallo no debe congelar la portada
+    # vacía durante el TTL.
+    if songs:
+        api_cache_set("home:quick-picks", songs)
+    return {"results": songs or []}
 
 
 @router.get("/home/for-you")
@@ -391,7 +406,11 @@ async def home_albums(request: Request):
                 logger.warning("albums artist=%s: %s", primary, e)
         return albums
 
-    albums = await loop.run_in_executor(None, _build)
+    try:
+        albums = await loop.run_in_executor(None, _build)
+    except Exception as e:
+        logger.warning("home albums: %s", e)
+        albums = []
     if albums:
         api_cache_set("home:albums", albums)
     return {"results": albums}

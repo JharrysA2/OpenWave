@@ -145,7 +145,15 @@ export function SongOptionsSheet({
           : null,
       action: song.downloaded
         ? async () => {
-            await api.del(`/downloads/${song.videoId}`);
+            // Sin catch, un fallo (backend caído, red) moría como promesa
+            // rechazada sin aviso: el botón no hacía nada visible y la
+            // hoja se quedaba abierta sin explicación.
+            try {
+              await api.del(`/downloads/${song.videoId}`);
+            } catch {
+              toast("No se pudo eliminar la descarga", "error");
+              return;
+            }
             if (onDownload) onDownload();
             toast("Descarga eliminada", "info");
             onClose();

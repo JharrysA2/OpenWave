@@ -50,6 +50,13 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   lo más reciente a lo más viejo; los álbumes sin año se quedan al
   final. Antes seguían el orden arbitrario de YouTube Music.
 
+- **Pool de hilos dedicado para la transcodificación**: la re-codificación
+  a baja calidad (ffmpeg, minutos por canción) ya no compite con el
+  executor por defecto del event loop, que sirve las llamadas a
+  ytmusicapi y SQLite de casi todos los endpoints — con builds
+  concurrentas, búsqueda y descargas se encolaban detrás. Ahora corre en
+  un pool propio de 4 hilos.
+
 ### Fixed
 
 - **Botón «Ver todas las canciones» que no hacía nada**: la rama de
@@ -74,6 +81,68 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   `font-family: inherit` en `dynamic-theme.css` (más `body` como red de
   seguridad para contenido montado en `<body>` por portales); los
   estilos inline con familia propia siguen mandando.
+
+- **Pantalla principal en blanco con una pestaña corrupta**: si la clave
+  de pestaña de `localStorage` estaba dañada (o venía de una versión
+  futura), el `switch` de `MainRouter` caía a `default: null` y el
+  contenido quedaba VACÍO sin ningún error. Cualquier clave desconocida
+  ahora renderiza Inicio.
+
+- **«Eliminar descarga» sin aviso si fallaba**: la acción del menú de
+  canciones no tenía `try/catch`; un fallo (backend caído, red) moría
+  como promesa rechazada sin toast y con la hoja quieta sin explicación.
+  Ahora avisa del error y deja la hoja abierta para reintentar.
+
+- **500 cuando YouTube Music cambia** en `/artist`, `/artist/{id}/albums`,
+  `/artist/{id}/songs`, `/artist/related/{id}`, `/search` y
+  `/home/quick-picks`: estos endpoints no tenían manejo de fallo (el
+  resto ya degradaba). Ahora devuelven la forma vacía correspondiente
+  y registran el aviso, sin cachear el fallo.
+
+- **Dos descargas concurrentes del mismo vídeo corrompían el MP3**: no
+  había lock por `video_id`, así que la individual y la pista de un
+  álbum (o dos álbumes) pasaban ambas el check `exists()` y dos ffmpeg
+  escribían el mismo `.mp3.part`; el `os.replace` de uno publicaba un
+  archivo mientras el otro seguía escribiendo. Lock por vídeo: la
+  segunda hebra espera y al entrar ve el MP3 completo.
+
+- **Spinner de progreso infinito si yt-dlp se colgaba**: el SSE de
+  progreso (individual y de álbum) no tenía tope de tiempo y emitía
+  `{"status": "downloading"}` para siempre. Ahora cierra con un evento
+  `{"status": "error", "error": "timeout"}` a los 10 minutos.
+
+### Removed
+
+- **`TrackPickerModal` y `SelectionModal` (UI muerta)**: ninguno de los
+  dos podía abrirse — ningún flujo les pasaba `open=true` y sus setters
+  de datos ni se usaban (~600 líneas inalcanzables en el bundle). Las
+  funciones que representaban ya existen por otra vía: añadir canciones
+  a playlists (PlaylistPickerModal) y borrado múltiple de descargas
+  (multi-select propio de Descargas).
+
+### Security
+
+- **`/thumbnail-proxy` exfiltraba datos del usuario a cualquier web
+  (SSRF + CORS)**: la validación era un `re.match` por prefijo, pero
+  httpx normaliza `..` al hacer la petición —
+  `.../music/covers/../../history` pasaba el check y el proxy servía
+  historial, descargas, playlists y MP3s con `Access-Control-Allow-Origin:
+  *` (legible desde cualquier origen, sin que la app tuviese el foco).
+  Ahora el path se valida YA NORMALIZADO y con puerto exacto del
+  backend, la URL final tras redirects vuelve a pasar las mismas reglas
+  (sin SSRF por redirect), las respuestas 404/HTML ya no se sirven como
+  imagen ni se cachean 7 días, y se quitaron los `*` de ACAO (el
+  middleware CORS pone el origen real de la app).
+
+- **CSRF sobre la API local y DNS rebinding**: el middleware CORS solo
+  decide si el navegador puede LEER la respuesta; las peticiones
+  «simple» (POST JSON) de una web maliciosa llegaban igual y ejecutaban
+  efectos (borrar descargas, limpiar caché, forzar descargas, crear
+  playlists…). Nueva guardia ASGI `LocalOnlyGuard`: rechaza con 403
+  cualquier `Origin` que no sea la webview de Tauri o el dev server, y
+  cualquier `Host` no local (una web rebindada llegaría same-origin pero
+  con Host de su dominio). Sin cabecera Origin = cliente nativo, se
+  permite.
 
 ## [1.0.0] - 2026-10-09
 

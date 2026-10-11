@@ -308,3 +308,54 @@ describe("SongOptionsSheet", () => {
     });
   });
 });
+
+// ── Borrar descarga (acción «Eliminar descarga») ───────────────────────────
+describe("SongOptionsSheet — borrar descarga", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("si falla el borrado, avisa y no cierra la hoja", async () => {
+    // Regresión (auditoría pre-1.0.0): sin try/catch el fallo moría como
+    // promesa rechazada — sin aviso y con la hoja quieta sin explicación.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("backend caído"))),
+    );
+    const toast = vi.fn();
+    const onClose = vi.fn();
+    renderSheet({ song: { ...song, downloaded: true }, open: true, toast, onClose });
+
+    fireEvent.click(screen.getByText("Eliminar descarga"));
+
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith("No se pudo eliminar la descarga", "error"),
+    );
+    // Sin cierre silencioso: la hoja sigue abierta para reintentar
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText("Eliminar descarga")).toBeInTheDocument();
+  });
+
+  it("el borrado correcto avisa, refresca y cierra", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(mockApiResponse({ ok: true }))),
+    );
+    const toast = vi.fn();
+    const onClose = vi.fn();
+    const onDownload = vi.fn();
+    renderSheet({
+      song: { ...song, downloaded: true },
+      open: true,
+      toast,
+      onClose,
+      onDownload,
+    });
+
+    fireEvent.click(screen.getByText("Eliminar descarga"));
+
+    await waitFor(() => expect(toast).toHaveBeenCalledWith("Descarga eliminada", "info"));
+    expect(onDownload).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+});

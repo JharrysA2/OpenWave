@@ -201,7 +201,11 @@ export const MainRouter = React.memo(function MainRouter({
     );
   }
 
-  switch (tab) {
+  // Clave de pestaña corrupta en localStorage (o de una versión futura):
+  // antes el `default: return null` dejaba el contenido principal EN
+  // BLANCO, sin error ni forma de salir. Fallback a Inicio.
+  const VISTAS = ["home", "search", "liked", "history", "downloads", "playlist"];
+  switch (VISTAS.includes(tab) ? tab : "home") {
     case "home":
       return (
         <Suspense fallback={<div>Cargando home...</div>}>

@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 from collections.abc import AsyncIterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from pathlib import Path
 
@@ -65,6 +66,16 @@ LOWQ_EXT = ".64k.m4a"
 
 _lowq_inflight: dict = {}
 _lowq_lock = threading.Lock()
+
+# Pool DEDICADO para la transcodificación con ffmpeg: es trabajo que dura
+# minutos y hasta ahora competía con el executor por defecto del event
+# loop, que a la vez sirve las llamadas a ytmusicapi y SQLite de casi todos
+# los endpoints — con el pool lleno de ffmpeg, búsqueda/cola/descargas se
+# encolaban detrás. `ensure_low_quality_sync` ya serializa por vídeo con
+# _lowq_inflight; aquí se limita la concurrencia GLOBAL de ffmpeg a 4.
+TRANSCODE_EXECUTOR = ThreadPoolExecutor(
+    max_workers=4, thread_name_prefix="ow-transcode"
+)
 
 
 def lowq_path(video_id: str):
@@ -596,7 +607,9 @@ async def stream_audio_generator(video_id: str, quality: str = "standard"):
     if quality == "low":
         try:
             loop = asyncio.get_running_loop()
-            path = await loop.run_in_executor(None, ensure_low_quality_sync, video_id)
+            path = await loop.run_in_executor(
+                TRANSCODE_EXECUTOR, ensure_low_quality_sync, video_id
+            )
             with open(path, "rb") as fh:
                 while True:
                     chunk = fh.read(65536)

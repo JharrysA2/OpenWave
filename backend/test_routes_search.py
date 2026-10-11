@@ -859,3 +859,20 @@ class TestHomeTrendingFixed:
         assert resp.status_code == 200
         data = resp.json()
         assert data["results"] == []
+
+
+class TestSearchDegradation:
+    """YTMusic o la BD caídos: /search y /home/quick-picks degradan, no 500."""
+
+    @patch("routes.search.get_ytm")
+    def test_search_failure_returns_empty_shape(self, mock_get_ytm, client):
+        mock_get_ytm.side_effect = RuntimeError("yt cambió de formato")
+        resp = client.get("/search?q=degraded_query")
+        assert resp.status_code == 200
+        assert resp.json() == {"results": [], "artists": [], "albums": []}
+
+    def test_quick_picks_db_failure_returns_empty(self, client, mocker):
+        mocker.patch("routes.search.get_db", side_effect=RuntimeError("db rota"))
+        resp = client.get("/home/quick-picks")
+        assert resp.status_code == 200
+        assert resp.json() == {"results": []}

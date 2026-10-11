@@ -19,6 +19,12 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
+# Tope del SSE de progreso: sin él, un yt-dlp colgado contestaba
+# {"status": "downloading"} para SIEMPRE (conexión abierta indefinida +
+# spinner infinito en el cliente). 10 min > cualquier descarga real
+# (ffmpeg tiene timeout de 300 s por etapa).
+_SSE_MAX_SECONDS = 600.0
+
 
 def _row_get(row, key: str, default: str = "") -> str:
     """Leer una columna tolerando tablas antiguas sin ella."""
@@ -149,6 +155,7 @@ async def download_album_progress(browse_id: str):
     key = _album_key(browse_id)
 
     async def event_stream():
+        elapsed = 0.0
         while True:
             progress = download_progress.get(key)
             if progress is None:
@@ -161,7 +168,13 @@ async def download_album_progress(browse_id: str):
             yield f"data: {json.dumps(progress)}\n\n"
             if progress.get("status") in ("done", "error"):
                 break
+            if elapsed >= _SSE_MAX_SECONDS:
+                # Cerrar con error explícito en vez de quedarse abierto
+                # para siempre (la descarga puede seguir en su thread).
+                yield 'data: {"status": "error", "error": "timeout"}\n\n'
+                break
             await asyncio.sleep(0.5)
+            elapsed += 0.5
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
@@ -172,7 +185,7 @@ async def download_progress_route(video_id: str):
     require_valid_video_id(video_id)
 
     async def event_stream():
-
+        elapsed = 0.0
         while True:
             progress = download_progress.get(
                 video_id, {"status": "downloading", "progress": 0}
@@ -180,7 +193,11 @@ async def download_progress_route(video_id: str):
             yield f"data: {json.dumps(progress)}\n\n"
             if progress.get("status") in ("done", "error"):
                 break
+            if elapsed >= _SSE_MAX_SECONDS:
+                yield 'data: {"status": "error", "error": "timeout"}\n\n'
+                break
             await asyncio.sleep(0.5)
+            elapsed += 0.5
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 

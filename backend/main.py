@@ -193,6 +193,61 @@ app.add_middleware(
 )
 app.add_middleware(SlowAPIMiddleware)
 
+
+# ── Guardia local: Origin y Host ──────────────────────────────────────────────
+# El middleware CORS de Starlette solo decide si el NAVEGADOR puede LEER la
+# respuesta; las peticiones «simple» (POST con JSON o text/plain, sin
+# preflight) de una web maliciosa llegan al backend IGUAL y ejecutarían
+# efectos: borrar descargas, limpiar caché, forzar descargas, crear
+# playlists… (CSRF sobre la API local). Aquí se rechaza con 403 cualquier
+# Origin que no sea el de la webview de Tauri o el dev server de Vite.
+# Sin cabecera Origin = cliente nativo (fetch de la app, curl, TestClient)
+# → permitido. El check de Host cierra además el DNS rebinding: una web
+# rebindada a 127.0.0.1 llegaría same-origin, pero su Host no es local.
+#
+# ASGI puro a propósito: BaseHTTPMiddleware envuelve el cuerpo de la
+# respuesta y no queremos tocar los SSE de progreso de descarga.
+_ALLOWED_HOST_RE = re.compile(r"^(?:127\.0\.0\.1|localhost)(?::\d+)?$")
+# testserver: el Host por defecto de Starlette TestClient (los tests).
+_ALLOWED_STATIC_HOSTS = frozenset({"testserver"})
+
+
+class LocalOnlyGuard:
+    """Middleware ASGI: rechaza Origin desconocido y Host no local."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            headers = {
+                k.decode("latin-1").lower(): v.decode("latin-1")
+                for k, v in scope["headers"]
+            }
+            origin = headers.get("origin")
+            if origin is not None and origin not in _ORIGENES_CORS:
+                await JSONResponse(
+                    status_code=403,
+                    content={"error": "Origen no permitido", "code": "E-REQ-02"},
+                )(scope, receive, send)
+                return
+            host = headers.get("host")
+            if (
+                host is not None
+                and host not in _ALLOWED_STATIC_HOSTS
+                and not _ALLOWED_HOST_RE.match(host.lower())
+            ):
+                await JSONResponse(
+                    status_code=403,
+                    content={"error": "Host no permitido", "code": "E-REQ-02"},
+                )(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
+
+# Añadida LA ÚLTIMA → es la más externa: rechaza ANTES de CORS/rate-limit.
+app.add_middleware(LocalOnlyGuard)
+
 # Inicializar base de datos
 init_db()
 
@@ -221,20 +276,47 @@ async def health(request: Request):
 _THUMB_CACHE = {}
 _THUMB_CACHE_TTL = 600  # 10 minutos
 
-# Whitelist de hosts permitidos (regex precompiladas para no compilar por request)
+# Whitelist de hosts externos permitidos (regex precompiladas para no
+# compilar por request). Las portadas LOCALES no van aquí: tienen reglas
+# propias y estrictas en `_thumb_url_allowed` — un `re.match` por prefijo
+# no basta porque httpx NORMALIZA `..` al hacer la petición:
+# `.../music/covers/../../history` pasaba el prefijo y el proxy servía el
+# historial/descargas del usuario a cualquier web (auditoría pre-1.0.0).
 _THUMB_ALLOWED = [
     re.compile(r"^https://i\.ytimg\.com/"),
     re.compile(r"^https://lh3\.googleusercontent\.com/"),
     re.compile(r"^https://yt3\.googleusercontent\.com/"),
     re.compile(r"^https://music[\w-]*\.apple\.com/"),
     re.compile(r"^https://is[\d]-ssl\.mzstatic\.com/"),
-    # Portadas LOCALES del propio backend (canciones descargadas): la capa
-    # con blur de la pantalla de letras las sirve desde disco — funciona sin
-    # internet y el canvas de pre-difuminado queda CORS-limpio. Solo loopback
-    # y solo el path de covers (nada de otras rutas ni hosts de la LAN).
-    re.compile(r"^https?://127\.0\.0\.1(:\d+)?/music/covers/"),
-    re.compile(r"^https?://localhost(:\d+)?/music/covers/"),
 ]
+
+# Loopback: host exacto con PUERTO obligatorio (así construye la app las
+# URLs de portadas locales: `http://127.0.0.1:8765/music/covers/...`).
+_LOOPBACK_URL_RE = re.compile(r"^https?://(?:127\.0\.0\.1|localhost):(\d+)/")
+
+
+def _thumb_url_allowed(url: str) -> bool:
+    """¿Esta URL puede pasar por /thumbnail-proxy?
+
+    Se aplica DOS veces: a la URL pedida y a la final tras los redirects
+    (follow_redirects=True), para que un CDN de la whitelist no pueda
+    redirigir a loopback o a otro host de la LAN.
+
+    - Loopback → solo el puerto del backend y un path que, YA NORMALIZADO
+      por httpx (colapsa `..` y `%2e%2e`), siga dentro de `/music/covers/`.
+    - Externa → whitelist de CDNs de portadas.
+    """
+    m = _LOOPBACK_URL_RE.match(url)
+    if m:
+        if ".." in url or "%2e" in url.lower():
+            return False
+        if int(m.group(1) or 0) != API_PORT:
+            return False
+        try:
+            return httpx.URL(url).path.startswith("/music/covers/")
+        except Exception:
+            return False
+    return any(p.match(url) for p in _THUMB_ALLOWED)
 
 
 @app.get("/thumbnail-proxy")
@@ -242,9 +324,10 @@ _THUMB_ALLOWED = [
 async def thumbnail_proxy(request: Request, url: str):
     """Proxy para thumbnails — 300 req/min.
     Cachea respuestas en el navegador por 7 días + caché en memoria 10 min.
-    Solo permite URLs de YouTube, Google y servicios de imágenes conocidos.
+    Solo permite URLs de YouTube, Google y servicios de imágenes conocidos
+    (y portadas locales bajo reglas estrictas, ver `_thumb_url_allowed`).
     """
-    if not any(p.match(url) for p in _THUMB_ALLOWED):
+    if not _thumb_url_allowed(url):
         return JSONResponse(
             status_code=403,
             content={"error": "URL no permitida"},
@@ -258,7 +341,6 @@ async def thumbnail_proxy(request: Request, url: str):
             media_type=cached["mime"],
             headers={
                 "Cache-Control": "public, max-age=604800, immutable",
-                "Access-Control-Allow-Origin": "*",
                 "X-Content-Type-Options": "nosniff",
             },
         )
@@ -272,10 +354,31 @@ async def thumbnail_proxy(request: Request, url: str):
                 "Referer": "https://music.youtube.com/",
             },
         )
+
+        # Revalidar la URL FINAL: con follow_redirects un host permitido
+        # podría redirigir a loopback o a la LAN (SSRF por redirect).
+        if not _thumb_url_allowed(str(resp.url)):
+            return JSONResponse(
+                status_code=403,
+                content={"error": "URL no permitida"},
+            )
+
         content_type = resp.headers.get("content-type", "image/jpeg")
         content = resp.content
 
-        # Guardar en caché en memoria
+        if resp.status_code != 200 or not content_type.startswith("image/"):
+            # Un 404/500 o una página HTML de error NO es una portada:
+            # antes se servía con media_type image y se cacheaba 7 días.
+            # no-store: que el navegador reintente en el próximo render.
+            return Response(
+                content=b"",
+                status_code=502,
+                media_type="text/plain",
+                headers={"Cache-Control": "no-store"},
+            )
+
+        # Guardar en caché en memoria (solo éxitos: se escribe aquí y en el
+        # ramo de caché-hit, donde siempre hay una entrada válida)
         _THUMB_CACHE[url] = {"data": content, "mime": content_type, "ts": time.time()}
         # Limpiar cachés viejas si crece demasiado
         if len(_THUMB_CACHE) > 200:
@@ -286,12 +389,15 @@ async def thumbnail_proxy(request: Request, url: str):
             for k in stale:
                 del _THUMB_CACHE[k]
 
+        # Sin Access-Control-Allow-Origin a mano: lo añade el middleware
+        # CORS solo para los orígenes permitidos (un `*` aquí hacía
+        # legible la respuesta desde CUALQUIER web, que era justo la
+        # mitad del agujero de exfiltración del proxy).
         return Response(
             content=content,
             media_type=content_type,
             headers={
                 "Cache-Control": "public, max-age=604800, immutable",  # 7 días
-                "Access-Control-Allow-Origin": "*",
                 "X-Content-Type-Options": "nosniff",
             },
         )

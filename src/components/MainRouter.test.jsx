@@ -112,3 +112,27 @@ describe("MainRouter — pantalla «Todas las canciones»", () => {
     expect(screen.queryByText("Todas las canciones")).not.toBeInTheDocument();
   });
 });
+
+// ── Regresión: tab corrupta en localStorage ────────────────────────────────
+// Antes el `default` del switch era `return null`: una clave corrupta (o de
+// una versión futura) dejaba el contenido principal EN BLANCO, sin error ni
+// forma de salir. Ahora cualquier tab desconocida cae a Inicio.
+describe("MainRouter — tab desconocida", () => {
+  beforeAll(async () => {
+    // Precarga del chunk lazy (en frío puede tardar más que waitFor).
+    await import("./HomeView");
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.get.mockResolvedValue({ results: [] });
+  });
+
+  it("una clave corrupta renderiza Inicio, no una pantalla en blanco", async () => {
+    render(<MainRouter {...baseProps} tab="tab_inexistente" />);
+    // HomeView montado: pide sus secciones al backend al entrar
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalled();
+    });
+  });
+});

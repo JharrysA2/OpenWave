@@ -1,6 +1,6 @@
 """Tests para main.py — Thumbnail proxy, health y warmup."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 
 class TestThumbnailProxy:
@@ -42,6 +42,119 @@ class TestThumbnailProxy:
         """URL de yt3.googleusercontent.com debe pasar la whitelist."""
         resp = client.get("/thumbnail-proxy?url=https://yt3.googleusercontent.com/test")
         assert resp.status_code != 403
+
+    # ── Seguridad: loopback solo covers, sin escapes (audoría pre-1.0.0) ──
+
+    def test_local_traversal_blocked(self, client):
+        """`.../music/covers/../../history` NO pasa: httpx normaliza `..`
+        y el proxy acababa sirviendo el historial a cualquier web."""
+        resp = client.get(
+            "/thumbnail-proxy",
+            params={"url": "http://127.0.0.1:8765/music/covers/../../history"},
+        )
+        assert resp.status_code == 403
+        assert resp.json()["error"] == "URL no permitida"
+
+    def test_local_wrong_path_blocked(self, client):
+        """Loopback correcto pero fuera de /music/covers/ → 403."""
+        resp = client.get(
+            "/thumbnail-proxy", params={"url": "http://127.0.0.1:8765/history"}
+        )
+        assert resp.status_code == 403
+
+    def test_local_wrong_port_blocked(self, client):
+        """Puerto distinto del backend → 403 (escaneo de puertos vía proxy)."""
+        resp = client.get(
+            "/thumbnail-proxy",
+            params={"url": "http://127.0.0.1:9999/music/covers/x.jpg"},
+        )
+        assert resp.status_code == 403
+
+    def _mock_upstream(self, mocker, final_url, status=200, ctype="image/jpeg"):
+        """Patchea httpx.AsyncClient devolviendo una respuesta fake."""
+        resp = MagicMock()
+        resp.status_code = status
+        resp.headers = {"content-type": ctype}
+        resp.content = b"IMGDATA"
+        resp.url = final_url
+        ac = mocker.patch("main.httpx.AsyncClient")
+        get = AsyncMock(return_value=resp)
+        ac.return_value.__aenter__.return_value.get = get
+        return get
+
+    def test_redirect_to_internal_revalidated(self, client, mocker):
+        """La URL FINAL tras redirect pasa por las MISMAS reglas: un CDN
+        permitido no puede redirigir a lo interno (SSRF por redirect)."""
+        self._mock_upstream(mocker, "http://127.0.0.1:8765/history")
+        resp = client.get(
+            "/thumbnail-proxy",
+            params={"url": "https://i.ytimg.com/vi/redirect_vid/mqdefault.jpg"},
+        )
+        assert resp.status_code == 403
+
+    def test_success_has_no_wildcard_acao(self, client, mocker):
+        """Ni en el 200 ni en el cache-hit debe existir ACAO `*` (era la
+        otra mitad del agujero de exfiltración). El middleware CORS pone el
+        origen real solo cuando la petición lo trae."""
+        url = "https://i.ytimg.com/vi/no_wildcard_vid/mqdefault.jpg"
+        self._mock_upstream(mocker, url)
+        r1 = client.get("/thumbnail-proxy", params={"url": url})
+        assert r1.status_code == 200
+        assert "access-control-allow-origin" not in r1.headers
+        r2 = client.get("/thumbnail-proxy", params={"url": url})
+        assert r2.status_code == 200
+        assert "access-control-allow-origin" not in r2.headers
+        assert r2.headers["cache-control"] == "public, max-age=604800, immutable"
+
+    def test_upstream_error_not_cached(self, client, mocker):
+        """Un 404/HTML de error NO se sirve como imagen ni se cachea 7 días."""
+        url = "https://i.ytimg.com/vi/error_vid/mqdefault.jpg"
+        get = self._mock_upstream(mocker, url, status=404, ctype="text/html")
+        r = client.get("/thumbnail-proxy", params={"url": url})
+        assert r.status_code == 502
+        assert r.headers["cache-control"] == "no-store"
+        # Sin caché: la siguiente llamada vuelve a consultar el upstream.
+        client.get("/thumbnail-proxy", params={"url": url})
+        assert get.await_count == 2
+
+
+class TestLocalOnlyGuard:
+    """CSRF local y DNS rebinding: solo orígenes/hosts de la propia app.
+
+    El middleware CORS solo decide si el navegador PUEDE LEER la
+    respuesta; las peticiones «simple» (POST JSON) de una web maliciosa
+    llegaban igual y ejecutaban efectos (borrar descargas, crear
+    playlists…). La guardia las rechaza con 403 ANTES de CORS.
+    """
+
+    def test_origin_desconocido_get_403(self, client):
+        resp = client.get("/health", headers={"Origin": "http://evil.example"})
+        assert resp.status_code == 403
+        assert resp.json()["code"] == "E-REQ-02"
+        assert "access-control-allow-origin" not in resp.headers
+
+    def test_origin_desconocido_post_403(self, client):
+        """La POST «simple» de una web no autorizada no debe llegar a la BD."""
+        resp = client.post(
+            "/history",
+            json={"videoId": "csrf_vid", "title": "t"},
+            headers={"Origin": "http://evil.example"},
+        )
+        assert resp.status_code == 403
+        assert resp.json()["code"] == "E-REQ-02"
+
+    def test_host_no_local_403(self, client):
+        """Host rebindado (DNS rebinding) → same-origin pero Host no local."""
+        resp = client.get("/health", headers={"Host": "evil.example"})
+        assert resp.status_code == 403
+
+    def test_origin_de_la_app_200(self, client):
+        resp = client.get("/health", headers={"Origin": "http://tauri.localhost"})
+        assert resp.status_code == 200
+
+    def test_sin_origin_200(self, client):
+        """Cliente nativo (fetch de la app sin cross-origin, curl, tests)."""
+        assert client.get("/health").status_code == 200
 
 
 class TestWarmup:
@@ -176,6 +289,7 @@ class TestCorsOrigenEmpaquetado:
 
     def test_origen_desconocido_no_se_permite(self, client):
         resp = client.get("/health", headers={"Origin": "http://evil.example"})
+        assert resp.status_code == 403
         assert "access-control-allow-origin" not in resp.headers
 
 

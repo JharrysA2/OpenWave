@@ -18,8 +18,6 @@ import { useSavedEntities } from "./hooks/useSavedEntities";
 import { useEntityOptions } from "./hooks/useEntityOptions";
 import { useMediaSession } from "./hooks/useMediaSession";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { TrackPickerModal } from "./components/TrackPickerModal";
-import { SelectionModal } from "./components/SelectionModal";
 import { PlayerBar } from "./components/PlayerBar";
 import { CreatePlaylistModal } from "./components/CreatePlaylistModal";
 import { Toasts } from "./components/Toast";
@@ -246,17 +244,6 @@ function AppInner() {
   const [playlistPickerSong, setPlaylistPickerSong] = useState(null);
   // Selección múltiple (pistas de un álbum desde EntityOptionsSheet)
   const [playlistPickerSongs, setPlaylistPickerSongs] = useState(null);
-
-  // ── Track Picker ────────────────────────────────────────────────────────────
-  const [trackPickerOpen, setTrackPickerOpen] = useState(false);
-  const [trackPickerPlaylist, _setTrackPickerPlaylist] = useState(null);
-  const [trackPickerTracks, _setTrackPickerTracks] = useState([]);
-  const [trackPickerLoading, _setTrackPickerLoading] = useState(false);
-
-  // ── Selection Modal ─────────────────────────────────────────────────────────
-  const [selectionModalOpen, setSelectionModalOpen] = useState(false);
-  const [selectionModalSongs, _setSelectionModalSongs] = useState([]);
-  const [selectionModalMode, setSelectionModalMode] = useState(null);
 
   // ── Conexión con el backend ────────────────────────────────────────────────
   //    El heartbeat vive en utils/backendHealth (external store). Aquí solo lo
@@ -865,41 +852,6 @@ function AppInner() {
       {/* Entity Options Sheet (álbum / artista) */}
       {entityOptionsSheet}
 
-      {/* Track Picker Modal */}
-      <TrackPickerModal
-        open={trackPickerOpen}
-        playlist={trackPickerPlaylist}
-        tracks={trackPickerTracks}
-        loadingTracks={trackPickerLoading}
-        onClose={() => setTrackPickerOpen(false)}
-        onConfirm={(videoIds) => {
-          if (trackPickerPlaylist) {
-            // Build songs metadata for the backend
-            const songsMeta = videoIds.map((vid) => {
-              const s = trackPickerTracks.find((t) => t.videoId === vid);
-              return s
-                ? {
-                    videoId: s.videoId,
-                    title: s.title || "",
-                    artist: s.artist || "",
-                    thumbnail: s.thumbnail || "",
-                    thumbnails: s.thumbnails || [],
-                    duration: s.duration || 0,
-                  }
-                : null;
-            });
-            api
-              .post(`/playlists/${trackPickerPlaylist.id}/songs`, { videoIds, songs: songsMeta })
-              .then(async () => {
-                toast("Canciones agregadas", "success");
-                setTrackPickerOpen(false);
-                await refreshPlaylists();
-              })
-              .catch(() => toast("Error al agregar", "error"));
-          }
-        }}
-      />
-
       {/* Playlist Picker Modal — mejorado con tokens de tema y animación */}
       <PlaylistPickerModal
         open={playlistPickerOpen}
@@ -913,33 +865,6 @@ function AppInner() {
           setPlaylistPickerSong(null);
           setPlaylistPickerSongs(null);
         }}
-      />
-
-      {/* Selection Modal */}
-      <SelectionModal
-        open={selectionModalOpen}
-        onClose={() => {
-          setSelectionModalOpen(false);
-          setSelectionModalMode(null);
-        }}
-        songs={selectionModalSongs}
-        currentSong={currentSong}
-        onDelete={
-          selectionModalMode === "delete"
-            ? (videoIds) => {
-                api
-                  .del("/downloads", { videoIds })
-                  .then(() => {
-                    setDownloads((prev) =>
-                      prev.filter((d) => !videoIds.includes(d.videoId || d.video_id)),
-                    );
-                    toast("Descargas eliminadas", "info");
-                    setSelectionModalOpen(false);
-                  })
-                  .catch(() => toast("Error al eliminar", "error"));
-              }
-            : null
-        }
       />
 
       {/* ── Lyrics View (overlay) ─────────────────────────────────────────── */}

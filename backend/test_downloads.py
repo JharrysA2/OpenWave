@@ -669,3 +669,39 @@ class TestDownloadCoverEmbed:
         assert second_opts["format"] == "18/bestaudio/best"
         # La descarga terminó bien pese al reintento
         assert mock_subprocess_run.call_count == 1
+
+
+class TestDownloadLock:
+    """Lock por video_id: dos hebras no escriben el mismo .part.
+
+    Sin él, dos descargas concurrentes del mismo vídeo (individual + pista
+    de álbum) pasaban ambas el check exists() y dos ffmpeg escribían el
+    mismo `.mp3.part`; el os.replace de uno publicaba un MP3 mientras el
+    otro seguía escribiendo (MP3 corrupto = invariante rota).
+    """
+
+    def test_same_video_same_lock(self):
+        from downloads import _get_download_lock
+
+        a = _get_download_lock("vid_lock_a")
+        b = _get_download_lock("vid_lock_a")
+        c = _get_download_lock("vid_lock_b")
+        assert a is b
+        assert a is not c
+
+    @patch("downloads.COVERS_DIR")
+    @patch("downloads.get_mp3_path", side_effect=RuntimeError("boom"))
+    def test_lock_released_even_on_failure(self, mock_mp3, mock_covers):
+        from downloads import _get_download_lock, do_download, download_progress
+
+        do_download(
+            video_id="lockfail01",
+            title="T",
+            artist="A",
+            thumbnail="",
+            duration=1,
+        )
+        assert download_progress["lockfail01"]["status"] == "error"
+        lock = _get_download_lock("lockfail01")
+        assert lock.acquire(blocking=False), "el lock quedó retenido tras el fallo"
+        lock.release()

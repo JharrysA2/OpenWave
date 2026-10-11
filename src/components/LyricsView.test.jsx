@@ -1449,4 +1449,24 @@ describe("LyricsView — letras persistidas (sobreviven recargas sin internet)",
       expect(bg.style.backgroundImage).toContain(encodeURIComponent(localUrl));
     });
   });
+
+  // ── Reset de vista al cambiar de canción ──────────────────────────────────
+
+  it("al cambiar de canción, la vista de letras vuelve al inicio", () => {
+    // El contenedor de scroll es el mismo (sin key): conservaba el
+    // scrollTop de la canción anterior y la nueva letra arrancaba a media
+    // altura en vez del principio.
+    const { container, rerender } = renderLyrics();
+    const scroll = container.querySelector('[data-testid="lyrics-scroll"]');
+    expect(scroll).toBeTruthy();
+    scroll.scrollTop = 500; // la anterior canción quedó a media altura
+
+    rerender(
+      <SettingsProvider>
+        <LyricsView {...defaultProps} song={song("2")} />
+      </SettingsProvider>,
+    );
+
+    expect(scroll.scrollTop).toBe(0);
+  });
 });

@@ -111,6 +111,17 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   `{"status": "downloading"}` para siempre. Ahora cierra con un evento
   `{"status": "error", "error": "timeout"}` a los 10 minutos.
 
+- **Resultados de la búsqueda anterior visibles bajo el skeleton de la
+  nueva**: al buscar por segunda vez, el bloque de resultados no se
+  gateaba con el estado «buscando» y los resultados viejos aparecían
+  DEBAJO del skeleton de la consulta nueva. Ahora, mientras hay una
+  búsqueda en vuelo solo se pinta el skeleton.
+
+- **La vista de letras no se reiniciaba al cambiar de canción**: el
+  contenedor de scroll es el mismo y conservaba el `scrollTop` de la
+  anterior, así que la letra nueva arrancaba a media altura o abajo.
+  Ahora cada canción empieza en el inicio de su letra.
+
 ### Removed
 
 - **`TrackPickerModal` y `SelectionModal` (UI muerta)**: ninguno de los

@@ -167,6 +167,30 @@ describe("SearchView", () => {
     expect(screen.getByText("Song 2")).toBeInTheDocument();
   });
 
+  it("durante una nueva búsqueda NO se pintan los resultados anteriores", () => {
+    // Regresión: el skeleton de la nueva búsqueda aparecía ARRIBA y los
+    // resultados de la anterior seguían visibles DEBAJO del skeleton.
+    const { container } = renderSearch({
+      query: "nueva",
+      searchLoading: true,
+      results: [song("1")],
+      searchArtists: [artist("1")],
+      searchAlbums: [album("1")],
+    });
+    // El skeleton SÍ está; las secciones de la búsqueda vieja, NO.
+    expect(container.querySelectorAll(".skeleton").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Canciones")).not.toBeInTheDocument();
+    expect(screen.queryByText("Song 1")).not.toBeInTheDocument();
+    expect(screen.queryByText("Artist 1")).not.toBeInTheDocument();
+    expect(screen.queryByText("Album 1")).not.toBeInTheDocument();
+  });
+
+  it("al terminar la búsqueda, los resultados nuevos sí se pintan", () => {
+    const results = [song("9")];
+    renderSearch({ query: "nueva", searchLoading: false, results });
+    expect(screen.getByText("Song 9")).toBeInTheDocument();
+  });
+
   it("should call playSong when a song is clicked", () => {
     const playSong = vi.fn();
     const results = [song("1")];

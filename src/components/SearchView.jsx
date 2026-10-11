@@ -245,7 +245,11 @@ export default function SearchView({
               </div>
             )}
 
-          {searchArtists.length > 0 && (
+          {/* Resultados anteriores ESPERAN en memoria (stale-offline), pero
+              mientras `searching` no se pintan: antes los bloques de abajo
+              se rendereaban junto al skeleton de la nueva búsqueda y la
+              anterior búsqueda aparecía DEBAJO del skeleton. */}
+          {!searching && searchArtists.length > 0 && (
             <div style={{ marginBottom: SPACING.section.marginBottomSm }}>
               <h3
                 style={{
@@ -269,7 +273,7 @@ export default function SearchView({
             </div>
           )}
 
-          {results.length > 0 && (
+          {!searching && results.length > 0 && (
             <div>
               <h3
                 style={{
@@ -327,7 +331,7 @@ export default function SearchView({
             </div>
           )}
 
-          {searchAlbums.length > 0 && (
+          {!searching && searchAlbums.length > 0 && (
             <div style={{ marginBottom: SPACING.section.marginBottomSm }}>
               <h3
                 style={{

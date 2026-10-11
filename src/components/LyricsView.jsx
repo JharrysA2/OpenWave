@@ -1592,6 +1592,13 @@ export function LyricsView({
     lastScrolledLineRef.current = -1;
     scrollLatchRef.current = 0;
 
+    // ⭐ La vista se REINICIA al cambiar de canción: el contenedor es el
+    //    mismo (sin key) y mantiene el scrollTop de la anterior, así que la
+    //    nueva letra arrancaba a media altura o abajo en vez del inicio.
+    if (lyricsContainerRef.current) {
+      lyricsContainerRef.current.scrollTop = 0;
+    }
+
     const videoId = song.videoId;
     const title = song.title || "";
     const artist = song.artist || "";

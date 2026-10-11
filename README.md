@@ -10,7 +10,30 @@ App de música para PC usando **Tauri + React + FastAPI + ytmusicapi**.
 - ✅ Descarga offline con yt-dlp
 - ✅ UI oscura con glassmorphism (True Liquid Glass)
 - ✅ Instalador .MSI para Windows
-- ✅ Suite de **tests**: 938 tests unitarios (Vitest) + e2e (Playwright) + Pytest
+- ✅ Suite de **tests**: 970 tests unitarios (Vitest) + e2e (Playwright) + Pytest
+
+---
+
+## 📥 Descarga e instalación (usuarios)
+
+1. Descarga el instalador `OpenWave-*-x64-es-ES.msi` desde la [página de
+   Releases](https://github.com/JharrysA2/OpenWave/releases).
+2. Ejecútalo y acepta el diálogo de Windows. SmartScreen puede avisar de que
+   el editor es desconocido (app sin firma comercial): «Más información» →
+   «Ejecutar de todos modos».
+3. Requisitos: Windows 10 o 11 con WebView2 (incluido en Windows 11; en
+   Windows 10 se instala desde la web de Microsoft).
+4. La primera ejecución necesita internet (catálogo de YouTube Music). Las
+   canciones **descargadas** se reproducen sin conexión desde la pestaña
+   Descargas.
+
+**Actualizaciones**: 1.0.0 no trae actualizador automático — descarga el MSI
+más reciente e instálalo por encima de la versión anterior; tus datos
+(descargas, playlists, historial y preferencias) se conservan.
+
+**Datos**: todo se guarda en tu equipo (base de datos, descargas, letras y
+preferencias en `C:\ProgramData\OpenWave` y el perfil de usuario). La app no
+recopila ni envía telemetría.
 
 ---
 
@@ -74,7 +97,7 @@ npm run tauri dev
 | `scripts/generate-license.ps1` | (Windows) Genera `build/windows/licencia.txt` para el diálogo de licencia del MSI |
 | `scripts/prepare-runtime.ps1` | (Windows) Prepara Python embebido + dependencias + ffmpeg en `build/staging` |
 | `scripts/package-windows.ps1` | (Windows) Construye el instalador MSI completo → `build/windows/` |
-| `scripts/verify-msi.ps1` | (Windows) Verificación estática del MSI compilado: 74 comprobaciones sobre sus tablas y su payload, sin instalar |
+| `scripts/verify-msi.ps1` | (Windows) Verificación estática del MSI compilado: 75 comprobaciones sobre sus tablas y su payload, sin instalar |
 
 Guía completa del instalador (pasos, decisiones de diseño y checklist de
 aceptación): **[docs/instalador/README.md](docs/instalador/README.md)**.
@@ -261,10 +284,10 @@ openwave/
 
 - **ESLint** — Reglas para React 18 + JSX + Hooks
 - **Prettier** — Formateo automático
-- **Vitest** — 938 tests unitarios en 54 ficheros (componentes, hooks y utils del frontend)
+- **Vitest** — 970 tests unitarios en 57 ficheros (componentes, hooks y utils del frontend)
 - **Playwright** — Tests e2e (navegación, búsqueda, reproducción, settings, librería)
 - **Ruff** — Linter y formatter para Python backend
-- **Pytest** — 399 tests del backend (rutas, DB, streaming, descargas, letras, utils)
+- **Pytest** — 444 tests del backend (rutas, DB, streaming, descargas, letras, utils)
 - **Husky + lint-staged** — Pre-commit hook que ejecuta Prettier + ESLint automáticamente
 - **GitHub Actions CI** — Frontend: lint + formato + build + `npm test`; Backend: ruff + pytest
 
@@ -272,7 +295,17 @@ openwave/
 
 ## ⚠️ Notas legales
 
-- `ytmusicapi` usa la API privada de YouTube Music (reverse engineering).
-- Para **uso personal** funciona sin problemas.
-- **No distribuir comercialmente** ni usar para servicios públicos.
-- Alternativa legal: usar la [YouTube Data API v3](https://developers.google.com/youtube/v3) oficial (gratuita con límites).
+- **Licencia del código**: [CC BY-NC 4.0](LICENSE) — libre para uso
+  personal: puedes copiarlo, modificarlo y redistribuirlo citando al autor,
+  pero **no con fines comerciales** ni con ánimo de lucro.
+- OpenWave consulta contenido a través de la **API privada de YouTube
+  Music** (`ytmusicapi`, reverse engineering). No está afiliada, patrocinada
+  ni respaldada por Google ni por YouTube; el acceso queda sujeto a las
+  [Condiciones de Servicio de Google](https://www.youtube.com/t/terms) y la
+  disponibilidad del contenido depende de terceros.
+- Para uso personal funciona sin problemas. Para un servicio público o
+  comercial, la alternativa legal sería la
+  [YouTube Data API v3](https://developers.google.com/youtube/v3) oficial
+  (gratuita con límites).
+- El software se distribuye «tal cual», sin garantía de ningún tipo (Sección
+  5 de la licencia).

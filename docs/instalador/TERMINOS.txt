@@ -1,5 +1,5 @@
 TÉRMINOS Y CONDICIONES DE USO DE OPENWAVE
-Última actualización: 30 de septiembre de 2026
+Última actualización: 11 de octubre de 2026
 
 1. ACEPTACIÓN DE LOS TÉRMINOS
 Al instalar y utilizar OpenWave usted acepta los presentes Términos y
@@ -9,7 +9,7 @@ instale el programa y elimine este instalador y cualquier copia del mismo.
 2. QUÉ ES OPENWAVE
 OpenWave es una aplicación de escritorio de código abierto que permite
 descubrir, organizar, reproducir y descargar música desde fuentes públicas de
-Internet. Es software libre: su código fuente puede consultarse, copiarse y
+Internet. Su código fuente es público y puede consultarse, copiarse y
 modificarse conforme a la licencia indicada en el punto 7.
 
 3. USO PERSONAL Y NO COMERCIAL
@@ -52,15 +52,16 @@ consecuentes derivados del uso o de la imposibilidad de uso del programa o
 de los servicios de terceros descritos en el punto 4.
 
 7. LICENCIA DEL CÓDIGO
-El código fuente de OpenWave se distribuye bajo los términos de la GNU
-GENERAL PUBLIC LICENSE, versión 3 o (a su elección) cualquier versión
-posterior (GPL-3.0-or-later). Puede consultar el repositorio y descargar el
-código fuente en:
+El código fuente de OpenWave se distribuye bajo los términos de la Licencia
+Creative Commons Atribución-NoComercial 4.0 Internacional (CC BY-NC 4.0):
+puede consultarse, copiarse y modificarse citando al autor, pero NO puede
+utilizarse con fines comerciales ni distribuirse con ánimo de lucro. Puede
+consultar el repositorio y descargar el código fuente en:
 
     https://github.com/JharrysA2/OpenWave
 
-Una copia íntegra de la licencia GPL-3.0 se incluye más abajo y también como
-fichero «LICENSE» en la carpeta de instalación del programa.
+Una copia íntegra de la licencia CC BY-NC 4.0 se incluye más abajo y también
+como fichero «LICENSE» en la carpeta de instalación del programa.
 
 8. MODIFICACIONES
 Los mantenedores del proyecto pueden actualizar estos Términos en versiones
@@ -70,4 +71,4 @@ el instalador que usted utilice.
 --------------------------------------------------------------------------------
 
 A continuación se reproduce la licencia completa del código fuente
-(GNU GENERAL PUBLIC LICENSE, versión 3):
+(Creative Commons Atribución-NoComercial 4.0 Internacional, CC BY-NC 4.0):

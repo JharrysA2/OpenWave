@@ -14,6 +14,18 @@ App de música para PC usando **Tauri + React + FastAPI + ytmusicapi**.
 
 ---
 
+## 📸 Capturas
+
+| Inicio | Reproducción |
+|:---:|:---:|
+| ![OpenWave — captura 1](docs/screenshots/captura-1.jpg) | ![OpenWave — captura 2](docs/screenshots/captura-2.jpg) |
+
+| Letras sincronizadas |
+|:---:|
+| ![OpenWave — captura 3](docs/screenshots/captura-3.jpg) |
+
+---
+
 ## 📥 Descarga e instalación (usuarios)
 
 1. Descarga el instalador `OpenWave-*-x64-es-ES.msi` desde la [página de

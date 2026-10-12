@@ -2,6 +2,7 @@
 
 import asyncio
 
+from cache import api_cache_delete
 from db import db_get_history, db_import_history, db_log_history, get_db
 from fastapi import APIRouter, Query, Request
 
@@ -27,6 +28,10 @@ async def log_history(request: Request):
     """Registrar una reproducción en el historial."""
     body = await request.json()
     db_log_history(body)
+    # El mix «Tu Mix del Momento» depende de las repeticiones recientes: al
+    # registrar una reproducción, invalida el mix para que la próxima carga
+    # recalcule la Canción Ancla al momento.
+    api_cache_delete("home:for-you")
     return {"ok": True}
 
 
@@ -38,6 +43,8 @@ async def delete_history_entries(request: Request):
     with get_db() as conn:
         for vid in video_ids:
             conn.execute("DELETE FROM history WHERE video_id=?", (vid,))
+            conn.execute("DELETE FROM play_events WHERE video_id=?", (vid,))
+    api_cache_delete("home:for-you")
     return {"ok": True}
 
 
@@ -57,4 +64,6 @@ async def clear_history():
     """Limpiar todo el historial."""
     with get_db() as conn:
         conn.execute("DELETE FROM history")
+        conn.execute("DELETE FROM play_events")
+    api_cache_delete("home:for-you")
     return {"ok": True}

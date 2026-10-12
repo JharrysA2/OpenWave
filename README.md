@@ -274,7 +274,7 @@ openwave/
 | GET    | `/search/videos?q=`    | Buscar videos                       |
 | GET    | `/trending`            | Tendencias                          |
 | GET    | `/home/quick-picks`    | Reproducciones recientes            |
-| GET    | `/home/for-you`        | Mix personal (radios de tu historial) |
+| GET    | `/home/for-you`        | Tu Mix del Momento (radio del ancla) |
 | GET    | `/home/albums`         | Álbumes sugeridos                   |
 | GET    | `/home/trending-fixed` | Tendencias fijas                    |
 

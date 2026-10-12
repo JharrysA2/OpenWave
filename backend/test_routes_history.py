@@ -208,3 +208,50 @@ class TestHistoryLocalFlags:
         item = next(i for i in resp.json() if i["videoId"] == "hist_v2")
         assert item["downloaded"] is False
         assert item["coverLocal"] == ""
+
+
+class TestHistoryPlayEvents:
+    """POST/DELETE /history alimenta el mix «Tu Mix del Momento»."""
+
+    def test_post_history_logs_play_event(self, client, sample_song):
+        """Cada reproducción deja un evento con marca de tiempo."""
+        from db import get_db
+
+        client.post("/history", json=sample_song)
+        with get_db() as conn:
+            n = conn.execute(
+                "SELECT COUNT(*) AS n FROM play_events WHERE video_id=?",
+                (sample_song["videoId"],),
+            ).fetchone()["n"]
+        assert n == 1
+
+    def test_post_history_invalidates_for_you_cache(self, client, sample_song):
+        """Registrar una reproducción invalida el mix cacheado."""
+        from cache import api_cache_get, api_cache_set
+
+        api_cache_set("home:for-you", [{"videoId": "stale"}])
+        client.post("/history", json=sample_song)
+        assert api_cache_get("home:for-you") is None
+
+    def test_delete_entry_removes_play_events(self, client, sample_song):
+        """Eliminar del historial borra también sus eventos de reproducción."""
+        from db import get_db
+
+        client.post("/history", json=sample_song)
+        _delete_with_body(client, "/history", {"videoIds": [sample_song["videoId"]]})
+        with get_db() as conn:
+            n = conn.execute(
+                "SELECT COUNT(*) AS n FROM play_events WHERE video_id=?",
+                (sample_song["videoId"],),
+            ).fetchone()["n"]
+        assert n == 0
+
+    def test_clear_history_removes_play_events(self, client, sample_song):
+        """Vaciar el historial borra también los eventos de reproducción."""
+        from db import get_db
+
+        client.post("/history", json=sample_song)
+        client.delete("/history/all")
+        with get_db() as conn:
+            n = conn.execute("SELECT COUNT(*) AS n FROM play_events").fetchone()["n"]
+        assert n == 0

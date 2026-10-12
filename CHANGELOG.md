@@ -8,11 +8,13 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Changed
 
-- **Para ti**: el home arma su mix con el algoritmo de radio de YouTube Music:
-  toma canciones reales del historial como semillas, encadena las
-  recomendaciones de cada una (`get_watch_playlist`) y reparte cuota por
-  artista para que ninguno acapare la sección (colapsa variantes como
-  «C.R.O» y «CRO», y demora a los artistas que el usuario suele saltar).
+- **Tu Mix del Momento** (sección antes llamada «Para ti»): el home replica
+  el Mix de YouTube Music. Elige una **Canción Ancla** (la más repetida en las
+  últimas 72 h), pide su radio a YouTube (`get_watch_playlist`) y cruza el
+  resultado con el historial largo plazo: las canciones que ya disfrutas suben
+  justo después del ancla y las nuevas se intercalan como descubrimiento. El
+  orden lo marcan YouTube y tu afinidad real —ya no se reparte por artista— y
+  cada reproducción recalcula el mix.
 
 ## [1.0.0] - 2026-10-11
 

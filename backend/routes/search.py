@@ -1,7 +1,6 @@
 """OpenWave Backend — Rutas de búsqueda, tendencias y home."""
 
 import asyncio
-import random
 import re
 
 import yt_dlp
@@ -13,7 +12,13 @@ from logging_config import get_logger
 from rate_limit import limiter
 from ytmusic_client import get_ytm
 
-from utils import best_thumb_raw, extract_chart_items, fmt_song, fmt_thumbs
+from utils import (
+    best_thumb_raw,
+    enrich_local_flags,
+    extract_chart_items,
+    fmt_song,
+    fmt_thumbs,
+)
 
 logger = get_logger(__name__)
 
@@ -273,68 +278,79 @@ async def home_quick_picks(request: Request):
     return {"results": songs or []}
 
 
-# ── Motor de "Para ti" (Mix estilo YouTube Music) ────────────────────────────
-# Antes se buscaba por NOMBRE de artista: el mix quedaba dominado por el
-# artista más escuchado (p. ej. C.R.O / CRO) y apenas aparecía el resto del
-# historial. Ahora se replica el Mix de YouTube Music: se toman canciones
-# reales del historial como SEMILLAS, se pide la "radio" de cada una
-# (get_watch_playlist → la cadena canción → relacionadas → relacionadas de
-# esas) y se mezclan los resultados repartiendo cuota por artista, para que
-# ningún cantante copie la sección.
+# ── «Tu Mix del Momento» (mix estilo YouTube Music) ─────────────────────────
+# Réplica del Mix de YouTube Music en 4 pasos:
+#   1. Canción Ancla: la más repetida en la ventana reciente (eventos de
+#      reproducción de las últimas 72 h). Es la posición #1 del mix.
+#   2. Semilla de radio: get_watch_playlist(radio=True) sobre el ancla trae
+#      las ~25 canciones que YouTube relaciona (filtrado colaborativo +
+#      análisis acústico).
+#   3. Cruce con el historial largo plazo: las que el usuario ya disfruta
+#      (más reproducidas de siempre / con «Me gusta») suben a las posiciones
+#      2-4; las que nunca escuchó se intercalan más adelante (descubrimiento).
+#   4. Dinámico: cada reproducción invalida la caché, así el mix recalcula el
+#      ancla cuando el usuario se obsesiona con otra canción.
+# No se reparte por artista: el orden lo manda YouTube + la afinidad real.
+
+FOR_YOU_WINDOW_HOURS = 72  # ventana del historial reciente
+FOR_YOU_MIN_PLAYS = 3  # repeticiones para proclamar «Canción Ancla»
+FOR_YOU_LIMIT = 25  # tamaño del mix
+FOR_YOU_TTL = 90  # segundos de caché (se invalida al reproducir)
 
 
-def _split_artists(value: str) -> list[str]:
-    """Separar un campo "A, B, C" en nombres de artista individuales."""
-    return [a.strip() for a in (value or "").split(",") if a.strip()]
+def _song_from_row(row) -> dict:
+    """Normalizar una fila de historial al shape de canción del frontend."""
+    d = dict(row)
+    return {
+        "videoId": d.get("video_id") or d.get("videoId") or "",
+        "title": d.get("title", ""),
+        "artist": d.get("artist", ""),
+        "thumbnail": d.get("thumbnail", ""),
+        "thumbnails": d.get("thumbnails") or [],
+        "duration": d.get("duration", 0) or 0,
+        "downloaded": False,
+        "coverLocal": "",
+    }
 
 
-def _artist_key(name: str) -> str:
-    """Clave normalizada de artista: colapsa C.R.O, CRO y c.r.o en "cro".
+def _pick_anchor():
+    """Elegir la «Canción Ancla» del mix.
 
-    Sin esto, el mix trata cada variante de escritura como un artista
-    distinto y la cuota por artista no frena al mismo cantante.
+    1) La más repetida de la ventana reciente; si ninguna supera el umbral,
+       la más escuchada/reciente de esa ventana. 2) Sin eventos recientes
+       (p. ej. historial anterior a esta función), la más escuchada de todo
+       el historial.
     """
-    return re.sub(r"[^a-z0-9]+", "", (name or "").lower())
+    from db import db_get_recent_plays
+
+    recent = db_get_recent_plays(hours=FOR_YOU_WINDOW_HOURS, limit=10)
+    if recent:
+        top = next(
+            (r for r in recent if (r.get("plays") or 0) >= FOR_YOU_MIN_PLAYS),
+            recent[0],
+        )
+        return _song_from_row(top)
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT video_id, title, artist, thumbnail, thumbnails, duration "
+            "FROM history ORDER BY play_count DESC, last_played_at DESC LIMIT 1"
+        ).fetchone()
+    return _song_from_row(row) if row else None
 
 
-def _pick_seeds(rows, limit: int = 6) -> list[dict]:
-    """Elegir canciones-semilla diversas para el mix.
-
-    Primera pasada: la canción más escuchada de cada artista principal (así
-    una colaboración "A, B" no cuenta como dos artistas ni deja que uno solo
-    acapare las semillas). Segunda pasada: completa con el resto de las más
-    escuchadas.
-    """
-    seeds: list[dict] = []
-    used_videos: set[str] = set()
-    used_artists: set[str] = set()
-    for r in rows:
-        vid = r["videoId"]
-        if not vid or vid in used_videos:
-            continue
-        artists = _split_artists(r["artist"])
-        primary = _artist_key(artists[0]) if artists else ""
-        if primary and primary in used_artists:
-            continue
-        used_videos.add(vid)
-        if primary:
-            used_artists.add(primary)
-        seeds.append(dict(r))
-        if len(seeds) >= limit:
-            return seeds
-    for r in rows:
-        vid = r["videoId"]
-        if not vid or vid in used_videos:
-            continue
-        used_videos.add(vid)
-        seeds.append(dict(r))
-        if len(seeds) >= limit:
-            break
-    return seeds
+def _long_term_ids() -> set:
+    """Historial largo plazo: más reproducidas de siempre + «Me gusta»."""
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT video_id FROM "
+            "(SELECT video_id FROM history ORDER BY play_count DESC LIMIT 100) "
+            "UNION SELECT video_id FROM song_feedback WHERE action = 'like'"
+        ).fetchall()
+    return {r["video_id"] for r in rows}
 
 
 def _radio_tracks(ytm, video_id: str, limit: int) -> list:
-    """Canciones de la radio de YouTube Music para una semilla.
+    """Canciones de la radio de YouTube Music para la Canción Ancla.
 
     Intenta la radio real (radio=True) y, si falla, la watch playlist normal.
     Devuelve [] si ambas fallan; el llamador decide el respaldo.
@@ -350,191 +366,79 @@ def _radio_tracks(ytm, video_id: str, limit: int) -> list:
     return []
 
 
-def _mix_diverse(
-    candidates: list, limit: int = 25, per_artist: int = 3, scores=None
-) -> list:
-    """Mezclar candidatos repartiendo cuota por artista.
+def _build_mix(anchor: dict, limit: int = FOR_YOU_LIMIT) -> list:
+    """Armar el mix del ancla: radio de YouTube cruzada con el historial.
 
-    Agrupa por artista principal (normalizado), limita a `per_artist`
-    canciones por artista y reparte en round-robin: los primeros puestos son
-    siempre de artistas distintos. `scores` (0.0–1.0, menor = mejor) reordena
-    los grupos para que los artistas que el usuario suele saltar caigan al
-    final. La cuota es estricta: ningún artista puede acaparar la sección.
+    Orden: ancla (#1) → canciones que el usuario ya disfruta de las que
+    devolvió YouTube (2-4) → descubrimiento (5+), con el resto de las
+    conocidas como relleno final.
     """
-    buckets: dict[str, list] = {}
-    order: list[str] = []
-    for c in candidates:
-        artists = _split_artists(c.get("artist", ""))
-        key = _artist_key(artists[0]) if artists else "__unknown__"
-        if key not in buckets:
-            buckets[key] = []
-            order.append(key)
-        buckets[key].append(c)
+    ytm = get_ytm()
+    anchor_id = anchor.get("videoId", "")
+    tracks = _radio_tracks(ytm, anchor_id, limit)
+    long_term = _long_term_ids()
 
-    if scores:
-        order.sort(key=lambda k: scores.get(k, 0.5))
-
-    out: list[dict] = []
-    seen: set[str] = set()
-
-    def _take(track) -> bool:
-        vid = track.get("videoId")
+    familiar: list[dict] = []
+    discovery: list[dict] = []
+    seen = {anchor_id}
+    for t in tracks:
+        vid = t.get("videoId")
         if not vid or vid in seen:
-            return False
-        seen.add(vid)
-        out.append(track)
-        return True
-
-    pos = {k: 0 for k in order}
-    taken = {k: 0 for k in order}
-    while len(out) < limit:
-        progressed = False
-        for key in order:
-            pool = buckets[key]
-            if taken[key] >= per_artist:
-                continue
-            while pos[key] < len(pool) and taken[key] < per_artist:
-                track = pool[pos[key]]
-                pos[key] += 1
-                if _take(track):
-                    taken[key] += 1
-                    progressed = True
-                    break
-            if len(out) >= limit:
-                break
-        if not progressed:
-            break
-    return out
-
-
-def _build_mix(seeds: list[dict], limit: int = 25) -> list:
-    """Construir el mix encadenando las radios de las semillas.
-
-    Nivel 1: radio de cada semilla. Nivel 2: radio de un par de canciones
-    nuevas de OTROS artistas (el "después de esas, aún más" del Mix).
-    """
-    ytm = get_ytm()
-    candidates: list[dict] = []
-    seen: set[str] = set()
-
-    def _collect(video_id: str, radio_limit: int) -> None:
-        for t in _radio_tracks(ytm, video_id, radio_limit):
-            vid = t.get("videoId")
-            if not vid or vid in seen or vid == video_id:
-                continue
-            seen.add(vid)
-            candidates.append(fmt_song(t))
-
-    for seed in seeds:
-        _collect(seed["videoId"], limit)
-
-    seed_artists = {
-        _artist_key(a) for s in seeds for a in _split_artists(s.get("artist", ""))
-    }
-    chained = 0
-    for c in candidates:
-        if chained >= 2:
-            break
-        artists = _split_artists(c.get("artist", ""))
-        if artists and _artist_key(artists[0]) not in seed_artists:
-            seed_artists.add(_artist_key(artists[0]))
-            _collect(c["videoId"], 15)
-            chained += 1
-
-    # Feedback local: demotar artistas que el usuario suele saltar.
-    scores = {}
-    try:
-        from db import db_get_artist_feedback_scores
-
-        names = list({c.get("artist", "") for c in candidates if c.get("artist")})
-        if names:
-            scores = {
-                _artist_key(k): v
-                for k, v in db_get_artist_feedback_scores(names).items()
-            }
-    except Exception as e:
-        logger.debug("for-you feedback: %s", e)
-
-    return _mix_diverse(candidates, limit=limit, scores=scores)
-
-
-def _search_fallback(rows, limit: int = 25) -> list:
-    """Respaldo si la radio no devuelve nada: búsqueda por artista."""
-    ytm = get_ytm()
-    artists: list[str] = []
-    for r in rows:
-        for a in _split_artists(r["artist"]):
-            if a not in artists:
-                artists.append(a)
-    artists = artists[:6]
-    if not artists:
-        return []
-    per_artist = max(4, limit // len(artists))
-    out: list[dict] = []
-    seen: set[str] = set()
-    for artist in artists:
-        if len(out) >= limit:
-            break
-        try:
-            hits = ytm.search(artist, filter="songs", limit=per_artist + 3)
-        except Exception as e:
-            logger.warning("for-you search '%s': %s", artist, e)
             continue
-        for h in hits:
-            if len(out) >= limit:
-                break
-            if h.get("resultType") != "song":
-                continue
-            vid = h.get("videoId")
-            if not vid or vid in seen:
-                continue
-            seen.add(vid)
-            out.append(fmt_song(h))
-    random.shuffle(out)
-    return out
+        seen.add(vid)
+        song = fmt_song(t)
+        (familiar if vid in long_term else discovery).append(song)
+
+    out = [anchor, *familiar[:3]]
+    # Descubrimiento primero (posiciones 5+) y el resto de conocidas como
+    # relleno final: así el mix no se encierra en un solo artista.
+    out.extend(discovery)
+    out.extend(familiar[3:])
+    return out[:limit]
+
+
+def _history_fallback(limit: int = FOR_YOU_LIMIT) -> list:
+    """Respaldo si la radio falla: lo último escuchado."""
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT video_id, title, artist, thumbnail, thumbnails, duration "
+            "FROM history ORDER BY last_played_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [_song_from_row(r) for r in rows]
 
 
 @router.get("/home/for-you")
 @limiter.limit("20/minute")
 async def home_for_you(request: Request):
-    cached = api_cache_get("home:for-you", ttl=300)
+    cached = api_cache_get("home:for-you", ttl=FOR_YOU_TTL)
     if cached:
         return {"results": cached}
 
-    with get_db() as conn:
-        rows = conn.execute(
-            "SELECT video_id AS videoId, title, artist, thumbnail, duration, "
-            "play_count, last_played_at FROM history "
-            "ORDER BY play_count DESC, last_played_at DESC LIMIT 60"
-        ).fetchall()
+    loop = asyncio.get_running_loop()
+    anchor = await loop.run_in_executor(None, _pick_anchor)
 
-    if not rows:
+    if not anchor:
         cached_trend = api_cache_get("trending", ttl=TRENDING_TTL)
         if cached_trend:
             return {"results": cached_trend[:20]}
         return {"results": []}
 
-    seeds = _pick_seeds(rows)
-    loop = asyncio.get_running_loop()
-
     def _build():
-        songs = _build_mix(seeds)
-        if not songs:
-            songs = _search_fallback(rows)
-        if not songs:
-            songs = [
-                {
-                    "videoId": r["videoId"],
-                    "title": r["title"],
-                    "artist": r["artist"],
-                    "thumbnail": r["thumbnail"],
-                    "duration": r["duration"],
-                }
-                for r in rows[:25]
-            ]
-        return songs
+        songs = _build_mix(anchor)
+        if len(songs) > 1:
+            return songs
+        # Radio vacía: rellena el mix con lo último escuchado.
+        seen = {anchor.get("videoId")}
+        out = [anchor]
+        for s in _history_fallback():
+            if s["videoId"] not in seen:
+                seen.add(s["videoId"])
+                out.append(s)
+        return out
 
     songs = await loop.run_in_executor(None, _build)
+    enrich_local_flags(songs)
     if songs:
         api_cache_set("home:for-you", songs)
     return {"results": songs}

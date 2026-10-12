@@ -117,6 +117,12 @@ def api_cache_get(key: str, ttl: int = API_CACHE_TTL):
     return None
 
 
+def api_cache_delete(key: str) -> None:
+    """Invalidar una entrada de la caché de API (p. ej. al registrar una
+    reproducción, para que el mix recalcule la Canción Ancla al momento)."""
+    api_cache.pop(key, None)
+
+
 def api_cache_set(key: str, value, ttl: int = None):
     """Guardar valor en caché de API."""
     api_cache[key] = (value, time.time())

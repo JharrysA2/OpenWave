@@ -214,6 +214,20 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_feedback_video ON song_feedback(video_id);
         """)
 
+        # Registro de cada reproducción (evento con marca de tiempo): permite
+        # contar repeticiones en una ventana reciente (48-72h) para elegir la
+        # «Canción Ancla» del mix. `played_at` en hora local de SQLite
+        # (YYYY-MM-DD HH:MM:SS) para poder comparar con datetime('now', ...).
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS play_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                video_id TEXT NOT NULL,
+                played_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_play_events_time ON play_events(played_at);
+            CREATE INDEX IF NOT EXISTS idx_play_events_video ON play_events(video_id);
+        """)
+
 
 def db_log_history(entry: dict):
     """Registrar reproducción en el historial.
@@ -254,6 +268,11 @@ def db_log_history(entry: dict):
                 entry.get("albumType", "") or "",
             ),
         )
+        # Evento de reproducción (misma transacción): el mix cuenta
+        # repeticiones recientes por video_id con esta tabla.
+        vid = entry.get("videoId", "")
+        if vid:
+            conn.execute("INSERT INTO play_events(video_id) VALUES(?)", (vid,))
 
 
 def db_import_history(entries: list) -> int:
@@ -418,6 +437,30 @@ def db_get_history(limit: int = 100):
     for item in out:
         item["thumbnails"] = _parse_thumbs_json(item.get("thumbnails"))
 
+    return out
+
+
+def db_get_recent_plays(hours: int = 72, limit: int = 10):
+    """Canciones más repetidas en la ventana reciente (eventos de reproducción).
+
+    Devuelve [{video_id, title, artist, thumbnail, thumbnails, duration,
+    plays, last_played_at}] ordenado por número de reproducciones y, en
+    empate, por la más reciente. Es la base para elegir la «Canción Ancla».
+    """
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT h.video_id, h.title, h.artist, h.thumbnail, h.duration, "
+            "h.thumbnails, COUNT(e.id) AS plays, MAX(e.played_at) AS last_played_at "
+            "FROM play_events e JOIN history h ON h.video_id = e.video_id "
+            "WHERE e.played_at >= datetime('now', ?) "
+            "GROUP BY e.video_id ORDER BY plays DESC, last_played_at DESC LIMIT ?",
+            (f"-{int(hours)} hours", limit),
+        ).fetchall()
+    out = []
+    for r in rows:
+        item = dict(r)
+        item["thumbnails"] = _parse_thumbs_json(item.get("thumbnails"))
+        out.append(item)
     return out
 
 

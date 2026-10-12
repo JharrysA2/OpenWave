@@ -4,17 +4,31 @@ Todo los cambios notables de OpenWave se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.1] - 2026-10-12
+
+### Added
+
+- **«Para ti» ahora es un mix real, estilo YouTube Music**. El home elige una
+  **Canción Ancla** —la que más has repetido en las últimas 72 h— la coloca en
+  el puesto #1 y pide su **radio** a YouTube (`get_watch_playlist`) para traer
+  las canciones que de verdad se relacionan con ella. Se apoya en una tabla
+  nueva `play_events` que registra cada reproducción con marca de tiempo, para
+  poder medir repeticiones recientes (antes solo existía un contador total).
 
 ### Changed
 
-- **Tu Mix del Momento** (sección antes llamada «Para ti»): el home replica
-  el Mix de YouTube Music. Elige una **Canción Ancla** (la más repetida en las
-  últimas 72 h), pide su radio a YouTube (`get_watch_playlist`) y cruza el
-  resultado con el historial largo plazo: las canciones que ya disfrutas suben
-  justo después del ancla y las nuevas se descubren más adelante. El orden lo
-  marcan YouTube y tu afinidad real —ya no se reparte por artista— y cada
-  reproducción recalcula el mix.
+- **Motor de recomendaciones reescrito.** Antes «Para ti» se armaba buscando
+  por **nombre de artista**, así que la sección acababa copada por el cantante
+  más escuchado (p. ej. C.R.O / CRO) y apenas aparecía el resto del historial.
+  Ahora el orden lo deciden YouTube y tu afinidad real, **sin repartir por
+  artista**: las canciones que ya disfrutas (más reproducidas de siempre o con
+  «Me gusta») van justo después del ancla y el descubrimiento completa el mix.
+- **El orden varía en cada armado.** Las canciones pueden repetirse entre
+  visitas, pero ya no salen siempre en la misma secuencia: conocidas y
+  descubrimiento se barajan, y cada reproducción invalida la caché para
+  recalcular el ancla al momento.
+- **Menos espera.** El mix hace una sola llamada a la radio (antes encadenaba
+  varias): pasa de ~8 s a ~2 s la primera vez y es instantáneo después.
 
 ## [1.0.0] - 2026-10-11
 
@@ -231,5 +245,6 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.0.1
 [1.0.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.0.0

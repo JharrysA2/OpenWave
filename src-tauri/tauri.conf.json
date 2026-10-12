@@ -1,7 +1,7 @@
 {
   "productName": "OpenWave",
   "mainBinaryName": "OpenWave",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "com.soundwave.app",
   "build": {
     "beforeDevCommand": "npm run dev",

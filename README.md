@@ -39,7 +39,7 @@ App de música para PC usando **Tauri + React + FastAPI + ytmusicapi**.
    canciones **descargadas** se reproducen sin conexión desde la pestaña
    Descargas.
 
-**Actualizaciones**: 1.0.0 no trae actualizador automático — descarga el MSI
+**Actualizaciones**: 1.0.1 no trae actualizador automático — descarga el MSI
 más reciente e instálalo por encima de la versión anterior; tus datos
 (descargas, playlists, historial y preferencias) se conservan.
 
@@ -274,7 +274,7 @@ openwave/
 | GET    | `/search/videos?q=`    | Buscar videos                       |
 | GET    | `/trending`            | Tendencias                          |
 | GET    | `/home/quick-picks`    | Reproducciones recientes            |
-| GET    | `/home/for-you`        | Tu Mix del Momento (radio del ancla) |
+| GET    | `/home/for-you`        | Para ti (mix: radio del ancla + historial) |
 | GET    | `/home/albums`         | Álbumes sugeridos                   |
 | GET    | `/home/trending-fixed` | Tendencias fijas                    |
 

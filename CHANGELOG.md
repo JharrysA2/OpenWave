@@ -12,9 +12,9 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   el Mix de YouTube Music. Elige una **Canción Ancla** (la más repetida en las
   últimas 72 h), pide su radio a YouTube (`get_watch_playlist`) y cruza el
   resultado con el historial largo plazo: las canciones que ya disfrutas suben
-  justo después del ancla y las nuevas se intercalan como descubrimiento. El
-  orden lo marcan YouTube y tu afinidad real —ya no se reparte por artista— y
-  cada reproducción recalcula el mix.
+  justo después del ancla y las nuevas se descubren más adelante. El orden lo
+  marcan YouTube y tu afinidad real —ya no se reparte por artista— y cada
+  reproducción recalcula el mix.
 
 ## [1.0.0] - 2026-10-11
 

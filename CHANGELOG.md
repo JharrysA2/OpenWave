@@ -6,7 +6,13 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
-(Pendiente del próximo release.)
+### Changed
+
+- **Para ti**: el home arma su mix con el algoritmo de radio de YouTube Music:
+  toma canciones reales del historial como semillas, encadena las
+  recomendaciones de cada una (`get_watch_playlist`) y reparte cuota por
+  artista para que ninguno acapare la sección (colapsa variantes como
+  «C.R.O» y «CRO», y demora a los artistas que el usuario suele saltar).
 
 ## [1.0.0] - 2026-10-11
 

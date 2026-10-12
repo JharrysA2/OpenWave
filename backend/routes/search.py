@@ -273,6 +273,227 @@ async def home_quick_picks(request: Request):
     return {"results": songs or []}
 
 
+# ── Motor de "Para ti" (Mix estilo YouTube Music) ────────────────────────────
+# Antes se buscaba por NOMBRE de artista: el mix quedaba dominado por el
+# artista más escuchado (p. ej. C.R.O / CRO) y apenas aparecía el resto del
+# historial. Ahora se replica el Mix de YouTube Music: se toman canciones
+# reales del historial como SEMILLAS, se pide la "radio" de cada una
+# (get_watch_playlist → la cadena canción → relacionadas → relacionadas de
+# esas) y se mezclan los resultados repartiendo cuota por artista, para que
+# ningún cantante copie la sección.
+
+
+def _split_artists(value: str) -> list[str]:
+    """Separar un campo "A, B, C" en nombres de artista individuales."""
+    return [a.strip() for a in (value or "").split(",") if a.strip()]
+
+
+def _artist_key(name: str) -> str:
+    """Clave normalizada de artista: colapsa C.R.O, CRO y c.r.o en "cro".
+
+    Sin esto, el mix trata cada variante de escritura como un artista
+    distinto y la cuota por artista no frena al mismo cantante.
+    """
+    return re.sub(r"[^a-z0-9]+", "", (name or "").lower())
+
+
+def _pick_seeds(rows, limit: int = 6) -> list[dict]:
+    """Elegir canciones-semilla diversas para el mix.
+
+    Primera pasada: la canción más escuchada de cada artista principal (así
+    una colaboración "A, B" no cuenta como dos artistas ni deja que uno solo
+    acapare las semillas). Segunda pasada: completa con el resto de las más
+    escuchadas.
+    """
+    seeds: list[dict] = []
+    used_videos: set[str] = set()
+    used_artists: set[str] = set()
+    for r in rows:
+        vid = r["videoId"]
+        if not vid or vid in used_videos:
+            continue
+        artists = _split_artists(r["artist"])
+        primary = _artist_key(artists[0]) if artists else ""
+        if primary and primary in used_artists:
+            continue
+        used_videos.add(vid)
+        if primary:
+            used_artists.add(primary)
+        seeds.append(dict(r))
+        if len(seeds) >= limit:
+            return seeds
+    for r in rows:
+        vid = r["videoId"]
+        if not vid or vid in used_videos:
+            continue
+        used_videos.add(vid)
+        seeds.append(dict(r))
+        if len(seeds) >= limit:
+            break
+    return seeds
+
+
+def _radio_tracks(ytm, video_id: str, limit: int) -> list:
+    """Canciones de la radio de YouTube Music para una semilla.
+
+    Intenta la radio real (radio=True) y, si falla, la watch playlist normal.
+    Devuelve [] si ambas fallan; el llamador decide el respaldo.
+    """
+    for kwargs in ({"radio": True}, {}):
+        try:
+            pl = ytm.get_watch_playlist(videoId=video_id, limit=limit + 1, **kwargs)
+            tracks = (pl or {}).get("tracks") or []
+            if isinstance(tracks, list) and tracks:
+                return tracks
+        except Exception as e:
+            logger.debug("radio %s (%s): %s", video_id, kwargs, e)
+    return []
+
+
+def _mix_diverse(
+    candidates: list, limit: int = 25, per_artist: int = 3, scores=None
+) -> list:
+    """Mezclar candidatos repartiendo cuota por artista.
+
+    Agrupa por artista principal (normalizado), limita a `per_artist`
+    canciones por artista y reparte en round-robin: los primeros puestos son
+    siempre de artistas distintos. `scores` (0.0–1.0, menor = mejor) reordena
+    los grupos para que los artistas que el usuario suele saltar caigan al
+    final. La cuota es estricta: ningún artista puede acaparar la sección.
+    """
+    buckets: dict[str, list] = {}
+    order: list[str] = []
+    for c in candidates:
+        artists = _split_artists(c.get("artist", ""))
+        key = _artist_key(artists[0]) if artists else "__unknown__"
+        if key not in buckets:
+            buckets[key] = []
+            order.append(key)
+        buckets[key].append(c)
+
+    if scores:
+        order.sort(key=lambda k: scores.get(k, 0.5))
+
+    out: list[dict] = []
+    seen: set[str] = set()
+
+    def _take(track) -> bool:
+        vid = track.get("videoId")
+        if not vid or vid in seen:
+            return False
+        seen.add(vid)
+        out.append(track)
+        return True
+
+    pos = {k: 0 for k in order}
+    taken = {k: 0 for k in order}
+    while len(out) < limit:
+        progressed = False
+        for key in order:
+            pool = buckets[key]
+            if taken[key] >= per_artist:
+                continue
+            while pos[key] < len(pool) and taken[key] < per_artist:
+                track = pool[pos[key]]
+                pos[key] += 1
+                if _take(track):
+                    taken[key] += 1
+                    progressed = True
+                    break
+            if len(out) >= limit:
+                break
+        if not progressed:
+            break
+    return out
+
+
+def _build_mix(seeds: list[dict], limit: int = 25) -> list:
+    """Construir el mix encadenando las radios de las semillas.
+
+    Nivel 1: radio de cada semilla. Nivel 2: radio de un par de canciones
+    nuevas de OTROS artistas (el "después de esas, aún más" del Mix).
+    """
+    ytm = get_ytm()
+    candidates: list[dict] = []
+    seen: set[str] = set()
+
+    def _collect(video_id: str, radio_limit: int) -> None:
+        for t in _radio_tracks(ytm, video_id, radio_limit):
+            vid = t.get("videoId")
+            if not vid or vid in seen or vid == video_id:
+                continue
+            seen.add(vid)
+            candidates.append(fmt_song(t))
+
+    for seed in seeds:
+        _collect(seed["videoId"], limit)
+
+    seed_artists = {
+        _artist_key(a) for s in seeds for a in _split_artists(s.get("artist", ""))
+    }
+    chained = 0
+    for c in candidates:
+        if chained >= 2:
+            break
+        artists = _split_artists(c.get("artist", ""))
+        if artists and _artist_key(artists[0]) not in seed_artists:
+            seed_artists.add(_artist_key(artists[0]))
+            _collect(c["videoId"], 15)
+            chained += 1
+
+    # Feedback local: demotar artistas que el usuario suele saltar.
+    scores = {}
+    try:
+        from db import db_get_artist_feedback_scores
+
+        names = list({c.get("artist", "") for c in candidates if c.get("artist")})
+        if names:
+            scores = {
+                _artist_key(k): v
+                for k, v in db_get_artist_feedback_scores(names).items()
+            }
+    except Exception as e:
+        logger.debug("for-you feedback: %s", e)
+
+    return _mix_diverse(candidates, limit=limit, scores=scores)
+
+
+def _search_fallback(rows, limit: int = 25) -> list:
+    """Respaldo si la radio no devuelve nada: búsqueda por artista."""
+    ytm = get_ytm()
+    artists: list[str] = []
+    for r in rows:
+        for a in _split_artists(r["artist"]):
+            if a not in artists:
+                artists.append(a)
+    artists = artists[:6]
+    if not artists:
+        return []
+    per_artist = max(4, limit // len(artists))
+    out: list[dict] = []
+    seen: set[str] = set()
+    for artist in artists:
+        if len(out) >= limit:
+            break
+        try:
+            hits = ytm.search(artist, filter="songs", limit=per_artist + 3)
+        except Exception as e:
+            logger.warning("for-you search '%s': %s", artist, e)
+            continue
+        for h in hits:
+            if len(out) >= limit:
+                break
+            if h.get("resultType") != "song":
+                continue
+            vid = h.get("videoId")
+            if not vid or vid in seen:
+                continue
+            seen.add(vid)
+            out.append(fmt_song(h))
+    random.shuffle(out)
+    return out
+
+
 @router.get("/home/for-you")
 @limiter.limit("20/minute")
 async def home_for_you(request: Request):
@@ -282,9 +503,9 @@ async def home_for_you(request: Request):
 
     with get_db() as conn:
         rows = conn.execute(
-            "SELECT artist, SUM(play_count) as total FROM history "
-            "WHERE artist IS NOT NULL AND artist != '' AND artist != 'Desconocido' "
-            "GROUP BY artist ORDER BY total DESC LIMIT 6"
+            "SELECT video_id AS videoId, title, artist, thumbnail, duration, "
+            "play_count, last_played_at FROM history "
+            "ORDER BY play_count DESC, last_played_at DESC LIMIT 60"
         ).fetchall()
 
     if not rows:
@@ -293,55 +514,25 @@ async def home_for_you(request: Request):
             return {"results": cached_trend[:20]}
         return {"results": []}
 
+    seeds = _pick_seeds(rows)
     loop = asyncio.get_running_loop()
 
     def _build():
-        seen = set()
-        out = []
-        ytm = get_ytm()
-        artists = [r["artist"] for r in rows]
-        per_artist = max(4, 25 // len(artists))
-        for artist in artists:
-            if len(out) >= 25:
-                break
-            for attempt in range(2):
-                try:
-                    results_list = ytm.search(
-                        artist, filter="songs", limit=per_artist + 3
-                    )
-                    for r in results_list:
-                        if len(out) >= 25:
-                            break
-                        if r.get("resultType") != "song":
-                            continue
-                        vid = r.get("videoId")
-                        if not vid or vid in seen:
-                            continue
-                        seen.add(vid)
-                        out.append(fmt_song(r))
-                    break
-                except Exception as e:
-                    logger.warning(
-                        "for-you artist '%s' attempt %d: %s", artist, attempt + 1, e
-                    )
-        if not out:
-            with get_db() as conn:
-                hist = conn.execute(
-                    "SELECT video_id, title, artist, thumbnail, duration FROM history "
-                    "ORDER BY last_played_at DESC LIMIT 25"
-                ).fetchall()
-            out = [
+        songs = _build_mix(seeds)
+        if not songs:
+            songs = _search_fallback(rows)
+        if not songs:
+            songs = [
                 {
-                    "videoId": r["video_id"],
+                    "videoId": r["videoId"],
                     "title": r["title"],
                     "artist": r["artist"],
                     "thumbnail": r["thumbnail"],
                     "duration": r["duration"],
                 }
-                for r in hist
+                for r in rows[:25]
             ]
-        random.shuffle(out)
-        return out[:25]
+        return songs
 
     songs = await loop.run_in_executor(None, _build)
     if songs:

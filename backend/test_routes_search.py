@@ -3,6 +3,30 @@
 from unittest.mock import MagicMock, patch
 
 from db import get_db
+from routes.search import _artist_key, _mix_diverse, _pick_seeds, _split_artists
+
+
+def _track(vid, artist, title="Track"):
+    """Track con la forma que devuelve get_watch_playlist (ytmusicapi)."""
+    return {
+        "videoId": vid,
+        "title": title,
+        "artists": [{"name": artist}],
+        "duration_seconds": 180,
+        "thumbnails": [],
+    }
+
+
+def _history(vid, artist, title="Hist", play_count=1):
+    return {
+        "videoId": vid,
+        "title": title,
+        "artist": artist,
+        "thumbnail": "t.jpg",
+        "duration": 200,
+        "play_count": play_count,
+        "last_played_at": "2024-01-01",
+    }
 
 
 class TestSearch:
@@ -549,16 +573,88 @@ class TestHomeForYou:
         assert data["results"][0]["videoId"] == "trend_fallback"
 
     @patch("routes.search.get_ytm")
-    def test_for_you_with_history(self, mock_get_ytm, client):
-        """Con historial, for-you debe buscar canciones por artista."""
+    def test_for_you_uses_radio_mix(self, mock_get_ytm, client):
+        """Con historial, for-you arma el mix con la radio de cada semilla."""
+        with get_db() as conn:
+            conn.execute(
+                "INSERT INTO history (video_id, title, artist, thumbnail, duration, play_count, last_played_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                ("fy_hist", "Hist Song", "Alpha", "t.jpg", 200, 10, "2024-01-01"),
+            )
+
+        radios = {
+            "fy_hist": [
+                _track("a1", "Alpha", "Seed itself"),
+                _track("b1", "Beta"),
+                _track("c1", "Gamma"),
+            ],
+        }
+        mock_ytm = MagicMock()
+        mock_ytm.get_watch_playlist.side_effect = lambda **kw: {
+            "tracks": radios.get(kw.get("videoId"), [])
+        }
+        mock_get_ytm.return_value = mock_ytm
+
+        try:
+            resp = client.get("/home/for-you")
+            assert resp.status_code == 200
+            data = resp.json()
+            ids = [s["videoId"] for s in data["results"]]
+            assert {"b1", "c1"} <= set(ids)
+            # La canción-semilla no se propone a sí misma
+            assert "fy_hist" not in ids
+            # El mix sale de la radio, no de buscar por artista
+            mock_ytm.search.assert_not_called()
+        finally:
+            with get_db() as conn:
+                conn.execute("DELETE FROM history")
+
+    @patch("routes.search.get_ytm")
+    def test_for_you_diversifies_artists(self, mock_get_ytm, client):
+        """Ningún artista debe acaparar el mix (cuota por artista)."""
+        with get_db() as conn:
+            for vid, artist in [("s1", "Alpha"), ("s2", "Beta")]:
+                conn.execute(
+                    "INSERT INTO history (video_id, title, artist, thumbnail, duration, play_count, last_played_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (vid, "Hist " + artist, artist, "t.jpg", 200, 10, "2024-01-01"),
+                )
+
+        def _radio(video_id):
+            if video_id == "s1":
+                return [_track(f"a{i}", "Alpha") for i in range(10)]
+            if video_id == "s2":
+                return [_track(f"b{i}", "Beta") for i in range(10)]
+            return []
+
+        mock_ytm = MagicMock()
+        mock_ytm.get_watch_playlist.side_effect = lambda **kw: {
+            "tracks": _radio(kw.get("videoId"))
+        }
+        mock_get_ytm.return_value = mock_ytm
+
+        try:
+            data = client.get("/home/for-you").json()
+            artists = [s["artist"] for s in data["results"]]
+            # 2 artistas × como máximo 3 canciones cada uno
+            assert artists.count("Alpha") <= 3
+            assert artists.count("Beta") <= 3
+            assert "Alpha" in artists and "Beta" in artists
+        finally:
+            with get_db() as conn:
+                conn.execute("DELETE FROM history")
+
+    @patch("routes.search.get_ytm")
+    def test_for_you_search_fallback_when_radio_empty(self, mock_get_ytm, client):
+        """Si la radio no devuelve nada, cae a la búsqueda por artista."""
         with get_db() as conn:
             conn.execute(
                 "INSERT INTO history (video_id, title, artist, thumbnail, duration, play_count, last_played_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
-                    "fy_hist",
-                    "Hist Song",
-                    "Search Artist",
+                    "fy_fb_search",
+                    "Hist",
+                    "Fallback Artist",
                     "t.jpg",
                     200,
                     10,
@@ -567,31 +663,29 @@ class TestHomeForYou:
             )
 
         mock_ytm = MagicMock()
+        mock_ytm.get_watch_playlist.return_value = {"tracks": []}
         mock_ytm.search.return_value = [
             {
                 "resultType": "song",
-                "videoId": "recommended",
-                "title": "Recommended",
-                "artists": [{"name": "Search Artist"}],
+                "videoId": "by_search",
+                "title": "Found",
+                "artists": [{"name": "Fallback Artist"}],
                 "duration_seconds": 180,
             }
         ]
         mock_get_ytm.return_value = mock_ytm
 
         try:
-            resp = client.get("/home/for-you")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert len(data["results"]) >= 1
+            data = client.get("/home/for-you").json()
             ids = [s["videoId"] for s in data["results"]]
-            assert "recommended" in ids
+            assert "by_search" in ids
         finally:
             with get_db() as conn:
                 conn.execute("DELETE FROM history")
 
     @patch("routes.search.get_ytm")
     def test_for_you_fallback_to_recent_history(self, mock_get_ytm, client):
-        """Si search falla para todos los artistas, debe caer a historial reciente."""
+        """Si todo falla, debe caer a historial reciente."""
         with get_db() as conn:
             conn.execute(
                 "INSERT INTO history (video_id, title, artist, thumbnail, duration, play_count, last_played_at) "
@@ -600,19 +694,73 @@ class TestHomeForYou:
             )
 
         mock_ytm = MagicMock()
+        mock_ytm.get_watch_playlist.return_value = {"tracks": []}
         mock_ytm.search.side_effect = Exception("search always fails")
         mock_get_ytm.return_value = mock_ytm
 
         try:
-            resp = client.get("/home/for-you")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert len(data["results"]) >= 1
+            data = client.get("/home/for-you").json()
             ids = [s["videoId"] for s in data["results"]]
             assert "fy_fb" in ids
         finally:
             with get_db() as conn:
                 conn.execute("DELETE FROM history")
+
+
+class TestForYouHelpers:
+    """Tests unitarios del motor de mix (selección y diversidad)."""
+
+    def test_split_artists(self):
+        assert _split_artists("C.R.O, Bardero$ , ") == ["C.R.O", "Bardero$"]
+        assert _split_artists("") == []
+        assert _split_artists(None) == []
+
+    def test_artist_key_collapses_spellings(self):
+        assert _artist_key("C.R.O") == _artist_key("CRO") == _artist_key(" c.r.o ")
+        assert _artist_key("Bardero$") == "bardero"
+
+    def test_pick_seeds_one_per_artist_then_fill(self):
+        rows = [
+            _history("v1", "C.R.O", play_count=50),
+            _history("v2", "C.R.O", play_count=40),
+            _history("v3", "CRO", play_count=30),
+            _history("v4", "Otro", play_count=20),
+        ]
+        seeds = _pick_seeds(rows, limit=4)
+        # "C.R.O" y "CRO" son el mismo artista: una sola semilla de esa
+        # familia en la primera pasada; el resto rellena al final.
+        assert [s["videoId"] for s in seeds] == ["v1", "v4", "v2", "v3"]
+
+    def test_mix_diverse_caps_and_interleaves(self):
+        candidates = []
+        for i in range(5):
+            candidates.append({"videoId": f"a{i}", "artist": "Alpha"})
+            candidates.append({"videoId": f"b{i}", "artist": "Beta"})
+        mix = _mix_diverse(candidates, limit=25, per_artist=3)
+        assert [m["artist"] for m in mix] == ["Alpha", "Beta"] * 3
+        # Dedupe por videoId
+        ids = [m["videoId"] for m in mix]
+        assert len(ids) == len(set(ids))
+
+    def test_mix_diverse_merges_artist_spellings(self):
+        candidates = [
+            {"videoId": "a1", "artist": "C.R.O"},
+            {"videoId": "a2", "artist": "CRO"},
+            {"videoId": "a3", "artist": "c.r.o"},
+            {"videoId": "b1", "artist": "Otro"},
+        ]
+        mix = _mix_diverse(candidates, limit=25, per_artist=2)
+        cro = [m for m in mix if _artist_key(m["artist"]) == "cro"]
+        assert len(cro) == 2
+        assert "b1" in [m["videoId"] for m in mix]
+
+    def test_mix_diverse_demotes_skipped_artists(self):
+        candidates = [
+            {"videoId": "a1", "artist": "Alpha"},
+            {"videoId": "b1", "artist": "Beta"},
+        ]
+        mix = _mix_diverse(candidates, scores={"alpha": 0.9, "beta": 0.0})
+        assert [m["artist"] for m in mix] == ["Beta", "Alpha"]
 
 
 class TestHomeAlbums:

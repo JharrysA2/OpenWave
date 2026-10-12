@@ -16,8 +16,6 @@ import React from "react";
  * hay que animar nada aquí) y la marca mantiene siempre ≥4.5:1 de contraste
  * contra la placa — un blanco fijo daría 2.70:1 sobre el acento por defecto
  * y sería invisible con acentos acromáticos (#ffffff).
- *
- * `favicon.svg` (barras con degradado) NO era la marca: era un asset ajeno.
  */
 export const Logo = React.memo(function Logo({ size = 26, testId = "app-logo" }) {
   const mask = (url) => ({

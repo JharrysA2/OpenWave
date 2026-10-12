@@ -623,7 +623,7 @@ describe("App — Componente principal", () => {
     render(<App />);
     const logo = screen.getByTestId("app-logo");
     expect(logo).toBeInTheDocument();
-    // La marca se pinta con CSS mask desde los assets reales (src-tauri/icons)
+    // La marca se pinta con CSS mask desde src-tauri/icons
     expect(logo).toHaveStyle({ maskImage: "url(/logo-plate.png)" });
     expect(logo.firstElementChild).toHaveStyle({ maskImage: "url(/logo-mark.png)" });
   });

@@ -95,7 +95,7 @@ export function BootScreen() {
               ...FADE_IN,
             }}
           >
-            {/* Logo — la marca real, en color de tema */}
+            {/* Logo en color de tema */}
             <Logo size={64} testId="boot-logo" />
             <div style={{ ...TYPOGRAPHY.h2, fontSize: "26px", color: COLORS.textPrimary }}>
               OpenWave

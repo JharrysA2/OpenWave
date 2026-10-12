@@ -94,20 +94,8 @@ export function BootScreen() {
               ...FADE_IN,
             }}
           >
-            {/* Logo — onda simple, sin dependencias de iconos */}
-            <svg
-              width="64"
-              height="64"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#a78bfa"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M2 12c1.6 0 1.6-5 3.2-5s1.6 10 3.2 10 1.6-13 3.2-13 1.6 13 3.2 13 1.6-10 3.2-10 1.6 5 3.2 5" />
-            </svg>
+            {/* Logo — public/favicon.svg */}
+            <img src="/favicon.svg" width="64" height="64" alt="" aria-hidden="true" />
             <div style={{ ...TYPOGRAPHY.h2, fontSize: "26px", color: COLORS.textPrimary }}>
               OpenWave
             </div>

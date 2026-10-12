@@ -98,19 +98,6 @@ export const Ic = {
   ),
   mic: (s = 22) => <Microphone size={s} weight="fill" />,
   img: <Image size={18} weight="fill" />,
-  waveIcon: (
-    <svg
-      width="26"
-      height="26"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-    >
-      <path d="M2 12 C2 12 4 6 6 12 C8 18 10 6 12 12 C14 18 16 6 18 12 C20 18 22 12 22 12" />
-    </svg>
-  ),
   crossfade: (s = 18) => (
     <svg
       width={s}

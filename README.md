@@ -136,7 +136,7 @@ openwave/
 ├── e2e/                       ← Tests e2e (Playwright)
 │   ├── helpers.js
 │   └── navigation, search, player, settings, library
-├── public/                    ← Assets estáticos (favicon, fuentes DM Sans)
+├── public/                    ← Assets estáticos (logo/favicon.svg, fuentes DM Sans)
 ├── src/                       ← Frontend React
 │   ├── App.jsx                ← Entry point (enrutado, dynamic theme, player)
 │   ├── main.jsx

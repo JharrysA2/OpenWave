@@ -261,7 +261,6 @@ vi.mock("./components/ErrorBoundary", () => ({
 
 vi.mock("./icons/Icons", () => ({
   Ic: {
-    waveIcon: <span data-testid="wave-icon">W</span>,
     home: <span data-testid="icon-home">H</span>,
     search: <span data-testid="icon-search">S</span>,
     heart: (filled) => (
@@ -620,9 +619,10 @@ describe("App — Componente principal", () => {
 
   // ── Icons ───────────────────────────────────────────────────────────────────
 
-  it("should render the OpenWave wave icon", () => {
+  it("should render the OpenWave logo (public/favicon.svg)", () => {
     render(<App />);
-    expect(screen.getByTestId("wave-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("app-logo")).toBeInTheDocument();
+    expect(screen.getByTestId("app-logo")).toHaveAttribute("src", "/favicon.svg");
   });
 
   it("should render heart icon in navigation", () => {

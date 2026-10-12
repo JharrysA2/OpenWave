@@ -82,7 +82,7 @@ export const Sidebar = React.memo(function Sidebar({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
-            {Ic.waveIcon}
+            <img src="/favicon.svg" width="26" height="26" alt="" data-testid="app-logo" />
             <span
               style={{
                 fontSize: "15px",

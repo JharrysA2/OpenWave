@@ -136,15 +136,16 @@ openwave/
 ├── e2e/                       ← Tests e2e (Playwright)
 │   ├── helpers.js
 │   └── navigation, search, player, settings, library
-├── public/                    ← Assets estáticos (logo/favicon.svg, fuentes DM Sans)
+├── public/                    ← Assets estáticos (logo: logo.png + máscaras logo-plate/mark.png, fuentes DM Sans)
 ├── src/                       ← Frontend React
 │   ├── App.jsx                ← Entry point (enrutado, dynamic theme, player)
 │   ├── main.jsx
 │   ├── constants.js
 │   ├── dynamic-theme.css      ← estilos del tema dinámico (@property --neon)
-│   ├── components/            ← 53 componentes UI (39 en raíz + 14 en settings/)
+│   ├── components/            ← 54 componentes UI (40 en raíz + 14 en settings/)
 │   │   ├── MainRouter.jsx         ← enrutado principal
 │   │   ├── Sidebar.jsx            ← navegación
+│   │   ├── Logo.jsx               ← marca de la app (máscaras, color de tema)
 │   │   ├── TitleBar.jsx           SearchBar.jsx        BootScreen.jsx
 │   │   ├── HomeView.jsx           SearchView.jsx       LikedView.jsx
 │   │   ├── AlbumView.jsx          ArtistView.jsx       PlaylistView.jsx

@@ -619,10 +619,13 @@ describe("App — Componente principal", () => {
 
   // ── Icons ───────────────────────────────────────────────────────────────────
 
-  it("should render the OpenWave logo (public/favicon.svg)", () => {
+  it("should render the OpenWave logo (public/logo-*.png)", () => {
     render(<App />);
-    expect(screen.getByTestId("app-logo")).toBeInTheDocument();
-    expect(screen.getByTestId("app-logo")).toHaveAttribute("src", "/favicon.svg");
+    const logo = screen.getByTestId("app-logo");
+    expect(logo).toBeInTheDocument();
+    // La marca se pinta con CSS mask desde los assets reales (src-tauri/icons)
+    expect(logo).toHaveStyle({ maskImage: "url(/logo-plate.png)" });
+    expect(logo.firstElementChild).toHaveStyle({ maskImage: "url(/logo-mark.png)" });
   });
 
   it("should render heart icon in navigation", () => {

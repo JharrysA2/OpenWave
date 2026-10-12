@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OpenWave</title>
     <style>
@@ -409,6 +409,26 @@
       #splash.splash-exit {
         opacity: 0;
       }
+      /* Logo de marca — la misma silueta/gloro que src/components/Logo.jsx,
+         pero en CSS plano porque el splash se pinta ANTES del bundle:
+         --neon ya tiene initial-value vía @property, --neon-fg no (la define
+         dynamic-theme.css, que importa main.jsx) por eso el fallback. */
+      .splash-logo {
+        width: 56px;
+        height: 56px;
+        background: var(--neon);
+        -webkit-mask: url(/logo-plate.png) center / contain no-repeat;
+        mask: url(/logo-plate.png) center / contain no-repeat;
+        position: relative;
+      }
+      .splash-logo::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: var(--neon-fg, #000001);
+        -webkit-mask: url(/logo-mark.png) center / contain no-repeat;
+        mask: url(/logo-mark.png) center / contain no-repeat;
+      }
       .splash-name {
         font-size: 24px;
         font-weight: 700;
@@ -467,7 +487,7 @@
     <!-- Splash: se pinta antes de cargar el bundle y lo retira src/main.jsx
          tras el primer paint de React (sin <script> inline: CSP script-src 'self') -->
     <div id="splash" aria-hidden="true">
-      <img src="/favicon.svg" width="56" height="56" alt="" />
+      <div class="splash-logo"></div>
       <div class="splash-name">OpenWave</div>
       <div class="splash-track"><span class="splash-progress"></span></div>
     </div>

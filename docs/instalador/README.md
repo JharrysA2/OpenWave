@@ -494,4 +494,7 @@ También conviene saberlo al leer la plantilla: **no existe la tabla
   `test_routes_search.py`). Esa misma actualización arregla
   `get_watch_playlist` (`KeyError 'endpoint'` en 1.7.3), del que depende la
   radio/cola de reproducción.
-- La app tiene favicon y icono de ventana distintos (inconsistencia de marca).
+- ~~La app tiene favicon y icono de ventana distintos (inconsistencia de marca).~~
+  **Resuelto**: el favicon y el logo de la app salen del mismo arte
+  (`src-tauri/icons/128x128@2x.png`) — ver `public/logo*.png` y
+  `src/components/Logo.jsx`.

@@ -4,6 +4,7 @@ import { SettingsContext } from "../contexts/SettingsContext";
 import { useBackendStatus } from "../hooks/useBackendStatus";
 import { BOOT_TIMEOUT_MS, checkHealth } from "../utils/backendHealth";
 import { StatusState } from "./StatusState";
+import { Logo } from "./Logo";
 import { COLORS, SPACING, TYPOGRAPHY } from "../utils/theme";
 
 /**
@@ -94,8 +95,8 @@ export function BootScreen() {
               ...FADE_IN,
             }}
           >
-            {/* Logo — public/favicon.svg */}
-            <img src="/favicon.svg" width="64" height="64" alt="" aria-hidden="true" />
+            {/* Logo — la marca real, en color de tema */}
+            <Logo size={64} testId="boot-logo" />
             <div style={{ ...TYPOGRAPHY.h2, fontSize: "26px", color: COLORS.textPrimary }}>
               OpenWave
             </div>

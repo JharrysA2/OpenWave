@@ -2,6 +2,7 @@ import React from "react";
 import { FONT } from "../constants";
 import { RADIUS, TRANSITIONS, GLASS, sidebarBgGradient } from "../utils/theme";
 import { Ic } from "../icons/Icons";
+import { Logo } from "./Logo";
 
 export const Sidebar = React.memo(function Sidebar({
   tab,
@@ -82,7 +83,7 @@ export const Sidebar = React.memo(function Sidebar({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
-            <img src="/favicon.svg" width="26" height="26" alt="" data-testid="app-logo" />
+            <Logo size={26} />
             <span
               style={{
                 fontSize: "15px",

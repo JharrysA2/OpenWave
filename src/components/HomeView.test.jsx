@@ -122,7 +122,7 @@ describe("HomeView", () => {
     expect(screen.getByText("Song 7")).toBeInTheDocument();
   });
 
-  it("limita Recientes a 18 canciones (el resto cae en el Mix)", () => {
+  it("limita Recientes a 18 canciones (el resto cae en Para ti)", () => {
     const history = Array.from({ length: 25 }, (_, i) => song(`${i}`));
     renderHome({ history });
     expect(screen.getByText("Recientes")).toBeInTheDocument();
@@ -130,7 +130,7 @@ describe("HomeView", () => {
     expect(recents.getByText("Song 17")).toBeInTheDocument();
     expect(recents.queryByText("Song 18")).not.toBeInTheDocument();
     expect(recents.queryByText("Song 24")).not.toBeInTheDocument();
-    // El resto del historial sí aparece, pero en el Mix (fallback dedup)
+    // El resto del historial sí aparece, pero en Para ti (fallback dedup)
     const forYou = within(screen.getByTestId("grid-for-you"));
     expect(forYou.getByText("Song 18")).toBeInTheDocument();
     expect(forYou.getByText("Song 24")).toBeInTheDocument();
@@ -156,18 +156,18 @@ describe("HomeView", () => {
     );
   });
 
-  // ── Sección 2: Tu Mix del Momento (feed del backend) ───────────────────
+  // ── Sección 2: Para ti (feed del backend) ──────────────────────────────
 
-  it("muestra Tu Mix del Momento desde /home/for-you con su mix", async () => {
+  it("muestra Para ti desde /home/for-you con su mix", async () => {
     mockFeed({ "/home/for-you": [song("fy1"), song("fy2"), song("fy3")] });
     renderHome();
-    expect(screen.queryByText("Tu Mix del Momento")).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("Tu Mix del Momento")).toBeInTheDocument());
+    expect(screen.queryByText("Para ti")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Para ti")).toBeInTheDocument());
     expect(screen.getByText("Song fy1")).toBeInTheDocument();
     expect(screen.getByText("Song fy3")).toBeInTheDocument();
   });
 
-  it("llama playSong al pulsar una canción de Tu Mix del Momento", async () => {
+  it("llama playSong al pulsar una canción de Para ti", async () => {
     const playSong = vi.fn();
     mockFeed({ "/home/for-you": [song("fy1"), song("fy6")] });
     renderHome({ playSong });

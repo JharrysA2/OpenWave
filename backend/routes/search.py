@@ -1,6 +1,7 @@
 """OpenWave Backend — Rutas de búsqueda, tendencias y home."""
 
 import asyncio
+import random
 import re
 
 import yt_dlp
@@ -278,7 +279,7 @@ async def home_quick_picks(request: Request):
     return {"results": songs or []}
 
 
-# ── «Tu Mix del Momento» (mix estilo YouTube Music) ─────────────────────────
+# ── «Para ti» (mix estilo YouTube Music) ────────────────────────────────────
 # Réplica del Mix de YouTube Music en 4 pasos:
 #   1. Canción Ancla: la más repetida en la ventana reciente (eventos de
 #      reproducción de las últimas 72 h). Es la posición #1 del mix.
@@ -286,10 +287,11 @@ async def home_quick_picks(request: Request):
 #      las ~25 canciones que YouTube relaciona (filtrado colaborativo +
 #      análisis acústico).
 #   3. Cruce con el historial largo plazo: las que el usuario ya disfruta
-#      (más reproducidas de siempre / con «Me gusta») suben a las posiciones
-#      2-4; las que nunca escuchó se intercalan más adelante (descubrimiento).
-#   4. Dinámico: cada reproducción invalida la caché, así el mix recalcula el
-#      ancla cuando el usuario se obsesiona con otra canción.
+#      (más reproducidas de siempre / con «Me gusta») van justo después del
+#      ancla; el resto se baraja como descubrimiento.
+#   4. Dinámico: cada reproducción invalida la caché y el orden se baraja en
+#      cada armado, así el mix mantiene las canciones pero no sale siempre
+#      igual.
 # No se reparte por artista: el orden lo manda YouTube + la afinidad real.
 
 FOR_YOU_WINDOW_HOURS = 72  # ventana del historial reciente
@@ -369,9 +371,9 @@ def _radio_tracks(ytm, video_id: str, limit: int) -> list:
 def _build_mix(anchor: dict, limit: int = FOR_YOU_LIMIT) -> list:
     """Armar el mix del ancla: radio de YouTube cruzada con el historial.
 
-    Orden: ancla (#1) → canciones que el usuario ya disfruta de las que
-    devolvió YouTube (2-4) → descubrimiento (5+), con el resto de las
-    conocidas como relleno final.
+    Orden: ancla (#1) → unas pocas conocidas → resto de conocidas y
+    descubrimiento barajados. Así el mix conserva las mismas canciones entre
+    armados pero no sale siempre en el mismo orden.
     """
     ytm = get_ytm()
     anchor_id = anchor.get("videoId", "")
@@ -389,11 +391,14 @@ def _build_mix(anchor: dict, limit: int = FOR_YOU_LIMIT) -> list:
         song = fmt_song(t)
         (familiar if vid in long_term else discovery).append(song)
 
+    random.shuffle(familiar)
+    random.shuffle(discovery)
+    # Unas pocas conocidas tras el ancla y el resto barajado con el
+    # descubrimiento: mismas canciones, pero sin repetir siempre el orden.
     out = [anchor, *familiar[:3]]
-    # Descubrimiento primero (posiciones 5+) y el resto de conocidas como
-    # relleno final: así el mix no se encierra en un solo artista.
-    out.extend(discovery)
-    out.extend(familiar[3:])
+    tail = familiar[3:] + discovery
+    random.shuffle(tail)
+    out.extend(tail)
     return out[:limit]
 
 

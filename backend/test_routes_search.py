@@ -602,7 +602,7 @@ class TestHomeForYou:
 
     @patch("routes.search.get_ytm")
     def test_for_you_prioritizes_familiar_after_anchor(self, mock_get_ytm, client):
-        """Las ya conocidas (historial largo plazo) suben justo tras el ancla."""
+        """Las ya conocidas (historial largo plazo) van justo tras el ancla."""
         _insert_history("fy_anchor", "Alpha")
         _insert_history("fam1", "Familiar", play_count=50)
         _insert_history("fam2", "Familiar", play_count=40)
@@ -622,10 +622,10 @@ class TestHomeForYou:
 
         ids = [s["videoId"] for s in client.get("/home/for-you").json()["results"]]
         assert ids[0] == "fy_anchor"
-        # Las conocidas ocupan las posiciones 2-3, en el orden de la radio
-        assert ids[1:3] == ["fam1", "fam2"]
+        # Las conocidas ocupan los puestos siguientes (el orden varía)
+        assert set(ids[1:3]) == {"fam1", "fam2"}
         # El descubrimiento queda después
-        assert set(["d1", "d2", "d3"]) <= set(ids[3:])
+        assert set(ids[3:]) == {"d1", "d2", "d3"}
 
     @patch("routes.search.get_ytm")
     def test_for_you_does_not_cap_by_artist(self, mock_get_ytm, client):
@@ -740,6 +740,26 @@ class TestForYouHelpers:
         mix = _build_mix(anchor)
         assert [m["videoId"] for m in mix][0] == "anchor"
         assert [m["artist"] for m in mix].count("Alpha") == 6
+
+    @patch("routes.search.get_ytm")
+    def test_build_mix_varies_tail_order(self, mock_get_ytm):
+        """Las mismas canciones pueden repetirse, pero no en el mismo orden."""
+        mock_ytm = MagicMock()
+        mock_ytm.get_watch_playlist.return_value = {
+            "tracks": [_track(f"d{i}", "New") for i in range(6)]
+        }
+        mock_get_ytm.return_value = mock_ytm
+        anchor = {
+            "videoId": "anchor",
+            "title": "Anchor",
+            "artist": "A",
+            "thumbnail": "",
+            "thumbnails": [],
+            "duration": 0,
+        }
+        orders = {tuple(m["videoId"] for m in _build_mix(anchor)) for _ in range(10)}
+        assert all(order[0] == "anchor" for order in orders)
+        assert len(orders) > 1
 
 
 class TestHomeAlbums:

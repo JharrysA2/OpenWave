@@ -456,7 +456,7 @@ export default function HomeView({
 
   // ── Secciones (rejilla apilada): endpoints con fallback a historial ───────
   const recentsItems = (feed.recents || history.slice(0, LIMITS.recents)).slice(0, LIMITS.recents);
-  // Fallback de "Tu Mix del Momento": historial que no se ve ya en Recientes.
+  // Fallback de "Para ti": historial que no se ve ya en Recientes.
   const recentsIds = new Set(recentsItems.map((s) => s.videoId).filter(Boolean));
   const forYouFallback = history.filter((s) => !recentsIds.has(s.videoId)).slice(0, LIMITS.forYou);
   const forYouItems = (feed.forYou || forYouFallback).slice(0, LIMITS.forYou);
@@ -604,10 +604,10 @@ export default function HomeView({
         </>
       )}
 
-      {/* ── 2) Tu Mix del Momento — mix del backend, fallback historial ────── */}
+      {/* ── 2) Para ti — mix del backend, fallback historial ───────────────── */}
       {status === "ready" && forYouItems.length > 0 && (
         <>
-          <SectionHeader delay={300}>Tu Mix del Momento</SectionHeader>
+          <SectionHeader delay={300}>Para ti</SectionHeader>
           <Shelf testid="grid-for-you">
             {forYouItems.map((song, i) => (
               <FeedCard

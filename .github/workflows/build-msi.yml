@@ -1,0 +1,86 @@
+name: Build MSI
+
+# Construye el instalador MSI en un runner Windows. Se puede llamar desde el
+# workflow de release (workflow_call) o lanzar a mano para probar la cadena
+# (workflow_dispatch). NO crea releases: solo deja el MSI como artefacto.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Ref (tag, rama o SHA) que se construye. Vacío = el actual."
+        type: string
+        required: false
+        default: ""
+    outputs:
+      version:
+        description: "Versión construida (de tauri.conf.json)"
+        value: ${{ jobs.build.outputs.version }}
+      sha256:
+        description: "SHA-256 del MSI"
+        value: ${{ jobs.build.outputs.sha256 }}
+      size:
+        description: "Tamaño del MSI en bytes"
+        value: ${{ jobs.build.outputs.size }}
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compilar MSI (Windows)
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      sha256: ${{ steps.meta.outputs.sha256 }}
+      size: ${{ steps.meta.outputs.size }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache de Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Instalar dependencias npm
+        run: npm ci
+
+      - name: Compilar el MSI (runtime + appx + tauri + verify)
+        shell: pwsh
+        run: ./scripts/package-windows.ps1 -NoOpen
+
+      - name: Leer versión, hash y tamaño del MSI
+        id: meta
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content -Raw src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          $msi = Join-Path $PWD "build/windows/OpenWave-$version-x64-es-ES.msi"
+          if (-not (Test-Path -LiteralPath $msi)) { throw "No existe el MSI: $msi" }
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $msi).Hash.ToLower()
+          $size = (Get-Item -LiteralPath $msi).Length
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+          "size=$size" >> $env:GITHUB_OUTPUT
+          Write-Host "MSI $version: $size bytes, sha256 $hash"
+
+      - name: Subir el MSI como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwave-msi
+          path: build/windows/OpenWave-*-x64-es-ES.msi
+          if-no-files-found: error
+          retention-days: 30

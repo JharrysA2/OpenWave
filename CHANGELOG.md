@@ -4,6 +4,32 @@ Todo los cambios notables de OpenWave se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Release automatizado con GitHub Actions**: al empujar un tag `vX.Y.Z` (o
+  lanzando a mano `gh workflow run release.yml -f bump=patch|minor|major`, o
+  `-f version=X.Y.Z`) un workflow sube la versión, compila el MSI en un runner
+  Windows con la misma receta que en local (`prepare-runtime` + `package-appx`
+  + `tauri` + `verify-msi`) y publica la release con el MSI, las notas del
+  `CHANGELOG` y el sha256 del artefacto.
+- **`scripts/bump-version.py`**: sube la versión en los seis ficheros que la
+  declaran y mueve `[Unreleased]` a `## [X.Y.Z] - fecha` con sus enlaces.
+- **`scripts/install-msi.ps1`**: descarga el MSI de una release, lo instala en
+  silencio y verifica `/health` y `/home/for-you`.
+- **Memoria y skill del proyecto**: `AGENTS.md` (se carga en cada conversación)
+  y la skill `.opencode/skills/openwave-release`, con la política de versionado
+  y el flujo de publicación.
+
+### Changed
+
+- **Política de versionado explícita** (SemVer): MINOR para mejoras o arreglos
+  grandes, PATCH para pequeños y MAJOR para cambios incompatibles; en la duda,
+  PATCH. Documentada en `AGENTS.md`, `docs/release.md` y la skill.
+- **`docs/release.md`** reescrito: distingue la vía automática (Actions) de la
+  local (fallback) manteniendo los gates.
+
 ## [1.0.1] - 2026-10-12
 
 ### Added

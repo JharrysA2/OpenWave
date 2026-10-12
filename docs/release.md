@@ -1,9 +1,31 @@
 # Checklist de publicación de una versión
 
-Proceso manual (no hay workflow automático de release). Se ejecuta desde WSL
-en `/home/jharrys/proyectos/OpenWave`; la app empaquetada vive en
-`C:\Users\jharrys\Desktop\OpenWave` (clone sincronizado con
-`scripts/sync-windows`, allí SOLO se hace build, nunca se edita).
+Hay dos vías: **GitHub Actions** (recomendada, compila el MSI y publica la
+release) y **local** (fallback: compila en la copia Windows). La versión se
+sube **siempre** con `scripts/bump-version.py`; la política está en
+`AGENTS.md` y `.opencode/skills/openwave-release/references/versioning.md`.
+
+- Repo de trabajo (WSL): `/home/jharrys/proyectos/OpenWave`.
+- Copia de build Windows: `C:\Users\jharrys\Desktop\OpenWave` (sincronizada con
+  `scripts/sync-windows`; allí SOLO se compila, nunca se edita).
+
+## Vía A — GitHub Actions (recomendada)
+
+- [ ] Gates en verde (sección 1).
+- [ ] `CHANGELOG.md` con lo pendiente bajo `## [Unreleased]`.
+- [ ] Commit + `git push origin master`.
+- [ ] `gh workflow run release.yml -f bump=patch` (o `minor`/`major`, o
+      `-f version=X.Y.Z`). El workflow sube la versión, crea el commit
+      `chore(release): vX.Y.Z`, empuja el tag, **compila el MSI en Windows**
+      (`build-msi.yml`) y **publica la release** con el MSI y las notas.
+- [ ] `git pull --ff-only` para traer el commit de versión.
+- [ ] Instalar el MSI publicado y verificar:
+      `powershell.exe -File scripts/install-msi.ps1 -Version X.Y.Z -Launch`.
+
+## Vía B — local (fallback)
+
+Se ejecuta desde WSL; la app empaquetada vive en
+`C:\Users\jharrys\Desktop\OpenWave`.
 
 ## 1. Gates — todos en verde antes de tocar nada
 
@@ -17,33 +39,34 @@ en `/home/jharrys/proyectos/OpenWave`; la app empaquetada vive en
 
 ## 2. CHANGELOG y README
 
-- [ ] Mover el contenido de `[Unreleased]` a la sección nueva
-      `## [X.Y.Z] - AAAA-MM-DD` (Keep a Changelog) y dejar `[Unreleased]`
-      vacío.
+- [ ] Rellenar `## [Unreleased]` (Keep a Changelog). El bump a `## [X.Y.Z] -
+      AAAA-MM-DD` y los enlaces los hace `scripts/bump-version.py`.
 - [ ] Si toca, actualizar las cifras del README (tests, comprobaciones del
       verify-msi).
 
-## 3. Commit y tag
+## 3. Versión, commit y tag
 
+- [ ] `scripts/bump-version.py patch|minor|major` (o `X.Y.Z`).
 - [ ] Commit del corte (`chore(release): vX.Y.Z`).
 - [ ] `git push origin master`
 - [ ] `git tag -a vX.Y.Z -m "..."` y `git push origin refs/tags/vX.Y.Z`.
       Solo se RE-CORTA un tag si la versión nunca se publicó (borrar con
       `git tag -d vX.Y.z` antes).
 
-## 4. MSI
+## 4. MSI (solo vía local)
 
 - [ ] `scripts/sync-windows` (Windows en el mismo commit).
 - [ ] Rebuild SIN `-SkipRuntime` si cambió el backend: cerrar la app y
       relanzar `package-windows.ps1` + `verify-msi.ps1` (75/75).
-- [ ] Instalar con UAC (`Start-Process msiexec -Verb RunAs -Wait -PassThru`),
-      verificar el hash del `songs.py`/`main.py` instalado contra el repo y
-      `GET /health` → 200.
+- [ ] Instalar con UAC (`scripts/install-msi.ps1 -MsiPath ... -Launch`), o
+      `Start-Process msiexec -Verb RunAs -Wait -PassThru`), verificar el hash
+      del `songs.py`/`main.py` instalado contra el repo y `GET /health` → 200.
 - [ ] Anotar el sha256 del MSI para las notas de la release.
 
 ## 5. Release en GitHub
 
-- [ ] `gh release create vX.Y.Z "build/windows/OpenWave-*.msi" --title "..." --notes-file <notas>`
+- [ ] Vía A: la crea el workflow. Vía B: `gh release create vX.Y.Z
+      "build/windows/OpenWave-*.msi" --title "..." --notes-file <notas>`.
 - [ ] Comprobar que la release aparece con el MSI adjunto y que el tag está
       en el remoto (`git ls-remote --tags origin`).
 

@@ -1,0 +1,175 @@
+name: Release
+
+# Publica una versión de OpenWave:
+#   - automáticamente al empujar un tag vX.Y.Z
+#   - a mano (workflow_dispatch): sube la versión (patch/minor/major o X.Y.Z),
+#     commitea, crea el tag, compila el MSI en Windows y publica la release.
+#
+# El MSI lo construye .github/workflows/build-msi.yml (misma receta que en
+# local: prepare-runtime + package-appx + tauri + verify-msi). Ver AGENTS.md y
+# docs/release.md para la política de versionado.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Subida de versión (se ignora si rellenas «version»)"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: "Versión explícita X.Y.Z (opcional)"
+        type: string
+        default: ""
+      dry_run:
+        description: "Solo compilar el MSI, sin subir versión ni crear la release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Preparar versión y tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.prep.outputs.tag }}
+      version: ${{ steps.prep.outputs.version }}
+      dry_run: ${{ steps.prep.outputs.dry_run }}
+      build_ref: ${{ steps.prep.outputs.build_ref }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calcular versión (y subirla si es a mano)
+        id: prep
+        env:
+          EVENT: ${{ github.event_name }}
+          BRANCH: ${{ github.ref_name }}
+          BUMP: ${{ inputs.bump }}
+          VERSION: ${{ inputs.version }}
+          DRY: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          out() { echo "$1=$2" >> "$GITHUB_OUTPUT"; }
+
+          # 1) Tag empujado: la versión viene del propio tag.
+          if [[ "$EVENT" == "push" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            out tag "v$version"
+            out version "$version"
+            out dry_run "false"
+            out build_ref "v$version"
+            exit 0
+          fi
+
+          # 2) Prueba en seco: solo construye lo que hay ahora mismo.
+          if [[ "$DRY" == "true" ]]; then
+            version="$(python3 -c 'import json;print(json.load(open("package.json"))["version"])')"
+            out tag ""
+            out version "$version"
+            out dry_run "true"
+            out build_ref "$GITHUB_SHA"
+            exit 0
+          fi
+
+          # 3) A mano: sube la versión, commitea y empuja el tag.
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python3 scripts/bump-version.py "${VERSION:-$BUMP}"
+          version="$(python3 -c 'import json;print(json.load(open("package.json"))["version"])')"
+          git add -A
+          git commit -m "chore(release): v$version"
+          git tag -a "v$version" -m "OpenWave v$version"
+          git push origin "HEAD:${BRANCH}"
+          git push origin "refs/tags/v$version"
+          out tag "v$version"
+          out version "$version"
+          out dry_run "false"
+          out build_ref "v$version"
+
+  build:
+    name: Construir MSI
+    needs: prepare
+    uses: ./.github/workflows/build-msi.yml
+    with:
+      ref: ${{ needs.prepare.outputs.build_ref }}
+
+  release:
+    name: Publicar release en GitHub
+    needs: [prepare, build]
+    if: needs.prepare.outputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (en el tag)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Descargar el MSI
+        uses: actions/download-artifact@v4
+        with:
+          name: openwave-msi
+          path: dist
+
+      - name: Preparar las notas (CHANGELOG + hash)
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SHA: ${{ needs.build.outputs.sha256 }}
+          SIZE: ${{ needs.build.outputs.size }}
+        run: |
+          set -euo pipefail
+          python3 - "$VERSION" "$SHA" "$SIZE" <<'PY' > notes.md
+          import re
+          import sys
+
+          version, sha, size = sys.argv[1], sys.argv[2], sys.argv[3]
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          m = re.search(
+              rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)",
+              text,
+              re.M | re.S,
+          )
+          body = m.group(1).strip() if m else "Sin notas en el CHANGELOG."
+          mb = f"{int(size) / 1048576:.1f}".replace(".", ",")
+          print(f"**OpenWave v{version}**\n")
+          print(body)
+          print("\n## Artefacto verificado\n")
+          print("```")
+          print(f"sha256  {sha}")
+          print(f"tamaño  {size} bytes (≈ {mb} MB)")
+          print("```")
+          print(
+              f"\nDescarga `OpenWave-{version}-x64-es-ES.msi`, ejecútalo y acepta "
+              "el diálogo de Windows (SmartScreen: «Más información» → «Ejecutar "
+              "de todos modos»). Instálalo **por encima** de la versión anterior: "
+              "tus datos se conservan."
+          )
+          PY
+          cat notes.md
+
+      - name: Crear o actualizar la release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.msi --clobber
+            gh release edit "$TAG" --title "OpenWave $TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" dist/*.msi \
+              --title "OpenWave $TAG" \
+              --notes-file notes.md
+          fi
+          gh release view "$TAG"

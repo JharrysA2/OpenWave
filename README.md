@@ -103,7 +103,7 @@ npm run tauri dev
 | `npm run format`                                                     | Prettier (formateo frontend)                                                                                     |
 | `npm run format:check`                                               | Verifica formato Prettier                                                                                        |
 | `npm run check`                                                      | ESLint + Prettier check                                                                                          |
-| `npm run prepare`                                                    | Instala Husky (⚠️ sin `pre-commit` creado todavía)                                                               |
+| `npm run prepare`                                                    | Inicializa los hooks de git                                                                                      |
 | `ruff check backend/`                                                | Ruff linter (backend Python)                                                                                     |
 | `ruff format backend/`                                               | Ruff formatter (backend)                                                                                         |
 | `python -m pytest`                                                   | Tests del backend (en `backend/`)                                                                                |
@@ -135,9 +135,8 @@ openwave/
 │   └── ci.yml                 ← CI: lint + format + build + tests (frontend) y ruff + pytest (backend)
 ├── e2e/                       ← Tests e2e (Playwright)
 │   ├── helpers.js
-│   └── navigation, search, player, settings, library.spec.js
-├── public/                    ← Assets estáticos (favicon.svg, fuentes DM Sans, scroll-fix.js)
-│                                ← el logo es SVG inline (Sidebar.jsx / BootScreen.jsx), no hay fichero de logo
+│   └── navigation, search, player, settings, library
+├── public/                    ← Assets estáticos (favicon, fuentes DM Sans)
 ├── src/                       ← Frontend React
 │   ├── App.jsx                ← Entry point (enrutado, dynamic theme, player)
 │   ├── main.jsx
@@ -145,7 +144,7 @@ openwave/
 │   ├── dynamic-theme.css      ← estilos del tema dinámico (@property --neon)
 │   ├── components/            ← 53 componentes UI (39 en raíz + 14 en settings/)
 │   │   ├── MainRouter.jsx         ← enrutado principal
-│   │   ├── Sidebar.jsx            ← navegación + logo inline
+│   │   ├── Sidebar.jsx            ← navegación
 │   │   ├── TitleBar.jsx           SearchBar.jsx        BootScreen.jsx
 │   │   ├── HomeView.jsx           SearchView.jsx       LikedView.jsx
 │   │   ├── AlbumView.jsx          ArtistView.jsx       PlaylistView.jsx
@@ -339,9 +338,6 @@ openwave/
 | DELETE | `/history/all`                     | Limpiar historial             |
 | POST   | `/history/import`                  | Importar historial            |
 
-> El estado del player (canción, posición, cola) **no viaja por esta API**: se
-> persiste en el propio cliente y se guarda en la base de datos local.
-
 ### Caché
 
 | Método | Ruta           | Descripción                   |
@@ -367,11 +363,6 @@ openwave/
 - **Playwright** — Tests e2e (navegación, búsqueda, reproducción, settings, librería)
 - **Ruff** — Linter y formatter para Python backend
 - **Pytest** — 444 tests del backend (rutas, DB, streaming, descargas, letras, utils)
-- **lint-staged** — configurado en `package.json` (Prettier + ESLint sobre
-  `src/**`) para usarse con un hook de Husky. ⚠️ **El hook `.husky/pre-commit`
-  no está creado ni trackeado**, así que hoy solo se aplica a mano con
-  `npm run check` y `npm run format`; la CI lo ejecuta igualmente antes de
-  fusionar.
 - **GitHub Actions CI** — Frontend (Node 24): lint + `format:check` + build +
   `npm test`; Backend (Python 3.12): `ruff check` + `ruff format --check` +
   pytest
@@ -382,16 +373,16 @@ openwave/
 
 - **Licencia del código**: [CC BY-NC 4.0](LICENSE) — libre para uso
   personal: puedes copiarlo, modificarlo y redistribuirlo citando al autor,
-  pero **no con fines comerciales** ni con ánimo de lucro.
-  - ⚠️ `package.json` declara todavía `"license": "GPL-3.0-or-later"`. La
-    fuente de verdad es este README, `LICENSE` y el MSI (que exige CC BY-NC
-    4.0 en su verificación); el campo de `package.json` está pendiente de
-    alinearlo.
+  pero **no con fines comerciales** ni con ánimo de lucro. Cualquier
+  distribución con fines de lucro corresponde a quien la realice, quedando
+  dicha persona o entidad responsable de las consecuencias que de ello se
+  deriven.
 - OpenWave consulta contenido a través de la **API privada de YouTube
   Music** (`ytmusicapi`, reverse engineering). No está afiliada, patrocinada
   ni respaldada por Google ni por YouTube; el acceso queda sujeto a las
   [Condiciones de Servicio de Google](https://www.youtube.com/t/terms) y la
-  disponibilidad del contenido depende de terceros.
+  disponibilidad del contenido depende de terceros. El uso de dicha API es
+  responsabilidad de quien la emplee.
 - Para uso personal funciona sin problemas. Para un servicio público o
   comercial, la alternativa legal sería la
   [YouTube Data API v3](https://developers.google.com/youtube/v3) oficial

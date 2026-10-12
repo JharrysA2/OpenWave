@@ -231,6 +231,19 @@ if (-not $trusted) {
     Write-Host '  confianza: cer ya presente en TrustedPeople'
 }
 
+# Raiz de confianza: `signtool verify /pa` exige que el autofirmado encadene a
+# una raiz de confianza. Sin esto, la verificacion solo pasa si el certificado
+# ya se confio antes (p. ej. tras instalar el MSI en esa maquina); en una
+# maquina limpia o en CI falla. Idempotente.
+$rootTrust = Get-ChildItem Cert:\CurrentUser\Root -ErrorAction SilentlyContinue |
+    Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
+if (-not $rootTrust) {
+    Import-Certificate -FilePath $cerPath -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
+    Write-Host '  confianza (raiz): cer importado a CurrentUser\Root'
+} else {
+    Write-Host '  confianza (raiz): cer ya presente en Root'
+}
+
 # ── 5. makeappx pack (/nv) + signtool ───────────────────────────────────────
 $kits = 'C:\Program Files (x86)\Windows Kits\10\bin'
 $makeappx = $null

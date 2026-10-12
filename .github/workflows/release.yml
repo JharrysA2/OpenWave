@@ -164,11 +164,14 @@ jobs:
           TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           set -euo pipefail
+          msi="$(find dist -type f -name 'OpenWave-*.msi' | head -n1)"
+          if [[ -z "$msi" ]]; then echo "No encuentro el MSI en dist/" >&2; ls -R dist >&2; exit 1; fi
+          echo "MSI: $msi"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/*.msi --clobber
-            gh release edit "$TAG" --title "OpenWave $TAG" --notes-file notes.md
+            gh release upload "$TAG" "$msi" --clobber
+            gh release edit "$TAG" --notes-file notes.md
           else
-            gh release create "$TAG" dist/*.msi \
+            gh release create "$TAG" "$msi" \
               --title "OpenWave $TAG" \
               --notes-file notes.md
           fi

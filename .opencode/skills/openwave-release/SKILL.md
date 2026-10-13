@@ -21,6 +21,11 @@ memoria del proyecto vive en `AGENTS.md` (política de versionado incluida).
 
 En la duda, **PATCH**. No subas la versión a mano: usa `scripts/bump-version.py`.
 
+La versión refleja la **app**: los cambios de **CI, scripts de empaquetado o
+documentación** **no** suben versión. Se documentan en `## Interno` del
+`CHANGELOG` (fuera de las notas de versión) y se publican cuando toque un
+cambio real de la app.
+
 ## Pasos
 
 1. **Gates en verde** (si algo falla, se arregla antes de seguir):
@@ -29,8 +34,8 @@ En la duda, **PATCH**. No subas la versión a mano: usa `scripts/bump-version.py
    cd backend && ../backend/venv/bin/python -m pytest -q && \
      ../backend/venv/bin/python -m ruff check . && ../backend/venv/bin/python -m ruff format --check .
    ```
-2. **CHANGELOG**: asegúrate de que `CHANGELOG.md` tiene el contenido pendiente
-   bajo `## [Unreleased]` (qué cambió y por qué).
+2. **CHANGELOG**: los cambios de la **app** van bajo `## [Unreleased]` (qué
+   cambió y por qué); los de CI/herramientas/empaquetado, en `## Interno`.
 3. **Commit + push** del trabajo: `git push origin master`.
 4. **Publica la versión**. Elige una vía:
 

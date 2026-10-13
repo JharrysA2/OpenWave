@@ -200,10 +200,39 @@ if ($licRow.Count -gt 0) { $licText = [string]$licRow[0][9] }
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $artBannerOk = $false
 $artDialogOk = $false
-$dark = Join-Path $env:LOCALAPPDATA 'tauri\WixTools314\dark.exe'
+# dark.exe (descompilador de WiX) no siempre acaba en la misma carpeta: tauri
+# descarga WiX a su cache y la ruta varia segun la version (LocalAppData vs
+# AppData, WixTools314 vs otra). Se busca en los sitios habituales en vez de
+# fijar una sola ruta.
+function Find-DarkExe {
+    $cands = New-Object System.Collections.Generic.List[string]
+    foreach ($base in @($env:LOCALAPPDATA, $env:APPDATA)) {
+        if (-not $base) { continue }
+        $tauri = Join-Path $base 'tauri'
+        if (Test-Path -LiteralPath $tauri) {
+            Get-ChildItem -Path $tauri -Filter 'dark.exe' -Recurse -ErrorAction SilentlyContinue |
+                ForEach-Object { $cands.Add($_.FullName) }
+        }
+    }
+    $cmd = Get-Command dark.exe -ErrorAction SilentlyContinue
+    if ($cmd) { $cands.Add($cmd.Source) }
+    foreach ($base in @('C:\Program Files (x86)', 'C:\Program Files')) {
+        if (Test-Path -LiteralPath $base) {
+            Get-ChildItem -Path $base -Directory -Filter 'WiX Toolset*' -ErrorAction SilentlyContinue |
+                ForEach-Object { $cands.Add((Join-Path $_.FullName 'bin\dark.exe')) }
+        }
+    }
+    return ($cands | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1)
+}
+
+$dark = Find-DarkExe
 $refBanner = Join-Path $repoRoot 'build\windows\banner.bmp'
 $refDialog = Join-Path $repoRoot 'build\windows\dialog.bmp'
+if (-not (Test-Path -LiteralPath $dark)) {
+    Write-Host '  [graficos] no se encontro dark.exe (WiX): no se pueden comparar los bitmaps del MSI.'
+}
 if ((Test-Path -LiteralPath $dark) -and (Test-Path -LiteralPath $refBanner) -and (Test-Path -LiteralPath $refDialog)) {
+    Write-Host "  [graficos] dark.exe: $dark"
     $tmp = Join-Path $env:TEMP ('swverify-' + [Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Force -Path $tmp | Out-Null
     $prevEap = $ErrorActionPreference
@@ -218,9 +247,16 @@ if ((Test-Path -LiteralPath $dark) -and (Test-Path -LiteralPath $refBanner) -and
         $embDialog = Join-Path $tmp 'Binary\WixUI_Bmp_Dialog'
         if (Test-Path -LiteralPath $embBanner) {
             $artBannerOk = ((Get-FileHash -LiteralPath $embBanner).Hash -eq (Get-FileHash -LiteralPath $refBanner).Hash)
+            $hb = (Get-FileHash -LiteralPath $embBanner).Hash.Substring(0, 12)
+            $hr = (Get-FileHash -LiteralPath $refBanner).Hash.Substring(0, 12)
+            Write-Host "  [graficos] banner: empotrado=$hb referencia=$hr ok=$artBannerOk"
+        } else {
+            Write-Host "  [graficos] dark.exe no extrajo $embBanner"
         }
         if (Test-Path -LiteralPath $embDialog) {
             $artDialogOk = ((Get-FileHash -LiteralPath $embDialog).Hash -eq (Get-FileHash -LiteralPath $refDialog).Hash)
+        } else {
+            Write-Host "  [graficos] dark.exe no extrajo $embDialog"
         }
     } finally {
         $ErrorActionPreference = $prevEap

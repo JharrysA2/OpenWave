@@ -99,5 +99,5 @@ $sw.Stop()
 $songs = @($mix.results)
 $artists = @($songs | Select-Object -ExpandProperty artist -Unique)
 Write-Host ("/home/for-you: " + $songs.Count + " canciones, " + $artists.Count + " artistas, " + [math]::Round($sw.Elapsed.TotalSeconds, 2) + " s")
-if ($songs.Count -gt 0) { Write-Host ("#1: " + $songs[0].title + " — " + $songs[0].artist) }
+if ($songs.Count -gt 0) { Write-Host ("#1: " + $songs[0].title + " - " + $songs[0].artist) }
 Write-Host 'Verificacion de la instalacion correcta.'

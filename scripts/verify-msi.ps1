@@ -226,12 +226,14 @@ function Find-DarkExe {
 }
 
 $dark = Find-DarkExe
+# Ojo: $dark puede ser $null; no pasar null a Test-Path -LiteralPath.
+$darkOk = [bool]($dark) -and (Test-Path -LiteralPath $dark)
 $refBanner = Join-Path $repoRoot 'build\windows\banner.bmp'
 $refDialog = Join-Path $repoRoot 'build\windows\dialog.bmp'
-if (-not (Test-Path -LiteralPath $dark)) {
+if (-not $darkOk) {
     Write-Host '  [graficos] no se encontro dark.exe (WiX): no se pueden comparar los bitmaps del MSI.'
 }
-if ((Test-Path -LiteralPath $dark) -and (Test-Path -LiteralPath $refBanner) -and (Test-Path -LiteralPath $refDialog)) {
+if ($darkOk -and (Test-Path -LiteralPath $refBanner) -and (Test-Path -LiteralPath $refDialog)) {
     Write-Host "  [graficos] dark.exe: $dark"
     $tmp = Join-Path $env:TEMP ('swverify-' + [Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Force -Path $tmp | Out-Null

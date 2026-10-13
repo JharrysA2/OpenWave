@@ -253,42 +253,42 @@ Primera versión pública y completa de OpenWave.
 
 ## Interno (CI y herramientas)
 
-Cambios de infraestructura, empaquetado y publicacion. Son para el flujo de
-trabajo del proyecto y **no forman parte de las notas de una version de la app**
+Cambios de infraestructura, empaquetado y publicación. Son para el flujo de
+trabajo del proyecto y **no forman parte de las notas de una versión de la app**
 (esas van en las secciones `## [X.Y.Z]`).
 
 ### Added
 
-- **Publicacion automatica** (`release.yml` + `build-msi.yml`): al empujar un
+- **Publicación automática** (`release.yml` + `build-msi.yml`): al empujar un
   tag `vX.Y.Z`, o a mano (`gh workflow run release.yml -f bump=patch|minor|major`,
-  o `-f version=X.Y.Z`), un workflow sube la version, compila el MSI en un runner
+  o `-f version=X.Y.Z`), un workflow sube la versión, compila el MSI en un runner
   Windows con la misma receta que en local (`prepare-runtime` + `package-appx` +
   `tauri` + `verify-msi`) y publica la release con el MSI, el sha256 y las notas
-  del `CHANGELOG`. Con `-f dry_run=true` solo compila, sin tocar la version ni
+  del `CHANGELOG`. Con `-f dry_run=true` solo compila, sin tocar la versión ni
   crear la release.
-- **`scripts/bump-version.py`**: sube la version en los seis ficheros que la
+- **`scripts/bump-version.py`**: sube la versión en los seis ficheros que la
   declaran y mueve `[Unreleased]` a `## [X.Y.Z] - fecha` con sus enlaces.
 - **`scripts/install-msi.ps1`**: descarga el MSI de una release, lo instala en
   silencio y verifica `/health` y `/home/for-you`.
-- **Memoria y skill del proyecto**: `AGENTS.md` (se carga en cada conversacion)
-  y la skill `.opencode/skills/openwave-release`, con la politica de versionado
-  y el flujo de publicacion.
+- **Memoria y skill del proyecto**: `AGENTS.md` (se carga en cada conversación)
+  y la skill `.opencode/skills/openwave-release`, con la política de versionado
+  y el flujo de publicación.
 
 ### Changed
 
 - **`scripts/package-appx.ps1`**: ya **no** importa el certificado autofirmado
-  en `Cert:\CurrentUser\Root` (esa operacion se queda colgada en un runner
-  headless, sin dialogo de consentimiento) y la comprobacion de firma del
-  `.msix` tolera una cadena sin raiz de confianza: la firma se valida
-  criptograficamente y el instalador es quien confia el `.cer`. Asi el build
-  funciona igual en una maquina limpia y en CI.
-- **Politica de versionado explicita** (SemVer): la version refleja la **app**;
-  MINOR para mejoras o arreglos grandes, PATCH para pequenos y MAJOR para
+  en `Cert:\CurrentUser\Root` (esa operación se queda colgada en un runner
+  headless, sin diálogo de consentimiento) y la comprobación de firma del
+  `.msix` tolera una cadena sin raíz de confianza: la firma se valida
+  criptográficamente y el instalador es quien confía el `.cer`. Así el build
+  funciona igual en una máquina limpia y en CI.
+- **Política de versionado explícita** (SemVer): la versión refleja la **app**;
+  MINOR para mejoras o arreglos grandes, PATCH para pequeños y MAJOR para
   cambios incompatibles (en la duda, PATCH). Los cambios de CI/herramientas **no**
-  suben version. Documentada en `AGENTS.md`, `docs/release.md` y la skill.
-- **`docs/release.md`** reescrito: distingue la via automatica (Actions) de la
+  suben versión. Documentada en `AGENTS.md`, `docs/release.md` y la skill.
+- **`docs/release.md`** reescrito: distingue la vía automática (Actions) de la
   local (fallback) manteniendo los gates.
-- **`build-msi.yml`** desglosado en pasos atomicos numerados (licencia, graficos,
+- **`build-msi.yml`** desglosado en pasos atómicos numerados (licencia, gráficos,
   runtime, identidad, `tauri build`, post-proceso, `verify-msi`), con
   `timeout-minutes` por paso y por job y modo no interactivo
   (`$ConfirmPreference='None'`): si algo falla o se cuelga, el paso concreto lo
@@ -298,10 +298,15 @@ trabajo del proyecto y **no forman parte de las notas de una version de la app**
 
 - **Pasos de CI que quedaban en rojo sin motivo**: `prepare-runtime.ps1` y
   `package-appx.ps1` heredaban un `$LASTEXITCODE` distinto de cero de comandos
-  nativos (una comprobacion de `pip`, un `signtool verify` sin raiz de
-  confianza); el wrapper de `shell: pwsh` termina con `exit $LASTEXITCODE`, asi
+  nativos (una comprobación de `pip`, un `signtool verify` sin raíz de
+  confianza); el wrapper de `shell: pwsh` termina con `exit $LASTEXITCODE`, así
   que el paso fallaba aunque hubiera ido bien. Ahora lo resetean en el scope
   global.
+- **`scripts/verify-msi.ps1`**: las dos comprobaciones de los gráficos del
+  asistente dependían de una ruta fija de `dark.exe`
+  (`%LOCALAPPDATA%\tauri\WixTools314`), que no siempre existe (Tauri puede usar
+  `%APPDATA%`, otra versión de WiX o el WiX del sistema). Ahora se localiza en
+  los sitios habituales, con diagnóstico si no aparece.
 - **`scripts/install-msi.ps1`**: sustituido un guion largo (UTF-8) por uno
   ASCII; Windows PowerShell 5.1 lee los `.ps1` como ANSI si no llevan BOM y
-  rompia el parseo.
+  rompía el parseo.

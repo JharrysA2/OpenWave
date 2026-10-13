@@ -313,3 +313,6 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 - **`scripts/install-msi.ps1`**: sustituido un guion largo (UTF-8) por uno
   ASCII; Windows PowerShell 5.1 lee los `.ps1` como ANSI si no llevan BOM y
   rompía el parseo.
+- **`build-msi.yml` (paso 8)**: `Write-Host "MSI $version: …"` se parseaba como
+  la variable `$version:` (inválida); se cambió a `${version}`. Era el último
+  fallo del `dry_run` una vez arreglado `verify-msi`.

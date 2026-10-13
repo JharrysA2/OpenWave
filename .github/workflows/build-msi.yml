@@ -160,7 +160,7 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "sha256=$hash" >> $env:GITHUB_OUTPUT
           "size=$size" >> $env:GITHUB_OUTPUT
-          Write-Host "MSI $version: $size bytes, sha256 $hash"
+          Write-Host "MSI ${version}: $size bytes, sha256 $hash"
 
       - name: 9. Subir el MSI como artefacto
         uses: actions/upload-artifact@v4

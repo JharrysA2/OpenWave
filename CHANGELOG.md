@@ -35,6 +35,23 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   PATCH. Documentada en `AGENTS.md`, `docs/release.md` y la skill.
 - **`docs/release.md`** reescrito: distingue la vía automática (Actions) de la
   local (fallback) manteniendo los gates.
+- **`build-msi.yml`** desglosado en pasos atómicos numerados (licencia, gráficos,
+  runtime, identidad, `tauri build`, post-proceso, `verify-msi`), con
+  `timeout-minutes` por paso y por job y modo no interactivo
+  (`$ConfirmPreference='None'`): si algo falla o se cuelga, el paso concreto lo
+  delata de inmediato en vez de un bloque gigante.
+
+### Fixed
+
+- **Pasos de CI que quedaban en rojo sin motivo**: `prepare-runtime.ps1` y
+  `package-appx.ps1` heredaban un `$LASTEXITCODE` distinto de cero de comandos
+  nativos (una comprobación de `pip`, un `signtool verify` sin raíz de
+  confianza); el wrapper de `shell: pwsh` termina con `exit $LASTEXITCODE`, así
+  que el paso fallaba aunque hubiera ido bien. Ahora lo resetean en el scope
+  global.
+- **`scripts/install-msi.ps1`**: sustituido un guion largo (UTF-8) por uno
+  ASCII; Windows PowerShell 5.1 lee los `.ps1` como ANSI si no llevan BOM y
+  rompía el parseo.
 
 ## [1.0.1] - 2026-10-12
 

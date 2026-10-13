@@ -28,10 +28,13 @@ Deja **todos** los gates en verde antes de dar un cambio por terminado.
 ## Rutina obligatoria al acabar un cambio
 
 1. Verifica (tests + lint + format + build).
-2. Documenta en `CHANGELOG.md` dentro de `## [Unreleased]` **qué** cambió y
-   **por qué**.
+2. Documenta en `CHANGELOG.md` **qué** cambió y **por qué**:
+   - cambios de la **app** → `## [Unreleased]`;
+   - cambios de **CI/herramientas/empaquetado** → `## Interno` (no salen en las
+     notas de versión de la app).
 3. Commit en español (estilo conventional commits) y `git push origin master`.
-4. Publica versión nueva (ver «Flujo de release»).
+4. Publica versión **solo si el cambio toca la app** (o cuando se pida). Las
+   herramientas y el CI **no** suben versión (ver «Flujo de release»).
 
 ## Política de versionado (SemVer)
 
@@ -39,6 +42,9 @@ Deja **todos** los gates en verde antes de dar un cambio por terminado.
 - **PATCH** `1.0.1 → 1.0.2`: arreglos o mejoras **pequeñas**.
 - **MAJOR** `1.x → 2.0.0`: cambios incompatibles o migraciones.
 - **En la duda, PATCH.**
+- La versión refleja la **app**. Los cambios de **CI, scripts de empaquetado o
+  documentación** **no** suben versión: van a `## Interno` del `CHANGELOG` y se
+  publican cuando toque un cambio real de la app.
 - La versión está en `package.json`, `package-lock.json` (x2),
   `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` y `src-tauri/Cargo.lock`.
   Súbela **siempre** con `scripts/bump-version.py` (nunca a mano).
@@ -51,7 +57,8 @@ Resumen:
 ### Automático (recomendado)
 
 ```bash
-# 1. Trabajo commiteado y pusheado, CHANGELOG [Unreleased] relleno.
+# 1. Trabajo commiteado y pusheado, con los cambios de app en
+#    CHANGELOG [Unreleased] (los de CI/herramientas van en `## Interno`).
 # 2. Lanza el workflow (elige la subida según la política):
 gh workflow run release.yml -f bump=patch     # o minor/major, o -f version=1.2.3
 #    Hace: sube versión -> commit chore(release) -> tag -> compila el MSI en

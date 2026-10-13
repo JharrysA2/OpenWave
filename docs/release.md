@@ -5,6 +5,11 @@ release) y **local** (fallback: compila en la copia Windows). La versión se
 sube **siempre** con `scripts/bump-version.py`; la política está en
 `AGENTS.md` y `.opencode/skills/openwave-release/references/versioning.md`.
 
+La versión refleja la **app**: los cambios de CI, scripts de empaquetado o
+documentación **no** suben versión. Se documentan en `## Interno` del
+`CHANGELOG` (fuera de las notas de versión) y se publican cuando toque un
+cambio real de la app.
+
 - Repo de trabajo (WSL): `/home/jharrys/proyectos/OpenWave`.
 - Copia de build Windows: `C:\Users\jharrys\Desktop\OpenWave` (sincronizada con
   `scripts/sync-windows`; allí SOLO se compila, nunca se edita).
@@ -12,7 +17,8 @@ sube **siempre** con `scripts/bump-version.py`; la política está en
 ## Vía A — GitHub Actions (recomendada)
 
 - [ ] Gates en verde (sección 1).
-- [ ] `CHANGELOG.md` con lo pendiente bajo `## [Unreleased]`.
+- [ ] `CHANGELOG.md` con los cambios **de la app** bajo `## [Unreleased]`
+      (los de CI/herramientas van en `## Interno`).
 - [ ] Commit + `git push origin master`.
 - [ ] `gh workflow run release.yml -f bump=patch` (o `minor`/`major`, o
       `-f version=X.Y.Z`). El workflow sube la versión, crea el commit
@@ -39,8 +45,10 @@ Se ejecuta desde WSL; la app empaquetada vive en
 
 ## 2. CHANGELOG y README
 
-- [ ] Rellenar `## [Unreleased]` (Keep a Changelog). El bump a `## [X.Y.Z] -
-      AAAA-MM-DD` y los enlaces los hace `scripts/bump-version.py`.
+- [ ] Rellenar `## [Unreleased]` (Keep a Changelog) con los cambios de la app.
+      Los de CI/herramientas/empaquetado van en `## Interno`, que **no** entra
+      en las notas de versión. El bump a `## [X.Y.Z] - AAAA-MM-DD` y los enlaces
+      los hace `scripts/bump-version.py`.
 - [ ] Si toca, actualizar las cifras del README (tests, comprobaciones del
       verify-msi).
 

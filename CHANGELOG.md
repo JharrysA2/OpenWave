@@ -303,10 +303,13 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
   que el paso fallaba aunque hubiera ido bien. Ahora lo resetean en el scope
   global.
 - **`scripts/verify-msi.ps1`**: las dos comprobaciones de los gráficos del
-  asistente dependían de una ruta fija de `dark.exe`
-  (`%LOCALAPPDATA%\tauri\WixTools314`), que no siempre existe (Tauri puede usar
-  `%APPDATA%`, otra versión de WiX o el WiX del sistema). Ahora se localiza en
-  los sitios habituales, con diagnóstico si no aparece.
+  asistente fallaban en CI. `dark.exe` se buscaba en una ruta fija y, sobre
+  todo, el `-MsiPath` que pasa el workflow llega **relativo** y el descompilador
+  se ejecuta tras un `Push-Location`, así que `dark.exe` ya no encontraba el MSI
+  (salía con código 103 y sin extraer nada). Ahora la ruta del MSI se normaliza a
+  **absoluta** y `dark.exe` se localiza en los sitios habituales
+  (`%LOCALAPPDATA%`/`%APPDATA%\tauri`, `PATH`, WiX del sistema), con diagnóstico
+  si falla.
 - **`scripts/install-msi.ps1`**: sustituido un guion largo (UTF-8) por uno
   ASCII; Windows PowerShell 5.1 lee los `.ps1` como ANSI si no llevan BOM y
   rompía el parseo.

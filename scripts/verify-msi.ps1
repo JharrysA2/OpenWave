@@ -43,6 +43,9 @@ if (-not $MsiPath) {
     $MsiPath = $found[0].FullName
 }
 if (-not (Test-Path -LiteralPath $MsiPath)) { throw "No existe $MsiPath" }
+# Normalizar a ruta absoluta: mas abajo se hace Push-Location (dark.exe) y una
+# ruta relativa (p. ej. la que pasa el workflow) dejaria de resolver.
+$MsiPath = (Resolve-Path -LiteralPath $MsiPath).Path
 Write-Host "MSI: $MsiPath"
 
 $installer = New-Object -ComObject WindowsInstaller.Installer
@@ -243,8 +246,9 @@ if ($darkOk -and (Test-Path -LiteralPath $refBanner) -and (Test-Path -LiteralPat
         # dark.exe escribe el .wxs decompilado en el CWD: ejecutarlo desde
         # el repo ensuciaria OpenWave-*.wxs en la raíz → correr en $tmp.
         Push-Location -LiteralPath $tmp
-        try { & $dark $MsiPath -x $tmp | Out-Null } finally { Pop-Location }
+        try { & $dark $MsiPath -x $tmp | Out-Null; $darkRc = $LASTEXITCODE } finally { Pop-Location }
         $ErrorActionPreference = $prevEap
+        if ($darkRc -ne 0) { Write-Host "  [graficos] dark.exe termino con codigo $darkRc" }
         $embBanner = Join-Path $tmp 'Binary\WixUI_Bmp_Banner'
         $embDialog = Join-Path $tmp 'Binary\WixUI_Bmp_Dialog'
         if (Test-Path -LiteralPath $embBanner) {

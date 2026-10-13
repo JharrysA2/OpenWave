@@ -37,6 +37,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$ConfirmPreference = 'None'                 # nunca preguntar: CI/headless no puede responder
+$ProgressPreference = 'SilentlyContinue'    # descargas sin barra (mas rapidas)
 $root = Split-Path -Parent $PSScriptRoot
 
 if (-not $TxtFile) { $TxtFile = Join-Path $root 'build\windows\licencia.txt' }

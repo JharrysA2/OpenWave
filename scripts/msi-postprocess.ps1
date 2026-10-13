@@ -30,6 +30,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$ConfirmPreference = 'None'          # nunca preguntar: CI/headless no puede responder
+$ProgressPreference = 'SilentlyContinue'
 
 if (-not (Test-Path -LiteralPath $MsiPath)) {
     throw "No existe el MSI: $MsiPath"

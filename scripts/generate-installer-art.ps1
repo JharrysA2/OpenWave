@@ -31,6 +31,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$ConfirmPreference = 'None'          # nunca preguntar: CI/headless no puede responder
+$ProgressPreference = 'SilentlyContinue'
 $root = Split-Path -Parent $PSScriptRoot
 
 if (-not $BannerFile) { $BannerFile = Join-Path $root 'build\windows\banner.bmp' }

@@ -32,6 +32,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$ConfirmPreference = 'None'                # nunca preguntar: CI/headless no puede responder
 $ProgressPreference = 'SilentlyContinue'   # sin barra de progreso: descargas mucho más rápidas
 
 if ($env:OS -ne 'Windows_NT') {

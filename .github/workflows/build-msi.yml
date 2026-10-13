@@ -1,8 +1,11 @@
 name: Build MSI
 
-# Construye el instalador MSI en un runner Windows. Se puede llamar desde el
-# workflow de release (workflow_call) o lanzar a mano para probar la cadena
-# (workflow_dispatch). NO crea releases: solo deja el MSI como artefacto.
+# Construye el instalador MSI en un runner Windows con la misma receta que en
+# local (scripts/package-windows.ps1), pero DESGLOSADA en pasos atómicos: si
+# algo falla o se cuelga, el paso afectado lo delata de inmediato. Se puede
+# llamar desde el workflow de release (workflow_call) o lanzar a mano para
+# probar la cadena (workflow_dispatch). NO crea releases: deja el MSI como
+# artefacto.
 
 on:
   workflow_call:
@@ -31,9 +34,7 @@ jobs:
   build:
     name: Compilar MSI (Windows)
     runs-on: windows-latest
-    # Tope de seguridad: una build en frio tarda ~10-30 min; si algo se cuelga,
-    # el job muere y GitHub publica los logs (asi localizamos el punto clavado).
-    timeout-minutes: 60
+    timeout-minutes: 45   # guardarraíl global del job
     outputs:
       version: ${{ steps.meta.outputs.version }}
       sha256: ${{ steps.meta.outputs.sha256 }}
@@ -58,32 +59,101 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Instalar dependencias npm
+      - name: Instalar dependencias npm (determinista)
         run: npm ci
 
       - name: Excluir el workspace del antivirus (acelera el build)
         shell: pwsh
         continue-on-error: true
         run: |
+          $ErrorActionPreference = 'Stop'
           try {
-            Add-MpPreference -ExclusionPath $env:GITHUB_WORKSPACE -ErrorAction Stop
-            Add-MpPreference -ExclusionPath (Join-Path $env:GITHUB_WORKSPACE 'src-tauri\target') -ErrorAction Stop
+            Add-MpPreference -ExclusionPath $env:GITHUB_WORKSPACE
+            Add-MpPreference -ExclusionPath (Join-Path $env:GITHUB_WORKSPACE 'src-tauri\target')
             Write-Host 'Workspace excluido del antivirus.'
           } catch {
             Write-Host "No se pudo excluir del antivirus: $($_.Exception.Message)"
           }
 
-      - name: Compilar el MSI (runtime + appx + tauri + verify)
+      - name: 1. Licencia
         shell: pwsh
-        run: ./scripts/package-windows.ps1 -NoOpen
+        timeout-minutes: 5
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ConfirmPreference = 'None'
+          ./scripts/generate-license.ps1
 
-      - name: Leer versión, hash y tamaño del MSI
+      - name: 2. Graficos del asistente
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ConfirmPreference = 'None'
+          ./scripts/generate-installer-art.ps1
+
+      - name: 3. Runtime embebido (Python + ffmpeg)
+        shell: pwsh
+        timeout-minutes: 15
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ConfirmPreference = 'None'
+          $ProgressPreference = 'SilentlyContinue'
+          ./scripts/prepare-runtime.ps1
+
+      - name: 4. Paquete de identidad (sparse msix)
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ConfirmPreference = 'None'
+          ./scripts/package-appx.ps1
+
+      - name: 5. Compilar el MSI (tauri build)
+        shell: pwsh
+        timeout-minutes: 30
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ConfirmPreference = 'None'
+          $tauri = Join-Path $PWD 'node_modules\.bin\tauri.cmd'
+          if (-not (Test-Path -LiteralPath $tauri)) { throw "Falta $tauri (ejecuta npm ci)." }
+          & $tauri build --bundles msi
+          if ($LASTEXITCODE -ne 0) { throw "tauri build ha fallado (codigo $LASTEXITCODE)." }
+
+      - name: 6. Post-proceso (tipografia) y copia a build/windows
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ConfirmPreference = 'None'
+          $version = (Get-Content -Raw src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          $msiDir = 'src-tauri/target/release/bundle/msi'
+          $msi = Join-Path $msiDir "OpenWave_${version}_x64_es-ES.msi"
+          if (-not (Test-Path -LiteralPath $msi)) {
+            $msi = (Get-ChildItem -Path $msiDir -Filter '*.msi' -ErrorAction SilentlyContinue |
+                    Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+          }
+          if (-not $msi) { throw "No se genero ningun MSI en $msiDir" }
+          ./scripts/msi-postprocess.ps1 -MsiPath $msi
+          New-Item -ItemType Directory -Force -Path 'build/windows' | Out-Null
+          Copy-Item -LiteralPath $msi -Destination "build/windows/OpenWave-$version-x64-es-ES.msi" -Force
+          Write-Host "MSI final: build/windows/OpenWave-$version-x64-es-ES.msi"
+
+      - name: 7. verify-msi (gate del payload)
+        shell: pwsh
+        timeout-minutes: 15
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ConfirmPreference = 'None'
+          $version = (Get-Content -Raw src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          ./scripts/verify-msi.ps1 -MsiPath "build/windows/OpenWave-$version-x64-es-ES.msi"
+
+      - name: 8. Leer version, hash y tamano del MSI
         id: meta
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $version = (Get-Content -Raw src-tauri/tauri.conf.json | ConvertFrom-Json).version
-          $msi = Join-Path $PWD "build/windows/OpenWave-$version-x64-es-ES.msi"
+          $msi = "build/windows/OpenWave-$version-x64-es-ES.msi"
           if (-not (Test-Path -LiteralPath $msi)) { throw "No existe el MSI: $msi" }
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $msi).Hash.ToLower()
           $size = (Get-Item -LiteralPath $msi).Length
@@ -92,7 +162,7 @@ jobs:
           "size=$size" >> $env:GITHUB_OUTPUT
           Write-Host "MSI $version: $size bytes, sha256 $hash"
 
-      - name: Subir el MSI como artefacto
+      - name: 9. Subir el MSI como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: openwave-msi

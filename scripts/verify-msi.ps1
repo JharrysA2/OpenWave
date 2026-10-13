@@ -32,6 +32,8 @@
 #>
 param([string]$MsiPath = '')
 $ErrorActionPreference = 'Stop'
+$ConfirmPreference = 'None'          # nunca preguntar: CI/headless no puede responder
+$ProgressPreference = 'SilentlyContinue'
 
 if (-not $MsiPath) {
     $dir = Join-Path (Split-Path -Parent $PSScriptRoot) 'build\windows'

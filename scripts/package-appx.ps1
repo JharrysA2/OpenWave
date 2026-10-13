@@ -49,6 +49,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$ConfirmPreference = 'None'          # nunca preguntar: CI/headless no puede responder
 $ProgressPreference = 'SilentlyContinue'
 
 if ($env:OS -ne 'Windows_NT') {

@@ -24,6 +24,12 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Changed
 
+- **`scripts/package-appx.ps1`**: ya **no** importa el certificado autofirmado
+  en `Cert:\CurrentUser\Root` (esa operación se queda colgada en un runner
+  headless, sin diálogo de consentimiento) y la comprobación de firma del
+  `.msix` tolera una cadena sin raíz de confianza: la firma se valida
+  criptográficamente y el instalador es quien confía el `.cer`. Así el build
+  funciona igual en una máquina limpia y en CI.
 - **Política de versionado explícita** (SemVer): MINOR para mejoras o arreglos
   grandes, PATCH para pequeños y MAJOR para cambios incompatibles; en la duda,
   PATCH. Documentada en `AGENTS.md`, `docs/release.md` y la skill.

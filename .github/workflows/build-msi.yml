@@ -31,6 +31,9 @@ jobs:
   build:
     name: Compilar MSI (Windows)
     runs-on: windows-latest
+    # Tope de seguridad: una build en frio tarda ~10-30 min; si algo se cuelga,
+    # el job muere y GitHub publica los logs (asi localizamos el punto clavado).
+    timeout-minutes: 60
     outputs:
       version: ${{ steps.meta.outputs.version }}
       sha256: ${{ steps.meta.outputs.sha256 }}
@@ -57,6 +60,18 @@ jobs:
 
       - name: Instalar dependencias npm
         run: npm ci
+
+      - name: Excluir el workspace del antivirus (acelera el build)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          try {
+            Add-MpPreference -ExclusionPath $env:GITHUB_WORKSPACE -ErrorAction Stop
+            Add-MpPreference -ExclusionPath (Join-Path $env:GITHUB_WORKSPACE 'src-tauri\target') -ErrorAction Stop
+            Write-Host 'Workspace excluido del antivirus.'
+          } catch {
+            Write-Host "No se pudo excluir del antivirus: $($_.Exception.Message)"
+          }
 
       - name: Compilar el MSI (runtime + appx + tauri + verify)
         shell: pwsh

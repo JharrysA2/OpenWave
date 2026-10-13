@@ -348,4 +348,10 @@ Write-Host ''
 Write-Host ("Runtime  : {0:N1} MB" -f ($sizeRuntime / 1MB))
 Write-Host ("Backend  : {0:N1} MB" -f ($sizeBackend / 1MB))
 Write-Host ("FFmpeg   : {0:N1} MB" -f ((Get-Item (Join-Path $stage 'ffmpeg\ffmpeg.exe')).Length / 1MB))
-Write-Host "Listo: build\staging preparado para `tauri build`."
+Write-Host 'Listo: build\staging preparado para tauri build.'
+
+# Deja el codigo de salida en 0: ejecutado como paso de CI (shell: pwsh acaba
+# con `exit $LASTEXITCODE`), un $LASTEXITCODE heredado de la comprobacion de
+# pip marcaria el paso como fallido aunque todo haya ido bien. Los errores
+# reales se lanzan con `throw`.
+$LASTEXITCODE = 0

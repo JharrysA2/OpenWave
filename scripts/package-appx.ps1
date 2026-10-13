@@ -307,5 +307,6 @@ if ($renewed) {
 # Deja el codigo de salida en 0: la comprobacion de firma de arriba deja
 # $LASTEXITCODE con el codigo de signtool (no cero si el autofirmado no
 # encadena a una raiz de confianza en esta maquina). Como paso de CI el wrapper
-# acaba con `exit $LASTEXITCODE`; los errores reales ya se lanzan con `throw`.
-$LASTEXITCODE = 0
+# acaba con `exit $LASTEXITCODE`, asi que hay que tocarlo en el scope global
+# (el script se invoca con `&`). Los errores reales se lanzan con `throw`.
+$global:LASTEXITCODE = 0

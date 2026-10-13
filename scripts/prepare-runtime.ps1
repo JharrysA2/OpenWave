@@ -350,8 +350,10 @@ Write-Host ("Backend  : {0:N1} MB" -f ($sizeBackend / 1MB))
 Write-Host ("FFmpeg   : {0:N1} MB" -f ((Get-Item (Join-Path $stage 'ffmpeg\ffmpeg.exe')).Length / 1MB))
 Write-Host 'Listo: build\staging preparado para tauri build.'
 
-# Deja el codigo de salida en 0: ejecutado como paso de CI (shell: pwsh acaba
-# con `exit $LASTEXITCODE`), un $LASTEXITCODE heredado de la comprobacion de
-# pip marcaria el paso como fallido aunque todo haya ido bien. Los errores
-# reales se lanzan con `throw`.
-$LASTEXITCODE = 0
+# Deja el codigo de salida en 0: ejecutado como paso de CI, el wrapper de
+# `shell: pwsh` acaba con `exit $LASTEXITCODE`, y un $LASTEXITCODE heredado de
+# la comprobacion de pip marcaria el paso como fallido aunque todo haya ido
+# bien. Hace falta `$global:` porque el script se invoca con `&` (scope hijo);
+# sin el, la asignacion solo afectaria al scope local. Los errores reales se
+# siguen lanzando con `throw`.
+$global:LASTEXITCODE = 0

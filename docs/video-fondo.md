@@ -13,6 +13,20 @@ vídeo en movimiento. El `<audio>` de la app sigue siendo la fuente sonora y el
 reloj de referencia: el vídeo va **mudo** y solo corrige su deriva contra él, así
 que nunca se oyen dos pistas a la vez.
 
+## Aspecto: velo y cristal
+
+- **El vídeo va un punto atenuado** (velo `.36/.55/.78`, frente al `.5/.7/.9` de
+  la portada) para que la letra blanca gane contraste sobre el movimiento del
+  clip.
+- **Con el vídeo de fondo, la barra lateral (portada + cola) y los botones de
+  arriba (⋮ y cerrar) llevan su propio cristal** (portada+cola `blur(20px)`,
+  botones `blur(6px)`): si no, el clip se movería por detrás de la portada y de
+  la lista y no se leerían bien.
+- **Sin vídeo no hay cristal por pieza**: con la portada difuminada de fondo
+  vuelve el aspecto de siempre, el cristal cubriendo todo. Esto incluye a las
+  canciones sin videoclip oficial (o cuyo vídeo aún se está preparando): la
+  portada manda y nada lleva cristal local.
+
 ## Videoclip oficial, no el «art track»
 
 El vídeo de una canción en YouTube Music suele ser un *art track*

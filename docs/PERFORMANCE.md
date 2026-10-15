@@ -27,6 +27,11 @@ que se repinta con letras/scroll). Por tanto:
     detrás congelado por `overlay-open` (§7);
   - **transitorias no modales**: `GLASS.popup` (toast/volumen/crossfade) se
     queda en `blur(6px)` — pueden flotar sobre contenido que se mueve.
+  - **cristal local con vídeo de fondo** (`LyricsView`): mientras el fondo es
+    el videoclip, la barra lateral (portada + cola) difumina con `blur(20px)`
+    y los botones de arriba (⋮ y cerrar) con `blur(6px)` — detrás hay vídeo en
+    movimiento real. Con la portada de fondo (estática) esos mismos nodos van
+    **sin** blur: el caso de siempre no cambia.
 - **Prohibido en superficies vivas**: grids, tarjetas, listas, botones con
   hover, contenido con scroll (cada repintado re-ejecuta el blur en la iGPU) y,
   en particular, **en los scrims de los modales** (ver §7).

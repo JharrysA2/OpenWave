@@ -2232,6 +2232,13 @@ export function LyricsView({
   // El vídeo ocupa la capa 1 (en vez de la portada) cuando está listo.
   const videoActivo = !solidOn && !sleeping && isVideoReady(videoState);
 
+  // Cristal local (portada + cola, y botones de arriba) SOLO mientras el vídeo
+  // es el fondo. Es lo que pide el ajuste «Vídeo de fondo»: con el clip
+  // moviéndose detrás, esas piezas necesitan su propia hoja de cristal. Con la
+  // portada difuminada de fondo NO hay cristal local y todo vuelve al aspecto
+  // de siempre (el cristal cubre todo el fondo). Ver `videoActivo`.
+  const videoGlass = videoActivo;
+
   // ── Estilo glass compartido para botones superiores ──────────────────
   const btnGlass = {
     width: "44px",
@@ -2249,8 +2256,16 @@ export function LyricsView({
       "background .2s cubic-bezier(.16,1,.3,1), color .2s cubic-bezier(.16,1,.3,1), " +
       "transform .2s cubic-bezier(.16,1,.3,1), border-color .2s cubic-bezier(.16,1,.3,1), " +
       "box-shadow .2s cubic-bezier(.16,1,.3,1)",
-    // Sin backdrop-filter: el botón flota sobre el fondo de letras (estático)
-    // — medición GPU, dentro del 1.80% de blur que costaban los backdrop.
+    // Sin vídeo de fondo NO lleva backdrop-filter: el botón flota sobre la
+    // portada difuminada, que es estática — medición GPU, dentro del 1.80% de
+    // blur que costaban los backdrop. Con el vídeo de fondo sí hay movimiento
+    // real que difuminar: el botón pasa a ser una hoja de cristal del sistema
+    // (GLASS.close usa blur(6px)). En modo Rendimiento lo apaga
+    // `perf-blur-off`/`perf-solid` por el selector [style*="backdrop-filter"].
+    ...(videoGlass && {
+      backdropFilter: "blur(6px)",
+      WebkitBackdropFilter: "blur(6px)",
+    }),
   };
 
   if (!open || !song) return null;
@@ -2385,13 +2400,18 @@ export function LyricsView({
             Con el vídeo de fondo el velo es más suave: si no, el vídeo no se
             vería (la portada, al ser una textura fija, aguanta más oscuridad). */}
         <div
+          data-testid="lyrics-dim"
           style={{
             position: "absolute",
             inset: 0,
-            background: `
+            // Solo capas de degradado (velo + tinte de acento): `backgroundImage`
+            // es equivalente y sí conserva la lista completa de capas.
+            backgroundImage: `
               linear-gradient(180deg, ${
+                // Un punto más bajo que antes (.28/.44/.66): la letra gana
+                // contraste sobre el movimiento del clip.
                 videoActivo
-                  ? "rgba(5,5,10,.28) 0%, rgba(5,5,10,.44) 50%, rgba(5,5,10,.66) 100%"
+                  ? "rgba(5,5,10,.36) 0%, rgba(5,5,10,.55) 50%, rgba(5,5,10,.78) 100%"
                   : "rgba(5,5,10,.5) 0%, rgba(5,5,10,.7) 50%, rgba(5,5,10,.9) 100%"
               }),
               radial-gradient(ellipse at 30% 40%, ${accentColor}33 0%, transparent 70%)
@@ -2554,17 +2574,33 @@ export function LyricsView({
           PANEL IZQUIERDO: Portada grande + Cola + Relacionadas
           ════════════════════════════════════════════════════════════════════ */}
       <div
+        data-testid="lyrics-panel"
         style={{
           width: "380px",
           flexShrink: 0,
           display: "flex",
           flexDirection: "column",
-          borderRight: `1px solid ${accentColor}40`,
+          borderRight: `1px solid ${videoGlass ? `${accentColor}66` : `${accentColor}40`}`,
           padding: "30px 28px 20px",
           gap: "20px",
           overflow: "hidden",
           zIndex: 1,
-          background: `linear-gradient(180deg, ${accentColor}30 0%, transparent 100%)`,
+          // Con el vídeo de fondo la portada y la cola van sobre una hoja de
+          // cristal (Liquid Glass, mismo material que GLASS.sheet): el clip se
+          // mueve detrás y, sin difuminarlo, la portada y la lista no se
+          // leerían. Sin vídeo no hay cristal local: se mantiene el tinte de
+          // acento sobre la portada difuminada que cubre todo el fondo.
+          ...(videoGlass
+            ? {
+                background:
+                  "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), 0 24px 80px rgba(0,0,0,.5)",
+              }
+            : {
+                background: `linear-gradient(180deg, ${accentColor}30 0%, transparent 100%)`,
+              }),
         }}
       >
         {/* Album art — CUADRADO completo */}

@@ -20,6 +20,11 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   yt-dlp, así que llega a 1080p; si el equipo no tiene un runtime de JavaScript
   (Node, Deno, Bun o QuickJS), la cadena de intentos sigue degradando hasta el
   vídeo de antes en vez de fallar.
+- **El vídeo de fondo deja leer la letra.** El clip va un punto más atenuado y,
+  mientras es el fondo, la barra lateral (portada + cola) y los botones de
+  arriba (⋮ y cerrar) llevan su propio cristal: si no, el vídeo se movía por
+  detrás de la portada y de la cola y costaba leerlas. Sin vídeo no cambia nada:
+  esas piezas pierden el cristal y el fondo vuelve a cubrirlo todo como siempre.
 
 ### Fixed
 

@@ -1607,4 +1607,64 @@ describe("LyricsView — vídeo de fondo", () => {
     const guardado = JSON.parse(localStorage.getItem(SW_SETTINGS_KEY) || "{}");
     expect(guardado.lyricsVideoBg).toBe(true);
   });
+
+  // ── Cristal local con el vídeo de fondo (⋮ → Apariencia) ──────────────────
+
+  it("con el vídeo de fondo, la portada+cola y los botones llevan cristal", async () => {
+    conAjuste();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) return Promise.resolve({ lyrics: null });
+      if (path.startsWith("/video/status/")) return Promise.resolve({ prepared: true });
+      return Promise.resolve({});
+    });
+
+    renderLyrics();
+    await screen.findByTestId("lyrics-video");
+
+    // Portada + cola → hoja de cristal (mismo material que GLASS.sheet)
+    const panel = screen.getByTestId("lyrics-panel");
+    expect(panel.style.backdropFilter).toBe("blur(20px)");
+    expect(panel.style.background).toContain("gradient");
+
+    // Los dos botones de arriba (⋮ y X) → cristal de botón del sistema
+    expect(screen.getByTitle("Cerrar letras").style.backdropFilter).toBe("blur(6px)");
+    expect(screen.getByTitle("Configuración de letras").style.backdropFilter).toBe("blur(6px)");
+
+    // El clip va un punto más atenuado para que la letra gane contraste
+    expect(screen.getByTestId("lyrics-dim").style.backgroundImage).toMatch(/rgba\(5,5,10,\.36\)/);
+  });
+
+  it("sin el ajuste no hay cristal local y el fondo cubre todo como siempre", () => {
+    renderLyrics();
+
+    // Fondo de siempre: la portada difuminada a pantalla completa
+    expect(screen.getByTestId("lyrics-bg")).toBeInTheDocument();
+    expect(screen.getByTestId("lyrics-panel").style.backdropFilter ?? "").toBe("");
+    expect(screen.getByTitle("Cerrar letras").style.backdropFilter ?? "").toBe("");
+    expect(screen.getByTitle("Configuración de letras").style.backdropFilter ?? "").toBe("");
+    // Y el velo es el fuerte (sin vídeo), no el del clip
+    expect(screen.getByTestId("lyrics-dim").style.backgroundImage).not.toMatch(
+      /rgba\(5,5,10,\.36\)/,
+    );
+  });
+
+  it("con el ajuste encendido pero sin videoclip oficial, tampoco hay cristal local", async () => {
+    conAjuste();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) return Promise.resolve({ lyrics: null });
+      if (path.startsWith("/video/status/")) {
+        return Promise.resolve({ prepared: false, sin_videoclip: true });
+      }
+      return Promise.resolve({});
+    });
+
+    renderLyrics();
+
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith("/video/status/1"));
+    // Sin vídeo el fondo sigue siendo la portada: nada de cristal por pieza
+    expect(screen.getByTestId("lyrics-bg")).toBeInTheDocument();
+    expect(screen.getByTestId("lyrics-panel").style.backdropFilter ?? "").toBe("");
+    expect(screen.getByTitle("Cerrar letras").style.backdropFilter ?? "").toBe("");
+    expect(screen.getByTitle("Configuración de letras").style.backdropFilter ?? "").toBe("");
+  });
 });

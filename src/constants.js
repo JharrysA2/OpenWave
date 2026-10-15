@@ -21,6 +21,8 @@ export const DEFAULT_SETTINGS = {
   lyricsAnimate: true,
   lyricsClickSeek: true,
   lyricsRotateBg: false,
+  // Vídeo en el fondo de la pantalla de letras en vez de la portada.
+  lyricsVideoBg: false,
   lyricsFontSize: "medium",
   lyricsScrollResume: 3,
   showProgressTime: true,

@@ -8,6 +8,13 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Added
 
+- **Vídeo de fondo en la pantalla de letras.** Un ajuste nuevo (⋮ →
+  Apariencia, y también en Ajustes → Apariencia → Letras) pone el **videoclip
+  oficial** de la canción detrás de la letra en lugar de la portada. Se busca y
+  se prepara solo al abrir las letras, con su progreso, y queda cacheado para la
+  próxima vez; el vídeo va mudo y sincronizado con el audio de siempre. Si la
+  canción no tiene videoclip oficial (los «art track» son la portada hecha
+  vídeo), se queda la portada y no se descarga nada.
 - **Cookies de YouTube opcionales.** Si dejas un `cookies.txt` (formato
   Netscape) en el directorio de datos, las descargas y el streaming lo usan
   para las sesiones restringidas antes de probar las cookies del navegador

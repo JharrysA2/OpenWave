@@ -12,6 +12,9 @@ stream_cache: dict = {}
 url_disk_cache: dict = {}
 api_cache: dict = {}
 download_progress: dict = {}
+# Progreso de la preparación del vídeo de fondo (clave: video_id).
+# El SSE de /video/progress lo lee y video_fondo.py lo escribe.
+video_progress: dict = {}
 in_flight: dict = {}
 in_flight_lock = threading.Lock()
 

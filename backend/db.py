@@ -228,6 +228,19 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_play_events_video ON play_events(video_id);
         """)
 
+        # Videoclip oficial resuelto por canción (caché de la resolución del
+        # vídeo de fondo): evita repetir la búsqueda en YouTube Music cada vez
+        # que se abre la pantalla de letras. Una fila con `oficial_id` vacío
+        # significa «se buscó y esta canción no tiene videoclip» (la pantalla
+        # se queda con la portada).
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS videoclip_oficial (
+                video_id TEXT PRIMARY KEY,
+                oficial_id TEXT DEFAULT '',
+                resuelto_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now'))
+            );
+        """)
+
 
 def db_log_history(entry: dict):
     """Registrar reproducción en el historial.
@@ -543,3 +556,41 @@ def db_get_artist_feedback_scores(artist_names: list[str]) -> dict:
         if totals[name]:
             scores[name] = skips[name] / totals[name]
     return scores
+
+
+# ── Vídeo de fondo: videoclip oficial (caché de la resolución) ───────────────────────
+
+
+def db_get_videoclip_oficial(video_id: str):
+    """Leer la resolución del videoclip oficial cacheada para una canción.
+
+    Devuelve ``(consultado, oficial_id)``. ``consultado=False`` → todavía no se
+    resolvió nada. ``consultado=True`` con ``oficial_id=None`` → ya se buscó y
+    la canción **no tiene** videoclip oficial (no se vuelve a preguntar).
+    """
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT oficial_id FROM videoclip_oficial WHERE video_id=?", (video_id,)
+        ).fetchone()
+    if row is None:
+        return False, None
+    return True, (row["oficial_id"] or None)
+
+
+def db_set_videoclip_oficial(video_id: str, oficial_id: str | None):
+    """Guardar la resolución del videoclip oficial (``None`` = no tiene)."""
+    with _db_lock, get_db() as conn:
+        conn.execute(
+            """INSERT INTO videoclip_oficial(video_id, oficial_id, resuelto_at)
+               VALUES(?,?,strftime('%Y-%m-%dT%H:%M:%S','now'))
+               ON CONFLICT(video_id) DO UPDATE SET
+                   oficial_id = excluded.oficial_id,
+                   resuelto_at = excluded.resuelto_at""",
+            (video_id, oficial_id or ""),
+        )
+
+
+def db_delete_videoclip_oficial(video_id: str) -> None:
+    """Olvidar la resolución de una canción (se volverá a buscar al preparar)."""
+    with _db_lock, get_db() as conn:
+        conn.execute("DELETE FROM videoclip_oficial WHERE video_id=?", (video_id,))

@@ -22,6 +22,15 @@ import {
   clearLyricsOverride,
 } from "../utils/lyricsOverrides";
 import { getStoredLyrics, storeLyrics, clearStoredLyrics } from "../utils/lyricsCache";
+import {
+  VIDEO_PREP,
+  VIDEO_PREP_INITIAL,
+  isVideoReady,
+  normalizePrepareFrame,
+  normalizeStatus,
+  planVideoSync,
+  videoFileUrl,
+} from "../utils/lyricsVideo";
 import { preblurToDataUrl } from "../utils/imageBlur";
 import { codeFromReason } from "../utils/errorCodes";
 import { StatusState } from "./StatusState";
@@ -1187,6 +1196,18 @@ function LyricsSettingsModal({
             </div>
             <div style={rowStyle}>
               <div>
+                <div style={labelStyle}>Vídeo de fondo</div>
+                <div style={descStyle}>Videoclip oficial en vez de la portada</div>
+              </div>
+              <button
+                onClick={() => updateSetting("lyricsVideoBg", !settings.lyricsVideoBg)}
+                style={toggleStyle(settings.lyricsVideoBg)}
+              >
+                <div style={toggleKnob(settings.lyricsVideoBg)} />
+              </button>
+            </div>
+            <div style={rowStyle}>
+              <div>
                 <div style={labelStyle}>Tamaño</div>
                 <div style={descStyle}>
                   {FONT_SIZES.find((s) => s.key === settings.lyricsFontSize)?.px || "36px"}
@@ -1472,6 +1493,135 @@ export function LyricsView({
     setReloadCounter((c) => c + 1);
     skipCacheRef.current = true;
   }, [song?.videoId]);
+
+  // ── Vídeo de fondo (ajuste «Vídeo de fondo» en ⋮ → Apariencia) ──────────
+  //    Al abrir la pantalla de letras, si el ajuste está encendido se
+  //    pregunta al backend si el vídeo está preparado y, si no, se prepara en
+  //    segundo plano siguiendo su progreso. Mientras no esté (o si la canción
+  //    no tiene videoclip) el fondo sigue siendo la portada.
+  const [videoState, setVideoState] = useState(VIDEO_PREP_INITIAL);
+  const videoRef = useRef(null);
+  const prepareEsRef = useRef(null);
+  // Token por apertura/canción: invalida los callbacks del vídeo anterior.
+  const videoReqRef = useRef(0);
+  const videoBg = !!settings.lyricsVideoBg;
+
+  // Pedir la preparación (descarga + mux) y seguir su progreso por SSE.
+  const prepareVideo = useCallback(
+    (token) => {
+      const videoId = song?.videoId;
+      if (!videoId) return;
+      const vigente = () => videoReqRef.current === token;
+      setVideoState({ status: VIDEO_PREP.PREPARING, progress: 0, error: null });
+      api
+        .post(`/video/prepare/${videoId}`)
+        .then(() => {
+          if (!vigente()) return;
+          let es;
+          try {
+            es = new EventSource(`${api.base}/video/progress/${videoId}`);
+          } catch {
+            setVideoState({ status: VIDEO_PREP.ERROR, progress: 0, error: "sse" });
+            return;
+          }
+          prepareEsRef.current = es;
+          es.onmessage = (e) => {
+            if (!vigente()) {
+              es.close();
+              return;
+            }
+            let data;
+            try {
+              data = JSON.parse(e.data);
+            } catch {
+              return; // frame no-JSON: seguir esperando el progreso
+            }
+            const next = normalizePrepareFrame(data);
+            setVideoState(next);
+            if (next.status !== VIDEO_PREP.PREPARING) es.close();
+          };
+          es.onerror = () => {
+            es.close();
+            if (vigente()) {
+              setVideoState({ status: VIDEO_PREP.ERROR, progress: 0, error: "sse" });
+            }
+          };
+        })
+        .catch(() => {
+          if (vigente()) {
+            setVideoState({ status: VIDEO_PREP.ERROR, progress: 0, error: "request" });
+          }
+        });
+    },
+    [song?.videoId],
+  );
+
+  useEffect(() => {
+    const token = ++videoReqRef.current;
+    prepareEsRef.current?.close();
+    prepareEsRef.current = null;
+    if (!open || !videoBg || !song?.videoId) {
+      setVideoState(VIDEO_PREP_INITIAL);
+      return;
+    }
+    setVideoState(VIDEO_PREP_INITIAL);
+    api
+      .get(`/video/status/${song.videoId}`)
+      .then((data) => {
+        if (videoReqRef.current !== token) return;
+        const next = normalizeStatus(data);
+        setVideoState(next);
+        // Sin preparar: se lanza solo (el ajuste ya está encendido).
+        if (next.status === VIDEO_PREP.IDLE) prepareVideo(token);
+      })
+      .catch(() => {
+        // Backend caído: se comporta como «sin preparar», se queda la portada.
+        if (videoReqRef.current === token) {
+          setVideoState({ ...VIDEO_PREP_INITIAL, status: VIDEO_PREP.IDLE });
+        }
+      });
+  }, [open, videoBg, song?.videoId, prepareVideo]);
+
+  // Al desmontar: cerrar el SSE y descartar los callbacks pendientes.
+  useEffect(
+    () => () => {
+      videoReqRef.current += 1;
+      prepareEsRef.current?.close();
+    },
+    [],
+  );
+
+  // El `<audio>` de la app es el transporte y el reloj de referencia; el vídeo
+  // lo sigue y va SIEMPRE mudo (el sonido es el de la app, nunca los dos).
+  useEffect(() => {
+    if (!open || !isVideoReady(videoState)) return undefined;
+    let rafId = 0;
+    const tick = () => {
+      const video = videoRef.current;
+      const audio = audioRef?.current;
+      if (!video) return;
+      rafId = requestAnimationFrame(tick);
+      const plan = planVideoSync({
+        audioTime: audio?.currentTime,
+        videoTime: video.currentTime,
+        audioPaused: audio ? audio.paused : true,
+        videoEnded: video.ended,
+      });
+      if (plan.play) {
+        if (video.paused) {
+          // jsdom no implementa play(): devuelve undefined. La guarda evita
+          // romper el bucle; en el WebView real devuelve una promesa.
+          const p = video.play();
+          if (p && typeof p.catch === "function") p.catch(() => {});
+        }
+      } else if (!video.paused) {
+        video.pause();
+      }
+      if (plan.seekTo !== null) video.currentTime = plan.seekTo;
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [open, videoState, audioRef]);
 
   // ── Búsqueda de letras ──────────────────────────────────────────────────
   const [searchResults, setSearchResults] = useState(null);
@@ -2079,6 +2229,9 @@ export function LyricsView({
   const lyricsFontSize = fontSizeMap[settings.lyricsFontSize] || "34px";
   const textAlign = settings.lyricsTextPos === "center" ? "center" : "left";
 
+  // El vídeo ocupa la capa 1 (en vez de la portada) cuando está listo.
+  const videoActivo = !solidOn && !sleeping && isVideoReady(videoState);
+
   // ── Estilo glass compartido para botones superiores ──────────────────
   const btnGlass = {
     width: "44px",
@@ -2147,7 +2300,31 @@ export function LyricsView({
             la textura 150vmax se libera (era el mayor consumidor de GPU:
             abrir Letras +341MB / cerrar −191MB medidos). Al volver a verse
             se remonta con la misma src → repaint inmediato, sin recarga. */}
-        {!solidOn && bgThumb && !sleeping && (
+        {/* Capa 1: el vídeo de fondo cuando está listo; si no (o si la canción
+            no tiene videoclip) la portada difuminada de siempre. */}
+        {!solidOn && !sleeping && videoActivo && (
+          <video
+            ref={videoRef}
+            data-testid="lyrics-video"
+            src={videoFileUrl(api.base, song?.videoId)}
+            muted
+            playsInline
+            autoPlay
+            preload="auto"
+            // Si el vídeo no se puede reproducir se vuelve a la portada.
+            onError={() => setVideoState({ ...VIDEO_PREP_INITIAL, status: VIDEO_PREP.IDLE })}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              contain: "paint",
+            }}
+          />
+        )}
+
+        {!solidOn && bgThumb && !sleeping && !videoActivo && (
           <div
             data-testid="lyrics-bg"
             style={{
@@ -2204,13 +2381,19 @@ export function LyricsView({
           />
         )}
 
-        {/* Capa 2: Overlay fusionado (oscuro + color) — SIEMPRE visible */}
+        {/* Capa 2: Overlay fusionado (oscuro + color) — SIEMPRE visible.
+            Con el vídeo de fondo el velo es más suave: si no, el vídeo no se
+            vería (la portada, al ser una textura fija, aguanta más oscuridad). */}
         <div
           style={{
             position: "absolute",
             inset: 0,
             background: `
-              linear-gradient(180deg, rgba(5,5,10,.5) 0%, rgba(5,5,10,.7) 50%, rgba(5,5,10,.9) 100%),
+              linear-gradient(180deg, ${
+                videoActivo
+                  ? "rgba(5,5,10,.28) 0%, rgba(5,5,10,.44) 50%, rgba(5,5,10,.66) 100%"
+                  : "rgba(5,5,10,.5) 0%, rgba(5,5,10,.7) 50%, rgba(5,5,10,.9) 100%"
+              }),
               radial-gradient(ellipse at 30% 40%, ${accentColor}33 0%, transparent 70%)
             `,
           }}
@@ -2275,6 +2458,42 @@ export function LyricsView({
           {Ic.close}
         </button>
       </div>
+
+      {/* ── Preparación del vídeo de fondo: aviso sutil (hasta que esté listo
+              el fondo sigue siendo la portada). ───────────────────────────── */}
+      {videoBg && videoState.status === VIDEO_PREP.PREPARING && (
+        <div
+          data-testid="lyrics-video-progress"
+          style={{
+            position: "absolute",
+            top: "20px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "7px 14px",
+            borderRadius: RADIUS.pill,
+            border: `1px solid ${COLORS.borderActive}`,
+            background: "rgba(10,10,16,.62)",
+            backdropFilter: "blur(12px)",
+            color: COLORS.textPrimary,
+            ...TYPOGRAPHY.caption,
+            fontWeight: 700,
+          }}
+        >
+          <span
+            style={{
+              width: "7px",
+              height: "7px",
+              borderRadius: "50%",
+              background: accentColor,
+            }}
+          />
+          Preparando el vídeo… {Math.round(videoState.progress)}%
+        </div>
+      )}
 
       {/* ── Modal de configuración de letras ───────────────────────────── */}
       {showLyricsSettings && (

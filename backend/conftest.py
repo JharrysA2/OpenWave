@@ -55,6 +55,7 @@ def _clean_feedback():
         conn.execute("DELETE FROM song_feedback")
         conn.execute("DELETE FROM downloads")
         conn.execute("DELETE FROM history")
+        conn.execute("DELETE FROM videoclip_oficial")
         conn.execute("DELETE FROM play_events")
         conn.execute("DELETE FROM playlist_songs")
         conn.execute("DELETE FROM playlists")

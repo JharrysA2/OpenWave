@@ -127,6 +127,12 @@ URL_CACHE_FILE = DATA_DIR / "url_cache.json"
 # Es una caché derivada (se puede regenerar), NO son las descargas del usuario.
 STREAM_CACHE_DIR = DATA_DIR / "stream_cache"
 
+# Vídeo de fondo de la pantalla de letras: fichero muxado por canción.
+# Caché derivada y grande → evicción LRU por fecha (ver video_fondo.py).
+VIDEO_DIR = DATA_DIR / "video"
+# Tope de la caché de vídeo: 6 GB ≈ 15-20 vídeos de calidad antes de podar.
+VIDEO_CACHE_MAX_BYTES = 6 * 1024 * 1024 * 1024
+
 # `cookies.txt` opcional (formato Netscape) exportado por el usuario y dejado
 # en el directorio de datos. Es la vía de autenticación más fiable para las
 # sesiones restringidas de YouTube y no exige login propio (ver ytdlp_auth.py).
@@ -141,7 +147,14 @@ YT_DLP_CACHE_DIR = DATA_DIR / "yt-dlp-cache"
 # Crear directorios si no existen. Un fallo de permisos aquí NO debe tumbar
 # el import entero: mejor degradar (la app arranca y avisará al escribir)
 # antes que dejar el backend sin arrancar ni siquiera para mostrar el error.
-for _dir in (MUSIC_DIR, COVERS_DIR, LYRICS_DIR, STREAM_CACHE_DIR, YT_DLP_CACHE_DIR):
+for _dir in (
+    MUSIC_DIR,
+    COVERS_DIR,
+    LYRICS_DIR,
+    STREAM_CACHE_DIR,
+    VIDEO_DIR,
+    YT_DLP_CACHE_DIR,
+):
     try:
         _dir.mkdir(parents=True, exist_ok=True)
     except OSError as _e:

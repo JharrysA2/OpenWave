@@ -37,10 +37,12 @@ vi.mock("../icons/Icons", () => ({
 }));
 
 const mockApiGet = vi.fn();
+const mockApiPost = vi.fn();
 vi.mock("../utils/api", () => ({
   api: {
     base: "http://127.0.0.1:8765",
     get: (...args) => mockApiGet(...args),
+    post: (...args) => mockApiPost(...args),
   },
 }));
 
@@ -1470,5 +1472,139 @@ describe("LyricsView — letras persistidas (sobreviven recargas sin internet)",
     );
 
     expect(scroll.scrollTop).toBe(0);
+  });
+});
+
+// ── Vídeo de fondo (ajuste «Vídeo de fondo» de ⋮ → Apariencia) ──────────────
+
+describe("LyricsView — vídeo de fondo", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) {
+        return Promise.resolve({ lyrics: null, source: "test" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+    mockApiPost.mockResolvedValue({ ok: true });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  const conAjuste = () =>
+    localStorage.setItem(SW_SETTINGS_KEY, JSON.stringify({ lyricsVideoBg: true }));
+
+  function stubEventSource() {
+    let instance = null;
+    vi.stubGlobal(
+      "EventSource",
+      class {
+        constructor() {
+          instance = this;
+        }
+        close() {}
+        get i() {
+          return instance;
+        }
+      },
+    );
+    return () => instance;
+  }
+
+  it("con el ajuste encendido prepara el vídeo al abrir y lo pinta al terminar", async () => {
+    conAjuste();
+    const es = stubEventSource();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) return Promise.resolve({ lyrics: null });
+      if (path.startsWith("/video/status/")) return Promise.resolve({ prepared: false });
+      return Promise.resolve({});
+    });
+
+    renderLyrics({ audioRef: { current: { currentTime: 0, paused: true } } });
+
+    // Se pregunta por el estado y, como no está preparado, se lanza solo.
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith("/video/status/1"));
+    await waitFor(() => expect(mockApiPost).toHaveBeenCalledWith("/video/prepare/1"));
+    await waitFor(() => expect(es()).not.toBeNull());
+
+    act(() =>
+      es().onmessage({
+        data: JSON.stringify({ status: "downloading", progress: 42 }),
+      }),
+    );
+    expect(await screen.findByTestId("lyrics-video-progress")).toHaveTextContent(
+      "Preparando el vídeo… 42%",
+    );
+    // Mientras se prepara, el fondo sigue siendo la portada.
+    expect(screen.queryByTestId("lyrics-video")).not.toBeInTheDocument();
+
+    act(() => es().onmessage({ data: JSON.stringify({ status: "done", progress: 100 }) }));
+
+    const video = await screen.findByTestId("lyrics-video");
+    expect(video).toHaveAttribute("src", "http://127.0.0.1:8765/video/file/1");
+    expect(video.muted).toBe(true);
+    expect(screen.queryByTestId("lyrics-video-progress")).not.toBeInTheDocument();
+  });
+
+  it("si ya está preparado pinta el vídeo sin preparar nada", async () => {
+    conAjuste();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) return Promise.resolve({ lyrics: null });
+      if (path.startsWith("/video/status/")) return Promise.resolve({ prepared: true });
+      return Promise.resolve({});
+    });
+
+    renderLyrics();
+
+    const video = await screen.findByTestId("lyrics-video");
+    expect(video).toHaveAttribute("src", "http://127.0.0.1:8765/video/file/1");
+    expect(mockApiPost).not.toHaveBeenCalled();
+  });
+
+  it("si la canción no tiene videoclip oficial deja la portada y no prepara nada", async () => {
+    conAjuste();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) return Promise.resolve({ lyrics: null });
+      if (path.startsWith("/video/status/")) {
+        return Promise.resolve({ prepared: false, sin_videoclip: true });
+      }
+      return Promise.resolve({});
+    });
+
+    renderLyrics();
+
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith("/video/status/1"));
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("lyrics-video")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("lyrics-video-progress")).not.toBeInTheDocument();
+  });
+
+  it("con el ajuste apagado no consulta ni prepara el vídeo", async () => {
+    renderLyrics();
+
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalled());
+    expect(mockApiGet.mock.calls.some(([path]) => String(path).startsWith("/video/"))).toBe(false);
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("lyrics-video")).not.toBeInTheDocument();
+  });
+
+  it("el interruptor «Vídeo de fondo» del modal enciende el ajuste", async () => {
+    renderLyrics();
+
+    fireEvent.click(screen.getByTitle("Configuración de letras"));
+    fireEvent.click(await screen.findByText("Apariencia"));
+    const label = await screen.findByText("Vídeo de fondo");
+    const fila = label.parentElement.parentElement;
+
+    fireEvent.click(fila.querySelector("button"));
+
+    const guardado = JSON.parse(localStorage.getItem(SW_SETTINGS_KEY) || "{}");
+    expect(guardado.lyricsVideoBg).toBe(true);
   });
 });

@@ -243,6 +243,18 @@ export function PageApariencia({ neonColor }) {
           }
         />
         <SettingRow
+          icon={Ic.img}
+          label={t.lyricsVideoBg}
+          desc={t.lyricsVideoBgDesc}
+          right={
+            <SettingsToggle
+              value={settings.lyricsVideoBg || false}
+              onChange={(v) => updateSetting("lyricsVideoBg", v)}
+              accent={accent}
+            />
+          }
+        />
+        <SettingRow
           icon={Ic.music}
           label={t.lyricsAnimate}
           desc={t.lyricsAnimateDesc}

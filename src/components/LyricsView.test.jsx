@@ -30,7 +30,7 @@ vi.mock("./MusicCover", () => ({
 vi.mock("../icons/Icons", () => ({
   Ic: {
     close: <span data-testid="icon-close">X</span>,
-    mic: <span data-testid="icon-mic">🎤</span>,
+    mic: () => <span data-testid="icon-mic">🎤</span>,
     lock: (s) => <span data-testid="icon-lock">🔒</span>,
     unlock: (s) => <span data-testid="icon-unlock">🔓</span>,
   },
@@ -183,6 +183,8 @@ describe("LyricsView", () => {
     await waitFor(() => {
       expect(screen.getByText("Letras no encontradas para esta canción")).toBeInTheDocument();
     });
+    // El icono del micrófono se pinta de verdad (Ic.mic es una función).
+    expect(screen.getByTestId("icon-mic")).toBeInTheDocument();
   });
 
   it("should show plain text lyrics when lyrics have no time tags", async () => {

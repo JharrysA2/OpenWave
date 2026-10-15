@@ -13,6 +13,11 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   para las sesiones restringidas antes de probar las cookies del navegador
   (Chrome, Firefox, Edge y Brave), que siguen siendo el respaldo.
 
+### Fixed
+
+- **Icono del micrófono en la pantalla de letras.** Cuando la canción no tenía
+  letra, el icono se renderizaba sin llamarlo y no aparecía nada.
+
 ## [1.0.1] - 2026-10-12
 
 ### Added

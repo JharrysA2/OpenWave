@@ -2658,7 +2658,7 @@ export function LyricsView({
                 }}
               >
                 <div style={{ marginBottom: "24px", opacity: 0.3, transform: "scale(1.8)" }}>
-                  {Ic.mic}
+                  {Ic.mic(22)}
                 </div>
                 Letras no encontradas para esta canción
               </div>

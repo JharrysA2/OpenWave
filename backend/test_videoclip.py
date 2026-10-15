@@ -170,8 +170,8 @@ class TestPuntuacion:
         )
         assert 0 < sin_canal < con_canal
 
-    def test_canal_ajeno_sin_omv_se_rechaza(self):
-        """Subida de un fan con el artista en el título: no es el videoclip."""
+    def test_canal_ajeno_sin_artista_en_el_titulo_se_rechaza(self):
+        """Canal ajeno y sin el artista en el título: no es el videoclip."""
         assert (
             puntuar_candidato(
                 "Aquella Noche",
@@ -179,7 +179,7 @@ class TestPuntuacion:
                 191,
                 _video(
                     "fan",
-                    "Aquella noche (Bardero$)",
+                    "Aquella Noche",
                     "Daniela Lipa",
                     "3:11",
                     tipo="MUSIC_VIDEO_TYPE_UGC",
@@ -187,6 +187,23 @@ class TestPuntuacion:
             )
             < 0
         )
+
+    def test_canal_ajeno_con_el_artista_en_el_titulo_se_acepta(self):
+        """Caso real: el clip de «Behind Me» está en el canal del sello y
+        YouTube no lo marca como OMV; con el artista en el título basta."""
+        puntos = puntuar_candidato(
+            "Behind Me",
+            "C.R.O & Fazzini",
+            299,
+            _video(
+                "sello",
+                "C.R.O & Fazzini - Behind Me (OfficialVideo)",
+                "mdbcrew",
+                "5:00",
+                tipo="MUSIC_VIDEO_TYPE_UGC",
+            ),
+        )
+        assert puntos > 0
 
     def test_duracion_muy_distinta_se_rechaza(self):
         """Con dos líneas de tiempo distintas el fondo iría desfasado."""
@@ -197,14 +214,27 @@ class TestPuntuacion:
             < 0
         )
 
-    def test_videoclip_mas_largo_se_rechaza(self):
-        """Caso real: el vídeo de «After House» dura 30 s más que la canción."""
+    def test_videoclip_un_poco_mas_largo_se_acepta(self):
+        """Caso real: el clip de «After House» dura 30 s más que la canción.
+
+        Ese desajuste ya no descarta el vídeo: se acepta y su desfase con la
+        canción se mide al prepararlo (ver desfase.py).
+        """
         assert (
             puntuar_candidato(
                 "After House",
                 "C.R.O & Cazzu",
                 165,
                 _video("clip", "After House", "C.R.O", "3:15"),
+            )
+            > 0
+        )
+
+    def test_videoclip_con_desajuste_absurdo_se_rechaza(self):
+        """Más de 2 min de diferencia: es otro vídeo, no se acepta ni midiendo."""
+        assert (
+            puntuar_candidato(
+                "Mi Alma", "C.R.O", 196, _video("otro", "Mi Alma", "C.R.O", "5:30")
             )
             < 0
         )
@@ -308,21 +338,30 @@ class TestResolver:
         assert resolver_videoclip("of_atv_no") is None
         assert db_get_videoclip_oficial("of_atv_no") == (True, None)
 
-    def test_el_no_resultado_se_cachea(self, monkeypatch):
-        """La segunda llamada no vuelve a consultar YouTube Music."""
-        monkeypatch.setattr(
-            "videoclip.get_ytm",
-            lambda: _YtmFalso(
-                watch=_watch("Aquella Noche", "Bardero$", "3:20", ATV), search=[]
-            ),
+    def test_la_busqueda_vacia_no_se_cachea(self, monkeypatch):
+        """0 resultados = la consulta no respondió: se vuelve a buscar.
+
+        Un vacío no es «esta canción no tiene videoclip»: cachearlo lo
+        cancelaría para siempre por un fallo puntual de red.
+        """
+        ytm = _YtmFalso(
+            watch=_watch("Aquella Noche", "Bardero$", "3:20", ATV), search=[]
         )
-        assert resolver_videoclip("of_cache_no") is None
+        busquedas: list[int] = []
+        buscar_original = ytm.search
 
-        def _explota():
-            raise AssertionError("no debería consultarse: ya está cacheado")
+        def _buscar(*args, **kwargs):
+            busquedas.append(1)
+            return buscar_original(*args, **kwargs)
 
-        monkeypatch.setattr("videoclip.get_ytm", _explota)
-        assert resolver_videoclip("of_cache_no") is None
+        ytm.search = _buscar
+        monkeypatch.setattr("videoclip.get_ytm", lambda: ytm)
+
+        assert resolver_videoclip("of_vacia") is None
+        assert resolver_videoclip("of_vacia") is None
+        # Cada apertura consulta de nuevo: nada quedó en la caché.
+        assert len(busquedas) == 2
+        assert db_get_videoclip_oficial("of_vacia") == (False, None)
 
     def test_omv_usa_el_propio_video(self, monkeypatch):
         ytm = _YtmFalso(watch=_watch("Mi Alma", "C.R.O", "3:16", OMV))

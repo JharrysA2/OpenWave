@@ -30,6 +30,12 @@ describe("lyricsVideo", () => {
       expect(normalizeStatus({ prepared: false }).status).toBe(VIDEO_PREP.IDLE);
       expect(normalizeStatus(null).status).toBe(VIDEO_PREP.IDLE);
     });
+
+    it("conserva el desfase medido y descarta los inválidos", () => {
+      expect(normalizeStatus({ prepared: true, desfase: 12.34 }).desfase).toBe(12.34);
+      expect(normalizeStatus({ prepared: true, desfase: "x" }).desfase).toBe(0);
+      expect(normalizeStatus({ prepared: true }).desfase).toBe(0);
+    });
   });
 
   describe("normalizePrepareFrame", () => {
@@ -39,6 +45,11 @@ describe("lyricsVideo", () => {
       const err = normalizePrepareFrame({ status: "error", error: "boom" });
       expect(err.status).toBe(VIDEO_PREP.ERROR);
       expect(err.error).toBe("boom");
+    });
+
+    it("el frame done arrastra el desfase medido", () => {
+      expect(normalizePrepareFrame({ status: "done", desfase: -3.2 }).desfase).toBe(-3.2);
+      expect(normalizePrepareFrame({ status: "downloading", progress: 10 }).desfase).toBe(0);
     });
 
     it("mientras descarga mantiene PREPARING y acota el progreso", () => {
@@ -100,6 +111,24 @@ describe("lyricsVideo", () => {
 
     it("sin tiempos conocidos no inventa correcciones", () => {
       expect(planVideoSync({ audioPaused: false })).toEqual({ play: true, seekTo: null });
+    });
+
+    it("con desfase positivo el vídeo va por delante del audio", () => {
+      const plan = planVideoSync({
+        audioTime: 30,
+        videoTime: 0,
+        audioPaused: false,
+        desfase: 12,
+      });
+      expect(plan.play).toBe(true);
+      expect(plan.seekTo).toBe(42);
+    });
+
+    it("con desfase negativo el vídeo espera en su primer fotograma", () => {
+      // Objetivo = 3 - 5 = -2: el clip aún no empieza, se queda en su fotograma 0.
+      expect(
+        planVideoSync({ audioTime: 3, videoTime: 0, audioPaused: false, desfase: -5 }),
+      ).toEqual({ play: false, seekTo: 0 });
     });
   });
 });

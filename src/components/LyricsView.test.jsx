@@ -1567,7 +1567,7 @@ describe("LyricsView — vídeo de fondo", () => {
     expect(mockApiPost).not.toHaveBeenCalled();
   });
 
-  it("si la canción no tiene videoclip oficial deja la portada y no prepara nada", async () => {
+  it("si la canción no tiene videoclip oficial deja la portada y lo avisa", async () => {
     conAjuste();
     mockApiGet.mockImplementation((path) => {
       if (path.startsWith("/lyrics/")) return Promise.resolve({ lyrics: null });
@@ -1583,6 +1583,52 @@ describe("LyricsView — vídeo de fondo", () => {
     expect(mockApiPost).not.toHaveBeenCalled();
     expect(screen.queryByTestId("lyrics-video")).not.toBeInTheDocument();
     expect(screen.queryByTestId("lyrics-video-progress")).not.toBeInTheDocument();
+    expect(await screen.findByTestId("lyrics-video-sin-clip")).toHaveTextContent(
+      "Esta canción no tiene videoclip",
+    );
+  });
+
+  it("un fallo en la preparación muestra el aviso y permite reintentar", async () => {
+    conAjuste();
+    const es = stubEventSource();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) return Promise.resolve({ lyrics: null });
+      if (path.startsWith("/video/status/")) return Promise.resolve({ prepared: false });
+      return Promise.resolve({});
+    });
+
+    renderLyrics({ audioRef: { current: { currentTime: 0, paused: true } } });
+
+    await waitFor(() => expect(es()).not.toBeNull());
+    act(() => es().onmessage({ data: JSON.stringify({ status: "error", error: "boom" }) }));
+
+    const aviso = await screen.findByTestId("lyrics-video-error");
+    expect(aviso).toHaveTextContent("No se pudo preparar el vídeo");
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByTestId("lyrics-video-retry"));
+
+    await waitFor(() => expect(mockApiPost).toHaveBeenCalledTimes(2));
+    expect(screen.queryByTestId("lyrics-video-error")).not.toBeInTheDocument();
+    // El reintento vuelve a la píldora de progreso mientras prepara.
+    await screen.findByTestId("lyrics-video-progress");
+  });
+
+  it("si el <video> falla al cargar se avisa en vez de quedarse mudo", async () => {
+    conAjuste();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) return Promise.resolve({ lyrics: null });
+      if (path.startsWith("/video/status/")) return Promise.resolve({ prepared: true });
+      return Promise.resolve({});
+    });
+
+    renderLyrics();
+
+    const video = await screen.findByTestId("lyrics-video");
+    fireEvent.error(video);
+
+    expect(await screen.findByTestId("lyrics-video-error")).toBeInTheDocument();
+    expect(screen.queryByTestId("lyrics-video")).not.toBeInTheDocument();
   });
 
   it("con el ajuste apagado no consulta ni prepara el vídeo", async () => {

@@ -12,6 +12,7 @@ from range_utils import range_file_response
 from rate_limit import limiter
 from video_fondo import (
     delete_video,
+    desfase_guardado,
     get_output_path,
     is_prepared,
     prepare_video,
@@ -43,10 +44,18 @@ async def prepare_background_video(request: Request, video_id: str, oficial: int
 
     ``oficial=0`` desactiva la búsqueda del videoclip oficial: se descarga el
     vídeo de la canción, como antes del ajuste.
+
+    El progreso se limpia ANTES de lanzar el hilo: si el SSE se conecta justo
+    después (que es lo que hace la pantalla), no debe leer el estado que
+    dejó un intento anterior («error»/«sin_video») y cerrar el aviso en
+    falso.
     """
     require_valid_video_id(video_id)
     if is_prepared(video_id):
+        # Ya está: se marca «done» para que quien abra el SSE cierre enseguida.
+        video_progress[video_id] = {"status": "done", "progress": 100, "error": None}
         return {"ok": True, "already": True}
+    video_progress[video_id] = {"status": "downloading", "progress": 0, "error": None}
     thread = threading.Thread(
         target=prepare_video, args=(video_id, bool(oficial)), daemon=True
     )
@@ -86,10 +95,14 @@ async def video_status(video_id: str, oficial: int = 1):
     Con ``oficial=1`` (por defecto) se informa además de si la canción está
     resuelta como «sin videoclip oficial»: la pantalla se queda entonces con
     la portada y no se prepara nada.
+
+    Si está preparado se devuelve también el ``desfase`` medido con la
+    canción (0.0 si no hizo falta medir): la pantalla lo usa para arrancar el
+    vídeo por delante del audio cuando el videoclip lleva intro.
     """
     require_valid_video_id(video_id)
     if is_prepared(video_id):
-        return {"prepared": True}
+        return {"prepared": True, "desfase": desfase_guardado(video_id)}
     return {
         "prepared": False,
         "sin_videoclip": bool(oficial) and sin_videoclip(video_id),

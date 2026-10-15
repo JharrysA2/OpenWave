@@ -31,10 +31,25 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 - **Icono del micrófono en la pantalla de letras.** Cuando la canción no tenía
   letra, el icono se renderizaba sin llamarlo y no aparecía nada.
 - **Vídeo de fondo desincronizado con la música.** El videoclip sigue el reloj
-  del audio, así que si duraba bastante más o menos que la canción (intro,
-  outro o mezcla aparte) la línea de tiempo no cuadraba y se veía desfasado.
-  Ahora un videoclip solo vale si dura ±5 s lo mismo que la canción; si no lo
-  cumple, se queda la portada.
+  del audio, así que si llevaba intro la línea de tiempo no cuadraba y se veía
+  desfasado. Ahora el backend mide el desfase entre el clip y la canción al
+  prepararlo y la pantalla de letras lo aplica: el vídeo va por delante el
+  tiempo exacto que midió (o espera en su primer fotograma si el clip arranca
+  dentro de la canción). Un clip más corto que la canción ya no se descarta:
+  se queda en su último fotograma al terminar.
+- **Muchas canciones se quedaban sin videoclip para el fondo.** El criterio
+  solo aceptaba clips con ±5 s de la duración de la canción y guardaba el
+  «sin videoclip» en caché, con lo que canciones con clip oficial válido (p. ej.
+  con intro) perdían el fondo para siempre. Ahora se puntúan los resultados de
+  YouTube Music (el videoclip oficial pesa más que los otros vídeos), se
+  admiten diferencias grandes de duración y una búsqueda sin resultados ya no
+  se cachea: se puede reintentar.
+- **El aviso de vídeo ya no desaparece en silencio.** Si la canción no tiene
+  videoclip se muestra «Esta canción no tiene videoclip» (se va solo a los
+  5 s); si la preparación falla o el vídeo no se puede decodificar aparece
+  «No se pudo preparar el vídeo» con un botón **Reintentar**, antes el error
+  dejaba la pantalla muda. Además, al reintentar (o al cambiar de canción) el
+  progreso «Preparando el vídeo…» vuelve a empezar de cero.
 
 ## [1.0.1] - 2026-10-12
 

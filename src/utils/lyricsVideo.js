@@ -21,19 +21,38 @@ export const VIDEO_PREP_INITIAL = {
   status: VIDEO_PREP.CHECKING,
   progress: 0,
   error: null,
+  // Desfase (s) del videoclip con la canción (lleva intro): 0 = a la par.
+  desfase: 0,
 };
+
+/**
+ * Desfase informado por el backend, o 0 si no lo hay.
+ *
+ * @param {*} valor
+ * @returns {number}
+ */
+export function normalizarDesfase(valor) {
+  const n = Number(valor);
+  return Number.isFinite(n) ? n : 0;
+}
 
 /**
  * Respuesta de `/video/status` → estado de la pantalla.
  *
  * `sin_videoclip` lo resuelve el backend: la canción no tiene videoclip
- * oficial, así que se queda la portada y no se descarga nada.
+ * oficial, así que se queda la portada y no se descarga nada. Si está
+ * preparado, `desfase` es lo que el vídeo debe llevar por delante del audio.
  *
- * @param {{prepared?:boolean, sin_videoclip?:boolean}|null} data
+ * @param {{prepared?:boolean, sin_videoclip?:boolean, desfase?:number}|null} data
  */
 export function normalizeStatus(data) {
   if (data?.prepared) {
-    return { ...VIDEO_PREP_INITIAL, status: VIDEO_PREP.READY, progress: 100 };
+    return {
+      ...VIDEO_PREP_INITIAL,
+      status: VIDEO_PREP.READY,
+      progress: 100,
+      desfase: normalizarDesfase(data.desfase),
+    };
   }
   if (data?.sin_videoclip) {
     return { ...VIDEO_PREP_INITIAL, status: VIDEO_PREP.NO_VIDEO };
@@ -44,24 +63,36 @@ export function normalizeStatus(data) {
 /**
  * Frame del SSE de `/video/progress` → estado de la pantalla.
  *
- * @param {{status?:string, progress?:number, error?:string}|null} data
+ * El frame final `done` arrastra el `desfase` medido con la canción.
+ *
+ * @param {{status?:string, progress?:number, error?:string, desfase?:number}|null} data
  */
 export function normalizePrepareFrame(data) {
   if (!data || typeof data !== "object") {
-    return { status: VIDEO_PREP.PREPARING, progress: 0, error: null };
+    return { ...VIDEO_PREP_INITIAL, status: VIDEO_PREP.PREPARING };
   }
   const raw = Number(data.progress);
   const progress = Number.isFinite(raw) ? Math.min(100, Math.max(0, raw)) : 0;
   if (data.status === "done") {
-    return { status: VIDEO_PREP.READY, progress: 100, error: null };
+    return {
+      status: VIDEO_PREP.READY,
+      progress: 100,
+      error: null,
+      desfase: normalizarDesfase(data.desfase),
+    };
   }
   if (data.status === "sin_video") {
-    return { status: VIDEO_PREP.NO_VIDEO, progress: 100, error: null };
+    return { ...VIDEO_PREP_INITIAL, status: VIDEO_PREP.NO_VIDEO, progress: 100 };
   }
   if (data.status === "error") {
-    return { status: VIDEO_PREP.ERROR, progress, error: data.error || "unknown" };
+    return {
+      status: VIDEO_PREP.ERROR,
+      progress,
+      error: data.error || "unknown",
+      desfase: 0,
+    };
   }
-  return { status: VIDEO_PREP.PREPARING, progress, error: null };
+  return { status: VIDEO_PREP.PREPARING, progress, error: null, desfase: 0 };
 }
 
 /** URL del vídeo preparado a partir de la base de la API. */
@@ -85,8 +116,13 @@ export const VIDEO_DRIFT_TOLERANCE = 0.4;
  * app, así que nunca se oyen dos pistas a la vez. Si el vídeo se ha quedado
  * atrás más de la tolerancia, se corrige su posición.
  *
+ * El vídeo va `desfase` segundos por delante del audio: los videoclips con
+ * intro empiezan antes que la canción (así lo midió el backend al
+ * prepararlos). Con desfase negativo el vídeo aún no ha empezado y espera en
+ * su primer fotograma hasta que el audio lo alcance.
+ *
  * @param {{audioTime?:number, videoTime?:number, audioPaused?:boolean,
- *          videoEnded?:boolean, tolerance?:number}} frame
+ *          videoEnded?:boolean, desfase?:number, tolerance?:number}} frame
  * @returns {{play:boolean, seekTo:number|null}}
  */
 export function planVideoSync({
@@ -94,6 +130,7 @@ export function planVideoSync({
   videoTime,
   audioPaused,
   videoEnded = false,
+  desfase = 0,
   tolerance = VIDEO_DRIFT_TOLERANCE,
 } = {}) {
   if (audioPaused !== false) {
@@ -101,9 +138,15 @@ export function planVideoSync({
   }
   const audio = Number(audioTime);
   const video = Number(videoTime);
-  const drift = Number.isFinite(audio) && Number.isFinite(video) ? Math.abs(audio - video) : 0;
+  const objetivo = Number.isFinite(audio) ? audio + desfase : NaN;
+  if (Number.isFinite(objetivo) && objetivo < 0) {
+    // El clip arranca dentro de la canción: aún no hay vídeo que mostrar.
+    return { play: false, seekTo: 0 };
+  }
+  const drift =
+    Number.isFinite(objetivo) && Number.isFinite(video) ? Math.abs(video - objetivo) : 0;
   // Un vídeo terminado (el videoclip es más corto que la canción) se queda en
   // su último fotograma: corregir ahí daría un bucle de seeks imposibles.
-  const seekTo = !videoEnded && drift > tolerance ? Number(audioTime) || 0 : null;
+  const seekTo = !videoEnded && drift > tolerance ? objetivo : null;
   return { play: true, seekTo };
 }

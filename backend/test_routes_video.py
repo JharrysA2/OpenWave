@@ -1,5 +1,6 @@
 """Tests para routes/video_routes.py — Preparación de vídeo de la pantalla de letras."""
 
+from cache import video_progress
 from config import VIDEO_DIR
 
 
@@ -40,7 +41,20 @@ class TestVideoStatus:
         try:
             resp = client.get("/video/status/status_vid")
             assert resp.status_code == 200
-            assert resp.json() == {"prepared": True}
+            # Sin medición guardada el desfase es 0 (va a la par).
+            assert resp.json() == {"prepared": True, "desfase": 0.0}
+        finally:
+            p.unlink(missing_ok=True)
+
+    def test_status_preparado_informa_el_desfase_medido(self, client):
+        from db import db_set_videoclip_oficial
+
+        p = VIDEO_DIR / "status_des.mp4"
+        p.write_bytes(b"x")
+        db_set_videoclip_oficial("status_des", "clip_des", desfase=25.8)
+        try:
+            resp = client.get("/video/status/status_des")
+            assert resp.json() == {"prepared": True, "desfase": 25.8}
         finally:
             p.unlink(missing_ok=True)
 
@@ -113,6 +127,34 @@ class TestVideoPrepare:
         assert resp.status_code == 200
         assert resp.json()["already"] is True
         assert mock_prepare.call_count == 0
+
+    def test_already_marca_done_para_el_sse(self, client, mocker):
+        """Si ya está preparado, el SSE no debe quedarse esperando progreso."""
+        mocker.patch("routes.video_routes.prepare_video")
+        mocker.patch("routes.video_routes.is_prepared", return_value=True)
+        mocker.patch.dict("routes.video_routes.video_progress", {}, clear=True)
+        client.post("/video/prepare/ya_vid_done")
+        assert video_progress["ya_vid_done"]["status"] == "done"
+
+    def test_limpia_el_progreso_del_intento_anterior(self, client, mocker):
+        """El estado de un intento previo no se cuela en el SSE nuevo.
+
+        Si no se limpia, el primer frame que lee la pantalla es «error»/
+        «sin_video» de antes y cierra el aviso al instante aunque la nueva
+        preparación vaya bien.
+        """
+        mocker.patch("routes.video_routes.prepare_video")
+        mocker.patch.dict(
+            "routes.video_routes.video_progress",
+            {"stale_vid": {"status": "error", "progress": 40, "error": "viejo"}},
+            clear=True,
+        )
+        client.post("/video/prepare/stale_vid")
+        assert video_progress["stale_vid"] == {
+            "status": "downloading",
+            "progress": 0,
+            "error": None,
+        }
 
     def test_oficial_se_desactiva_con_la_query(self, client, mocker):
         mock_prepare = mocker.patch("routes.video_routes.prepare_video")

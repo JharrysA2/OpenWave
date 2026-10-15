@@ -7,7 +7,7 @@ import pytest
 import yt_dlp
 from cache import video_progress
 from config import VIDEO_DIR
-from db import db_set_videoclip_oficial
+from db import db_get_videoclip_oficial, db_set_videoclip_oficial
 from video_fondo import (
     _MP4,
     _MP4_ANDROID,
@@ -416,6 +416,93 @@ class TestTopeCalidad:
 
     def test_hay_fallback_sin_filtro(self):
         assert _MP4["format"].endswith("/bv*+ba/b")
+
+
+class TestDesfase:
+    """La medición del desfase con la canción dentro de prepare_video."""
+
+    def test_done_lleva_el_desfase(self, monkeypatch):
+        """Sin videoclip oficial no hay nada que medir: va a la par (0.0)."""
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        try:
+            prepare_video("desf_ok")
+            assert video_progress["desf_ok"]["status"] == "done"
+            assert video_progress["desf_ok"]["desfase"] == 0.0
+        finally:
+            delete_video("desf_ok")
+            video_progress.pop("desf_ok", None)
+            _FakeYdl.instances.clear()
+
+    def test_ya_preparado_calcula_el_desfase_si_falta(self, monkeypatch):
+        """Un fichero de un intento anterior no deja la medición a medias."""
+        p = VIDEO_DIR / "desf_pend.mp4"
+        p.write_bytes(b"x")
+        llamadas: list[tuple] = []
+
+        def _desfase_conocido(video_id, fuente_id, usar_oficial):
+            llamadas.append((video_id, fuente_id, usar_oficial))
+            return 12.5
+
+        monkeypatch.setattr("video_fondo._resolver_desfase", _desfase_conocido)
+
+        def _no_descarga(*args, **kwargs):
+            raise AssertionError("el fichero ya está: no debe re-descargarse")
+
+        monkeypatch.setattr("video_fondo._descargar", _no_descarga)
+        try:
+            prepare_video("desf_pend")
+            assert llamadas == [("desf_pend", "desf_pend", True)]
+            assert video_progress["desf_pend"] == {
+                "status": "done",
+                "progress": 100,
+                "error": None,
+                "desfase": 12.5,
+            }
+        finally:
+            p.unlink(missing_ok=True)
+            video_progress.pop("desf_pend", None)
+
+    def test_fallo_de_medicion_no_cachea_sin_videoclip(self, monkeypatch):
+        """Fallo transitorio (ffmpeg/red): se marca «error», NO «no tiene».
+
+        Además el fichero se conserva, así que el reintento no vuelve a
+        descargar el vídeo entero.
+        """
+
+        def _explota(video_id, fuente_id, usar_oficial):
+            raise RuntimeError("ffmpeg reventado")
+
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        monkeypatch.setattr("video_fondo._resolver_desfase", _explota)
+        try:
+            prepare_video("desf_err")
+            assert video_progress["desf_err"]["status"] == "error"
+            assert get_output_path("desf_err") is not None, "el vídeo se conserva"
+            assert not sin_videoclip("desf_err"), "no se cachea como «sin clip»"
+        finally:
+            delete_video("desf_err")
+            video_progress.pop("desf_err", None)
+            _FakeYdl.instances.clear()
+
+    def test_desfase_no_medible_descarta_y_cachea(self, monkeypatch):
+        """La comparación se completó y el vídeo no cuadra: se descarta y no
+        se vuelve a descargar en cada apertura."""
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        monkeypatch.setattr(
+            "video_fondo._resolver_desfase", lambda *args, **kwargs: None
+        )
+        try:
+            prepare_video("desf_none")
+            assert video_progress["desf_none"]["status"] == "sin_video"
+            assert get_output_path("desf_none") is None
+            assert db_get_videoclip_oficial("desf_none") == (True, None)
+        finally:
+            delete_video("desf_none")
+            video_progress.pop("desf_none", None)
+            _FakeYdl.instances.clear()
 
 
 class TestSinVideoclip:

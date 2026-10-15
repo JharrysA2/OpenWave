@@ -20,9 +20,15 @@ from pathlib import Path
 import yt_dlp
 from cache import video_progress
 from config import PROJECT_DIR, VIDEO_CACHE_MAX_BYTES, VIDEO_DIR, YT_DLP_CACHE_DIR
-from db import db_delete_videoclip_oficial, db_get_videoclip_oficial
+from db import (
+    db_delete_videoclip_oficial,
+    db_get_desfase_videoclip,
+    db_get_videoclip_oficial,
+    db_set_desfase_videoclip,
+    db_set_videoclip_oficial,
+)
 from logging_config import get_logger
-from videoclip import resolver_videoclip
+from videoclip import DESAJUSTE_SIN_MEDIDA, resolver_videoclip
 from ytdlp_auth import browser_cookie_opts, cookies_file_opt
 
 logger = get_logger(__name__)
@@ -167,30 +173,115 @@ def sin_videoclip(video_id: str) -> bool:
     return consultado and oficial is None
 
 
+def _descargar(video_id: str, fuente_id: str) -> None:
+    """Descarga y muxea el vídeo de origen en ``{video_id}.mp4``.
+
+    Cadena de intentos, de mejor calidad disponible a más compatible:
+      1. `cookies.txt` del usuario, si existe: la vía más fiable; sin
+         sesión válida YouTube recorta la resolución.
+      2. cliente «embed» (embed/web): 1080p sin cookies (la causa de que
+         el resto de intentos anónimos bajen a 360p).
+      3. mp4 anónimo: la mejor resolución que permita la sesión.
+      4. mp4 con el cliente "android" (sirve el archivo casi siempre,
+         aunque sin PO token se quede en 360p).
+      5. webm (vp9/opus, también jugable por el navegador).
+      6. cookies del navegador, como último recurso.
+
+    Lanza si ningún intento publica el fichero final.
+    """
+    attempts: list[dict] = []
+    file_auth = cookies_file_opt()
+    if file_auth:
+        attempts.append({**_MP4, **file_auth})
+    attempts += [_MP4_EMBEDDED, _MP4, _MP4_ANDROID, _WEBM_ANDROID]
+    for auth in browser_cookie_opts():
+        attempts.append({**_MP4, **auth})
+        attempts.append({**_WEBM_ANDROID, **auth})
+    base = {
+        "outtmpl": str(VIDEO_DIR / f"{video_id}.%(ext)s"),
+        "progress_hooks": [_hook_for(video_id)],
+        "quiet": True,
+        "no_warnings": True,
+        "socket_timeout": 30,
+        "cachedir": str(YT_DLP_CACHE_DIR),
+        # Para resolver los retos de firma de YouTube (los formatos de más
+        # de 360p van firmados): sin runtime, yt-dlp solo ve los bajos.
+        "js_runtimes": _JS_RUNTIMES,
+    }
+    ffmpeg_dir = _search_ffmpeg_dir()
+    if ffmpeg_dir:
+        base["ffmpeg_location"] = ffmpeg_dir
+
+    last_error: Exception | None = None
+    for opts in attempts:
+        try:
+            _dl(fuente_id, {**base, **opts})
+        except yt_dlp.utils.DownloadError as e:
+            last_error = e
+            logger.warning("vídeo %s intento fallido: %s", video_id, e)
+            continue
+        if get_output_path(video_id) is not None:
+            break
+    else:
+        # El for-else solo llega aquí si NINGÚN intento publicó un fichero.
+        raise RuntimeError(
+            "No se pudo preparar el vídeo" + (f": {last_error}" if last_error else "")
+        )
+
+    if get_output_path(video_id) is None:
+        raise RuntimeError("yt-dlp no produjo ningún fichero muxado")
+
+
+def _descartar_por_desfase(video_id: str) -> None:
+    """El videoclip no encaja con la canción: se borra y se cachea «sin clip».
+
+    Solo llega aquí cuando la comparación de pistas se completó y el vídeo no
+    cuadra (no por un fallo transitorio, que se propaga como excepción).
+    """
+    with suppress(Exception):
+        db_set_videoclip_oficial(video_id, None)
+    for ext in ("mp4", "webm"):
+        p = VIDEO_DIR / f"{video_id}.{ext}"
+        with suppress(OSError):
+            if p.is_file():
+                p.unlink()
+    video_progress[video_id] = {
+        "status": "sin_video",
+        "progress": 100,
+        "error": None,
+    }
+    logger.info("vídeo %s: desfase no medible → se usa la portada", video_id)
+
+
 def prepare_video(video_id: str, usar_oficial: bool = True) -> None:
     """Descargar mejor vídeo + mejor audio y muxarlos en un único fichero.
 
-    Idempotente: si el vídeo ya está preparado no descarga nada. El progreso
-    vive en ``video_progress[video_id]`` y lo lee el SSE de /video/progress.
+    Idempotente: si el vídeo ya está preparado no vuelve a descargarlo. El
+    progreso vive en ``video_progress[video_id]`` y lo lee el SSE de
+    /video/progress; al empezar se limpia el estado anterior para que ese SSE
+    no reciba el resultado de un intento previo («error»/«sin_video») y cierre
+    el aviso de la pantalla antes de tiempo.
 
     Con ``usar_oficial`` se descarga el videoclip oficial de la canción; si no
     tiene, no se descarga nada y el estado queda en ``sin_video`` (la pantalla
     usa la portada). El fichero final sigue llamándose ``{video_id}.mp4``, sea
     cual sea el vídeo descargado.
+
+    El desfase con la canción se calcula siempre que falte, también si el
+    fichero ya estaba en disco (así un fallo anterior no deja la medición a
+    medias): solo con él publicado se marca el estado ``done``.
     """
-    _progress(video_id)
     _lock = _get_lock(video_id)
     _lock.acquire()
     try:
-        if is_prepared(video_id):
-            logger.info("skip vídeo %s: ya preparado", video_id)
-            video_progress[video_id] = {
-                "status": "done",
-                "progress": 100,
-                "error": None,
-            }
-            return
+        video_progress[video_id] = {
+            "status": "downloading",
+            "progress": 0,
+            "error": None,
+        }
 
+        # Fuente del vídeo: el videoclip oficial (resolución cacheada en la
+        # base de datos) o, sin él, el propio vídeo de la canción.
         fuente_id = video_id
         if usar_oficial:
             oficial_id = resolver_videoclip(video_id)
@@ -206,72 +297,172 @@ def prepare_video(video_id: str, usar_oficial: bool = True) -> None:
                 return
             fuente_id = oficial_id
 
-        # Cadena de intentos, de mejor calidad disponible a más compatible:
-        #   1. `cookies.txt` del usuario, si existe: la vía más fiable; sin
-        #      sesión válida YouTube recorta la resolución.
-        #   2. cliente «embed» (embed/web): 1080p sin cookies (la causa de que
-        #      el resto de intentos anónimos bajen a 360p).
-        #   3. mp4 anónimo: la mejor resolución que permita la sesión.
-        #   4. mp4 con el cliente "android" (sirve el archivo casi siempre,
-        #      aunque sin PO token se quede en 360p).
-        #   5. webm (vp9/opus, también jugable por el navegador).
-        #   6. cookies del navegador, como último recurso.
-        attempts: list[dict] = []
-        file_auth = cookies_file_opt()
-        if file_auth:
-            attempts.append({**_MP4, **file_auth})
-        attempts += [_MP4_EMBEDDED, _MP4, _MP4_ANDROID, _WEBM_ANDROID]
-        for auth in browser_cookie_opts():
-            attempts.append({**_MP4, **auth})
-            attempts.append({**_WEBM_ANDROID, **auth})
-        base = {
-            "outtmpl": str(VIDEO_DIR / f"{video_id}.%(ext)s"),
-            "progress_hooks": [_hook_for(video_id)],
-            "quiet": True,
-            "no_warnings": True,
-            "socket_timeout": 30,
-            "cachedir": str(YT_DLP_CACHE_DIR),
-            # Para resolver los retos de firma de YouTube (los formatos de más
-            # de 360p van firmados): sin runtime, yt-dlp solo ve los bajos.
-            "js_runtimes": _JS_RUNTIMES,
-        }
-        ffmpeg_dir = _search_ffmpeg_dir()
-        if ffmpeg_dir:
-            base["ffmpeg_location"] = ffmpeg_dir
-
-        last_error: Exception | None = None
-        for opts in attempts:
-            try:
-                _dl(fuente_id, {**base, **opts})
-            except yt_dlp.utils.DownloadError as e:
-                last_error = e
-                logger.warning("vídeo %s intento fallido: %s", video_id, e)
-                continue
-            if get_output_path(video_id) is not None:
-                break
+        if is_prepared(video_id):
+            logger.info("skip descarga %s: ya preparado", video_id)
         else:
-            # El for-else solo llega aquí si NINGÚN intento publicó un fichero.
-            raise RuntimeError(
-                "No se pudo preparar el vídeo"
-                + (f": {last_error}" if last_error else "")
-            )
+            _descargar(video_id, fuente_id)
+            _evict_if_needed()
 
-        if get_output_path(video_id) is None:
-            raise RuntimeError("yt-dlp no produjo ningún fichero muxado")
-
-        _evict_if_needed()
-        video_progress[video_id] = {"status": "done", "progress": 100, "error": None}
+        desfase = _resolver_desfase(video_id, fuente_id, usar_oficial)
+        if desfase is None:
+            # El vídeo no cuadra con la canción: se descarta (queda la portada)
+            # y se cachea para no repetir la descarga entera en cada apertura.
+            _descartar_por_desfase(video_id)
+            return
+        video_progress[video_id] = {
+            "status": "done",
+            "progress": 100,
+            "error": None,
+            "desfase": desfase,
+        }
         logger.info(
-            "vídeo listo %s (%s, fuente %s)",
+            "vídeo listo %s (%s, fuente %s, desfase %s)",
             video_id,
             get_output_path(video_id).name,
             fuente_id,
+            desfase,
         )
     except Exception as e:  # noqa: BLE001
+        # Fallo transitorio (red, yt-dlp, ffmpeg…): NO se cachea como
+        # «sin videoclip». Si el fichero ya se había descargado se conserva,
+        # así el reintento solo repite la medición.
         video_progress[video_id] = {"status": "error", "progress": 0, "error": str(e)}
         logger.error("Vídeo de fondo: error al preparar %s: %s", video_id, e)
     finally:
         _lock.release()
+
+
+def desfase_guardado(video_id: str) -> float:
+    """Desfase medido (o 0.0) con el que el vídeo debe seguir al audio."""
+    _, desfase = db_get_desfase_videoclip(video_id)
+    return 0.0 if desfase is None else float(desfase)
+
+
+def _ffmpeg_bin() -> str | None:
+    """Ruta del binario de ffmpeg empaquetado, o ``None`` si no está."""
+    d = _search_ffmpeg_dir()
+    if not d:
+        return None
+    for nombre in ("ffmpeg.exe", "ffmpeg"):
+        if (Path(d) / nombre).is_file():
+            return str(Path(d) / nombre)
+    return None
+
+
+def _descargar_audio_cancion(video_id: str, destino: Path) -> Path:
+    """Descarga el audio de la canción a un directorio temporal (para medir).
+
+    Usa las mismas vías de autenticación que el vídeo (cookies, cliente
+    «embed», anónimo, android). Si ninguna funciona se propaga el error: es un
+    fallo transitorio y NO debe cachearse como «la canción no tiene vídeo».
+    """
+    outtmpl = str(destino / "cancion.%(ext)s")
+    base = {
+        "outtmpl": outtmpl,
+        "quiet": True,
+        "no_warnings": True,
+        "socket_timeout": 30,
+        "cachedir": str(YT_DLP_CACHE_DIR),
+        "js_runtimes": _JS_RUNTIMES,
+    }
+    file_auth = cookies_file_opt()
+    intentos: list[dict] = []
+    if file_auth:
+        intentos.append({**file_auth})
+    intentos += [
+        {"extractor_args": {"youtube": {"player_client": ["web_embedded"]}}},
+        {},
+        {"extractor_args": {"youtube": {"player_client": ["android"]}}},
+    ]
+    for auth in browser_cookie_opts():
+        intentos.append({**auth})
+
+    ultima: Exception | None = None
+    for opts in intentos:
+        try:
+            _dl_audio(video_id, {**base, **opts})
+        except yt_dlp.utils.DownloadError as e:
+            ultima = e
+            logger.warning("desfase: descarga de audio fallida: %s", e)
+            continue
+        # Localizar el fichero publicado (m4a, webm/opus…)
+        producidos = [
+            p
+            for p in destino.glob("cancion.*")
+            if p.is_file() and p.suffix not in (".part", ".ytdl")
+        ]
+        if producidos:
+            return producidos[0]
+    raise RuntimeError(
+        "No se pudo descargar la canción para medir el desfase"
+        + (f": {ultima}" if ultima else "")
+    )
+
+
+def _dl_audio(video_id: str, opts: dict) -> None:
+    with yt_dlp.YoutubeDL({"format": "bestaudio/best", **opts}) as ydl:
+        ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+
+
+def _resolver_desfase(
+    video_id: str, fuente_id: str, usar_oficial: bool
+) -> float | None:
+    """Desfase con el que el vídeo debe seguir al audio, o ``None`` si no sirve.
+
+    La resolución del videoclip ya sabe cuánto se separan las duraciones:
+
+    - Si cuadran (o no se usa el videoclip oficial, que es justo el audio que
+      suena) no hay nada que medir: el vídeo va a la par, desfase 0.
+    - Si el videoclip dura bastante más, la canción empieza dentro del vídeo
+      (suele llevar una intro). Se descarga el audio de la canción y se
+      compara la sonoridad de las dos pistas: la posición en la que encaja es
+      el desfase.
+    - Si la comparación no da un resultado claro, el vídeo no sirve para esta
+      canción: se devuelve ``None`` y el caller lo descarta (queda la portada).
+
+    Los fallos de descarga o de lectura se propagan como excepción: son
+    transitorios y NO deben cachearse como «no tiene videoclip».
+    """
+    desajuste, guardado = db_get_desfase_videoclip(video_id)
+    if guardado is not None:
+        return guardado
+    if (
+        not usar_oficial
+        or fuente_id == video_id
+        or desajuste is None
+        or desajuste <= DESAJUSTE_SIN_MEDIDA
+    ):
+        with suppress(Exception):
+            db_set_desfase_videoclip(video_id, 0.0)
+        return 0.0
+
+    video_path = get_output_path(video_id)
+    ffmpeg = _ffmpeg_bin()
+    if video_path is None or ffmpeg is None:
+        # Sin ffmpeg no se puede comparar: se va a la par, como antes.
+        logger.warning("desfase: no hay ffmpeg para medir el desfase de %s", video_id)
+        with suppress(Exception):
+            db_set_desfase_videoclip(video_id, 0.0)
+        return 0.0
+
+    import shutil
+    import tempfile
+
+    import desfase
+
+    destino = Path(tempfile.mkdtemp(prefix="ow-desfase-"))
+    try:
+        ruta_cancion = _descargar_audio_cancion(video_id, destino)
+        offset = desfase.medir(video_path, ruta_cancion, ffmpeg)
+    finally:
+        with suppress(Exception):
+            shutil.rmtree(destino, ignore_errors=True)
+    if offset is None:
+        return None
+    with suppress(Exception):
+        db_set_desfase_videoclip(video_id, offset)
+    logger.info("desfase de %s: %+.2f s", video_id, offset)
+    return offset
 
 
 def video_cache_size() -> int:

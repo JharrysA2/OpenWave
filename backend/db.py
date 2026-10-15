@@ -16,6 +16,9 @@ logger = get_logger(__name__)
 
 _db_lock = threading.Lock()
 
+# Versión del esquema/criterios de la caché de videoclips. Ver init_db().
+_ESQUEMA_VERSION = 1
+
 # ── Pool de conexiones SQLite ──────────────────────────────────────────────
 # Antes se abría/cerraba UNA conexión por operación (más las PRAGMA de
 # configuración), lo que volvía lentos cada /history, /playlists, /downloads
@@ -233,13 +236,41 @@ def init_db():
         # que se abre la pantalla de letras. Una fila con `oficial_id` vacío
         # significa «se buscó y esta canción no tiene videoclip» (la pantalla
         # se queda con la portada).
+        #
+        # `desajuste` guarda la diferencia de duración conocida en la
+        # resolución y `desfase` el desfase medido entre el videoclip y la
+        # canción (NULL = sin medir; ver desfase.py).
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS videoclip_oficial (
                 video_id TEXT PRIMARY KEY,
                 oficial_id TEXT DEFAULT '',
+                desajuste INTEGER,
+                desfase REAL,
                 resuelto_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now'))
             );
         """)
+
+        # Migración segura de las columnas nuevas
+        for col, tipo in [("desajuste", "INTEGER"), ("desfase", "REAL")]:
+            try:
+                conn.execute(f"ALTER TABLE videoclip_oficial ADD COLUMN {col} {tipo}")
+                conn.commit()
+            except Exception:
+                pass
+
+        # Al cambiar el criterio con que se resuelve el videoclip se sube la
+        # versión del esquema: las resoluciones guardadas con el criterio viejo
+        # (sobre todo los «no tiene videoclip») se descartan una vez para que
+        # se vuelvan a buscar con el nuevo.
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        if version < _ESQUEMA_VERSION:
+            try:
+                conn.execute("DELETE FROM videoclip_oficial WHERE oficial_id = ''")
+                conn.commit()
+                conn.execute(f"PRAGMA user_version = {_ESQUEMA_VERSION}")
+                conn.commit()
+            except Exception as e:
+                logger.warning("migration videoclip: %s", e)
 
 
 def db_log_history(entry: dict):
@@ -561,7 +592,7 @@ def db_get_artist_feedback_scores(artist_names: list[str]) -> dict:
 # ── Vídeo de fondo: videoclip oficial (caché de la resolución) ───────────────────────
 
 
-def db_get_videoclip_oficial(video_id: str):
+def db_get_videoclip_oficial(video_id: str) -> tuple[bool, str | None]:
     """Leer la resolución del videoclip oficial cacheada para una canción.
 
     Devuelve ``(consultado, oficial_id)``. ``consultado=False`` → todavía no se
@@ -577,16 +608,60 @@ def db_get_videoclip_oficial(video_id: str):
     return True, (row["oficial_id"] or None)
 
 
-def db_set_videoclip_oficial(video_id: str, oficial_id: str | None):
+def db_set_videoclip_oficial(
+    video_id: str,
+    oficial_id: str | None,
+    desajuste: int | None = None,
+    desfase: float | None = None,
+) -> None:
     """Guardar la resolución del videoclip oficial (``None`` = no tiene)."""
     with _db_lock, get_db() as conn:
         conn.execute(
-            """INSERT INTO videoclip_oficial(video_id, oficial_id, resuelto_at)
-               VALUES(?,?,strftime('%Y-%m-%dT%H:%M:%S','now'))
+            """INSERT INTO videoclip_oficial(video_id, oficial_id, desajuste, desfase, resuelto_at)
+               VALUES(?,?,?,?,strftime('%Y-%m-%dT%H:%M:%S','now'))
                ON CONFLICT(video_id) DO UPDATE SET
                    oficial_id = excluded.oficial_id,
+                   desajuste = COALESCE(excluded.desajuste, videoclip_oficial.desajuste),
+                   desfase = COALESCE(excluded.desfase, videoclip_oficial.desfase),
                    resuelto_at = excluded.resuelto_at""",
-            (video_id, oficial_id or ""),
+            (video_id, oficial_id or "", desajuste, desfase),
+        )
+
+
+def db_get_desfase_videoclip(video_id: str) -> tuple[int | None, float | None]:
+    """Detalle del videoclip cacheado: ``(desajuste, desfase)``.
+
+    ``desfase`` es ``None`` si aún no se ha medido (o no hace falta).
+    """
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT desajuste, desfase FROM videoclip_oficial WHERE video_id=?",
+            (video_id,),
+        ).fetchone()
+    if not row:
+        return None, None
+    desajuste, desfase = row["desajuste"], row["desfase"]
+    try:
+        desajuste = int(desajuste) if desajuste is not None else None
+    except Exception:
+        desajuste = None
+    try:
+        desfase = float(desfase) if desfase is not None else None
+    except Exception:
+        desfase = None
+    return desajuste, desfase
+
+
+def db_set_desfase_videoclip(video_id: str, desfase: float | None) -> None:
+    """Guardar el desfase medido (o ``None`` para olvidarlo) de una canción.
+
+    Solo toca la fila que ya existe de la resolución: nunca crea una, porque
+    eso daría por sabido el videoclip oficial de la canción.
+    """
+    with _db_lock, get_db() as conn:
+        conn.execute(
+            "UPDATE videoclip_oficial SET desfase=? WHERE video_id=?",
+            (None if desfase is None else float(desfase), video_id),
         )
 
 

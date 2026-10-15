@@ -29,12 +29,14 @@ _ATV = "MUSIC_VIDEO_TYPE_ATV"  # «art track»: portada fija con el audio
 # Rechazo rotundo: el candidato no es el videoclip de esta canción.
 _RECHAZO = -100.0
 
-# Separación máxima (s) entre la canción y su videoclip. El vídeo de fondo
-# sigue el reloj del audio de la app; si las dos grabaciones duran cosas muy
-# distintas (el videoclip suele llevar intro, outro o una mezcla aparte), la
-# línea de tiempo no cuadra y se ve desfasado toda la canción. Alinearlas
-# exigiría comparar el audio, así que en ese caso se prefiere la portada.
-_MAX_DESAJUSTE = 5
+# Desfase aceptable sin necesidad de medir: dentro de este margen el vídeo
+# suele cuadrar lo bastante con el audio de la app. Si lo supera, el desfase
+# se mide comparando las dos pistas (ver desfase.py).
+DESAJUSTE_SIN_MEDIDA = 5
+
+# Tope absoluto: si las duraciones se separan muchísimo, lo más probable es
+# que sea otro vídeo (o una mezcla). Más allá no se acepta ni midiendo.
+_MAX_DESAJUSTE_ABSOLUTO = 120
 
 # Palabras que delatan una versión que NO es el videoclip oficial. Se buscan
 # como palabra completa sobre el título normalizado (con paréntesis incluidos:
@@ -202,45 +204,54 @@ def puntuar_candidato(
         artista_puntos = 0.0  # canción sin artista: decide el título
     elif _canal_es_del_artista(artista, candidato):
         artista_puntos = 2.0
-    elif oficial and _artista_en_titulo(artista, titulo_video):
-        # Canal de sello, VEVO o re-subida: solo se acepta si YouTube lo marca
-        # como videoclip oficial y el artista aparece en el título.
-        puntos += 1.0
+    elif _artista_en_titulo(artista, titulo_video):
+        # Canal de sello, re-subida o similar: se acepta si el artista aparece
+        # en el título, aunque YouTube no lo marque como OMV (los sellos suben
+        # el clip con su propio canal). No suma puntos de artista: un OMV del
+        # propio artista gana si compite con él.
         artista_puntos = 0.0
     else:
         return _RECHAZO
 
     puntos += artista_puntos
-    if (candidato.get("videoType") or "") == _OMV:
+    if oficial:
         puntos += 1.0
 
     segundos = _segundos(candidato.get("duration"))
     if duracion and segundos:
         desajuste = abs(duracion - segundos)
-        if desajuste > _MAX_DESAJUSTE:
+        if desajuste > _MAX_DESAJUSTE_ABSOLUTO:
             return _RECHAZO
         puntos += 2.0 if desajuste <= 3 else 1.0
     return puntos
 
 
-def elegir_candidato(
+def _mejor_candidato(
     titulo: str, artista: str, duracion: int | None, candidatos: list
-) -> str | None:
-    """ID del mejor candidato (o ``None`` si ninguno vale).
+) -> dict | None:
+    """Mejor resultado de la búsqueda (o ``None`` si ninguno vale).
 
     En empate gana el primero de la búsqueda: es la señal de relevancia que da
     YouTube.
     """
-    mejor: str | None = None
+    mejor: dict | None = None
     mejores_puntos = _RECHAZO
     for candidato in candidatos or []:
         if not isinstance(candidato, dict) or not candidato.get("videoId"):
             continue
         puntos = puntuar_candidato(titulo, artista, duracion, candidato)
         if puntos > _RECHAZO and (mejor is None or puntos > mejores_puntos):
-            mejor = candidato["videoId"]
+            mejor = candidato
             mejores_puntos = puntos
     return mejor
+
+
+def elegir_candidato(
+    titulo: str, artista: str, duracion: int | None, candidatos: list
+) -> str | None:
+    """ID del mejor candidato (o ``None`` si ninguno vale)."""
+    mejor = _mejor_candidato(titulo, artista, duracion, candidatos)
+    return mejor["videoId"] if mejor else None
 
 
 def _metadata(video_id: str) -> _Cancion | None:
@@ -283,35 +294,66 @@ def _metadata(video_id: str) -> _Cancion | None:
     return None
 
 
-def _buscar_candidato(cancion: _Cancion) -> str | None:
-    """Primer videoclip que cuadre en la búsqueda de vídeos de esa canción."""
+class _BusquedaVaciaError(Exception):
+    """YouTube Music no devolvió NINGÚN resultado: fallo de red o de la
+    llamada, no «esta canción no tiene videoclip»."""
+
+
+def _buscar_candidato(cancion: _Cancion) -> tuple[str, int | None] | None:
+    """Mejor videoclip que cuadre en la búsqueda: ``(vídeo, desajuste)``.
+
+    ``desajuste`` es la diferencia de duración (s) entre la canción y el
+    vídeo, o ``None`` si alguna de las dos no la sabe. No se usa para
+    rechazar, sino para saber si luego hay que medir el desfase.
+
+    Lanza ``_BusquedaVaciaError`` si la búsqueda no devuelve nada: un vacío
+    no es una respuesta válida y no debe quedarse cacheado como «no tiene
+    videoclip».
+    """
     resultados = get_ytm().search(
         f"{cancion.titulo} {cancion.artista}".strip(), filter="videos", limit=20
     )
-    return elegir_candidato(
+    if not resultados:
+        raise _BusquedaVaciaError(f"0 resultados para {cancion.titulo!r}")
+    mejor = _mejor_candidato(
         cancion.titulo, cancion.artista, cancion.duracion, resultados
     )
+    if not mejor:
+        return None
+    segundos = _segundos(mejor.get("duration"))
+    desajuste = None
+    if cancion.duracion and segundos:
+        desajuste = abs(cancion.duracion - segundos)
+    return mejor["videoId"], desajuste
 
 
-def _resolver(video_id: str) -> tuple[str | None, bool]:
-    """``(resultado, cacheable)``: ``cacheable`` en falso si la consulta falló."""
+def _resolver(video_id: str) -> tuple[str | None, int | None, bool]:
+    """``(resultado, desajuste, cacheable)``: ``cacheable`` en falso si falló."""
     cancion = _metadata(video_id)
     if cancion is None:
         # Sin datos (red caída, ytmusic no disponible): se usa el vídeo de la
         # canción como siempre y NO se cachea el no-resultado.
-        return video_id, False
+        return video_id, None, False
     if cancion.tipo == _OMV:
-        return video_id, True  # ya es el videoclip: no hay nada que buscar
+        # La canción ya es el videoclip: el audio que suena es el de ese mismo
+        # vídeo, así que no hay nada que buscar ni que medir.
+        return video_id, 0, True
     try:
         candidato = _buscar_candidato(cancion)
+    except _BusquedaVaciaError as e:
+        # Sin resultados no se decide nada: se queda la portada esta vez y se
+        # vuelve a buscar al reabrir la canción.
+        logger.warning("videoclip: búsqueda vacía de %s: %s", video_id, e)
+        return None, None, False
     except Exception as e:  # noqa: BLE001
         logger.warning("videoclip: búsqueda de %s: %s", video_id, e)
-        return video_id, False
+        return video_id, None, False
     if candidato:
-        return candidato, True
+        oficial_id, desajuste = candidato
+        return oficial_id, desajuste, True
     # Sin videoclip oficial: la pantalla se queda con la portada y no se
-    # descarga nada (el vídeo de la canción sería la portada hecha vídeo).
-    return None, True
+    # descarga nada.
+    return None, None, True
 
 
 def resolver_videoclip(video_id: str, usar_cache: bool = True) -> str | None:
@@ -326,8 +368,8 @@ def resolver_videoclip(video_id: str, usar_cache: bool = True) -> str | None:
         consultado, guardado = db_get_videoclip_oficial(video_id)
         if consultado:
             return guardado
-    resultado, cacheable = _resolver(video_id)
+    resultado, desajuste, cacheable = _resolver(video_id)
     if cacheable:
         with suppress(Exception):
-            db_set_videoclip_oficial(video_id, resultado)
+            db_set_videoclip_oficial(video_id, resultado, desajuste=desajuste)
     return resultado

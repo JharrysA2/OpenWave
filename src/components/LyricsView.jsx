@@ -1505,6 +1505,29 @@ export function LyricsView({
   // Token por apertura/canción: invalida los callbacks del vídeo anterior.
   const videoReqRef = useRef(0);
   const videoBg = !!settings.lyricsVideoBg;
+  // «Sin videoclip» es un estado terminal sin progreso: se avisa unos
+  // segundos y el aviso se retira solo (no hay nada que reintentar).
+  const [avisoSinVideo, setAvisoSinVideo] = useState(false);
+
+  // Píldora compartida de los avisos del vídeo (progreso, sin clip y error).
+  const avisoVideoStyle = {
+    position: "absolute",
+    top: "20px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: 10,
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "7px 14px",
+    borderRadius: RADIUS.pill,
+    border: `1px solid ${COLORS.borderActive}`,
+    background: "rgba(10,10,16,.62)",
+    backdropFilter: "blur(12px)",
+    color: COLORS.textPrimary,
+    ...TYPOGRAPHY.caption,
+    fontWeight: 700,
+  };
 
   // Pedir la preparación (descarga + mux) y seguir su progreso por SSE.
   const prepareVideo = useCallback(
@@ -1556,6 +1579,23 @@ export function LyricsView({
     [song?.videoId],
   );
 
+  // El aviso «sin videoclip» se muestra al entrar y se va solo: el fondo
+  // sigue siendo la portada y no hay nada que reintentar.
+  useEffect(() => {
+    if (!videoBg || videoState.status !== VIDEO_PREP.NO_VIDEO) {
+      setAvisoSinVideo(false);
+      return undefined;
+    }
+    setAvisoSinVideo(true);
+    const t = setTimeout(() => setAvisoSinVideo(false), 5000);
+    return () => clearTimeout(t);
+  }, [videoBg, videoState.status]);
+
+  // Reintento tras un error (descarga fallida, SSE caído o vídeo ilegible).
+  const reintentarVideo = useCallback(() => {
+    prepareVideo(videoReqRef.current);
+  }, [prepareVideo]);
+
   useEffect(() => {
     const token = ++videoReqRef.current;
     prepareEsRef.current?.close();
@@ -1606,6 +1646,7 @@ export function LyricsView({
         videoTime: video.currentTime,
         audioPaused: audio ? audio.paused : true,
         videoEnded: video.ended,
+        desfase: videoState.desfase ?? 0,
       });
       if (plan.play) {
         if (video.paused) {
@@ -2326,8 +2367,11 @@ export function LyricsView({
             playsInline
             autoPlay
             preload="auto"
-            // Si el vídeo no se puede reproducir se vuelve a la portada.
-            onError={() => setVideoState({ ...VIDEO_PREP_INITIAL, status: VIDEO_PREP.IDLE })}
+            // Si el vídeo no se puede reproducir se avisa (con reintento) en
+            // vez de quedarse mudo en «sin preparar».
+            onError={() =>
+              setVideoState({ ...VIDEO_PREP_INITIAL, status: VIDEO_PREP.ERROR, error: "file" })
+            }
             style={{
               position: "absolute",
               inset: 0,
@@ -2479,30 +2523,12 @@ export function LyricsView({
         </button>
       </div>
 
-      {/* ── Preparación del vídeo de fondo: aviso sutil (hasta que esté listo
-              el fondo sigue siendo la portada). ───────────────────────────── */}
+      {/* ── Avisos de la preparación del vídeo de fondo: progreso, «sin
+              videoclip» y error con reintento. Sin ellos, los estados
+              finales dejaban la portada sin explicación y el aviso de
+              progreso parecía desaparecer de la nada. ──────────────────── */}
       {videoBg && videoState.status === VIDEO_PREP.PREPARING && (
-        <div
-          data-testid="lyrics-video-progress"
-          style={{
-            position: "absolute",
-            top: "20px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 10,
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "7px 14px",
-            borderRadius: RADIUS.pill,
-            border: `1px solid ${COLORS.borderActive}`,
-            background: "rgba(10,10,16,.62)",
-            backdropFilter: "blur(12px)",
-            color: COLORS.textPrimary,
-            ...TYPOGRAPHY.caption,
-            fontWeight: 700,
-          }}
-        >
+        <div data-testid="lyrics-video-progress" style={avisoVideoStyle}>
           <span
             style={{
               width: "7px",
@@ -2512,6 +2538,51 @@ export function LyricsView({
             }}
           />
           Preparando el vídeo… {Math.round(videoState.progress)}%
+        </div>
+      )}
+
+      {videoBg && videoState.status === VIDEO_PREP.NO_VIDEO && avisoSinVideo && (
+        <div data-testid="lyrics-video-sin-clip" style={avisoVideoStyle}>
+          <span
+            style={{
+              width: "7px",
+              height: "7px",
+              borderRadius: "50%",
+              background: accentColor,
+            }}
+          />
+          Esta canción no tiene videoclip
+        </div>
+      )}
+
+      {videoBg && videoState.status === VIDEO_PREP.ERROR && (
+        <div data-testid="lyrics-video-error" style={avisoVideoStyle}>
+          <span
+            style={{
+              width: "7px",
+              height: "7px",
+              borderRadius: "50%",
+              background: accentColor,
+            }}
+          />
+          No se pudo preparar el vídeo
+          <button
+            type="button"
+            data-testid="lyrics-video-retry"
+            onClick={reintentarVideo}
+            style={{
+              ...TYPOGRAPHY.caption,
+              fontWeight: 700,
+              color: accentColor,
+              background: "transparent",
+              border: `1px solid ${COLORS.borderActive}`,
+              borderRadius: RADIUS.pill,
+              padding: "2px 10px",
+              cursor: "pointer",
+            }}
+          >
+            Reintentar
+          </button>
         </div>
       )}
 

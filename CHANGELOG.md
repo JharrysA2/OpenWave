@@ -27,6 +27,12 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   arriba (⋮ y cerrar) llevan su propio cristal: si no, el vídeo se movía por
   detrás de la portada y de la cola y costaba leerlas. Sin vídeo no cambia nada:
   esas piezas pierden el cristal y el fondo vuelve a cubrirlo todo como siempre.
+- **La pantalla de letras se limpia de líneas de contorno.** Desaparecen la
+  línea que separaba la cola de las letras y los bordes de 1px de cada fila de
+  la cola: ahora la jerarquía la da el material, como en el player bar (brillo
+  interior superior y sombra suave, con el glow del acento en la pista actual).
+  Con el vídeo de fondo esas piezas van sobre cristal; solo con la portada
+  llevan el mismo material sin desenfoque.
 
 ### Fixed
 

@@ -110,11 +110,16 @@ function SortableQueueItem({
           ? `${accentColor}12`
           : `${accentColor}18`;
 
-  const bdColor = isCurrent
-    ? accentColor
-    : hovered && editMode
-      ? `${accentColor}66`
-      : `${accentColor}25`;
+  // Sin borde de contorno: la jerarquía la da el material del player bar
+  // (brillo superior interior + sombra suave). La pista actual lleva el glow
+  // del acento en la sombra, nunca un aro de 1px.
+  const rowShadow = isDragging
+    ? `inset 0 1px 0 rgba(255,255,255,.08), 0 8px 20px rgba(0,0,0,.4)`
+    : isCurrent
+      ? `inset 0 1px 0 rgba(255,255,255,.08), 0 4px 16px ${accentColor}33`
+      : hovered
+        ? "inset 0 1px 0 rgba(255,255,255,.08), 0 6px 18px rgba(0,0,0,.35)"
+        : "inset 0 1px 0 rgba(255,255,255,.06), 0 3px 10px rgba(0,0,0,.22)";
 
   return (
     <div
@@ -129,16 +134,10 @@ function SortableQueueItem({
         cursor: editMode ? "grab" : "pointer",
         transition: `${transition || "background .12s, box-shadow .12s"}, transform 200ms ease`,
         transform: baseTransform,
-        border: `1px solid ${bdColor}`,
         background: bgColor,
         opacity: isDragging ? 0.5 : isPast ? 0.65 : 1,
         position: "relative",
-        boxShadow:
-          hovered && editMode
-            ? `0 4px 14px ${accentColor}44, 0 0 0 1px ${accentColor}55`
-            : editMode
-              ? `0 2px 8px ${accentColor}22, 0 0 0 1px ${accentColor}22`
-              : "none",
+        boxShadow: rowShadow,
       }}
       onClick={() => {
         if (!editMode) onPlaySong(song);
@@ -2651,16 +2650,18 @@ export function LyricsView({
           flexShrink: 0,
           display: "flex",
           flexDirection: "column",
-          borderRight: `1px solid ${videoGlass ? `${accentColor}66` : `${accentColor}40`}`,
           padding: "30px 28px 20px",
           gap: "20px",
           overflow: "hidden",
           zIndex: 1,
+          // Sin línea separadora: la jerarquía la da el material, como en el
+          // player bar (border none + inset highlight + sombra).
           // Con el vídeo de fondo la portada y la cola van sobre una hoja de
-          // cristal (Liquid Glass, mismo material que GLASS.sheet): el clip se
-          // mueve detrás y, sin difuminarlo, la portada y la lista no se
-          // leerían. Sin vídeo no hay cristal local: se mantiene el tinte de
-          // acento sobre la portada difuminada que cubre todo el fondo.
+          // cristal (Liquid Glass): el clip se mueve detrás y, sin
+          // difuminarlo, la portada y la lista no se leerían. Sin vídeo no hay
+          // blur (el fondo estático no lo necesita), pero sí el mismo material
+          // —tinte de acento, brillo superior y sombra— sobre la portada
+          // difuminada que cubre todo el fondo.
           ...(videoGlass
             ? {
                 background:
@@ -2671,6 +2672,7 @@ export function LyricsView({
               }
             : {
                 background: `linear-gradient(180deg, ${accentColor}30 0%, transparent 100%)`,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.08), 0 18px 50px rgba(0,0,0,.35)",
               }),
         }}
       >

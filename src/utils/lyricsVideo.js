@@ -100,6 +100,31 @@ export function videoFileUrl(base, videoId) {
   return `${String(base).replace(/\/+$/, "")}/video/file/${videoId}`;
 }
 
+// Tope de resolución que admite el backend para el vídeo de fondo.
+const ALTO_MIN = 720;
+const ALTO_MAX = 2160;
+const ALTO_DEFECTO = 1080;
+
+/**
+ * Altura física (px reales) de la pantalla, para pedir el vídeo de fondo.
+ *
+ * El vídeo cubre la ventana entera, así que el tope útil es la altura física
+ * del display (CSS × devicePixelRatio): una pantalla 4K pide hasta 4K y una
+ * HD se queda en 1080p, sin llenar la caché de formatos que la pantalla no
+ * aprovecha. El valor se acota al rango que admite el backend (720–2160); si
+ * la pantalla no informa (p. ej. en tests), se usa 1080, el tope histórico.
+ *
+ * @param {{screen?:{height?:number}, innerHeight?:number, devicePixelRatio?:number}} [win]
+ * @returns {number}
+ */
+export function altoPantalla(win) {
+  const w = win ?? (typeof window !== "undefined" ? window : { devicePixelRatio: 1 });
+  const altoCss = Number(w?.screen?.height) || Number(w?.innerHeight) || 0;
+  const fisico = Math.round(altoCss * (Number(w?.devicePixelRatio) || 1));
+  if (!Number.isFinite(fisico) || fisico <= 0) return ALTO_DEFECTO;
+  return Math.min(ALTO_MAX, Math.max(ALTO_MIN, fisico));
+}
+
 /** ¿En este estado hay que pintar el vídeo de fondo? */
 export function isVideoReady(state) {
   return state?.status === VIDEO_PREP.READY;

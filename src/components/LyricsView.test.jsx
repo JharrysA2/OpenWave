@@ -1529,8 +1529,14 @@ describe("LyricsView — vídeo de fondo", () => {
     renderLyrics({ audioRef: { current: { currentTime: 0, paused: true } } });
 
     // Se pregunta por el estado y, como no está preparado, se lanza solo.
-    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith("/video/status/1"));
-    await waitFor(() => expect(mockApiPost).toHaveBeenCalledWith("/video/prepare/1"));
+    await waitFor(() =>
+      expect(mockApiGet).toHaveBeenCalledWith(expect.stringContaining("/video/status/1?max_alto=")),
+    );
+    await waitFor(() =>
+      expect(mockApiPost).toHaveBeenCalledWith(
+        expect.stringContaining("/video/prepare/1?max_alto="),
+      ),
+    );
     await waitFor(() => expect(es()).not.toBeNull());
 
     act(() =>
@@ -1579,7 +1585,9 @@ describe("LyricsView — vídeo de fondo", () => {
 
     renderLyrics();
 
-    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith("/video/status/1"));
+    await waitFor(() =>
+      expect(mockApiGet).toHaveBeenCalledWith(expect.stringContaining("/video/status/1?max_alto=")),
+    );
     expect(mockApiPost).not.toHaveBeenCalled();
     expect(screen.queryByTestId("lyrics-video")).not.toBeInTheDocument();
     expect(screen.queryByTestId("lyrics-video-progress")).not.toBeInTheDocument();
@@ -1706,7 +1714,9 @@ describe("LyricsView — vídeo de fondo", () => {
 
     renderLyrics();
 
-    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith("/video/status/1"));
+    await waitFor(() =>
+      expect(mockApiGet).toHaveBeenCalledWith(expect.stringContaining("/video/status/1?max_alto=")),
+    );
     // Sin vídeo el fondo sigue siendo la portada: nada de cristal por pieza
     expect(screen.getByTestId("lyrics-bg")).toBeInTheDocument();
     expect(screen.getByTestId("lyrics-panel").style.backdropFilter ?? "").toBe("");

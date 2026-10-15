@@ -25,6 +25,7 @@ import { getStoredLyrics, storeLyrics, clearStoredLyrics } from "../utils/lyrics
 import {
   VIDEO_PREP,
   VIDEO_PREP_INITIAL,
+  altoPantalla,
   isVideoReady,
   normalizePrepareFrame,
   normalizeStatus,
@@ -1536,7 +1537,7 @@ export function LyricsView({
       const vigente = () => videoReqRef.current === token;
       setVideoState({ status: VIDEO_PREP.PREPARING, progress: 0, error: null });
       api
-        .post(`/video/prepare/${videoId}`)
+        .post(`/video/prepare/${videoId}?max_alto=${altoPantalla()}`)
         .then(() => {
           if (!vigente()) return;
           let es;
@@ -1605,7 +1606,7 @@ export function LyricsView({
     }
     setVideoState(VIDEO_PREP_INITIAL);
     api
-      .get(`/video/status/${song.videoId}`)
+      .get(`/video/status/${song.videoId}?max_alto=${altoPantalla()}`)
       .then((data) => {
         if (videoReqRef.current !== token) return;
         const next = normalizeStatus(data);

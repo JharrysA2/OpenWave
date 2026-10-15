@@ -22,6 +22,16 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   yt-dlp, así que llega a 1080p; si el equipo no tiene un runtime de JavaScript
   (Node, Deno, Bun o QuickJS), la cadena de intentos sigue degradando hasta el
   vídeo de antes en vez de fallar.
+- **El vídeo de fondo se ve en la resolución que admite la pantalla (hasta 4K).**
+  Antes todo se pedía a 1080p: en una pantalla 4K el clip se veía reescalado y
+  poco nítido. Ahora la pantalla de letras informa de la altura física de su
+  display y el backend la usa como tope de la descarga (entre 720p y 4K). Ojo:
+  YouTube solo sirve más de 1080p con una sesión válida, así que para 4K hace
+  falta un `cookies.txt` o las cookies del navegador; sin ellos la cadena
+  sigue degradando hasta el mejor disponible. El tope pedido queda anotado por
+  vídeo, así que un clip descargado para una pantalla grande no se vuelve a
+  bajar en cada apertura (y si cambias de pantalla a una más grande, sube de
+  resolución una sola vez).
 - **El vídeo de fondo deja leer la letra.** El clip va un punto más atenuado y,
   mientras es el fondo, la barra lateral (portada + cola) y los botones de
   arriba (⋮ y cerrar) llevan su propio cristal: si no, el vídeo se movía por

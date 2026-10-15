@@ -62,6 +62,32 @@ class TestVideoStatus:
         resp = client.get("/video/status/bad..id")
         assert resp.status_code == 400
 
+    def test_status_con_tope_mayor_informa_no_preparado(self, client):
+        """Un vídeo a 1080p no basta para una pantalla 4K: se vuelve a bajar."""
+        p = VIDEO_DIR / "status_4k.mp4"
+        p.write_bytes(b"x")
+        try:
+            resp = client.get("/video/status/status_4k?max_alto=2160")
+            assert resp.json() == {"prepared": False, "sin_videoclip": False}
+            # Sin tope pedido (o menor) el mismo fichero sigue sirviendo.
+            assert client.get("/video/status/status_4k").json()["prepared"] is True
+        finally:
+            p.unlink(missing_ok=True)
+
+    def test_status_con_tope_anotado_no_redescarga(self, client):
+        """Si la descarga ya se pidió a ese tope, no se repite (aunque sea 4K)."""
+        from video_fondo import _guardar_calidad
+
+        p = VIDEO_DIR / "status_ok4k.mp4"
+        p.write_bytes(b"x")
+        _guardar_calidad("status_ok4k", 2160)
+        try:
+            resp = client.get("/video/status/status_ok4k?max_alto=2160")
+            assert resp.json()["prepared"] is True
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "status_ok4k.calidad").unlink(missing_ok=True)
+
 
 class TestVideoFile:
     """GET /video/file/{video_id} — vídeo con soporte Range."""
@@ -122,16 +148,32 @@ class TestVideoPrepare:
 
     def test_already_no_relanza(self, client, mocker):
         mock_prepare = mocker.patch("routes.video_routes.prepare_video")
-        mocker.patch("routes.video_routes.is_prepared", return_value=True)
+        mocker.patch("routes.video_routes.calidad_suficiente", return_value=True)
         resp = client.post("/video/prepare/ya_vid")
         assert resp.status_code == 200
         assert resp.json()["already"] is True
         assert mock_prepare.call_count == 0
 
+    def test_relanza_si_la_calidad_no_alcanza_la_pantalla(self, client, mocker):
+        """Un fichero a tope menor (p. ej. 1080p en pantalla 4K) se repite."""
+        mock_prepare = mocker.patch("routes.video_routes.prepare_video")
+        mocker.patch("routes.video_routes.calidad_suficiente", return_value=False)
+        resp = client.post("/video/prepare/up_vid?max_alto=2160")
+        assert resp.status_code == 200
+        assert "already" not in resp.json()
+
+        import time
+
+        for _ in range(50):
+            if mock_prepare.call_count >= 1:
+                break
+            time.sleep(0.05)
+        assert mock_prepare.call_args[0] == ("up_vid", True, 2160)
+
     def test_already_marca_done_para_el_sse(self, client, mocker):
         """Si ya está preparado, el SSE no debe quedarse esperando progreso."""
         mocker.patch("routes.video_routes.prepare_video")
-        mocker.patch("routes.video_routes.is_prepared", return_value=True)
+        mocker.patch("routes.video_routes.calidad_suficiente", return_value=True)
         mocker.patch.dict("routes.video_routes.video_progress", {}, clear=True)
         client.post("/video/prepare/ya_vid_done")
         assert video_progress["ya_vid_done"]["status"] == "done"
@@ -167,7 +209,7 @@ class TestVideoPrepare:
             if mock_prepare.call_count >= 1:
                 break
             time.sleep(0.05)
-        assert mock_prepare.call_args[0] == ("of_vid", False)
+        assert mock_prepare.call_args[0] == ("of_vid", False, None)
 
     def test_oficial_activo_por_defecto(self, client, mocker):
         mock_prepare = mocker.patch("routes.video_routes.prepare_video")
@@ -179,7 +221,7 @@ class TestVideoPrepare:
             if mock_prepare.call_count >= 1:
                 break
             time.sleep(0.05)
-        assert mock_prepare.call_args[0] == ("def_vid", True)
+        assert mock_prepare.call_args[0] == ("def_vid", True, None)
 
     def test_video_id_invalido(self, client):
         assert client.post("/video/prepare/bad..id").status_code == 400

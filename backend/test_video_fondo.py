@@ -13,7 +13,11 @@ from video_fondo import (
     _MP4_ANDROID,
     _MP4_EMBEDDED,
     _WEBM_ANDROID,
+    _cap_alto,
+    _escaleras,
     _evict_if_needed,
+    calidad_guardada,
+    calidad_suficiente,
     delete_video,
     get_output_path,
     get_video_path,
@@ -406,7 +410,7 @@ class TestVideoclipOficial:
 
 
 class TestTopeCalidad:
-    """Las escaleras de formato no pasan de 1080p (y degradan, no fallan)."""
+    """El tope de resolución: 1080p por defecto y hasta 4K si la pantalla lo pide."""
 
     def test_escaleras_capan_a_1080(self):
         assert "height<=1080" in _MP4["format"]
@@ -416,6 +420,97 @@ class TestTopeCalidad:
 
     def test_hay_fallback_sin_filtro(self):
         assert _MP4["format"].endswith("/bv*+ba/b")
+
+    def test_cap_alto_sanea_el_valor_de_la_pantalla(self):
+        """El valor llega del navegador: se acota al rango que admite YouTube."""
+        assert _cap_alto(None) == 1080
+        assert _cap_alto("no-numero") == 1080
+        assert _cap_alto(0) == 720
+        assert _cap_alto(720) == 720
+        assert _cap_alto(2160) == 2160
+        assert _cap_alto(4320) == 2160
+
+    def test_escaleras_4k_capan_a_la_pantalla(self):
+        """Con pantalla 4K el filtro sube, pero sigue degradando sin fallar."""
+        embedded, mp4, mp4_android, webm_android = _escaleras(2160)
+        for escalera in (embedded, mp4, mp4_android, webm_android):
+            assert "height<=2160" in escalera["format"]
+        assert mp4["format"].endswith("/bv*+ba/b")
+
+    def test_calidad_suficiente_sin_fichero(self):
+        assert calidad_suficiente("cal_nada", 2160) is False
+
+    def test_calidad_suficiente_asume_1080_en_descargas_antiguas(self):
+        """Los vídeos de antes no anotaron su tope: valen como 1080p."""
+        p = VIDEO_DIR / "cal_viejo.mp4"
+        p.write_bytes(b"x")
+        try:
+            assert calidad_suficiente("cal_viejo") is True
+            assert calidad_suficiente("cal_viejo", 1080) is True
+            # Una pantalla 4K pide más de lo que se sabe descargado.
+            assert calidad_suficiente("cal_viejo", 2160) is False
+            assert calidad_suficiente("cal_viejo", 720) is True
+        finally:
+            p.unlink(missing_ok=True)
+
+    def test_calidad_suficiente_respeta_el_tope_anotado(self):
+        """El tope pedido queda anotado: no se vuelve a bajar aunque sea 4K."""
+        p = VIDEO_DIR / "cal_4k.mp4"
+        p.write_bytes(b"x")
+        (VIDEO_DIR / "cal_4k.calidad").write_text("2160", encoding="utf-8")
+        try:
+            assert calidad_guardada("cal_4k") == 2160
+            assert calidad_suficiente("cal_4k", 2160) is True
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "cal_4k.calidad").unlink(missing_ok=True)
+
+    def test_prepare_redescarga_cuando_pide_mas_la_pantalla(self, monkeypatch):
+        """Un 1080p en pantalla 4K se vuelve a bajar y anota el tope nuevo."""
+        p = VIDEO_DIR / "up_vid.mp4"
+        p.write_bytes(b"viejo")
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        try:
+            prepare_video("up_vid", max_alto=2160)
+            assert video_progress["up_vid"]["status"] == "done"
+            # Se pidió con el filtro 4K y el tope quedó anotado.
+            assert "height<=2160" in _FakeYdl.instances[0].opts["format"]
+            assert calidad_guardada("up_vid") == 2160
+            assert calidad_suficiente("up_vid", 2160) is True
+        finally:
+            delete_video("up_vid")
+            video_progress.pop("up_vid", None)
+            _FakeYdl.instances.clear()
+
+    def test_prepare_no_redescarga_si_el_tope_ya_se_pidio(self, monkeypatch):
+        """Tras anotar el tope, la siguiente apertura no vuelve a descargar."""
+        p = VIDEO_DIR / "up_fijo.mp4"
+        p.write_bytes(b"4k")
+        (VIDEO_DIR / "up_fijo.calidad").write_text("2160", encoding="utf-8")
+
+        class _Boom:
+            def __init__(self, opts):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def download(self, urls):
+                raise AssertionError("no debe redescargarse: el tope ya se pidió")
+
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _Boom)
+        try:
+            prepare_video("up_fijo", max_alto=2160)
+            assert video_progress["up_fijo"]["status"] == "done"
+            assert p.read_bytes() == b"4k"
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "up_fijo.calidad").unlink(missing_ok=True)
+            video_progress.pop("up_fijo", None)
 
 
 class TestDesfase:

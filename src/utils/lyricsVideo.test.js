@@ -3,6 +3,7 @@ import {
   VIDEO_DRIFT_TOLERANCE,
   VIDEO_PREP,
   VIDEO_PREP_INITIAL,
+  altoPantalla,
   isVideoReady,
   normalizePrepareFrame,
   normalizeStatus,
@@ -77,6 +78,33 @@ describe("lyricsVideo", () => {
       expect(isVideoReady({ status: VIDEO_PREP.READY })).toBe(true);
       expect(isVideoReady({ status: VIDEO_PREP.PREPARING })).toBe(false);
       expect(isVideoReady(null)).toBe(false);
+    });
+  });
+
+  describe("altoPantalla", () => {
+    it("pide 4K a una pantalla 2160 (altura física, no CSS)", () => {
+      expect(altoPantalla({ screen: { height: 2160 }, devicePixelRatio: 1 })).toBe(2160);
+      // 4K al 150% de escalado del sistema: 1440 CSS × 1.5.
+      expect(altoPantalla({ screen: { height: 1440 }, devicePixelRatio: 1.5 })).toBe(2160);
+    });
+
+    it("una pantalla HD se queda en 1080p", () => {
+      expect(altoPantalla({ screen: { height: 1080 }, devicePixelRatio: 1 })).toBe(1080);
+    });
+
+    it("acota al rango que admite el backend", () => {
+      expect(altoPantalla({ screen: { height: 4320 }, devicePixelRatio: 1 })).toBe(2160);
+      expect(altoPantalla({ screen: { height: 600 }, devicePixelRatio: 1 })).toBe(720);
+    });
+
+    it("si la pantalla no informa, usa el tope histórico de 1080p", () => {
+      expect(altoPantalla({ devicePixelRatio: 1 })).toBe(1080);
+      expect(altoPantalla({ screen: { height: 0 }, devicePixelRatio: 1 })).toBe(1080);
+      expect(altoPantalla({})).toBe(1080);
+    });
+
+    it("sin pantalla, cae a la altura de la ventana", () => {
+      expect(altoPantalla({ innerHeight: 900, devicePixelRatio: 1 })).toBe(900);
     });
   });
 

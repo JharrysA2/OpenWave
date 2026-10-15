@@ -72,19 +72,57 @@ def _search_ffmpeg_dir() -> str | None:
 # ── Rutas y estado ────────────────────────────────────────────────────────────
 _FINAL_EXTS = ("mp4", "webm")
 
-# Tope de resolución: 1080p. Un videoclip en 4K pesa el triple y, detrás del
-# velo del fondo, no se aprecia; 1080p mantiene la caché
-# de vídeo razonable. Todas las escaleras terminan en un fallback sin filtro:
-# si la sesión no ofrece nada a 1080p o menos, se prefiere algo a nada.
-_CAP = "height<=1080"
+# Tope de resolución por defecto: 1080p. La pantalla del cliente puede pedir
+# más (hasta 4K) pasando ``max_alto``: el tope va en la cadena de formatos y
+# degrada en vez de fallar si la sesión no ofrece ese nivel (YouTube solo
+# sirve >1080p con cookies de sesión; sin ellas el mejor disponible son
+# 1080p). Un videoclip en 4K pesa el triple, así que el upgrade solo se
+# produce cuando la pantalla realmente aprovecha ese detalle.
+_ALTO_DEFECTO = 1080
+_ALTO_MIN = 720
+_ALTO_MAX = 2160
 
-# Escaleras de formatos. Todas terminan en un fallback sin filtro: si la sesión
-# no ofrece el mejor formato, la selección degrada en vez de fallar.
-_CADENA_MP4 = (
-    f"bv*[{_CAP}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
-    f"/b[{_CAP}][ext=mp4][vcodec^=avc1]/bv*[{_CAP}]+ba/b[{_CAP}]/bv*+ba/b"
-)
-_MP4 = {"format": _CADENA_MP4, "merge_output_format": "mp4"}
+
+def _cap_alto(max_alto: int | None) -> int:
+    """Altura tope saneada: entero dentro de [720, 2160] (o el defecto)."""
+    try:
+        alto = int(max_alto)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return _ALTO_DEFECTO
+    return max(_ALTO_MIN, min(_ALTO_MAX, alto))
+
+
+def _escaleras(alto: int) -> list[dict]:
+    """Escaleras de formatos con el tope ``alto`` dado.
+
+    Todas terminan en un fallback sin filtro: si la sesión no ofrece el mejor
+    formato, la selección degrada en vez de fallar.
+    """
+    cap = f"height<={alto}"
+    cadena_mp4 = (
+        f"bv*[{cap}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
+        f"/b[{cap}][ext=mp4][vcodec^=avc1]/bv*[{cap}]+ba/b[{cap}]/bv*+ba/b"
+    )
+    return [
+        {
+            "format": cadena_mp4,
+            "merge_output_format": "mp4",
+            "extractor_args": {"youtube": {"player_client": ["web_embedded"]}},
+        },
+        {"format": cadena_mp4, "merge_output_format": "mp4"},
+        {
+            "format": f"bv*[{cap}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
+            f"/b[{cap}][ext=mp4][vcodec^=avc1]/b[{cap}]/b",
+            "merge_output_format": "mp4",
+            "extractor_args": {"youtube": {"player_client": ["android"]}},
+        },
+        {
+            "format": f"bv*[{cap}][ext=webm]+ba[ext=webm]/bv*[{cap}]+ba/bv*+ba/b",
+            "merge_output_format": "webm",
+            "extractor_args": {"youtube": {"player_client": ["android"]}},
+        },
+    ]
+
 
 # Runtimes de JavaScript que resuelven los retos de firma de YouTube (sin uno,
 # los formatos con nsig no se pueden descifrar y solo queda el 360p del cliente
@@ -92,26 +130,12 @@ _MP4 = {"format": _CADENA_MP4, "merge_output_format": "mp4"}
 # soporta y usa el de más prioridad que exista (en Windows suele estar Node).
 _JS_RUNTIMES = {"deno": {}, "node": {}, "bun": {}, "quickjs": {}}
 
-# Cliente «embedded» de YouTube: es el único que sirve hasta 1080p sin PO token
+# Escaleras por defecto (1080p) para los consumidores directos. La primera es
+# el cliente «embedded» de YouTube: el único que sirve hasta 1080p sin PO token
 # (el resto pide un token o cae a 360p). Necesita un runtime de JS para los
 # retos de firma; si no hay ninguno, el intento no encuentra formatos y la
 # cadena sigue por los clientes de siempre.
-_MP4_EMBEDDED = {
-    "format": _CADENA_MP4,
-    "merge_output_format": "mp4",
-    "extractor_args": {"youtube": {"player_client": ["web_embedded"]}},
-}
-_MP4_ANDROID = {
-    "format": f"bv*[{_CAP}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
-    f"/b[{_CAP}][ext=mp4][vcodec^=avc1]/b[{_CAP}]/b",
-    "merge_output_format": "mp4",
-    "extractor_args": {"youtube": {"player_client": ["android"]}},
-}
-_WEBM_ANDROID = {
-    "format": f"bv*[{_CAP}][ext=webm]+ba[ext=webm]/bv*[{_CAP}]+ba/bv*+ba/b",
-    "merge_output_format": "webm",
-    "extractor_args": {"youtube": {"player_client": ["android"]}},
-}
+_MP4_EMBEDDED, _MP4, _MP4_ANDROID, _WEBM_ANDROID = _escaleras(_ALTO_DEFECTO)
 
 
 def get_video_path(video_id: str) -> Path:
@@ -134,6 +158,40 @@ def get_output_path(video_id: str) -> Path | None:
 
 def is_prepared(video_id: str) -> bool:
     return get_output_path(video_id) is not None
+
+
+def _calidad_path(video_id: str) -> Path:
+    """Fichero que anota el tope de resolución con el que se descargó."""
+    return VIDEO_DIR / f"{video_id}.calidad"
+
+
+def calidad_guardada(video_id: str) -> int | None:
+    """Tope usado en la última descarga, o ``None`` si fue antes de este ajuste."""
+    try:
+        return int(_calidad_path(video_id).read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return None
+
+
+def _guardar_calidad(video_id: str, alto: int) -> None:
+    with suppress(OSError):
+        _calidad_path(video_id).write_text(str(alto), encoding="utf-8")
+
+
+def calidad_suficiente(video_id: str, max_alto: int | None = None) -> bool:
+    """¿Alcanza el fichero en disco el tope que pide la pantalla?
+
+    Los vídeos descargados antes de este ajuste no anotaron su tope: se asume
+    el 1080p fijo que usaba el código anterior. Así una pantalla 4K repite la
+    descarga una sola vez por vídeo (tras anotar el tope pedido no vuelve a
+    bajar nada, aunque YouTube no ofrezca más).
+    """
+    if not is_prepared(video_id):
+        return False
+    guardada = calidad_guardada(video_id)
+    if guardada is None:
+        guardada = _ALTO_DEFECTO
+    return guardada >= _cap_alto(max_alto)
 
 
 def _progress(video_id: str) -> dict:
@@ -173,7 +231,7 @@ def sin_videoclip(video_id: str) -> bool:
     return consultado and oficial is None
 
 
-def _descargar(video_id: str, fuente_id: str) -> None:
+def _descargar(video_id: str, fuente_id: str, max_alto: int | None = None) -> None:
     """Descarga y muxea el vídeo de origen en ``{video_id}.mp4``.
 
     Cadena de intentos, de mejor calidad disponible a más compatible:
@@ -187,16 +245,21 @@ def _descargar(video_id: str, fuente_id: str) -> None:
       5. webm (vp9/opus, también jugable por el navegador).
       6. cookies del navegador, como último recurso.
 
+    Cada intento filtra por ``max_alto`` (la altura de la pantalla del
+    cliente, atajada); por encima de 1080p solo una sesión con cookies
+    llega a 4K, y si no, la cadena degrada al mejor disponible.
+
     Lanza si ningún intento publica el fichero final.
     """
+    embedded, mp4, mp4_android, webm_android = _escaleras(_cap_alto(max_alto))
     attempts: list[dict] = []
     file_auth = cookies_file_opt()
     if file_auth:
-        attempts.append({**_MP4, **file_auth})
-    attempts += [_MP4_EMBEDDED, _MP4, _MP4_ANDROID, _WEBM_ANDROID]
+        attempts.append({**mp4, **file_auth})
+    attempts += [embedded, mp4, mp4_android, webm_android]
     for auth in browser_cookie_opts():
-        attempts.append({**_MP4, **auth})
-        attempts.append({**_WEBM_ANDROID, **auth})
+        attempts.append({**mp4, **auth})
+        attempts.append({**webm_android, **auth})
     base = {
         "outtmpl": str(VIDEO_DIR / f"{video_id}.%(ext)s"),
         "progress_hooks": [_hook_for(video_id)],
@@ -253,7 +316,9 @@ def _descartar_por_desfase(video_id: str) -> None:
     logger.info("vídeo %s: desfase no medible → se usa la portada", video_id)
 
 
-def prepare_video(video_id: str, usar_oficial: bool = True) -> None:
+def prepare_video(
+    video_id: str, usar_oficial: bool = True, max_alto: int | None = None
+) -> None:
     """Descargar mejor vídeo + mejor audio y muxarlos en un único fichero.
 
     Idempotente: si el vídeo ya está preparado no vuelve a descargarlo. El
@@ -266,6 +331,12 @@ def prepare_video(video_id: str, usar_oficial: bool = True) -> None:
     tiene, no se descarga nada y el estado queda en ``sin_video`` (la pantalla
     usa la portada). El fichero final sigue llamándose ``{video_id}.mp4``, sea
     cual sea el vídeo descargado.
+
+    ``max_alto`` es la altura de la pantalla del cliente: el tope de
+    resolución de la descarga. Si el fichero en disco se pidió con un tope
+    menor (o es anterior a este ajuste), se vuelve a bajar el mismo vídeo con
+    el tope nuevo; el tope queda anotado en un sidecar, así que el upgrade es
+    único por vídeo y no se repite aunque YouTube no ofrezca más calidad.
 
     El desfase con la canción se calcula siempre que falte, también si el
     fichero ya estaba en disco (así un fallo anterior no deja la medición a
@@ -297,10 +368,26 @@ def prepare_video(video_id: str, usar_oficial: bool = True) -> None:
                 return
             fuente_id = oficial_id
 
-        if is_prepared(video_id):
+        if calidad_suficiente(video_id, max_alto):
             logger.info("skip descarga %s: ya preparado", video_id)
         else:
-            _descargar(video_id, fuente_id)
+            if is_prepared(video_id):
+                # Tope de resolución insuficiente (p. ej. pantalla nueva 4K):
+                # se retira el fichero viejo y se baja de nuevo con el tope
+                # actual. Si la nueva descarga falla, el estado queda en
+                # «error» y el reintento vuelve a intentarlo.
+                logger.info(
+                    "vídeo %s: se repite la descarga con tope %dp",
+                    video_id,
+                    _cap_alto(max_alto),
+                )
+                for ext in _FINAL_EXTS:
+                    with suppress(OSError):
+                        p = VIDEO_DIR / f"{video_id}.{ext}"
+                        if p.is_file():
+                            p.unlink()
+            _descargar(video_id, fuente_id, max_alto)
+            _guardar_calidad(video_id, _cap_alto(max_alto))
             _evict_if_needed()
 
         desfase = _resolver_desfase(video_id, fuente_id, usar_oficial)
@@ -500,6 +587,9 @@ def _evict_if_needed() -> int:
         try:
             size = p.stat().st_size
             p.unlink()
+            # El sidecar de calidad solo sirve con su vídeo: se retira con él.
+            with suppress(OSError):
+                p.with_suffix(".calidad").unlink(missing_ok=True)
             total -= size
             removed += 1
         except OSError:

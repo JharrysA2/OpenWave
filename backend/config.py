@@ -127,6 +127,11 @@ URL_CACHE_FILE = DATA_DIR / "url_cache.json"
 # Es una caché derivada (se puede regenerar), NO son las descargas del usuario.
 STREAM_CACHE_DIR = DATA_DIR / "stream_cache"
 
+# `cookies.txt` opcional (formato Netscape) exportado por el usuario y dejado
+# en el directorio de datos. Es la vía de autenticación más fiable para las
+# sesiones restringidas de YouTube y no exige login propio (ver ytdlp_auth.py).
+COOKIES_FILE = DATA_DIR / "cookies.txt"
+
 # Caché de yt-dlp (respuestas de extractor, nsig…). También caché derivada y
 # también dentro del directorio de datos: sin esto, yt-dlp la escribiría en
 # `%USERPROFILE%\.cache\yt-dlp` (o `$XDG_CACHE_HOME`), fuera de la raíz de

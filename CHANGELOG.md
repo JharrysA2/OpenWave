@@ -6,6 +6,13 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Added
+
+- **Cookies de YouTube opcionales.** Si dejas un `cookies.txt` (formato
+  Netscape) en el directorio de datos, las descargas y el streaming lo usan
+  para las sesiones restringidas antes de probar las cookies del navegador
+  (Chrome, Firefox, Edge y Brave), que siguen siendo el respaldo.
+
 ## [1.0.1] - 2026-10-12
 
 ### Added

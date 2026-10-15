@@ -21,6 +21,7 @@ from config import (
 )
 from db import _db_lock, get_db
 from logging_config import get_logger
+from ytdlp_auth import auth_variants
 
 from utils import get_mp3_path
 
@@ -212,18 +213,35 @@ def do_download(
             logger.info("skip yt-dlp %s: MP3 ya descargado", video_id)
             download_progress[video_id] = {"status": "converting", "progress": 100}
         else:
-            try:
-                with yt_dlp.YoutubeDL(_ydl_opts) as ydl:
-                    ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
-            except yt_dlp.utils.DownloadError as e:
-                # Reintento con la cadena histórica (itag 18 primero): en
-                # algunos vídeos el bestaudio baja pero 403ea al descargar
-                # los bytes; el muxed 18 siempre funciona. Copia de opts:
-                # la primera configuración queda intacta (auditoría/tests).
-                logger.warning("bestaudio falló %s (%s): reintento 18", video_id, e)
-                _ydl_opts = {**_ydl_opts, "format": "18/bestaudio/best"}
-                with yt_dlp.YoutubeDL(_ydl_opts) as ydl:
-                    ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+            # Cadena de intentos del audio, de más rápido a más fiable:
+            #   1. bestaudio (con caída a itag 18 dentro del propio selector).
+            #   2. Forzar itag 18: en algunos vídeos el bestaudio baja pero
+            #      403ea al descargar los bytes; el muxed 18 siempre va.
+            #   3. Cookies (cookies.txt del usuario y, si no, las del
+            #      navegador): sesiones restringidas que sin sesión válida no
+            #      sirven ni el 18. Copias de opts: la primera configuración
+            #      queda intacta (auditoría/tests).
+            attempts = [
+                _ydl_opts,
+                {**_ydl_opts, "format": "18/bestaudio/best"},
+                *({**_ydl_opts, **auth} for auth in auth_variants()),
+            ]
+            last_error = None
+            for opts in attempts:
+                try:
+                    with yt_dlp.YoutubeDL(opts) as ydl:
+                        ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+                    last_error = None
+                    break
+                except yt_dlp.utils.DownloadError as e:
+                    last_error = e
+                    logger.warning(
+                        "descarga audio %s falló (%s): siguiente intento",
+                        video_id,
+                        e,
+                    )
+            if last_error is not None:
+                raise last_error
 
             # ── Conversión ATÓMICA a MP3 ───────────────────────────────
             # Sin el postprocesador FFmpegExtractAudio de yt-dlp: ese PP

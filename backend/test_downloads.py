@@ -670,6 +670,71 @@ class TestDownloadCoverEmbed:
         # La descarga terminó bien pese al reintento
         assert mock_subprocess_run.call_count == 1
 
+    @patch("downloads.COVERS_DIR")
+    @patch("downloads.LYRICS_DIR")
+    @patch("downloads.get_db")
+    @patch("downloads.urllib.request.urlopen")
+    @patch("downloads.os.replace")
+    @patch("downloads.subprocess.run")
+    @patch("downloads.Path.exists")
+    @patch("downloads.get_mp3_path")
+    @patch("yt_dlp.YoutubeDL")
+    @patch("ytdlp_auth.cookies_file_opt", return_value=None)
+    def test_download_reintenta_con_cookies(
+        self,
+        mock_cookie_file,
+        mock_ydl_cls,
+        mock_path,
+        mock_exists,
+        mock_subprocess_run,
+        mock_os_replace,
+        mock_urlopen,
+        mock_get_db,
+        mock_lyrics_dir,
+        mock_covers_dir,
+    ):
+        """Si el 18 también 403ea, se reintenta con cookies del navegador."""
+        from yt_dlp.utils import DownloadError
+
+        mock_ydl = MagicMock()
+        mock_ydl.download.side_effect = [
+            DownloadError("403 Forbidden"),
+            DownloadError("403 Forbidden"),
+            None,
+        ]
+        mock_ydl_cls.return_value.__enter__.return_value = mock_ydl
+
+        mp3_mock = MagicMock(spec=Path)
+        mp3_mock.exists.return_value = False
+        mock_path.return_value = mp3_mock
+        mock_exists.return_value = True
+
+        mock_conn = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_conn
+
+        mock_cover_path = MagicMock(spec=Path)
+        mock_cover_path.exists.return_value = False
+        mock_covers_dir.__truediv__.return_value = mock_cover_path
+        mock_urlopen.side_effect = Exception("sin red")
+
+        mock_lyric_path = MagicMock(spec=Path)
+        mock_lyric_path.exists.return_value = True  # saltar paso de letras
+        mock_lyrics_dir.__truediv__.return_value = mock_lyric_path
+
+        do_download(
+            video_id="cookie_vid",
+            title="Cookie",
+            artist="Art",
+            thumbnail="https://x.example/c.jpg",
+            duration=100,
+        )
+
+        # Dos intentos anónimos + el primero con cookies (chrome).
+        assert mock_ydl_cls.call_count == 3
+        third_opts = mock_ydl_cls.call_args_list[2][0][0]
+        assert third_opts["cookiesfrombrowser"] == ("chrome",)
+        assert mock_subprocess_run.call_count == 1
+
 
 class TestDownloadLock:
     """Lock por video_id: dos hebras no escriben el mismo .part.

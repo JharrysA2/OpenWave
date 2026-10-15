@@ -23,6 +23,7 @@ from cache import (
 )
 from config import STREAM_CACHE_DIR, STREAM_CACHE_MAX_BYTES, YT_DLP_CACHE_DIR
 from logging_config import get_logger
+from ytdlp_auth import auth_variants
 
 logger = get_logger(__name__)
 
@@ -349,16 +350,16 @@ def _ydl_get_url(video_id: str, client: str = "", quality: str = "standard") -> 
 
 
 def _ydl_get_url_with_cookies(video_id: str) -> tuple:
-    """Extraer URL de audio usando cookies del navegador.
+    """Extraer URL de audio usando cookies (cookies.txt o del navegador).
 
-    Intenta extraer cookies de Chrome, Firefox, Edge y Brave
-    en secuencia. Si un navegador no tiene cookies para YouTube
-    o no está disponible, pasa al siguiente.
+    Prueba primero el ``cookies.txt`` del usuario (si lo hay) y después las
+    cookies de Chrome, Firefox, Edge y Brave en secuencia. Si una fuente no
+    tiene cookies para YouTube o no está disponible, pasa a la siguiente.
     """
-    browsers = ["chrome", "firefox", "edge", "brave"]
     last_error = None
 
-    for browser in browsers:
+    for auth in auth_variants():
+        label = "cookies.txt" if "cookiefile" in auth else auth["cookiesfrombrowser"][0]
         try:
             with (
                 contextlib.redirect_stderr(io.StringIO()),
@@ -370,7 +371,7 @@ def _ydl_get_url_with_cookies(video_id: str) -> tuple:
                         "socket_timeout": 10,
                         "retries": 1,
                         "extractor_retries": 1,
-                        "cookiesfrombrowser": (browser,),
+                        **auth,
                         # Caché de yt-dlp dentro del directorio de datos
                         "cachedir": str(YT_DLP_CACHE_DIR),
                     }
@@ -395,10 +396,10 @@ def _ydl_get_url_with_cookies(video_id: str) -> tuple:
                     url = fmts[0].get("url")
 
             if url:
-                logger.info("✓ cookies (%s): %s", browser, video_id)
+                logger.info("✓ cookies (%s): %s", label, video_id)
                 return url, info.get("http_headers", {})
 
-            last_error = RuntimeError(f"Sin URL ({browser} con cookies)")
+            last_error = RuntimeError(f"Sin URL ({label} con cookies)")
         except Exception as e:
             err_str = str(e).lower()
             # Diferenciar: "no browser" (DEBUG) vs "auth failed" (WARNING)
@@ -407,12 +408,12 @@ def _ydl_get_url_with_cookies(video_id: str) -> tuple:
                 for kw in ["not found", "no cookies", "unable to", "could not find"]
             ):
                 logger.debug(
-                    "cookies (%s) no disponible para %s: %s", browser, video_id, e
+                    "cookies (%s) no disponible para %s: %s", label, video_id, e
                 )
             else:
                 logger.warning(
                     "cookies (%s) falló para %s (posible auth expirado): %s",
-                    browser,
+                    label,
                     video_id,
                     e,
                 )
@@ -718,9 +719,8 @@ async def _get_url_with_cookies_async(video_id: str) -> tuple:
 
 
 def _extract_with_cookies_sync(video_id: str) -> tuple:
-    """Extraer URL usando cookies del navegador."""
-    browsers = ["chrome", "edge", "brave", "firefox"]
-    for browser in browsers:
+    """Extraer URL usando cookies (cookies.txt del usuario o del navegador)."""
+    for auth in auth_variants():
         try:
             with (
                 contextlib.redirect_stderr(io.StringIO()),
@@ -730,7 +730,7 @@ def _extract_with_cookies_sync(video_id: str) -> tuple:
                         "quiet": True,
                         "no_warnings": True,
                         "socket_timeout": 10,
-                        "cookiesfrombrowser": (browser,),
+                        **auth,
                         # Caché de yt-dlp dentro del directorio de datos
                         "cachedir": str(YT_DLP_CACHE_DIR),
                     }

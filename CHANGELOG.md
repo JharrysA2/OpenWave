@@ -6,6 +6,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-15
+
 ### Added
 
 - **Vídeo de fondo en la pantalla de letras.** Un ajuste nuevo (⋮ →
@@ -266,7 +268,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.0
 [1.0.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.0.1
 [1.0.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.0.0
 

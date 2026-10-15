@@ -6,6 +6,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-15
+
 - **Cookies de YouTube opcionales.** Si dejas un `cookies.txt` (formato
   Netscape) en el directorio de datos, las descargas y el streaming lo usan
   para las sesiones restringidas antes de probar las cookies del navegador
@@ -292,7 +294,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.1
 [1.1.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.0
 [1.0.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.0.1
 [1.0.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.0.0

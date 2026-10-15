@@ -188,14 +188,36 @@ class TestPuntuacion:
             < 0
         )
 
-    def test_duracion_muy_distinta_resta(self):
-        igual = puntuar_candidato(
+    def test_duracion_muy_distinta_se_rechaza(self):
+        """Con dos líneas de tiempo distintas el fondo iría desfasado."""
+        assert (
+            puntuar_candidato(
+                "Mi Alma", "C.R.O", 196, _video("a", "Mi Alma", "C.R.O", "9:45")
+            )
+            < 0
+        )
+
+    def test_videoclip_mas_largo_se_rechaza(self):
+        """Caso real: el vídeo de «After House» dura 30 s más que la canción."""
+        assert (
+            puntuar_candidato(
+                "After House",
+                "C.R.O & Cazzu",
+                165,
+                _video("clip", "After House", "C.R.O", "3:15"),
+            )
+            < 0
+        )
+
+    def test_duracion_casi_igual_puntua_mas(self):
+        """Cuanto mejor cuadran las duraciones, menos deriva."""
+        exacta = puntuar_candidato(
             "Mi Alma", "C.R.O", 196, _video("a", "Mi Alma", "C.R.O", "3:16")
         )
-        distinta = puntuar_candidato(
-            "Mi Alma", "C.R.O", 196, _video("b", "Mi Alma", "C.R.O", "9:45")
+        aproximado = puntuar_candidato(
+            "Mi Alma", "C.R.O", 196, _video("b", "Mi Alma", "C.R.O", "3:20")
         )
-        assert 0 < distinta < igual
+        assert 0 < aproximado < exacta
 
 
 class TestElegir:

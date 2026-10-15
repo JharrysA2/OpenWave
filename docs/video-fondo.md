@@ -24,7 +24,11 @@ eso el backend busca el **videoclip oficial** de verdad:
   candidato con reglas duras: mismo título, que no sea un canal «- Topic» ni un
   `ATV`, ni una versión anunciada como no oficial (letra, cover, directo, remix,
   karaoke…), y que lo suba el artista o un sello/VEVO con el artista en el
-  título. La duración (±5 s) y la marca `OMV` de YouTube desempatan.
+  título. Entre los válidos ganan la marca `OMV` de YouTube y la duración.
+- **La duración tiene que cuadrar** (±5 s). Si el videoclip dura bastante más o
+  menos que la canción, lleva intro, outro o es otra mezcla: las dos líneas de
+  tiempo no cuadran y el fondo se vería desfasado toda la canción, así que el
+  candidato se descarta (aunque sea el videoclip oficial).
 - La resolución se cachea en la tabla `videoclip_oficial`: `oficial_id` vacío
   significa «se buscó y esta canción no tiene videoclip». Los fallos de red no
   se cachean (se reintentan al volver a abrir).
@@ -47,3 +51,22 @@ degradan sin fallar) y lo cachea con evicción LRU (6 GB). Las rutas del motor:
 
 El motor solo trabaja para canciones abiertas con el ajuste encendido: coste
 cero en el resto de la app.
+
+## Calidad
+
+YouTube firma los formatos de más de 360p (`n-sig`): sin descifrar la firma,
+yt-dlp solo ve el 360p del cliente android, que era lo que se descargaba. Por
+eso la descarga:
+
+- usa el **cliente embed** (`player_client=web_embedded`), que no pide PO token
+  y sirve hasta 1080p;
+- habilita todos los runtimes de JS disponibles (`deno`, `node`, `bun`,
+  `quickjs`) para descifrar la firma, con el paquete `yt-dlp-ejs` que viaja en
+  el runtime embebido (`requirements-runtime.txt`).
+
+Si no hay ningún runtime de JS, ese intento no encuentra formatos y la cadena
+sigue por los clientes de siempre: el vídeo se sigue viendo, pero a 360p.
+
+Los vídeos ya descargados antes de este cambio siguen en la caché (`VIDEO_DIR`)
+hasta que la LRU los poda; para rehacer uno con la calidad nueva, `DELETE
+/video/{id}`.

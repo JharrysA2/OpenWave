@@ -74,10 +74,26 @@ _CAP = "height<=1080"
 
 # Escaleras de formatos. Todas terminan en un fallback sin filtro: si la sesión
 # no ofrece el mejor formato, la selección degrada en vez de fallar.
-_MP4 = {
-    "format": f"bv*[{_CAP}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
-    f"/b[{_CAP}][ext=mp4][vcodec^=avc1]/bv*[{_CAP}]+ba/b[{_CAP}]/bv*+ba/b",
+_CADENA_MP4 = (
+    f"bv*[{_CAP}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
+    f"/b[{_CAP}][ext=mp4][vcodec^=avc1]/bv*[{_CAP}]+ba/b[{_CAP}]/bv*+ba/b"
+)
+_MP4 = {"format": _CADENA_MP4, "merge_output_format": "mp4"}
+
+# Runtimes de JavaScript que resuelven los retos de firma de YouTube (sin uno,
+# los formatos con nsig no se pueden descifrar y solo queda el 360p del cliente
+# de Android). yt-dlp solo activa deno por defecto; se habilitan todos los que
+# soporta y usa el de más prioridad que exista (en Windows suele estar Node).
+_JS_RUNTIMES = {"deno": {}, "node": {}, "bun": {}, "quickjs": {}}
+
+# Cliente «embedded» de YouTube: es el único que sirve hasta 1080p sin PO token
+# (el resto pide un token o cae a 360p). Necesita un runtime de JS para los
+# retos de firma; si no hay ninguno, el intento no encuentra formatos y la
+# cadena sigue por los clientes de siempre.
+_MP4_EMBEDDED = {
+    "format": _CADENA_MP4,
     "merge_output_format": "mp4",
+    "extractor_args": {"youtube": {"player_client": ["web_embedded"]}},
 }
 _MP4_ANDROID = {
     "format": f"bv*[{_CAP}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
@@ -193,16 +209,18 @@ def prepare_video(video_id: str, usar_oficial: bool = True) -> None:
         # Cadena de intentos, de mejor calidad disponible a más compatible:
         #   1. `cookies.txt` del usuario, si existe: la vía más fiable; sin
         #      sesión válida YouTube recorta la resolución.
-        #   2. mp4 anónimo: máxima resolución que permita la sesión.
-        #   3. mp4 con el cliente "android" (el único que sirve el archivo
-        #      completo en sesiones restringidas; suele llegar a 1080p).
-        #   4. webm (vp9/opus, también jugable por el navegador).
-        #   5. Cookies del navegador, como último recurso.
+        #   2. cliente «embed» (embed/web): 1080p sin cookies (la causa de que
+        #      el resto de intentos anónimos bajen a 360p).
+        #   3. mp4 anónimo: la mejor resolución que permita la sesión.
+        #   4. mp4 con el cliente "android" (sirve el archivo casi siempre,
+        #      aunque sin PO token se quede en 360p).
+        #   5. webm (vp9/opus, también jugable por el navegador).
+        #   6. cookies del navegador, como último recurso.
         attempts: list[dict] = []
         file_auth = cookies_file_opt()
         if file_auth:
             attempts.append({**_MP4, **file_auth})
-        attempts += [_MP4, _MP4_ANDROID, _WEBM_ANDROID]
+        attempts += [_MP4_EMBEDDED, _MP4, _MP4_ANDROID, _WEBM_ANDROID]
         for auth in browser_cookie_opts():
             attempts.append({**_MP4, **auth})
             attempts.append({**_WEBM_ANDROID, **auth})
@@ -213,6 +231,9 @@ def prepare_video(video_id: str, usar_oficial: bool = True) -> None:
             "no_warnings": True,
             "socket_timeout": 30,
             "cachedir": str(YT_DLP_CACHE_DIR),
+            # Para resolver los retos de firma de YouTube (los formatos de más
+            # de 360p van firmados): sin runtime, yt-dlp solo ve los bajos.
+            "js_runtimes": _JS_RUNTIMES,
         }
         ffmpeg_dir = _search_ffmpeg_dir()
         if ffmpeg_dir:

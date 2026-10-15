@@ -43,6 +43,9 @@ urllib3==2.8.0
 
 # Música / YouTube
 yt-dlp==2026.7.4
+# Retos de firma de YouTube («n-sig»): sin esto yt-dlp solo ve los formatos
+# firmados débiles y el vídeo de fondo se queda en 360p.
+yt-dlp-ejs==0.8.0
 ytmusicapi==1.12.3
 
 # Utilidades

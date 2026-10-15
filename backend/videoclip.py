@@ -29,6 +29,13 @@ _ATV = "MUSIC_VIDEO_TYPE_ATV"  # «art track»: portada fija con el audio
 # Rechazo rotundo: el candidato no es el videoclip de esta canción.
 _RECHAZO = -100.0
 
+# Separación máxima (s) entre la canción y su videoclip. El vídeo de fondo
+# sigue el reloj del audio de la app; si las dos grabaciones duran cosas muy
+# distintas (el videoclip suele llevar intro, outro o una mezcla aparte), la
+# línea de tiempo no cuadra y se ve desfasado toda la canción. Alinearlas
+# exigiría comparar el audio, así que en ese caso se prefiere la portada.
+_MAX_DESAJUSTE = 5
+
 # Palabras que delatan una versión que NO es el videoclip oficial. Se buscan
 # como palabra completa sobre el título normalizado (con paréntesis incluidos:
 # «(Official Audio)» también descarta). Si la palabra está también en el título
@@ -175,7 +182,9 @@ def puntuar_candidato(
 
     Tiene que ser la misma canción (título), subirla el propio artista y no ser
     una portada fija ni una versión anunciada como no oficial (letra, cover,
-    directo, remix…). Cualquiera de esos casos devuelve ``_RECHAZO``. Entre los
+    directo, remix…). Cualquiera de esos casos devuelve ``_RECHAZO``, igual que
+    un vídeo que dure bastante más o menos que la canción: con dos líneas de
+    tiempo distintas el fondo iría desfasado respecto a lo que suena. Entre los
     candidatos válidos, el resto de la puntuación solo sirve para ordenarlos:
     un vídeo declarado como videoclip oficial (``OMV``) gana al resto.
     """
@@ -207,10 +216,10 @@ def puntuar_candidato(
 
     segundos = _segundos(candidato.get("duration"))
     if duracion and segundos:
-        if abs(duracion - segundos) <= 5:
-            puntos += 1.0
-        elif abs(duracion - segundos) > 25:
-            puntos -= 1.0
+        desajuste = abs(duracion - segundos)
+        if desajuste > _MAX_DESAJUSTE:
+            return _RECHAZO
+        puntos += 2.0 if desajuste <= 3 else 1.0
     return puntos
 
 

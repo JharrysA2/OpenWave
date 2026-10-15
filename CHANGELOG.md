@@ -6,26 +6,30 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-10-15
-
-### Added
-
-- **Vídeo de fondo en la pantalla de letras.** Un ajuste nuevo (⋮ →
-  Apariencia, y también en Ajustes → Apariencia → Letras) pone el **videoclip
-  oficial** de la canción detrás de la letra en lugar de la portada. Se busca y
-  se prepara solo al abrir las letras, con su progreso, y queda cacheado para la
-  próxima vez; el vídeo va mudo y sincronizado con el audio de siempre. Si la
-  canción no tiene videoclip oficial (los «art track» son la portada hecha
-  vídeo), se queda la portada y no se descarga nada.
 - **Cookies de YouTube opcionales.** Si dejas un `cookies.txt` (formato
   Netscape) en el directorio de datos, las descargas y el streaming lo usan
   para las sesiones restringidas antes de probar las cookies del navegador
   (Chrome, Firefox, Edge y Brave), que siguen siendo el respaldo.
 
+### Changed
+
+- **El vídeo de fondo se ve en alta definición (hasta 1080p).** Antes se quedaba
+  en 360p: YouTube firma los formatos buenos y, sin descifrar la firma, la única
+  variante que respondía era el 360p del cliente clásico. Ahora la descarga usa
+  el cliente «embed» (que no pide PO token) con el descifrado de retos de
+  yt-dlp, así que llega a 1080p; si el equipo no tiene un runtime de JavaScript
+  (Node, Deno, Bun o QuickJS), la cadena de intentos sigue degradando hasta el
+  vídeo de antes en vez de fallar.
+
 ### Fixed
 
 - **Icono del micrófono en la pantalla de letras.** Cuando la canción no tenía
   letra, el icono se renderizaba sin llamarlo y no aparecía nada.
+- **Vídeo de fondo desincronizado con la música.** El videoclip sigue el reloj
+  del audio, así que si duraba bastante más o menos que la canción (intro,
+  outro o mezcla aparte) la línea de tiempo no cuadraba y se veía desfasado.
+  Ahora un videoclip solo vale si dura ±5 s lo mismo que la canción; si no lo
+  cumple, se queda la portada.
 
 ## [1.0.1] - 2026-10-12
 

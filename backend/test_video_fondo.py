@@ -11,6 +11,7 @@ from db import db_set_videoclip_oficial
 from video_fondo import (
     _MP4,
     _MP4_ANDROID,
+    _MP4_EMBEDDED,
     _WEBM_ANDROID,
     _evict_if_needed,
     delete_video,
@@ -201,12 +202,47 @@ class TestPrepareVideo:
         try:
             prepare_video("cknav")
             assert video_progress["cknav"]["status"] == "done"
-            # 3 intentos anónimos + 1.º con cookies (chrome).
-            assert len(_FakeYdl.instances) == 4
+            # 4 intentos anónimos + el 1.º con cookies (chrome).
+            assert len(_FakeYdl.instances) == 5
             assert _FakeYdl.instances[-1].opts["cookiesfrombrowser"] == ("chrome",)
         finally:
             delete_video("cknav")
             video_progress.pop("cknav", None)
+            _FakeYdl.instances.clear()
+
+
+class TestCalidad:
+    """El vídeo de fondo se pide con lo necesario para llegar a 1080p."""
+
+    def test_primer_intento_anonimo_es_el_cliente_embed(self, monkeypatch):
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        try:
+            prepare_video("emb_id")
+            opts = _FakeYdl.instances[0].opts
+            assert opts["extractor_args"]["youtube"]["player_client"] == [
+                "web_embedded"
+            ]
+        finally:
+            delete_video("emb_id")
+            video_progress.pop("emb_id", None)
+            _FakeYdl.instances.clear()
+
+    def test_habilita_todos_los_runtimes_de_js(self, monkeypatch):
+        """Sin un runtime de JS, yt-dlp no puede descifrar los formatos altos."""
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        try:
+            prepare_video("js_id")
+            assert set(_FakeYdl.instances[0].opts["js_runtimes"]) == {
+                "deno",
+                "node",
+                "bun",
+                "quickjs",
+            }
+        finally:
+            delete_video("js_id")
+            video_progress.pop("js_id", None)
             _FakeYdl.instances.clear()
 
 
@@ -374,6 +410,7 @@ class TestTopeCalidad:
 
     def test_escaleras_capan_a_1080(self):
         assert "height<=1080" in _MP4["format"]
+        assert "height<=1080" in _MP4_EMBEDDED["format"]
         assert "height<=1080" in _MP4_ANDROID["format"]
         assert "height<=1080" in _WEBM_ANDROID["format"]
 

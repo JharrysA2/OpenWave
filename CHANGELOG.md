@@ -46,8 +46,15 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   («Buscar», «Guardar cambios», «Cancelar» y los de cerrar) usan el mismo
   material de los botones del player bar —cristal con gradiente, brillo
   interior y sombra— y ninguno lleva contorno. Las opciones antes solo tenían
-  una sombra suelta debajo que, sin material, se veía rara. La hoja y sus
-  modales mantienen su desenfoque.
+  una sombra suelta debajo que, sin material, se veía rara.
+- **El cristal de la hoja de configuración de letras, a la vista.** La hoja
+  (y los modales de sus opciones) llevaba una capa oscura bajo el degradado
+  que tapaba el desenfoque y un contorno de acento; ahora difumina igual que
+  el resto de hojas y se apoya solo en el material y la sombra.
+- **Sin sombras separadoras en las hojas de opciones.** La hoja de opciones
+  de una canción (y la de álbumes, artistas y listas) ya no dibuja la sombra
+  que separaba el nombre de las opciones; tampoco los modales de letras la
+  que separaba su cabecera del contenido. La jerarquía la da el material.
 - **Ajustes sin sombras raras y sin desenfoque.** La separación entre filas
   es ahora una línea de pelo solo entre filas contiguas (antes cada fila
   dejaba una banda oscura de sombra, incluso tras la última dentro de la

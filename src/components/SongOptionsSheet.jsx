@@ -353,8 +353,8 @@ export function SongOptionsSheet({
             alignItems: "center",
             gap: "14px",
             padding: "16px 20px 14px",
-            // Sin línea de contorno: la separación con el cuerpo es sombra.
-            boxShadow: SHADOWS.sepZone,
+            // Sin sombra separadora entre el nombre y las opciones: la
+            // jerarquía la da el propio material.
           }}
         >
           {/* Cover */}

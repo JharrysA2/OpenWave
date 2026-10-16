@@ -315,8 +315,9 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
           maxHeight: "calc(100vh - 80px)",
           borderRadius: "20px",
           ...GLASS.sheet,
-          border: `1px solid ${accentColor}44`,
-          boxShadow: `0 24px 80px rgba(0,0,0,.7), 0 0 0 1px ${accentColor}22, 0 0 60px ${accentColor}18`,
+          // Sin contorno: la jerarquía la dan el cristal (blur(40px)) y la
+          // sombra.
+          boxShadow: `0 24px 80px rgba(0,0,0,.7), 0 0 60px ${accentColor}18`,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -346,7 +347,8 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
             alignItems: "center",
             justifyContent: "space-between",
             padding: "18px 22px 14px",
-            boxShadow: SHADOWS.sepRow,
+            // Sin sombra separadora entre cabecera y contenido: la jerarquía
+            // la da el propio material.
             flexShrink: 0,
             position: "relative",
             zIndex: 1,
@@ -1072,15 +1074,12 @@ function LyricsSettingsModal({
         maxHeight: "calc(100vh - 100px)",
         borderRadius: "16px",
         ...GLASS.sheet,
-        // Sin scrim debajo (flota sobre las letras vivas): base oscura en el
-        // propio panel para que el karaoke no se transparente tras el
-        // blur(40px) del cristal de modal (presupuesto §7). Este modal NO
-        // monta useOverlayLayer: detrás siguen las letras animándose, y el
-        // fondo congelado mientras está abierto deja el pase ≈0 en reposo.
+        // Sin base opaca: el contraste lo da el propio cristal (blur(40px))
+        // sobre el karaoke, como en los modales — con la capa oscura encima
+        // el desenfoque no se veía. Sin contorno tampoco: la jerarquía la dan
+        // el material y la sombra (nada de aros, como en el player bar).
         background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-        backgroundColor: "rgba(12,12,18,.8)", // capa de contraste BAJO el cristal
-        border: `1px solid ${accentColor}44`,
-        boxShadow: `0 16px 48px rgba(0,0,0,.6), 0 0 0 1px ${accentColor}22, 0 0 40px ${accentColor}22`,
+        boxShadow: `0 16px 48px rgba(0,0,0,.6), 0 0 40px ${accentColor}22`,
         padding: "14px 16px",
         animation: "sw-fade-slide-up .2s cubic-bezier(.16,1,.3,1) both",
         overflow: "hidden",

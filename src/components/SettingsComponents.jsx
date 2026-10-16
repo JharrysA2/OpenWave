@@ -1,11 +1,16 @@
 import React, { useState } from "react";
 import { FONT } from "../constants";
-import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, SHADOWS } from "../utils/theme";
+import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS } from "../utils/theme";
 
 export function SettingRow({ icon, label, desc, right, onClick, border = true }) {
   const [hov, setHov] = useState(false);
   return (
     <div
+      // El corte entre filas es una línea de pelo ENTRE hermanas
+      // (.ow-set-row + .ow-set-row en dynamic-theme.css): la sombra
+      // separadora anterior dibujaba una banda oscura rara bajo cada fila
+      // (y una fantasma tras la última, dentro de la tarjeta).
+      className={border ? "ow-set-row" : undefined}
       onClick={onClick}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
@@ -16,9 +21,6 @@ export function SettingRow({ icon, label, desc, right, onClick, border = true })
         padding: "13px 18px",
         cursor: onClick ? "pointer" : "default",
         background: hov && onClick ? GLASS.btnHoverSoft.background : "transparent",
-        // Sin línea de contorno entre filas: la separación es una sombra
-        // suave (se apaga con el modo de rendimiento como cualquier otra).
-        boxShadow: border ? SHADOWS.sepRow : "none",
         transition: TRANSITIONS.fast,
       }}
     >

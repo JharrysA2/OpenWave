@@ -315,6 +315,12 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
           maxHeight: "calc(100vh - 80px)",
           borderRadius: "20px",
           ...GLASS.sheet,
+          // Pantalla sin desenfoque: el cristal de modal (blur(40px)) no se
+          // usa aquí; la legibilidad sobre el karaoke vivo la da esta base
+          // opaca (mismo molde que la hoja de configuración de letras).
+          backgroundColor: "rgba(12,12,18,.86)",
+          backdropFilter: "none",
+          WebkitBackdropFilter: "none",
           border: `1px solid ${accentColor}44`,
           boxShadow: `0 24px 80px rgba(0,0,0,.7), 0 0 0 1px ${accentColor}22, 0 0 60px ${accentColor}18`,
           display: "flex",
@@ -499,20 +505,35 @@ function SearchLyricsModal({
           padding: "12px",
           marginTop: "14px",
           borderRadius: "12px",
-          border: "none",
-          background: hasSources
-            ? `linear-gradient(135deg, ${accentColor}, color-mix(in srgb, ${accentColor} 80%, white))`
-            : "rgba(255,255,255,.1)",
-          // Degradado del acento → primer plano dinámico (nunca blanco fijo)
-          color: hasSources ? "var(--neon-fg)" : "rgba(255,255,255,.35)",
+          // Material del player bar con contorno de acento (como la cola):
+          // cristal + brillo interior, sin el halo glow que se veía raro.
+          border: `1px solid ${hasSources ? `${accentColor}33` : "rgba(255,255,255,.08)"}`,
+          background: hasSources ? GLASS.btn.background : "rgba(255,255,255,.04)",
+          color: hasSources ? safeAccentText(accentColor) : "rgba(255,255,255,.35)",
           fontWeight: "800",
           fontSize: "14px",
           fontFamily: FONT,
           cursor: hasSources ? "pointer" : "not-allowed",
           opacity: searchLoading || (!title && !artist) ? 0.5 : 1,
-          transition: "background .15s, opacity .15s, box-shadow .15s",
-          boxShadow: hasSources ? `0 0 16px ${accentColor}44` : "none",
+          transition: "background .15s, border-color .15s, opacity .15s",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,.08), 0 3px 10px rgba(0,0,0,.22)",
         }}
+        onMouseEnter={
+          hasSources
+            ? (e) => {
+                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                e.currentTarget.style.borderColor = `${accentColor}55`;
+              }
+            : undefined
+        }
+        onMouseLeave={
+          hasSources
+            ? (e) => {
+                e.currentTarget.style.background = GLASS.btn.background;
+                e.currentTarget.style.borderColor = `${accentColor}33`;
+              }
+            : undefined
+        }
       >
         {searchLoading ? "Buscando..." : !hasSources ? "Sin fuentes configuradas" : "Buscar"}
       </button>
@@ -884,22 +905,25 @@ function EditLyricsModal({ accentColor, lyrics, onEditLyrics, onClose }) {
             flex: 1,
             padding: "12px",
             borderRadius: "12px",
-            border: "none",
-            background: `linear-gradient(135deg, ${accentColor}, color-mix(in srgb, ${accentColor} 80%, white))`,
-            // Degradado del acento → primer plano dinámico (nunca blanco fijo)
-            color: "var(--neon-fg)",
+            // Material del player bar con contorno de acento (como la cola):
+            // sin halo glow ni degradado saturado.
+            border: `1px solid ${accentColor}33`,
+            background: GLASS.btn.background,
+            color: safeAccentText(accentColor),
             fontWeight: "800",
             fontSize: "14px",
             fontFamily: FONT,
             cursor: "pointer",
-            boxShadow: `0 0 16px ${accentColor}44`,
-            transition: "transform .15s",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,.08), 0 3px 10px rgba(0,0,0,.22)",
+            transition: "background .15s, border-color .15s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "scale(1.02)";
+            e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+            e.currentTarget.style.borderColor = `${accentColor}55`;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.background = GLASS.btn.background;
+            e.currentTarget.style.borderColor = `${accentColor}33`;
           }}
         >
           Guardar cambios
@@ -910,20 +934,23 @@ function EditLyricsModal({ accentColor, lyrics, onEditLyrics, onClose }) {
             flex: 1,
             padding: "12px",
             borderRadius: "12px",
-            border: `1px solid ${accentColor}33`,
-            background: "rgba(255,255,255,.06)",
+            border: "1px solid rgba(255,255,255,.1)",
+            background: GLASS.btn.background,
             color: "rgba(255,255,255,.6)",
             fontWeight: "600",
             fontSize: "14px",
             fontFamily: FONT,
             cursor: "pointer",
-            transition: "background .15s",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,.08), 0 3px 10px rgba(0,0,0,.22)",
+            transition: "background .15s, border-color .15s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(255,255,255,.1)";
+            e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+            e.currentTarget.style.borderColor = "rgba(255,255,255,.18)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(255,255,255,.06)";
+            e.currentTarget.style.background = GLASS.btn.background;
+            e.currentTarget.style.borderColor = "rgba(255,255,255,.1)";
           }}
         >
           Cancelar
@@ -966,12 +993,33 @@ function LyricsSettingsModal({
 
   const [expandedSection, setExpandedSection] = useState(null);
 
+  // Material de fila tipo cola (SortableQueueItem): relleno translúcido,
+  // borde sutil, brillo interior y sombra sujeta — sin la sombra suelta
+  // anterior (SHADOWS.sepRow), que se veía rara: una banda oscura bajo la
+  // fila sin nada que la definiera.
+  const rowCard = {
+    borderRadius: "12px",
+    background: "rgba(255,255,255,.04)",
+    border: "1px solid rgba(255,255,255,.08)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), 0 3px 10px rgba(0,0,0,.22)",
+    transition: "background .15s, border-color .15s",
+  };
+  const rowCardIn = (e) => {
+    e.currentTarget.style.background = `${accentColor}14`;
+    e.currentTarget.style.borderColor = `${accentColor}33`;
+  };
+  const rowCardOut = (e) => {
+    e.currentTarget.style.background = "rgba(255,255,255,.04)";
+    e.currentTarget.style.borderColor = "rgba(255,255,255,.08)";
+  };
+
   const rowStyle = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "10px 0",
-    boxShadow: SHADOWS.sepRow,
+    padding: "10px 12px",
+    marginBottom: "6px",
+    ...rowCard,
   };
 
   const labelStyle = { fontSize: "12px", fontWeight: "700", color: "rgba(255,255,255,.8)" };
@@ -1011,10 +1059,11 @@ function LyricsSettingsModal({
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "9px 0",
+    padding: "9px 12px",
+    marginBottom: "6px",
     cursor: "pointer",
     userSelect: "none",
-    boxShadow: SHADOWS.sepRow,
+    ...rowCard,
   };
 
   return (
@@ -1028,12 +1077,12 @@ function LyricsSettingsModal({
         maxHeight: "calc(100vh - 100px)",
         borderRadius: "16px",
         ...GLASS.sheet,
-        // Sin scrim debajo (flota sobre las letras vivas): base oscura en el
-        // propio panel para que el karaoke no se transparente tras el
-        // blur(40px) del cristal de modal (presupuesto §7). Este modal NO
-        // monta useOverlayLayer: detrás siguen las letras animándose — es
-        // justamente una superficie CON movimiento detrás, que es donde el
-        // blur tiene sentido.
+        // Pantalla sin desenfoque: la lectura sobre el karaoke vivo la da la
+        // base opaca de abajo, no el blur del cristal (§7). Este modal NO
+        // monta useOverlayLayer: detrás siguen las letras animándose, y el
+        // backdrop del cristal se re-ejecutaba en cada repintado.
+        backdropFilter: "none",
+        WebkitBackdropFilter: "none",
         background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
         backgroundColor: "rgba(12,12,18,.8)", // capa de contraste BAJO el cristal
         border: `1px solid ${accentColor}44`,
@@ -1097,7 +1146,12 @@ function LyricsSettingsModal({
         }}
       >
         {/* ── Buscar letras ────────────────────────────────────── */}
-        <div onClick={onOpenSearch} style={sectionBtnStyle}>
+        <div
+          onClick={onOpenSearch}
+          style={sectionBtnStyle}
+          onMouseEnter={rowCardIn}
+          onMouseLeave={rowCardOut}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ color: safeAccentText(accentColor), display: "flex" }}>{Ic.search}</span>
             <span style={labelStyle}>Buscar letras</span>
@@ -1106,7 +1160,12 @@ function LyricsSettingsModal({
         </div>
 
         {/* ── Fuente de letras ─────────────────────────────────── */}
-        <div onClick={onOpenSource} style={sectionBtnStyle}>
+        <div
+          onClick={onOpenSource}
+          style={sectionBtnStyle}
+          onMouseEnter={rowCardIn}
+          onMouseLeave={rowCardOut}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ color: safeAccentText(accentColor), display: "flex" }}>{Ic.music}</span>
             <span style={labelStyle}>Fuente de letras</span>
@@ -1115,7 +1174,12 @@ function LyricsSettingsModal({
         </div>
 
         {/* ── Editar letras ────────────────────────────────────── */}
-        <div onClick={onOpenEdit} style={sectionBtnStyle}>
+        <div
+          onClick={onOpenEdit}
+          style={sectionBtnStyle}
+          onMouseEnter={rowCardIn}
+          onMouseLeave={rowCardOut}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ color: safeAccentText(accentColor), display: "flex" }}>{Ic.edit}</span>
             <span style={labelStyle}>Editar letras</span>
@@ -1126,20 +1190,9 @@ function LyricsSettingsModal({
         {/* ── Recargar ─────────────────────────────────────────── */}
         <div
           onClick={onReload}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "9px 0",
-            cursor: "pointer",
-            boxShadow: SHADOWS.sepRow,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = "0.8";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = "1";
-          }}
+          style={{ ...sectionBtnStyle, justifyContent: "flex-start", gap: "8px" }}
+          onMouseEnter={rowCardIn}
+          onMouseLeave={rowCardOut}
         >
           <span style={{ color: safeAccentText(accentColor), display: "flex" }}>{Ic.reload}</span>
           <div>
@@ -1152,6 +1205,8 @@ function LyricsSettingsModal({
         <div
           onClick={() => setExpandedSection(expandedSection === "visual" ? null : "visual")}
           style={sectionBtnStyle}
+          onMouseEnter={rowCardIn}
+          onMouseLeave={rowCardOut}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ color: safeAccentText(accentColor), display: "flex" }}>{Ic.gear}</span>
@@ -2291,11 +2346,14 @@ export function LyricsView({
   const videoGlass = videoActivo;
 
   // ── Estilo glass compartido para botones superiores ──────────────────
+  // Sin contorno (igual que los botones del player bar): el material —
+  // gradiente, brillo interior y sombra — da la jerarquía; el aro de 1px
+  // sobraba sobre el vídeo y la portada.
   const btnGlass = {
     width: "44px",
     height: "44px",
     borderRadius: "50%",
-    border: `1px solid ${COLORS.borderActive}`,
+    border: "none",
     background: `linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.04) 100%)`,
     boxShadow: SHADOWS.closeBtn,
     color: COLORS.settingsIcon,
@@ -2305,8 +2363,7 @@ export function LyricsView({
     justifyContent: "center",
     transition:
       "background .2s cubic-bezier(.16,1,.3,1), color .2s cubic-bezier(.16,1,.3,1), " +
-      "transform .2s cubic-bezier(.16,1,.3,1), border-color .2s cubic-bezier(.16,1,.3,1), " +
-      "box-shadow .2s cubic-bezier(.16,1,.3,1)",
+      "transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
     // Sin vídeo de fondo NO lleva backdrop-filter: el botón flota sobre la
     // portada difuminada, que es estática — medición GPU, dentro del 1.80% de
     // blur que costaban los backdrop. Con el vídeo de fondo sí hay movimiento
@@ -2494,16 +2551,12 @@ export function LyricsView({
             e.currentTarget.style.background = `linear-gradient(135deg, ${accentColor}55 0%, ${accentColor}22 100%)`;
             e.currentTarget.style.color = COLORS.textPrimary;
             e.currentTarget.style.transform = "scale(1.1)";
-            e.currentTarget.style.borderColor = `${accentColor}bb`;
-            e.currentTarget.style.boxShadow = `0 0 16px ${accentColor}44, inset 0 1px 0 ${accentColor}33`;
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background =
               "linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.04) 100%)";
             e.currentTarget.style.color = COLORS.settingsIcon;
             e.currentTarget.style.transform = "scale(1)";
-            e.currentTarget.style.borderColor = COLORS.borderActive;
-            e.currentTarget.style.boxShadow = SHADOWS.closeBtn;
           }}
         >
           {Ic.dots}
@@ -2517,16 +2570,12 @@ export function LyricsView({
             e.currentTarget.style.background = `linear-gradient(135deg, ${accentColor}55 0%, ${accentColor}22 100%)`;
             e.currentTarget.style.color = COLORS.textPrimary;
             e.currentTarget.style.transform = "scale(1.1)";
-            e.currentTarget.style.borderColor = `${accentColor}bb`;
-            e.currentTarget.style.boxShadow = `0 0 16px ${accentColor}44, inset 0 1px 0 ${accentColor}33`;
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background =
               "linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.04) 100%)";
             e.currentTarget.style.color = COLORS.settingsIcon;
             e.currentTarget.style.transform = "scale(1)";
-            e.currentTarget.style.borderColor = COLORS.borderActive;
-            e.currentTarget.style.boxShadow = SHADOWS.closeBtn;
           }}
         >
           {Ic.close}

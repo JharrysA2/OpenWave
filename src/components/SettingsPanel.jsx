@@ -150,6 +150,9 @@ export default function SettingsPanel({
         display: "flex",
         flexDirection: "column",
         ...GLASS.settings,
+        // Pantalla sin desenfoque (GLASS.settings ya no difumina): la base
+        // opaca sostiene la lectura del panel mientras esté abierto.
+        backgroundColor: "rgba(10,10,18,.92)",
         fontFamily: FONT,
         animation: "fadeIn .12s ease both",
       }}
@@ -161,8 +164,9 @@ export default function SettingsPanel({
           display: "flex",
           alignItems: "center",
           gap: SPACING.gap.wide,
-          // Sin línea de contorno: la separación con el contenido es sombra.
-          boxShadow: SHADOWS.sepZone,
+          // Sin línea de contorno: la separación con el contenido es una
+          // sombra ajustada (la ancha de 32px manchaba el contenido).
+          boxShadow: "0 10px 24px -14px rgba(0,0,0,.55)",
           flexShrink: 0,
         }}
       >

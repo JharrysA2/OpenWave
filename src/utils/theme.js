@@ -742,20 +742,17 @@ export const GLASS = {
     WebkitBackdropFilter: "blur(6px)",
   },
 
-  /** Settings panel — Liquid Glass con el cristal de modal (40px) en la raíz.
-   *  Panel full-screen (inset 0) y Ajustes ES un modal: hereda el mismo
-   *  presupuesto que `sheet` (§7). Era la superficie más cara cuando el
-   *  detrás repintaba (filtro de pantalla entera re-ejecutado en cada frame
-   *  → >70 % con 6px); con `overlay-open` congelándolo el coste en reposo
-   *  baja a ~0 (glass_pre2 vs glass_post3, +0,00 pp en su fase). Si un A/B
-   *  condena esta superficie, se retira primero esta (hojas siguen).
+  /** Settings panel — Liquid Glass SIN backdrop-filter.
+   *  Ajustes es una pantalla sin desenfoque (decisión de producto): la
+   *  lectura la sostiene la base opaca del panel (`backgroundColor` en
+   *  SettingsPanel) y el congelado de `overlay-open` mantiene el detrás
+   *  parado mientras el panel está abierto. El cristal de modal (40px) aquí
+   *  solo costaba al abrir y no aportaba visiblemente sobre fondo parado.
    *  - sin `border`: dibujaría un marco de 1px en los 4 bordes del viewport.
    *    La jerarquía la dan el `borderBottom` del header y los divisores de
    *    `SettingRow`. */
   settings: {
     background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
-    backdropFilter: "blur(40px)",
-    WebkitBackdropFilter: "blur(40px)",
   },
 
   /** Window control buttons (minimize, maximize, close) — Liquid Glass */

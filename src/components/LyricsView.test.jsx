@@ -9,7 +9,7 @@ import { SW_SETTINGS_KEY } from "../constants";
 import { LyricsView } from "./LyricsView";
 import { parseLrc } from "../utils/lrc";
 import { setLyricsOverride, getLyricsOverride } from "../utils/lyricsOverrides";
-import { COLORS } from "../utils/theme";
+import { COLORS, safeAccentText } from "../utils/theme";
 import { expectOverlayGlassBudget, inlineBlurred } from "../test-utils";
 
 // JSDOM no implementa scrollIntoView; los synced lyrics lo necesitan
@@ -745,12 +745,22 @@ describe("LyricsView — contraste dinámico sobre acento", () => {
     fireEvent.click(screen.getByText(rowText));
   }
 
-  it("el botón Buscar usa --neon-fg, nunca blanco fijo sobre el degradado", () => {
+  // jsdom normaliza los hex a rgb() al exponer style.color
+  const rgbOf = (hex) => {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+  };
+
+  it("el botón Buscar usa el acento legible, nunca blanco fijo", () => {
     renderLyrics();
     openSettingsPanel("Buscar letras");
     const btn = screen.getByText("Buscar").closest("button");
     expect(btn).toBeTruthy();
-    expect(btn.style.color).toBe("var(--neon-fg)");
+    // Cristal del player bar (degradado .14→.04) con texto de acento
+    // legible: sin halo glow ni blanco fijo.
+    expect(btn.style.background).toContain("rgba(255,255,255,.14)");
+    expect(btn.style.color).toBe(rgbOf(safeAccentText(defaultProps.accentColor)));
+    expect(btn.style.color).not.toBe("white");
   });
 
   it("el check de fuente seleccionada usa --neon-fg sobre el acento", () => {
@@ -772,12 +782,14 @@ describe("LyricsView — contraste dinámico sobre acento", () => {
     expect(toggleBtn.firstElementChild.style.background).toBe("var(--neon-fg)");
   });
 
-  it("el botón Guardar cambios usa --neon-fg, nunca blanco fijo", () => {
+  it("el botón Guardar cambios usa el acento legible, nunca blanco fijo", () => {
     renderLyrics();
     openSettingsPanel("Editar letras");
     const btn = screen.getByText("Guardar cambios").closest("button");
     expect(btn).toBeTruthy();
-    expect(btn.style.color).toBe("var(--neon-fg)");
+    expect(btn.style.background).toContain("rgba(255,255,255,.14)");
+    expect(btn.style.color).toBe(rgbOf(safeAccentText(defaultProps.accentColor)));
+    expect(btn.style.color).not.toBe("white");
   });
 
   it("el knob del toggle Karaoke (sección Apariencia) usa --neon-fg", () => {
@@ -1082,11 +1094,12 @@ describe("LyricsView — letras elegidas persisten al salir de la pantalla", () 
 //  33 % al 76 % mientras estaba montado: scrim full-screen con blur(8px),
 //  cada resultado de búsqueda con su propia capa blur y las hojas a 10px
 //  con saturate, todo repintándose detrás (shimmer, pulse, progreso a 5 Hz).
-//  Bajarlo a 6px no bastó MIENTRAS ese detrás seguía vivo (>70 %). Con
-//  `overlay-open` + `useOverlayActive` congelándolo, la hoja difumina con el
-//  cristal de modal `blur(40px)`: solo en la superficie de cristal, sin
-//  saturate y sin capas por fila. Reglas completas en docs/PERFORMANCE.md §7
-//  y en expectOverlayGlassBudget.
+//  Bajarlo a 6px no bastó MIENTRAS ese detrás seguía vivo (>70 %). Ahora la
+//  hoja de configuración y sus modales son pantalla SIN desenfoque: la
+//  lectura la da la base opaca de cada superficie y el congelado de
+//  `overlay-open` mantiene el detrás parado. Ninguna capa difumina mientras
+//  están montadas. Reglas completas en docs/PERFORMANCE.md §7 y en
+//  expectOverlayGlassBudget.
 
 describe("LyricsView — presupuesto de glass en sus modales", () => {
   beforeEach(() => {
@@ -1095,20 +1108,20 @@ describe("LyricsView — presupuesto de glass en sus modales", () => {
     document.documentElement.classList.remove("overlay-open");
   });
 
-  it("«Buscar letras»: presupuesto de glass (cristal 40px en la hoja) y overlay-open", () => {
+  it("«Buscar letras»: hoja y modal sin blur (pantallas sin desenfoque) y overlay-open", () => {
     const view = renderLyrics();
 
     fireEvent.click(screen.getByTitle("Configuración de letras"));
     fireEvent.click(screen.getByText("Buscar letras"));
 
-    // Scrim y capa sin blur; difuminan solo las superficies de cristal
-    // (hoja de búsqueda + panel de configuración), con el cristal de modal
+    // Pantallas de letras sin desenfoque: la legibilidad la sostiene la
+    // base opaca de cada superficie (hoja de config + modal), no el
+    // backdrop — ninguna capa difumina con ellas montadas.
     expectOverlayGlassBudget();
-    const blurs = inlineBlurred().map((el) => el.style.backdropFilter);
-    expect(blurs.length).toBeGreaterThan(0);
-    for (const b of blurs) expect(b).toBe("blur(40px)"); // presupuesto: cristal de modal
+    expect(inlineBlurred()).toHaveLength(0);
     expect(document.body.innerHTML).not.toContain("blur(8px)"); // ni el del scrim
     expect(document.body.innerHTML).not.toContain("blur(10px)");
+    expect(document.body.innerHTML).not.toContain("blur(40px)");
 
     // Con el modal montado se pausan las animaciones infinitas de detrás
     expect(document.documentElement.classList.contains("overlay-open")).toBe(true);

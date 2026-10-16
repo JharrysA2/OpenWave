@@ -183,3 +183,12 @@ select,
 textarea {
   font-family: inherit;
 }
+
+/* ── Divisores de filas en Ajustes ──────────────────────────────────
+   Las filas (SettingRow) se separan con una línea de pelo SOLO entre
+   hermanas: la sombra separadora anterior (SHADOWS.sepRow) dibujaba una
+   banda oscura rara bajo cada fila, incluso tras la última dentro de la
+   tarjeta. border=false omite la clase y no participa. */
+.ow-set-row + .ow-set-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}

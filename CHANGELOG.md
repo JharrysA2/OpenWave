@@ -37,9 +37,24 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   que quedaba justo debajo de la marca, la flecha de retraer y el botón de
   ajustes ya no se dibuja; la jerarquía la da el degradado del fondo.
 - **Adiós a las líneas de contorno finas.** La titlebar, la barra lateral, las
-  cabeceras de ajustes y de modales, las filas de listas (álbumes, ajustes) y
+  cabeceras de ajustes y de modales, las filas de listas de álbumes y
   el editor de letras ya no dibujan hairlines de 1px: la separación es una
   sombra suave, como se pidió para la pantalla de letras.
+- **Botones y filas con el estilo de la cola en Letras.** Los botones ⋯ y ✕
+  de la pantalla de letras ya no llevan aro: usan el mismo material del
+  player bar (gradiente, brillo interior y sombra). Las opciones de la
+  configuración de letras y las filas de su sección «Apariencia» ahora son
+  filas con contorno —relleno translúcido, borde sutil, brillo interior,
+  sombra sujeta y hover de acento— como en la cola, en vez de una sombra
+  suelta debajo que se veía rara sin nada que la definiera. Los botones de
+  acción de sus modales («Buscar», «Guardar cambios» y «Cancelar») siguen el
+  mismo cristal con borde de acento, sin el halo luminoso del degradado.
+- **Ajustes sin sombras raras y sin desenfoque.** La separación entre filas
+  es ahora una línea de pelo solo entre filas contiguas (antes cada fila
+  dejaba una banda oscura de sombra, incluso tras la última dentro de la
+  tarjeta) y la cabecera usa una sombra ajustada en vez de la ancha. La
+  pantalla va sin backdrop-filter, igual que la configuración de letras y
+  sus modales: la lectura la da la base opaca (esas pantallas, sin blur).
 
 ### Removed
 

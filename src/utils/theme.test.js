@@ -90,20 +90,20 @@ describe("theme — materiales translúcidos", () => {
     expect(GLASS.card.backdropFilter).toBeUndefined();
   });
 
-  it("los modales difuminan con su cristal (blur(40px)); popup transitorio en 6px", () => {
+  it("las hojas difuminan con su cristal (blur(40px)); Ajustes sin blur; popup en 6px", () => {
     // Presupuesto de overlays (docs/PERFORMANCE.md §7): la superficie de
-    // cristal de los MODALES (sheet =12 hojas, settings = panel de Ajustes)
-    // difumina con `blur(40px)` — el desenfoque visible que el diseño pide
-    // y que el congelado de `overlay-open` mantiene ≈0 en reposo. Sin
-    // saturate (pasada extra de color). El popup (toast/volumen/crossfade),
-    // que no es modal y es transitorio, se queda en el mínimo `blur(6px)`.
-    for (const key of ["sheet", "settings"]) {
-      expect(`${key}: ${GLASS[key].backdropFilter ?? "undefined"}`).toBe(`${key}: blur(40px)`);
-      expect(`${key} webkit: ${GLASS[key].WebkitBackdropFilter ?? "undefined"}`).toBe(
-        `${key} webkit: blur(40px)`,
-      );
-      expect(GLASS[key].backdropFilter).not.toContain("saturate");
-    }
+    // cristal de las HOJAS (12 hojas de opciones) difumina con `blur(40px)`
+    // — el desenfoque visible que el diseño pide y que el congelado de
+    // `overlay-open` mantiene ≈0 en reposo. Sin saturate (pasada extra de
+    // color). Ajustes es pantalla sin desenfoque: la base opaca del panel
+    // sostiene la lectura (decisión de producto para esa pantalla). El
+    // popup (toast/volumen/crossfade), que no es modal y es transitorio,
+    // se queda en el mínimo `blur(6px)`.
+    expect(GLASS.sheet.backdropFilter).toBe("blur(40px)");
+    expect(GLASS.sheet.WebkitBackdropFilter).toBe("blur(40px)");
+    expect(GLASS.sheet.backdropFilter).not.toContain("saturate");
+    expect(GLASS.settings.backdropFilter).toBeUndefined();
+    expect(GLASS.settings.WebkitBackdropFilter).toBeUndefined();
     expect(`${GLASS.popup.backdropFilter ?? "undefined"}`).toBe("blur(6px)");
     expect(`${GLASS.popup.WebkitBackdropFilter ?? "undefined"}`).toBe("blur(6px)");
     expect(GLASS.popup.backdropFilter).not.toContain("saturate");

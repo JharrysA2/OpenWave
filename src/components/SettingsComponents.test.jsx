@@ -54,16 +54,19 @@ describe("SettingRow", () => {
     expect(row).toHaveStyle("cursor: default");
   });
 
-  it("should show separation shadow by default", () => {
+  it("should show separation line by default", () => {
     render(<SettingRow label="With border" />);
     const row = screen.getByText("With border").parentElement.parentElement;
-    expect(row.style.boxShadow).toBe("0 6px 14px -8px rgba(0,0,0,.65)");
+    // El divisor entre filas es la línea de pelo de .ow-set-row (CSS), no
+    // una sombra inline (la separadora anterior se veía como banda rara).
+    expect(row.className).toContain("ow-set-row");
+    expect(row.style.boxShadow).toBe("");
   });
 
-  it("should hide separation shadow when border=false", () => {
+  it("should hide separation line when border=false", () => {
     render(<SettingRow label="No border" border={false} />);
     const row = screen.getByText("No border").parentElement.parentElement;
-    expect(row.style.boxShadow).toBe("none");
+    expect(row.className).not.toContain("ow-set-row");
   });
 });
 

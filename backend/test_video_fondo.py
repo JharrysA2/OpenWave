@@ -514,18 +514,90 @@ class TestTopeCalidad:
         monkeypatch.setattr("video_fondo.subprocess.run", _boom)
         p = VIDEO_DIR / "cal_cache.mp4"
         p.write_bytes(b"x")
-        (VIDEO_DIR / "cal_cache.calidad").write_text("2160", encoding="utf-8")
+        (VIDEO_DIR / "cal_cache.calidad").write_text("medida=2160", encoding="utf-8")
         try:
             assert calidad_suficiente("cal_cache", 2160) is True
         finally:
             p.unlink(missing_ok=True)
             (VIDEO_DIR / "cal_cache.calidad").unlink(missing_ok=True)
 
+    def test_calidad_suficiente_sidecar_viejo_vuelve_a_medirse(self, monkeypatch):
+        """Un sidecar del criterio viejo (tope pedido) no se da por bueno.
+
+        Los MSI anteriores anotaban «1080» a secas aunque el fichero fuera
+        720p: sin el prefijo ``medida=`` el valor se ignora, se mide el real
+        y ese es el que queda, con lo que el clip recortado se corrige.
+        """
+        p = VIDEO_DIR / "cal_viejo_fmt.mp4"
+        p.write_bytes(b"x")
+        (VIDEO_DIR / "cal_viejo_fmt.calidad").write_text("1080", encoding="utf-8")
+        try:
+            _aplicar_ffprobe(monkeypatch, 720)
+            # El fichero es 720p: el «1080» pedido no debe taparlo.
+            assert calidad_suficiente("cal_viejo_fmt", 1080) is False
+            # Y ya queda anotada la medida real, en el formato nuevo.
+            assert calidad_guardada("cal_viejo_fmt") == 720
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "cal_viejo_fmt.calidad").unlink(missing_ok=True)
+
+    def test_promesa_de_tope_sin_medicion_no_repite_la_descarga(self, monkeypatch):
+        """Sin medición posible, el tope pedido evita el bucle de descargas.
+
+        En pantalla 4K y sin ffmpeg, comparar contra el 1080p de aquí haría que
+        cada consulta borrara y volviera a bajar el vídeo: mientras no haya
+        forma de medir, manda la promesa del tope pedido («pedida=2160»).
+        """
+        p = VIDEO_DIR / "cal_prom.mp4"
+        p.write_bytes(b"x")
+        (VIDEO_DIR / "cal_prom.calidad").write_text("pedida=2160", encoding="utf-8")
+        try:
+            _aplicar_ffprobe(monkeypatch, None)  # no hay forma de medir
+            assert calidad_suficiente("cal_prom", 2160) is True
+            # Y también vale para una pantalla que pide menos.
+            assert calidad_suficiente("cal_prom", 720) is True
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "cal_prom.calidad").unlink(missing_ok=True)
+
+    def test_promesa_de_1080_no_satisface_a_pantalla_4k(self, monkeypatch):
+        """Una promesa de 1080p no tapa a una pantalla 4K: toca subirla."""
+        p = VIDEO_DIR / "cal_prom_baja.mp4"
+        p.write_bytes(b"x")
+        (VIDEO_DIR / "cal_prom_baja.calidad").write_text(
+            "pedida=1080", encoding="utf-8"
+        )
+        try:
+            _aplicar_ffprobe(monkeypatch, None)
+            assert calidad_suficiente("cal_prom_baja", 2160) is False
+            # Para la pantalla que la pidió, en cambio, no repite la descarga.
+            assert calidad_suficiente("cal_prom_baja", 1080) is True
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "cal_prom_baja.calidad").unlink(missing_ok=True)
+
+    def test_promesa_se_corrige_cuando_vuelve_la_medicion(self, monkeypatch):
+        """La promesa no tapa un recorte: en cuanto se mide, manda lo real."""
+        p = VIDEO_DIR / "cal_prom_corr.mp4"
+        p.write_bytes(b"x")
+        (VIDEO_DIR / "cal_prom_corr.calidad").write_text(
+            "pedida=1080", encoding="utf-8"
+        )
+        try:
+            _aplicar_ffprobe(monkeypatch, 720)
+            # El fichero es 720p: la promesa de 1080p no debe darlo por bueno.
+            assert calidad_suficiente("cal_prom_corr", 1080) is False
+            # Y ya queda escrita la medida, que es la que manda a partir de ahí.
+            assert calidad_guardada("cal_prom_corr") == 720
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "cal_prom_corr.calidad").unlink(missing_ok=True)
+
     def test_calidad_suficiente_respeta_la_real_anotada(self, monkeypatch):
         """Con la resolución real anotada no se vuelve a descargar."""
         p = VIDEO_DIR / "cal_4k.mp4"
         p.write_bytes(b"x")
-        (VIDEO_DIR / "cal_4k.calidad").write_text("2160", encoding="utf-8")
+        (VIDEO_DIR / "cal_4k.calidad").write_text("medida=2160", encoding="utf-8")
         try:
             _aplicar_ffprobe(monkeypatch, 2160)
             assert calidad_guardada("cal_4k") == 2160
@@ -539,7 +611,7 @@ class TestTopeCalidad:
         p = VIDEO_DIR / "up_vid.mp4"
         p.write_bytes(b"viejo")
         # Descargado antes para una pantalla 1080p: el sidecar lo atestigua.
-        (VIDEO_DIR / "up_vid.calidad").write_text("1080", encoding="utf-8")
+        (VIDEO_DIR / "up_vid.calidad").write_text("medida=1080", encoding="utf-8")
         monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
         monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
         try:
@@ -579,12 +651,36 @@ class TestTopeCalidad:
             video_progress.pop("up_recorte", None)
             _FakeYdl.instances.clear()
 
+    def test_prepare_sin_medicion_anota_el_tope_como_promesa(self, monkeypatch):
+        """Si no se puede medir la descarga, el tope pedido queda como promesa.
+
+        No debe escribirse como medida: es lo que se pidió, no lo que hay en el
+        fichero, y si un día vuelve a poder medirse, lo real tiene que mandar.
+        """
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        try:
+            _aplicar_ffprobe(monkeypatch, None)  # no hay forma de medir
+            prepare_video("up_prom", max_alto=1080)
+            assert video_progress["up_prom"]["status"] == "done"
+            # No es una medida: calidad_guardada no la da por buena...
+            assert calidad_guardada("up_prom") is None
+            assert (VIDEO_DIR / "up_prom.calidad").read_text(
+                encoding="utf-8"
+            ) == "pedida=1080"
+            # ...y con la pantalla que la pidió no se repite la descarga.
+            assert calidad_suficiente("up_prom", 1080) is True
+        finally:
+            delete_video("up_prom")
+            video_progress.pop("up_prom", None)
+            _FakeYdl.instances.clear()
+
     def test_prepare_no_redescarga_si_la_resolucion_ya_alcanza(self, monkeypatch):
         """Con la resolución suficiente ya anotada, la siguiente apertura no
         vuelve a descargar."""
         p = VIDEO_DIR / "up_fijo.mp4"
         p.write_bytes(b"4k")
-        (VIDEO_DIR / "up_fijo.calidad").write_text("2160", encoding="utf-8")
+        (VIDEO_DIR / "up_fijo.calidad").write_text("medida=2160", encoding="utf-8")
 
         class _Boom:
             def __init__(self, opts):

@@ -167,17 +167,56 @@ def _calidad_path(video_id: str) -> Path:
     return VIDEO_DIR / f"{video_id}.calidad"
 
 
-def calidad_guardada(video_id: str) -> int | None:
-    """Altura real (píxeles) medida en la última comprobación, o ``None``."""
+# El sidecar anota un entero con prefijo que dice de qué habla:
+#   «medida=720»  lo que medía el fichero de verdad (altura real en píxeles);
+#   «pedida=1080» el tope que se pidió a YouTube, cuando no hubo forma de
+#                 medir la descarga (sin ffmpeg o fichero ilegible).
+# Los MSI anteriores escribían solo el número («1080»), que era el tope pedido
+# pero no lo decía: sin prefijo se ignoran y se vuelve a medir, para no dar por
+# bueno un valor que puede mentir.
+_PREFIJO_MEDIDA = "medida="
+_PREFIJO_PROMESA = "pedida="
+
+
+def _leer_prefijo(video_id: str, prefijo: str) -> int | None:
+    """Entero que trae el sidecar tras el prefijo dado, o ``None``."""
     try:
-        return int(_calidad_path(video_id).read_text(encoding="utf-8").strip())
-    except (OSError, ValueError):
+        texto = _calidad_path(video_id).read_text(encoding="utf-8").strip()
+    except OSError:
         return None
+    if not texto.startswith(prefijo):
+        return None
+    try:
+        return int(texto[len(prefijo) :])
+    except ValueError:
+        return None
+
+
+def calidad_guardada(video_id: str) -> int | None:
+    """Altura real (píxeles) medida en la última comprobación, o ``None``.
+
+    ``None`` también para sidecars sin ``medida=``, que traen una promesa o el
+    criterio viejo: son el tope pedido, no lo conseguido, así que se vuelven a
+    medir una vez.
+    """
+    return _leer_prefijo(video_id, _PREFIJO_MEDIDA)
+
+
+def _calidad_prometida(video_id: str) -> int | None:
+    """Tope pedido en la última descarga que no se pudo medir, o ``None``."""
+    return _leer_prefijo(video_id, _PREFIJO_PROMESA)
 
 
 def _guardar_calidad(video_id: str, alto: int) -> None:
     with suppress(OSError):
-        _calidad_path(video_id).write_text(str(alto), encoding="utf-8")
+        _calidad_path(video_id).write_text(f"{_PREFIJO_MEDIDA}{alto}", encoding="utf-8")
+
+
+def _guardar_prometida(video_id: str, alto: int) -> None:
+    with suppress(OSError):
+        _calidad_path(video_id).write_text(
+            f"{_PREFIJO_PROMESA}{alto}", encoding="utf-8"
+        )
 
 
 def _altura_real(video_id: str) -> int | None:
@@ -229,14 +268,19 @@ def calidad_suficiente(video_id: str, max_alto: int | None = None) -> bool:
         return False
     guardada = calidad_guardada(video_id)
     if guardada is None:
-        # Fichero de antes del ajuste: se mide y se anota la altura real.
+        # Sin medida anotada (fichero de antes, promesa o sidecar del criterio
+        # viejo): se mide la altura real y esa queda guardada.
         real = _altura_real(video_id)
         if real is not None:
             _guardar_calidad(video_id, real)
             guardada = real
         else:
-            # Sin ffmpeg (o fichero ilegible): el criterio viejo, a ciegas.
-            guardada = _ALTO_DEFECTO
+            # Sin medición posible (sin ffmpeg o fichero ilegible): si la
+            # última descarga dejó su tope pedido, se compara con él para no
+            # repetir el bucle de descargas en pantalla 4K; sin promesa, el
+            # criterio viejo a ciegas.
+            prometida = _calidad_prometida(video_id)
+            guardada = prometida if prometida is not None else _ALTO_DEFECTO
     return guardada >= _cap_alto(max_alto)
 
 
@@ -435,7 +479,14 @@ def prepare_video(
             _descargar(video_id, fuente_id, max_alto)
             # Se anota la resolución REAL conseguida, no el tope pedido: YouTube
             # recorta con la sesión y anotar lo pedido congelaría un vídeo bajo.
-            _guardar_calidad(video_id, _altura_real(video_id) or _cap_alto(max_alto))
+            real = _altura_real(video_id)
+            if real is not None:
+                _guardar_calidad(video_id, real)
+            else:
+                # Sin medición posible: el tope pedido queda como promesa
+                # («pedida=»), que no se confunde con una medida y se corrige
+                # en cuanto vuelva a poder medirse.
+                _guardar_prometida(video_id, _cap_alto(max_alto))
             _evict_if_needed()
 
         desfase = _resolver_desfase(video_id, fuente_id, usar_oficial)

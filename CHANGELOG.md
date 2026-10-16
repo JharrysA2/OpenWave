@@ -18,6 +18,13 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   recortado se corrige solo en la siguiente apertura. El sidecar sigue siendo
   caché: si ya existe no se vuelve a medir, para no pagar una llamada a ffmpeg
   en cada apertura de la pantalla de letras.
+- **Los sidecars escritos por las builds anteriores ya no se dan por buenos.**
+  Ahora el sidecar dice de qué habla: `medida=<alto>` es lo medido en el
+  fichero y `pedida=<alto>` el tope pedido cuando no hubo forma de medir la
+  descarga. Un valor sin prefijo (lo que escribían las builds anteriores) se
+  ignora y se vuelve a medir una sola vez, con lo que un clip mal anotado se
+  corrige. La promesa no tapa lo que llegue a medirse, y además evita que en
+  una pantalla 4K sin ffmpeg se repita la descarga en cada consulta.
 
 ## [1.1.1] - 2026-10-15
 

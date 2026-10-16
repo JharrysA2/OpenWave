@@ -2,6 +2,7 @@
 
 from cache import video_progress
 from config import VIDEO_DIR
+from video_fondo import calidad_guardada
 
 
 class TestVideoStatus:
@@ -98,9 +99,7 @@ class TestVideoStatus:
             resp = client.get("/video/status/status_rec?max_alto=1080")
             assert resp.json()["prepared"] is False
             # Y la medida real quedó anotada, para no volver a sondear.
-            assert (VIDEO_DIR / "status_rec.calidad").read_text(
-                encoding="utf-8"
-            ) == "720"
+            assert calidad_guardada("status_rec") == 720
         finally:
             p.unlink(missing_ok=True)
             (VIDEO_DIR / "status_rec.calidad").unlink(missing_ok=True)

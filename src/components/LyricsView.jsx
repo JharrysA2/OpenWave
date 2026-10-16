@@ -315,9 +315,11 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
           maxHeight: "calc(100vh - 80px)",
           borderRadius: "20px",
           ...GLASS.sheet,
-          // Sin contorno: la jerarquía la dan el cristal (blur(40px)) y la
-          // sombra.
-          boxShadow: `0 24px 80px rgba(0,0,0,.7), 0 0 60px ${accentColor}18`,
+          // Sin contorno (el cristal de hoja trae un borde blanco de 1px): la
+          // jerarquía la dan el cristal (blur(40px)) y la sombra, con el mismo
+          // brillo interior que el material del player bar.
+          border: "none",
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,.12), 0 24px 80px rgba(0,0,0,.7), 0 0 60px ${accentColor}18`,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -1063,6 +1065,23 @@ function LyricsSettingsModal({
     ...rowCard,
   };
 
+  // Chips de las opciones (tamaño, alineación): el mismo material que el
+  // resto de botones —sin contorno— y el estado activo por relleno del acento
+  // (texto con el fg derivado, nunca blanco fijo).
+  const chipStyle = (on) => ({
+    padding: "4px 9px",
+    borderRadius: "6px",
+    border: "none",
+    background: on ? accentColor : BAR_BTN_GLASS.background,
+    color: on ? "var(--neon-fg)" : "rgba(255,255,255,.5)",
+    fontWeight: on ? "800" : "600",
+    fontSize: "10px",
+    cursor: "pointer",
+    fontFamily: FONT,
+    boxShadow: BAR_BTN_GLASS.boxShadow,
+    transition: "background .15s, color .15s",
+  });
+
   return (
     <div
       style={{
@@ -1076,10 +1095,12 @@ function LyricsSettingsModal({
         ...GLASS.sheet,
         // Sin base opaca: el contraste lo da el propio cristal (blur(40px))
         // sobre el karaoke, como en los modales — con la capa oscura encima
-        // el desenfoque no se veía. Sin contorno tampoco: la jerarquía la dan
-        // el material y la sombra (nada de aros, como en el player bar).
+        // el desenfoque no se veía. Sin contorno tampoco (el cristal de hoja
+        // trae un borde blanco de 1px): la jerarquía la dan el material y la
+        // sombra (nada de aros, como en el player bar).
         background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-        boxShadow: `0 16px 48px rgba(0,0,0,.6), 0 0 40px ${accentColor}22`,
+        border: "none",
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,.12), 0 16px 48px rgba(0,0,0,.6), 0 0 40px ${accentColor}22`,
         padding: "14px 16px",
         animation: "sw-fade-slide-up .2s cubic-bezier(.16,1,.3,1) both",
         overflow: "hidden",
@@ -1266,20 +1287,7 @@ function LyricsSettingsModal({
                   <button
                     key={opt.key}
                     onClick={() => updateSetting("lyricsFontSize", opt.key)}
-                    style={{
-                      padding: "4px 9px",
-                      borderRadius: "6px",
-                      border: `1px solid ${settings.lyricsFontSize === opt.key ? accentColor : `${accentColor}22`}`,
-                      background:
-                        settings.lyricsFontSize === opt.key ? `${accentColor}25` : "transparent",
-                      color:
-                        settings.lyricsFontSize === opt.key ? accentColor : "rgba(255,255,255,.5)",
-                      fontWeight: settings.lyricsFontSize === opt.key ? "800" : "600",
-                      fontSize: "10px",
-                      cursor: "pointer",
-                      fontFamily: FONT,
-                      transition: "background .15s, color .15s",
-                    }}
+                    style={chipStyle(settings.lyricsFontSize === opt.key)}
                   >
                     {opt.label}
                   </button>
@@ -1293,20 +1301,7 @@ function LyricsSettingsModal({
                   <button
                     key={opt.key}
                     onClick={() => updateSetting("lyricsTextPos", opt.key)}
-                    style={{
-                      padding: "4px 9px",
-                      borderRadius: "6px",
-                      border: `1px solid ${settings.lyricsTextPos === opt.key ? accentColor : `${accentColor}22`}`,
-                      background:
-                        settings.lyricsTextPos === opt.key ? `${accentColor}25` : "transparent",
-                      color:
-                        settings.lyricsTextPos === opt.key ? accentColor : "rgba(255,255,255,.5)",
-                      fontWeight: settings.lyricsTextPos === opt.key ? "800" : "600",
-                      fontSize: "10px",
-                      cursor: "pointer",
-                      fontFamily: FONT,
-                      transition: "background .15s, color .15s",
-                    }}
+                    style={chipStyle(settings.lyricsTextPos === opt.key)}
                   >
                     {opt.label}
                   </button>

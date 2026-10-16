@@ -1,6 +1,6 @@
 import React from "react";
 import { FONT } from "../constants";
-import { COLORS, RADIUS, GLASS, TRANSITIONS } from "../utils/theme";
+import { COLORS, GLASS, SHADOWS, TRANSITIONS, RADIUS } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { useEscClose } from "../hooks/useEscape";
 
@@ -51,7 +51,8 @@ export function TransferModal({ open, onClose, title, emptyMessage, playlists = 
             alignItems: "center",
             justifyContent: "space-between",
             padding: "18px 20px 14px",
-            borderBottom: `1px solid ${COLORS.borderSubtle}`,
+            // Sin línea de contorno: la separación con el cuerpo es sombra.
+            boxShadow: SHADOWS.sepZone,
           }}
         >
           <span

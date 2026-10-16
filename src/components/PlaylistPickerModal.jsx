@@ -1,6 +1,6 @@
 import React from "react";
 import { FONT } from "../constants";
-import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS } from "../utils/theme";
+import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, SHADOWS } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { useEscClose } from "../hooks/useEscape";
 import { api } from "../utils/api";
@@ -88,7 +88,8 @@ export function PlaylistPickerModal({
             alignItems: "center",
             justifyContent: "space-between",
             padding: "18px 20px 12px",
-            borderBottom: `1px solid ${COLORS.borderSubtle}`,
+            // Sin línea de contorno: la separación con el cuerpo es sombra.
+            boxShadow: SHADOWS.sepZone,
           }}
         >
           <span

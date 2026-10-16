@@ -2,7 +2,7 @@ import React from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
-import { COLORS, RADIUS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
+import { COLORS, RADIUS, TRANSITIONS, GLASS, SHADOWS, withAlpha } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { useEscClose } from "../hooks/useEscape";
 
@@ -250,7 +250,8 @@ export function EntityOptionsSheet({
             alignItems: "center",
             gap: "14px",
             padding: "16px 20px 14px",
-            borderBottom: `1px solid ${COLORS.borderSubtle}`,
+            // Sin línea de contorno: la separación con el cuerpo es sombra.
+            boxShadow: SHADOWS.sepZone,
           }}
         >
           <div

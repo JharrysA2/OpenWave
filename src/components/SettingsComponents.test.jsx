@@ -54,16 +54,16 @@ describe("SettingRow", () => {
     expect(row).toHaveStyle("cursor: default");
   });
 
-  it("should show border by default", () => {
+  it("should show separation shadow by default", () => {
     render(<SettingRow label="With border" />);
     const row = screen.getByText("With border").parentElement.parentElement;
-    expect(row).toHaveStyle("border-bottom: 1px solid rgba(255,255,255,.05)");
+    expect(row.style.boxShadow).toBe("0 6px 14px -8px rgba(0,0,0,.65)");
   });
 
-  it("should hide border when border=false", () => {
+  it("should hide separation shadow when border=false", () => {
     render(<SettingRow label="No border" border={false} />);
     const row = screen.getByText("No border").parentElement.parentElement;
-    expect(row).toHaveStyle("border-bottom: none");
+    expect(row.style.boxShadow).toBe("none");
   });
 });
 

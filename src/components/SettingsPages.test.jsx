@@ -19,9 +19,11 @@ vi.mock("@tauri-apps/plugin-fs", () => ({ readTextFile: vi.fn() }));
 vi.mock("../utils/api", () => ({
   api: {
     // Como en los tests previos (sin mock): el backend no está → loadStats
-    // de PageAlmacenamiento cae a stats=undefined ("No disponible").
+    // de PageAlmacenamiento cae a stats=undefined ("No disponible") y
+    // loadVideos cae a la lista vacía.
     get: vi.fn(() => Promise.reject(new Error("backend no disponible"))),
     post: vi.fn(() => Promise.resolve({})),
+    del: vi.fn(() => Promise.resolve({ ok: true })),
     fetchPlaylistSongs: vi.fn(() => Promise.resolve([])),
     importHistory: vi.fn(() => Promise.resolve({ ok: true, imported: 0 })),
     importPlaylists: vi.fn(() => Promise.resolve({ ok: true, restored: 0 })),
@@ -159,6 +161,60 @@ describe("PageAlmacenamiento", () => {
   it("should show streaming cache row", () => {
     renderWithSettings(<PageAlmacenamiento downloads={[]} onClearDownloads={() => {}} />);
     expect(screen.getByText("Caché del reproductor")).toBeInTheDocument();
+  });
+
+  it("muestra la sección de vídeos de fondo y avisa si está vacía", async () => {
+    renderWithSettings(<PageAlmacenamiento downloads={[]} onClearDownloads={() => {}} />);
+    expect(screen.getByText("Vídeos de fondo")).toBeInTheDocument();
+    // Backend caído → lista vacía: sin opción de borrar, con aviso.
+    expect(await screen.findByText("No hay vídeos de fondo guardados")).toBeInTheDocument();
+    expect(screen.queryByText("Eliminar todos los vídeos de fondo?")).not.toBeInTheDocument();
+  });
+
+  it("lista los vídeos con tamaño y permite borrarlos uno a uno", async () => {
+    api.get
+      .mockImplementationOnce(() => Promise.reject(new Error("stats caído")))
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          videos: [
+            {
+              videoId: "vid111",
+              title: "Canción X",
+              artist: "Grupo Y",
+              size: 2_097_152,
+              quality: 1080,
+            },
+          ],
+        }),
+      );
+    renderWithSettings(<PageAlmacenamiento downloads={[]} onClearDownloads={() => {}} />);
+
+    expect(await screen.findByText("Canción X")).toBeInTheDocument();
+    expect(screen.getByText("Grupo Y · 2.0 MB · 1080p")).toBeInTheDocument();
+
+    // Borrado individual con confirmación: pide DELETE /video/<id> y
+    // recarga el listado (la recarga vuelve a caer → fila desaparece).
+    fireEvent.click(screen.getByRole("button", { name: "Borrar: Canción X" }));
+    expect(await screen.findByText("Eliminar el vídeo de esta canción?")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Borrar"));
+    await waitFor(() => expect(api.del).toHaveBeenCalledWith("/video/vid111"));
+    await waitFor(() => expect(screen.queryByText("Canción X")).not.toBeInTheDocument());
+  });
+
+  it("ofrece borrar todos los vídeos con confirmación", async () => {
+    api.get
+      .mockImplementationOnce(() => Promise.reject(new Error("stats caído")))
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          videos: [{ videoId: "vid111", title: "Canción X", size: 1000 }],
+        }),
+      );
+    renderWithSettings(<PageAlmacenamiento downloads={[]} onClearDownloads={() => {}} />);
+
+    fireEvent.click(await screen.findByText("Borrar todos los vídeos"));
+    expect(await screen.findByText("Eliminar todos los vídeos de fondo?")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Borrar"));
+    await waitFor(() => expect(api.del).toHaveBeenCalledWith("/videos"));
   });
 });
 
@@ -534,11 +590,12 @@ describe("PageRendimiento", () => {
     expect(screen.getByText("Modo de rendimiento")).toBeInTheDocument();
   });
 
-  it("should show GPU status with the actual acceleration state", () => {
+  it("should not show the GPU status section anymore", () => {
     renderWithSettings(<PageRendimiento neonColor="#a78bfa" />);
-    expect(screen.getByText("GPU")).toBeInTheDocument();
-    // Sin WebGL en jsdom → software: se muestra el fallback de bajo consumo
-    expect(screen.getByText("Render por software — modo bajo consumo")).toBeInTheDocument();
+    // La sección de diagnóstico de GPU se retiró de la interfaz: no debe
+    // aparecer ningún rótulo de aceleración.
+    expect(screen.queryByText("GPU")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Aceleración por hardware/)).not.toBeInTheDocument();
   });
 });
 

@@ -146,25 +146,34 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
   IPC; pauseEffectsHidden OFF; contexto `sleeping`; CSS de `app-sleep`) y
   `LyricsView.test.jsx` (desmontaje/remontaje del fondo en `app-sleep`).
 
-## 5. Aceleración por hardware (estado: ACTIVA, no hay que activarla)
+## 5. Aceleración por hardware (estado: ACTIVA + flags GPU forzados)
 
 - **WebView2 usa la GPU por defecto** (doc. oficial Microsoft: _"By default,
-  WebView2 uses the GPU for rendering"_). Nuestra config **no** la desactiva:
-  no se fijan `additionalBrowserArgs` (se heredan los de wry:
-  `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`) y no existe
-  `--disable-gpu` en el repo.
+  WebView2 uses the GPU for rendering"_). Nuestra config **no** la desactiva
+  (no existe `--disable-gpu` en el repo).
 - Evidencia empírica propia: las mediciones con `scripts/measure-perf.ps1`
   reportan motores GPU reales (`video codec 0` = decodificación por hardware).
-- **No se fuerzan flags GPU** (`--ignore-gpu-blocklist`,
-  `--enable-gpu-rasterization`): en PCs malos el blocklist existe por drivers
-  buggeados — ignorarlo puede dar pantalla negra; la ruta segura es el
-  fallback automático: si WebView2 cae a render por software,
-  `softwareRenderer.js` lo detecta y el modo Auto resuelve a **bajo consumo**.
-- Diagnóstico visible para el usuario: Ajustes → Rendimiento muestra el
-  renderer de la GPU y si la aceleración está activa.
-- Reparto de trabajo: composición/raster/decode en GPU (WebView2 por defecto),
-  títulos con vibrancy nativo (mica/tabbed, gratis), blur de fondos pre-render
-  en canvas (1× por canción).
+- **Flags GPU forzados** (`tauri.conf.json` → `additionalBrowserArgs`):
+  `--ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy`, más
+  los defaults de wry (`--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection
+  --autoplay-policy=no-user-gesture-required`) que hay que **reincluir siempre**:
+  wry sustituye los suyos por completo cuando se fijan argumentos propios
+  (ver `create_environment` de wry). Se piden a petición explícita para
+  «desbloquear» la GPU dedicada: el blocklist existe por drivers buggeados,
+  pero si el driver falla Chromium cae solo a render por software y
+  `softwareRenderer.js` lo detecta igual (modo Auto → bajo consumo).
+- **GPU dedicada por usuario** (MSI, `main.wxs`): el instalador escribe
+  `HKCU\Software\Microsoft\DirectX\UserGpuPreferences\<exe> = GpuPreference=2;`,
+  la misma preferencia «Alto rendimiento» que Configuración → Gráficas de
+  Windows. Así el sistema asigna la GPU dedicada a OpenWave si el equipo la
+  tiene (en equipos de gráfica única no hace nada).
+- La sección de diagnóstico de GPU se retiró de Ajustes → Rendimiento: el
+  usuario pidió quitar el mensaje de «aceleración por hardware activa».
+- Reparto de trabajo: composición/raster/decode en GPU (WebView2 por defecto +
+  flags), títulos con vibrancy nativo (mica/tabbed, gratis), blur de fondos
+  pre-render en canvas (1× por canción). Además el `<video>` de fondo de la
+  pantalla de letras **se pausa** cuando la ventana está oculta o un modal la
+  tapa (deja de decodificar mientras nadie lo ve; ver `LyricsView.jsx`).
 
 ## 6. Dev vs distribución
 

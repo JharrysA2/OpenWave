@@ -6,6 +6,33 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Added
+
+- **Los vídeos de fondo se pueden borrar desde Ajustes → Almacenamiento.** La
+  nueva sección «Vídeos de fondo» lista cada clip cacheado con su canción,
+  tamaño y resolución medida, y permite borrar uno a uno (con confirmación) o
+  vaciar toda la caché de una vez; el espacio se libera al momento y la próxima
+  apertura vuelve a preparar el clip desde cero.
+
+### Changed
+
+- **La GPU manda en el modo vídeo.** El instalador registra OpenWave como app
+  de «Alto rendimiento» en Configuración → Gráficas de Windows (GPU dedicada
+  si el equipo la tiene) y el WebView arranca con rasterización por GPU, copia
+  cero y sin el blocklist de drivers. Además, el vídeo de fondo se pausa solo
+  cuando la ventana está oculta o un modal la tapa: deja de decodificar mientras
+  nadie lo vea y se reanuda sincronizado al volver.
+- **Adiós a las líneas de contorno finas.** La titlebar, la barra lateral, las
+  cabeceras de ajustes y de modales, las filas de listas (álbumes, ajustes) y
+  el editor de letras ya no dibujan hairlines de 1px: la separación es una
+  sombra suave, como se pidió para la pantalla de letras.
+
+### Removed
+
+- **El aviso de aceleración por hardware se retiró de Rendimiento.** La sección
+  «GPU» de Ajustes → Rendimiento («Aceleración por hardware activa» / «Render
+  por software») ya no aparece en la interfaz.
+
 ### Fixed
 
 - **Un vídeo de fondo recortado por YouTube ya no se queda bajo para siempre.**

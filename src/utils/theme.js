@@ -513,6 +513,23 @@ export const SHADOWS = {
 
   /** Botón ajustes sidebar */
   settingsBtn: (color) => `0 0 0 2px ${color}cc, 0 0 16px ${color}88`,
+
+  /**
+   * Sombras de separación — sustituyen a las líneas de contorno de 1px
+   * (titlebar, encabezados, filas de lista, cabecera/pie de modales). La
+   * jerarquía la da el material y la sombra, nunca un aro fino.
+   */
+  /** Zona alta sobre contenido (titlebar, cabeceras de panel) */
+  sepZone: "0 12px 32px rgba(0,0,0,.45)",
+
+  /** Debajo de una fila de lista o un separador interno */
+  sepRow: "0 6px 14px -8px rgba(0,0,0,.65)",
+
+  /** Por encima de un pie de modal/hoja */
+  sepUp: "0 -12px 32px rgba(0,0,0,.45)",
+
+  /** Laterales: sombra de la barra lateral sobre el contenido */
+  sepRight: "14px 0 34px rgba(0,0,0,.4)",
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -706,10 +723,10 @@ export const GLASS = {
 
   /** Title bar — Liquid Glass SIN backdrop-filter: superficie estática a
    *  ancho completo; detrás solo está el fondo de la ventana y nada pasa
-   *  por detrás, así que el blur no aportaba nada visible. */
+   *  por detrás, así que el blur no aportaba nada visible. Sin borde de
+   *  contorno: la separación con el contenido la da SHADOWS.sepZone. */
   titleBar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
-    border: "1px solid rgba(255,255,255,.06)",
   },
 
   /** Volume / Crossfade popup / Toast — Liquid Glass con blur mínimo (6px).

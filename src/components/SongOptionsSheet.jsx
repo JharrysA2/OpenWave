@@ -353,7 +353,8 @@ export function SongOptionsSheet({
             alignItems: "center",
             gap: "14px",
             padding: "16px 20px 14px",
-            borderBottom: `1px solid ${COLORS.borderSubtle}`,
+            // Sin línea de contorno: la separación con el cuerpo es sombra.
+            boxShadow: SHADOWS.sepZone,
           }}
         >
           {/* Cover */}
@@ -500,7 +501,7 @@ export function SongOptionsSheet({
         {showDetails && (
           <div
             style={{
-              borderTop: `1px solid ${COLORS.borderSubtle}`,
+              boxShadow: SHADOWS.sepUp,
               padding: "16px 22px 22px",
             }}
           >

@@ -1,7 +1,7 @@
 import React from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
-import { COLORS, RADIUS, TRANSITIONS, GLASS } from "../utils/theme";
+import { COLORS, RADIUS, TRANSITIONS, GLASS, SHADOWS } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { useEscClose } from "../hooks/useEscape";
 
@@ -53,7 +53,8 @@ export function ConfirmModal({
             alignItems: "center",
             justifyContent: "space-between",
             padding: "18px 20px 14px",
-            borderBottom: `1px solid ${COLORS.borderSubtle}`,
+            // Sin línea de contorno: la separación con el cuerpo es sombra.
+            boxShadow: SHADOWS.sepZone,
           }}
         >
           <span
@@ -156,7 +157,7 @@ export function ConfirmModal({
             justifyContent: "flex-end",
             gap: "10px",
             padding: "12px 20px 16px",
-            borderTop: `1px solid ${COLORS.borderSubtle}`,
+            boxShadow: SHADOWS.sepUp,
           }}
         >
           <button

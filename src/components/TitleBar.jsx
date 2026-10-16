@@ -1,5 +1,5 @@
 import React from "react";
-import { GLASS } from "../utils/theme";
+import { GLASS, SHADOWS } from "../utils/theme";
 import { winCtrl } from "../utils/windowControls";
 
 export function TitleBar() {
@@ -23,7 +23,8 @@ export function TitleBar() {
         //    (9999). Es la chrome de ventana: min/max/cerrar nunca se tapa.
         zIndex: 2147483100,
         ...GLASS.titleBar,
-        borderBottom: `1px solid color-mix(in srgb, var(--neon) 25%, rgba(255,255,255,.06))`,
+        // Sin línea de contorno: la separación con el contenido es sombra.
+        boxShadow: SHADOWS.sepZone,
       }}
     >
       <span

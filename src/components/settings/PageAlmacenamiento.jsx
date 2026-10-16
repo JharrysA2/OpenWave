@@ -22,10 +22,12 @@ export function PageAlmacenamiento({
   toast,
 }) {
   const { t } = useSettings();
-  // confirming: "downloads" | "history" | "cache" | "reset" | null
+  // confirming: "downloads" | "history" | "cache" | "videos" | "video:<id>" | "reset" | null
   const [confirming, setConfirming] = useState(null);
   // stats: null = cargando, undefined = backend sin endpoint, objeto = OK
   const [stats, setStats] = useState(null);
+  // Vídeos de fondo en caché: null = cargando, [] = vacío o sin endpoint
+  const [videos, setVideos] = useState(null);
   const historyCount = history?.length || 0;
 
   const dlSize = useMemo(() => {
@@ -59,6 +61,18 @@ export function PageAlmacenamiento({
   };
   useEffect(() => loadStats(), []);
 
+  const loadVideos = () => {
+    let alive = true;
+    api
+      .get("/videos", { _skipCache: true })
+      .then((d) => alive && setVideos(Array.isArray(d?.videos) ? d.videos : []))
+      .catch(() => alive && setVideos([]));
+    return () => {
+      alive = false;
+    };
+  };
+  useEffect(() => loadVideos(), []);
+
   const handleClearCache = async () => {
     try {
       await api.post("/cache/clear", {});
@@ -67,6 +81,31 @@ export function PageAlmacenamiento({
       toast?.("Error al limpiar la caché", "error");
     }
     loadStats();
+  };
+
+  const videosSize = useMemo(
+    () => fmtBytes((videos || []).reduce((acc, v) => acc + (v.size || 0), 0)),
+    [videos],
+  );
+
+  const handleClearVideos = async () => {
+    try {
+      await api.del("/videos");
+      toast?.(`${t.bgVideosClear}: ✓`, "success");
+    } catch {
+      toast?.("Error al borrar los vídeos de fondo", "error");
+    }
+    loadVideos();
+  };
+
+  const handleDeleteVideo = async (videoId) => {
+    try {
+      await api.del(`/video/${videoId}`);
+      toast?.(`${t.clear}: ✓`, "success");
+    } catch {
+      toast?.("Error al borrar el vídeo", "error");
+    }
+    loadVideos();
   };
 
   const cacheEntries = stats
@@ -98,6 +137,66 @@ export function PageAlmacenamiento({
           onClick={stats ? () => setConfirming("cache") : null}
           right={stats ? <SettingsChevron /> : null}
         />
+      </SettingsSection>
+
+      {/* ── Vídeos de fondo de la pantalla de letras: se listan con su
+          tamaño y se pueden borrar uno a uno o todos de golpe ── */}
+      <SettingsSection title={t.bgVideos}>
+        <SettingRow
+          border={!!(videos && videos.length > 0)}
+          icon={Ic.trash}
+          label={t.bgVideosClear}
+          desc={videos ? `${videos.length} ${t.bgVideosUnit} · ${videosSize}` : "…"}
+          onClick={videos && videos.length > 0 ? () => setConfirming("videos") : null}
+          right={videos && videos.length > 0 ? <SettingsChevron /> : null}
+        />
+        {videos !== null && videos.length === 0 && (
+          <SettingRow border={false} icon={Ic.play(16)} label={t.bgVideosEmpty} />
+        )}
+        {videos && videos.length > 0 && (
+          <div style={{ maxHeight: "320px", overflowY: "auto" }}>
+            {videos.map((v, i) => (
+              <SettingRow
+                key={v.videoId}
+                border={i < videos.length - 1}
+                icon={Ic.play(16)}
+                label={v.title || v.videoId}
+                desc={[v.artist, fmtBytes(v.size), v.quality ? `${v.quality}p` : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+                right={
+                  <button
+                    type="button"
+                    aria-label={`${t.clear}: ${v.title || v.videoId}`}
+                    onClick={() => setConfirming(`video:${v.videoId}`)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(239,68,68,.24)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(239,68,68,.14)";
+                    }}
+                    style={{
+                      width: "30px",
+                      height: "30px",
+                      borderRadius: "9px",
+                      border: "none",
+                      cursor: "pointer",
+                      background: "rgba(239,68,68,.14)",
+                      color: "rgba(255,130,130,.9)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "background .15s",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {Ic.trash}
+                  </button>
+                }
+              />
+            ))}
+          </div>
+        )}
       </SettingsSection>
 
       <SettingsSection title={t.maintenance}>
@@ -145,6 +244,26 @@ export function PageAlmacenamiento({
           onCancel={() => setConfirming(null)}
           onConfirm={() => {
             handleClearCache();
+            setConfirming(null);
+          }}
+        />
+      )}
+      {confirming === "videos" && (
+        <ConfirmPanel
+          message="Eliminar todos los vídeos de fondo?"
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            handleClearVideos();
+            setConfirming(null);
+          }}
+        />
+      )}
+      {confirming?.startsWith("video:") && (
+        <ConfirmPanel
+          message="Eliminar el vídeo de esta canción?"
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            handleDeleteVideo(confirming.slice("video:".length));
             setConfirming(null);
           }}
         />

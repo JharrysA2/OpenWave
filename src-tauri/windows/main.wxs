@@ -311,6 +311,14 @@
             </Component>
             <Component Id="Path" Guid="{{path_component_guid}}" Win64="$(var.Win64)">
                 <File Id="Path" Source="{{main_binary_path}}" KeyPath="yes" Checksum="yes"/>
+                <!-- Preferencia de gráficas de Windows (Configuración →
+                     Gráficas): GpuPreference=2 = «Alto rendimiento», es
+                     decir, GPU dedicada si el equipo la tiene. La clave se
+                     escribe con [!Path] (ruta completa del exe, key path de
+                     este componente) y MSI la limpia al desinstalar. -->
+                <RegistryKey Root="HKCU" Key="Software\Microsoft\DirectX\UserGpuPreferences">
+                    <RegistryValue Name="[!Path]" Type="string" Value="GpuPreference=2;" />
+                </RegistryKey>
                 <!-- Limpieza de INSTALLDIR: vive aquí (feature siempre
                      instalada) para que la carpeta se borre en la
                      desinstalación aunque el Menú Inicio estuviera desmarcado. -->

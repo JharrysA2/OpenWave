@@ -12,6 +12,7 @@ import {
   RADIUS,
   TRANSITIONS,
   GLASS,
+  SHADOWS,
   withAlpha,
   ANIMATIONS,
   safeAccentText,
@@ -632,8 +633,9 @@ export default function AlbumView({
                     ? `linear-gradient(90deg, ${withAlpha(accentColor, "12")}, transparent)`
                     : "transparent",
                 transition: "background .15s cubic-bezier(.16,1,.3,1)",
-                borderBottom:
-                  i < album.tracks.length - 1 ? "1px solid rgba(255,255,255,.03)" : "none",
+                // Sin hairline de contorno entre pistas: la separación es
+                // una sombra suave bajo cada fila.
+                boxShadow: i < album.tracks.length - 1 ? SHADOWS.sepRow : "none",
               }}
               onMouseEnter={(e) => {
                 if (!isActive && !isSelected) e.currentTarget.style.background = COLORS.surfaceNav;

@@ -161,7 +161,8 @@ export default function SettingsPanel({
           display: "flex",
           alignItems: "center",
           gap: SPACING.gap.wide,
-          borderBottom: `1px solid ${COLORS.borderSubtle}`,
+          // Sin línea de contorno: la separación con el contenido es sombra.
+          boxShadow: SHADOWS.sepZone,
           flexShrink: 0,
         }}
       >

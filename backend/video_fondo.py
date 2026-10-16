@@ -794,3 +794,67 @@ def delete_video(video_id: str) -> bool:
     with suppress(Exception):
         db_delete_videoclip_oficial(video_id)
     return removed
+
+
+def listar_videos_cacheados() -> list[dict]:
+    """Vídeos de fondo en disco, del más reciente al más antiguo.
+
+    Cada entrada anota id, tamaño, fecha (mtime de la última descarga) y la
+    resolución medida (``None`` si aún no se midió), para que Almacenamiento
+    pueda mostrarlos y borrarlos uno a uno. Los intermedios de yt-dlp
+    (``id.f137.mp4``) no son vídeos finales: se saltan.
+    """
+    entradas: list[dict] = []
+    for p in VIDEO_DIR.glob("*"):
+        if p.suffix.lstrip(".") not in _FINAL_EXTS or not p.is_file():
+            continue
+        if "." in p.stem:
+            continue
+        try:
+            st = p.stat()
+        except OSError:
+            continue
+        entradas.append(
+            {
+                "videoId": p.stem,
+                "size": st.st_size,
+                "date": int(st.st_mtime),
+                "quality": calidad_guardada(p.stem),
+            }
+        )
+    entradas.sort(key=lambda e: e["date"], reverse=True)
+    return entradas
+
+
+def delete_all_videos() -> dict:
+    """Vaciar TODA la caché de vídeos de fondo. Devuelve ``{n, bytes}``.
+
+    Borra lo que haya en VIDEO_DIR (finales, sidecars e intermedios) y
+    olvida los videoclips oficiales resueltos: la próxima apertura vuelve a
+    prepararlos desde cero.
+    """
+    ids: set[str] = set()
+    n = 0
+    liberados = 0
+    for p in VIDEO_DIR.glob("*"):
+        if not p.is_file():
+            continue
+        try:
+            size = p.stat().st_size
+            p.unlink()
+        except OSError:
+            continue
+        if p.suffix.lstrip(".") in _FINAL_EXTS and "." not in p.stem:
+            ids.add(p.stem)
+        n += 1
+        liberados += size
+    for vid in ids:
+        with suppress(Exception):
+            db_delete_videoclip_oficial(vid)
+    if n:
+        logger.info(
+            "Caché de vídeos vaciada: %d fichero(s), %.1f MB",
+            n,
+            liberados / 1048576,
+        )
+    return {"n": n, "bytes": liberados}

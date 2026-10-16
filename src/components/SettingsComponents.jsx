@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FONT } from "../constants";
-import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS } from "../utils/theme";
+import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, SHADOWS } from "../utils/theme";
 
 export function SettingRow({ icon, label, desc, right, onClick, border = true }) {
   const [hov, setHov] = useState(false);
@@ -16,7 +16,9 @@ export function SettingRow({ icon, label, desc, right, onClick, border = true })
         padding: "13px 18px",
         cursor: onClick ? "pointer" : "default",
         background: hov && onClick ? GLASS.btnHoverSoft.background : "transparent",
-        borderBottom: border ? "1px solid rgba(255,255,255,.05)" : "none",
+        // Sin línea de contorno entre filas: la separación es una sombra
+        // suave (se apaga con el modo de rendimiento como cualquier otra).
+        boxShadow: border ? SHADOWS.sepRow : "none",
         transition: TRANSITIONS.fast,
       }}
     >

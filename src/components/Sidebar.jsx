@@ -1,6 +1,6 @@
 import React from "react";
 import { FONT } from "../constants";
-import { RADIUS, TRANSITIONS, GLASS, sidebarBgGradient } from "../utils/theme";
+import { RADIUS, TRANSITIONS, GLASS, SHADOWS, sidebarBgGradient } from "../utils/theme";
 import { Ic } from "../icons/Icons";
 import { Logo } from "./Logo";
 
@@ -34,10 +34,10 @@ export const Sidebar = React.memo(function Sidebar({
         height: "100%",
         flexShrink: 0,
         overflow: "hidden",
-        // Retracción suave 200→0 con la easings de la casa. El borde vive
-        // en el núcleo (abajo) para que con width:0 no quede la línea de
-        // 1px del border-right colgando. html.perf-anim-off / app-sleep
-        // congelan la transición solos (CSS !important sobre inline).
+        // Retracción suave 200→0 con la easings de la casa. La sombra
+        // derecha vive en el núcleo (abajo) para que con width:0 no quede
+        // colgando. html.perf-anim-off / app-sleep congelan la transición
+        // solos (CSS !important sobre inline).
         transition: "width .28s cubic-bezier(.16,1,.3,1)",
         display: "flex",
         flexDirection: "column",
@@ -57,7 +57,8 @@ export const Sidebar = React.memo(function Sidebar({
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          borderRight: `1px solid color-mix(in srgb, var(--neon) 30%, rgba(255,255,255,.06))`,
+          // Sin línea de contorno: la separación con el contenido es sombra.
+          boxShadow: SHADOWS.sepRight,
           transform: visible ? "translateX(0)" : "translateX(-16px)",
           opacity: visible ? 1 : 0,
           visibility: visible ? "visible" : "hidden",
@@ -78,7 +79,7 @@ export const Sidebar = React.memo(function Sidebar({
             alignItems: "center",
             justifyContent: "space-between",
             gap: "4px",
-            borderBottom: "1px solid rgba(255,255,255,.04)",
+            boxShadow: SHADOWS.sepZone,
             flexShrink: 0,
           }}
         >

@@ -6,7 +6,7 @@ import { useEscClose } from "../hooks/useEscape";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
-import { COLORS, RADIUS, TRANSITIONS, GLASS } from "../utils/theme";
+import { COLORS, RADIUS, TRANSITIONS, GLASS, SHADOWS } from "../utils/theme";
 
 // El selector nativo (plugin-dialog/rfd) reemplaza al <input type="file">, que
 // alojaba el diálogo en el proceso WebView2 y provocaba el cierre de la app.
@@ -160,7 +160,8 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
             alignItems: "center",
             justifyContent: "space-between",
             padding: "18px 20px 14px",
-            borderBottom: `1px solid ${COLORS.borderSubtle}`,
+            // Sin línea de contorno: la separación con el cuerpo es sombra.
+            boxShadow: SHADOWS.sepZone,
           }}
         >
           <span
@@ -383,7 +384,7 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
             justifyContent: "flex-end",
             gap: "10px",
             padding: "12px 20px 16px",
-            borderTop: `1px solid ${COLORS.borderSubtle}`,
+            boxShadow: SHADOWS.sepUp,
           }}
         >
           <button

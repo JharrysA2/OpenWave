@@ -346,7 +346,7 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
             alignItems: "center",
             justifyContent: "space-between",
             padding: "18px 22px 14px",
-            borderBottom: `1px solid ${accentColor}18`,
+            boxShadow: SHADOWS.sepRow,
             flexShrink: 0,
             position: "relative",
             zIndex: 1,
@@ -971,7 +971,7 @@ function LyricsSettingsModal({
     alignItems: "center",
     justifyContent: "space-between",
     padding: "10px 0",
-    borderBottom: `1px solid ${accentColor}15`,
+    boxShadow: SHADOWS.sepRow,
   };
 
   const labelStyle = { fontSize: "12px", fontWeight: "700", color: "rgba(255,255,255,.8)" };
@@ -1014,7 +1014,7 @@ function LyricsSettingsModal({
     padding: "9px 0",
     cursor: "pointer",
     userSelect: "none",
-    borderBottom: `1px solid ${accentColor}15`,
+    boxShadow: SHADOWS.sepRow,
   };
 
   return (
@@ -1132,7 +1132,7 @@ function LyricsSettingsModal({
             gap: "8px",
             padding: "9px 0",
             cursor: "pointer",
-            borderBottom: `1px solid ${accentColor}15`,
+            boxShadow: SHADOWS.sepRow,
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.opacity = "0.8";
@@ -1265,7 +1265,7 @@ function LyricsSettingsModal({
                 ))}
               </div>
             </div>
-            <div style={{ ...rowStyle, borderBottom: "none" }}>
+            <div style={{ ...rowStyle, boxShadow: "none" }}>
               <div>
                 <div style={labelStyle}>Auto-scroll</div>
                 <div style={descStyle}>Seguir la línea activa</div>
@@ -1631,6 +1631,10 @@ export function LyricsView({
     [],
   );
 
+  // `true` mientras un overlay a pantalla completa tapa las letras: el vídeo
+  // se pausa (deja de decodificar) y el karaoke se detiene mientras tanto.
+  const overlayOpen = useOverlayActive();
+
   // El `<audio>` de la app es el transporte y el reloj de referencia; el vídeo
   // lo sigue y va SIEMPRE mudo (el sonido es el de la app, nunca los dos).
   useEffect(() => {
@@ -1641,13 +1645,19 @@ export function LyricsView({
       const audio = audioRef?.current;
       if (!video) return;
       rafId = requestAnimationFrame(tick);
-      const plan = planVideoSync({
-        audioTime: audio?.currentTime,
-        videoTime: video.currentTime,
-        audioPaused: audio ? audio.paused : true,
-        videoEnded: video.ended,
-        desfase: videoState.desfase ?? 0,
-      });
+      // Con la ventana oculta o un modal encima el vídeo no se ve: se pausa
+      // y se deja de planificar (ahorro de decodificación); al volver, el
+      // mismo plan lo reanuda y re-sincroniza con el audio.
+      const oculto = !visible || overlayOpen;
+      const plan = oculto
+        ? { play: false, seekTo: null }
+        : planVideoSync({
+            audioTime: audio?.currentTime,
+            videoTime: video.currentTime,
+            audioPaused: audio ? audio.paused : true,
+            videoEnded: video.ended,
+            desfase: videoState.desfase ?? 0,
+          });
       if (plan.play) {
         if (video.paused) {
           // jsdom no implementa play(): devuelve undefined. La guarda evita
@@ -1662,7 +1672,7 @@ export function LyricsView({
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [open, videoState, audioRef]);
+  }, [open, videoState, audioRef, visible, overlayOpen]);
 
   // ── Búsqueda de letras ──────────────────────────────────────────────────
   const [searchResults, setSearchResults] = useState(null);
@@ -1866,9 +1876,8 @@ export function LyricsView({
     reloadCounter,
   ]);
 
-  // `true` mientras un overlay a pantalla completa tapa las letras — el
-  // reloj de karaoke de abajo se detiene mientras tanto (ver useEffect).
-  const overlayOpen = useOverlayActive();
+  // `overlayOpen` está declarado arriba, junto al sincronizador del vídeo:
+  // el reloj de karaoke de abajo se detiene mientras haya un overlay.
 
   // ── Reloj de letras por rAF (frame-preciso) ───────────────────────────
   //    Antes: setInterval(400ms) sobre progressRef (que solo se actualiza

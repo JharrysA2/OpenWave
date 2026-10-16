@@ -5,6 +5,8 @@ import json
 import threading
 
 from cache import video_progress
+from config import VIDEO_CACHE_MAX_BYTES
+from db import get_db
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from logging_config import get_logger
@@ -12,9 +14,11 @@ from range_utils import range_file_response
 from rate_limit import limiter
 from video_fondo import (
     calidad_suficiente,
+    delete_all_videos,
     delete_video,
     desfase_guardado,
     get_output_path,
+    listar_videos_cacheados,
     prepare_video,
     sin_videoclip,
 )
@@ -141,3 +145,44 @@ async def video_delete(request: Request, video_id: str):
     delete_video(video_id)
     video_progress.pop(video_id, None)
     return {"ok": True}
+
+
+@router.get("/videos")
+async def list_videos():
+    """Listar los vídeos de fondo cacheados (para Almacenamiento).
+
+    Cada entrada trae id, tamaño, fecha y resolución medida del fichero, más
+    el título/artista de la canción resolviéndolo contra las tablas de la
+    app (historial → descargas → playlists, la primera que lo tenga).
+    """
+    loop = asyncio.get_running_loop()
+
+    def _read():
+        canciones: dict = {}
+        with get_db() as conn:
+            for tabla in ("history", "downloads", "playlist_songs"):
+                for r in conn.execute(
+                    f"SELECT video_id, title, artist FROM {tabla}"
+                ).fetchall():
+                    canciones.setdefault(r["video_id"], (r["title"], r["artist"]))
+        videos = listar_videos_cacheados()
+        for v in videos:
+            titulo, artista = canciones.get(v["videoId"], (None, None))
+            v["title"] = titulo
+            v["artist"] = artista
+        return {
+            "videos": videos,
+            "total": sum(v["size"] for v in videos),
+            "limit": VIDEO_CACHE_MAX_BYTES,
+        }
+
+    return await loop.run_in_executor(None, _read)
+
+
+@router.delete("/videos")
+@limiter.limit("10/minute")
+async def clear_videos(request: Request):
+    """Vaciar la caché de vídeos de fondo (devuelve cuánto se liberó)."""
+    res = delete_all_videos()
+    video_progress.clear()
+    return {"ok": True, **res}

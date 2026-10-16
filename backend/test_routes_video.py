@@ -335,3 +335,58 @@ class TestVideoProgressSse:
         assert resp.status_code == 200
         assert '"status": "downloading"' in resp.text
         assert '"error": "timeout"' in resp.text
+
+
+class TestVideoCache:
+    """GET /videos y DELETE /videos — listado y vaciado de la caché."""
+
+    def test_list_videos_con_tamano_calidad_y_titulo(self, client):
+        from db import get_db
+
+        vid = "list_cache"
+        p = VIDEO_DIR / f"{vid}.mp4"
+        p.write_bytes(b"x" * 123)
+        (VIDEO_DIR / f"{vid}.calidad").write_text("medida=1920x1080", encoding="utf-8")
+        with get_db() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO history (video_id, title, artist)"
+                " VALUES (?,?,?)",
+                (vid, "Canción de prueba", "Grupo X"),
+            )
+        try:
+            resp = client.get("/videos")
+            assert resp.status_code == 200
+            data = resp.json()
+            entrada = next(v for v in data["videos"] if v["videoId"] == vid)
+            assert entrada["size"] == 123
+            assert entrada["quality"] == 1080
+            assert entrada["title"] == "Canción de prueba"
+            assert entrada["artist"] == "Grupo X"
+            assert isinstance(entrada["date"], int)
+            assert data["total"] >= 123
+            assert data["limit"] > 0
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / f"{vid}.calidad").unlink(missing_ok=True)
+            with get_db() as conn:
+                conn.execute("DELETE FROM history WHERE video_id=?", (vid,))
+
+    def test_clear_videos_vacia_la_caché(self, client):
+        a = VIDEO_DIR / "vac_a.mp4"
+        b = VIDEO_DIR / "vac_b.webm"
+        a.write_bytes(b"a" * 10)
+        b.write_bytes(b"b" * 5)
+        (VIDEO_DIR / "vac_a.calidad").write_text("medida=720", encoding="utf-8")
+        try:
+            resp = client.delete("/videos")
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body["ok"] is True
+            assert body["n"] >= 3
+            assert body["bytes"] >= 15
+            assert not a.exists()
+            assert not b.exists()
+            assert not (VIDEO_DIR / "vac_a.calidad").exists()
+        finally:
+            for p in VIDEO_DIR.glob("vac_*"):
+                p.unlink(missing_ok=True)

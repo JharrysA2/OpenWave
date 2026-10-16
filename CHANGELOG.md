@@ -24,11 +24,11 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   saliendo por la integrada, forzar el render en la dedicada hacía que cada
   frame pagara un copiado cruzado constante (motor Copy ≈27%). Medido en la
   misma máquina, la pantalla de letras con vídeo activo pasa de ≈50% de GPU
-  total (copy 27 · 3d 10 · decode 8) a ≈20% (3d 15 · decode 5, sin copia)
-  renderizando en la integrada que saca la señal, y el uso en reposo sonando
-  cae de ≈36% a ≈7%. El vídeo de fondo se pausa solo cuando la ventana está
-  oculta o un modal la tapa: deja de decodificar mientras nadie lo vea y se
-  reanuda sincronizado al volver.
+  total (copy 27 · 3d 10 · decode 8) a ≈20% con la ventana normal y ≈40%
+  maximizada (3d y decode sobre la integrada, sin copia), y el uso en reposo
+  sonando cae de ≈36% a ≈7%. El vídeo de fondo se pausa solo cuando la
+  ventana está oculta o un modal la tapa: deja de decodificar mientras nadie
+  lo vea y se reanuda sincronizado al volver.
 - **La pantalla de letras con vídeo respira mejor.** El cristal de la
   portada + cola difumina a 12px en vez de 20px (es el pase que se vuelve a
   ejecutar en cada frame del clip) con un punto más de tinte: la lectura es

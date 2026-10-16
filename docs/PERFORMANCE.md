@@ -179,7 +179,8 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
   | Configuración                      | GPU total | Reparto                        |
   | ---------------------------------- | --------- | ------------------------------ |
   | Con `--force-high-performance-gpu` | ≈ 50%     | copy 27 · 3d 10 · decode 8     |
-  | Sin el switch (render en la iGPU)  | ≈ 20%     | 3d 15 · decode 5 · copy 0      |
+  | Sin el switch, ventana normal      | ≈ 20%     | 3d 15 · decode 5 · copy 0      |
+  | Sin el switch, ventana maximizada  | ≈ 40%     | 3d 33 · decode 5 · copy 0      |
 
   La ventana vive en la iGPU que saca la señal: renderizar en la dedicada
   añadía un **copiado cruzado constante** (motor Copy ≈27% — un frame
@@ -187,6 +188,13 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
   ahorro. En reposo, home con música sonando: ≈36% con el switch vs ≈7% sin
   él. En equipos de gráfica única el switch no aportaba nada (sin
   adaptador cruzado no hay copiado).
+- **La fila de la iGPU en el Administrador de tareas suma más que la app.**
+  Con la maximizada y vídeo activo, una instantánea del adaptador dio:
+  webview de OpenWave ≈ 48, DWM ≈ 10 y una terminal de Windows con GPU
+  acelerada ≈ 17 (total sistema ≈ 77). O sea: lo que ve el usuario en la
+  fila de la integrada no es solo OpenWave; el vídeo a pantalla completa
+  sobre la iGPU que saca la señal cuesta ≈ 40 puntos de app, y el resto es
+  composición de Windows y otras apps.
 - **GPU dedicada por usuario** (MSI, `main.wxs`): el instalador escribe
   `HKCU\Software\Microsoft\DirectX\UserGpuPreferences\<exe> = GpuPreference=2;`,
   la misma preferencia «Alto rendimiento» que Configuración → Gráficas de

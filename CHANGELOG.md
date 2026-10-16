@@ -26,9 +26,12 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   Antes todo se pedía a 1080p: en una pantalla 4K el clip se veía reescalado y
   poco nítido. Ahora la pantalla de letras informa de la altura física de su
   display y el backend la usa como tope de la descarga (entre 720p y 4K). Ojo:
-  YouTube solo sirve más de 1080p con una sesión válida, así que para 4K hace
-  falta un `cookies.txt` o las cookies del navegador; sin ellos la cadena
-  sigue degradando hasta el mejor disponible. El tope pedido queda anotado por
+  el tope real lo fija YouTube, no el equipo: por encima de 1080p la resolución
+  que llegue depende del cliente y de la sesión que acepte YouTube en cada
+  momento, así que un clip puede quedarse en 1080p aunque la pantalla pida 4K.
+  Para pedir lo máximo hacen falta un `cookies.txt` o las cookies del navegador;
+  sin ellos la cadena sigue degradando hasta el mejor disponible. El tope pedido
+  queda anotado por
   vídeo, así que un clip descargado para una pantalla grande no se vuelve a
   bajar en cada apertura (y si cambias de pantalla a una más grande, sube de
   resolución una sola vez).

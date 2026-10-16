@@ -16,17 +16,19 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Changed
 
-- **La GPU manda en el modo vídeo, y ahora la dedicada de verdad.** El
+- **La GPU manda en el modo vídeo, y ahora sin pagos cruzados.** El
   instalador registra OpenWave como app de «Alto rendimiento» en
   Configuración → Gráficas de Windows y el WebView arranca con rasterización
-  por GPU, copia cero y sin el blocklist de drivers. Además el arranque lleva
-  `--force-high-performance-gpu`, el switch con el que Chromium pide la GPU de
-  alto rendimiento: el render ocurre en un proceso hijo (`msedgewebview2.exe`)
-  al que la preferencia de Windows por exe no llega, así que en equipos con
-  dos GPU la app se quedaba en la integrada pese al registro (limitación
-  conocida de WebView2). El vídeo de fondo se pausa solo cuando la ventana
-  está oculta o un modal la tapa: deja de decodificar mientras nadie lo vea y
-  se reanuda sincronizado al volver.
+  por GPU, copia cero y sin el blocklist de drivers. El arranque **ya no
+  lleva** `--force-high-performance-gpu`: en un portátil con la señal
+  saliendo por la integrada, forzar el render en la dedicada hacía que cada
+  frame pagara un copiado cruzado constante (motor Copy ≈27%). Medido en la
+  misma máquina, la pantalla de letras con vídeo activo pasa de ≈50% de GPU
+  total (copy 27 · 3d 10 · decode 8) a ≈20% (3d 15 · decode 5, sin copia)
+  renderizando en la integrada que saca la señal, y el uso en reposo sonando
+  cae de ≈36% a ≈7%. El vídeo de fondo se pausa solo cuando la ventana está
+  oculta o un modal la tapa: deja de decodificar mientras nadie lo vea y se
+  reanuda sincronizado al volver.
 - **La pantalla de letras con vídeo respira mejor.** El cristal de la
   portada + cola difumina a 12px en vez de 20px (es el pase que se vuelve a
   ejecutar en cada frame del clip) con un punto más de tinte: la lectura es

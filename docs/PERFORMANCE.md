@@ -157,8 +157,8 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
 - Evidencia empírica propia: las mediciones con `scripts/measure-perf.ps1`
   reportan motores GPU reales (`video codec 0` = decodificación por hardware).
 - **Flags GPU forzados** (`tauri.conf.json` → `additionalBrowserArgs`):
-  `--ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy
-  --force-high-performance-gpu`, más
+  `--ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy`,
+  más
   los defaults de wry (`--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection
   --autoplay-policy=no-user-gesture-required`) que hay que **reincluir siempre**:
   wry sustituye los suyos por completo cuando se fijan argumentos propios
@@ -166,20 +166,27 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
   «desbloquear» la GPU dedicada: el blocklist existe por drivers buggeados,
   pero si el driver falla Chromium cae solo a render por software y
   `softwareRenderer.js` lo detecta igual (modo Auto → bajo consumo).
-- **La dedicada, de verdad: `--force-high-performance-gpu`** (switch de
-  Chromium, `gpu/config/gpu_switches.cc` — el mismo que expone
-  `chrome://flags/#force-high-performance-gpu`). En un portátil con dos GPU el
-  motor elige por defecto la integrada por consumo, y el trabajo de render
-  ocurre en un proceso aparte (`msedgewebview2.exe`, hijo de OpenWave.exe con
-  `--type=gpu-process` que hereda la línea de comandos): por eso la
-  preferencia de Windows por exe sobre `OpenWave.exe` **no le llega** y la app
-  se quedaba en la integrada aunque pidiera la dedicada (limitación conocida
-  de WebView2: MicrosoftEdge/WebView2Feedback#5072 — ni `NvOptimusEnablement`
-  ni la configuración de Gráficas sobre el exe anfitrión alcanzan al proceso
-  de GPU). El switch se aplica en el proceso de GPU heredado y obliga a
-  Chromium a crear el dispositivo sobre la GPU de alto rendimiento en todo el
-  equipo (como hace Brave/Chrome con la flag activa); en equipos de gráfica
-  única no cambia nada.
+- **La dedicada se probó y se retiró: `--force-high-performance-gpu`**
+  (switch de Chromium, `gpu/config/gpu_switches.cc`). El render de la web
+  ocurre en un proceso hijo (`msedgewebview2.exe` con `--type=gpu-process`
+  que hereda la línea de comandos), así que la preferencia de Windows por
+  exe sobre `OpenWave.exe` no le llega (WebView2#5072) y el switch era la
+  única vía para que el proceso de GPU usara la RTX. Se instaló y se midió
+  en A/B en este portátil (Radeon 740M de panel + RTX 4050, 1920×1080 a
+  144 Hz; letras con vídeo activo, misma ventana y clip, muestreo por
+  motores de `Get-Counter '\GPU Engine(*)'`):
+
+  | Configuración                      | GPU total | Reparto                        |
+  | ---------------------------------- | --------- | ------------------------------ |
+  | Con `--force-high-performance-gpu` | ≈ 50%     | copy 27 · 3d 10 · decode 8     |
+  | Sin el switch (render en la iGPU)  | ≈ 20%     | 3d 15 · decode 5 · copy 0      |
+
+  La ventana vive en la iGPU que saca la señal: renderizar en la dedicada
+  añadía un **copiado cruzado constante** (motor Copy ≈27% — un frame
+  completo por presentación sobre un panel de 144 Hz) que anulaba cualquier
+  ahorro. En reposo, home con música sonando: ≈36% con el switch vs ≈7% sin
+  él. En equipos de gráfica única el switch no aportaba nada (sin
+  adaptador cruzado no hay copiado).
 - **GPU dedicada por usuario** (MSI, `main.wxs`): el instalador escribe
   `HKCU\Software\Microsoft\DirectX\UserGpuPreferences\<exe> = GpuPreference=2;`,
   la misma preferencia «Alto rendimiento» que Configuración → Gráficas de

@@ -55,16 +55,19 @@ def _get_lock(video_id: str) -> threading.Lock:
 def _search_ffmpeg_dir() -> str | None:
     """Directorio con el ffmpeg empaquetado (MSI) o preparado en desarrollo.
 
-    Mismas rutas que downloads.py (raíz/ffmpeg, build/staging/ffmpeg…): en la
-    instalación el ffmpeg viaja junto al backend para que el mux de yt-dlp
-    funcione sin que el usuario tenga que instalarlo en el PATH.
+    Mismas rutas que downloads.py (PROJECT_DIR/ffmpeg, build/staging/ffmpeg…):
+    en la instalación el ffmpeg viaja junto al backend (PROJECT_DIR/ffmpeg)
+    para que la medición de resolución y el desfase funcionen sin que el
+    usuario tenga que instalarlo en el PATH.
     """
     for d in (
-        PROJECT_DIR.parent / "ffmpeg",
+        PROJECT_DIR / "ffmpeg",
         PROJECT_DIR / "build" / "staging" / "ffmpeg",
+        PROJECT_DIR,
+        PROJECT_DIR / "backend",
+        PROJECT_DIR / "bin",
         PROJECT_DIR.parent,
-        PROJECT_DIR.parent / "bin",
-        PROJECT_DIR.parent.parent,
+        Path.home() / "Downloads",
     ):
         if (d / "ffmpeg.exe").is_file() or (d / "ffmpeg").is_file():
             return str(d)

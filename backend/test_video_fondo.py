@@ -16,6 +16,8 @@ from video_fondo import (
     _cap_alto,
     _escaleras,
     _evict_if_needed,
+    _ffmpeg_bin,
+    _search_ffmpeg_dir,
     calidad_guardada,
     calidad_suficiente,
     delete_video,
@@ -204,6 +206,21 @@ class TestPrepareVideo:
             delete_video("ff_id")
             video_progress.pop("ff_id", None)
             _FakeYdl.instances.clear()
+
+    def test_busca_el_ffmpeg_de_la_instalacion(self, monkeypatch, tmp_path):
+        """El MSI instala el ffmpeg en PROJECT_DIR/ffmpeg y debe encontrarlo.
+
+        Con la búsqueda desplazada un nivel (mirando a C:\\Program Files\\ffmpeg)
+        ni la medición de resolución ni el desfase funcionaban en la app
+        instalada: los sidecars no se corregían y el videoclip se asumía «va a
+        la par».
+        """
+        d = tmp_path / "ffmpeg"
+        d.mkdir()
+        (d / "ffmpeg.exe").write_bytes(b"x")
+        monkeypatch.setattr("video_fondo.PROJECT_DIR", tmp_path)
+        assert _search_ffmpeg_dir() == str(d)
+        assert _ffmpeg_bin() == str(d / "ffmpeg.exe")
 
     def test_cookies_txt_es_el_primer_intento(self, monkeypatch):
         """Con `cookies.txt`, el primer intento lo usa (mejor calidad)."""

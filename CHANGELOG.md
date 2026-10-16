@@ -18,6 +18,13 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   recortado se corrige solo en la siguiente apertura. El sidecar sigue siendo
   caché: si ya existe no se vuelve a medir, para no pagar una llamada a ffmpeg
   en cada apertura de la pantalla de letras.
+- **La app instalada por fin encuentra su ffmpeg.** La búsqueda en
+  `video_fondo` miraba un nivel por encima de donde el MSI instala el binario
+  (`C:\Program Files\ffmpeg` en vez de `C:\Program Files\OpenWave\ffmpeg`), así
+  que en una instalación real no se medía la resolución de ningún vídeo (los
+  sidecars no se corrigen) ni se calculaba el desfase del videoclip (se
+  asumía «va a la par»). Ahora la búsqueda recorre las mismas rutas que la
+  descarga de música, que sí encuentra el ffmpeg empaquetado.
 - **Los sidecars escritos por las builds anteriores ya no se dan por buenos.**
   Ahora el sidecar dice de qué habla: `medida=<alto>` es lo medido en el
   fichero y `pedida=<alto>` el tope pedido cuando no hubo forma de medir la

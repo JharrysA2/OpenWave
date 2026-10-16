@@ -26,12 +26,22 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   asumía «va a la par»). Ahora la búsqueda recorre las mismas rutas que la
   descarga de música, que sí encuentra el ffmpeg empaquetado.
 - **Los sidecars escritos por las builds anteriores ya no se dan por buenos.**
-  Ahora el sidecar dice de qué habla: `medida=<alto>` es lo medido en el
-  fichero y `pedida=<alto>` el tope pedido cuando no hubo forma de medir la
+  Ahora el sidecar dice de qué habla: `medida=<ancho>x<alto>` es lo medido en
+  el fichero y `pedida=<alto>` el tope pedido cuando no hubo forma de medir la
   descarga. Un valor sin prefijo (lo que escribían las builds anteriores) se
   ignora y se vuelve a medir una sola vez, con lo que un clip mal anotado se
   corrige. La promesa no tapa lo que llegue a medirse, y además evita que en
   una pantalla 4K sin ffmpeg se repita la descarga en cada consulta.
+- **Un clip insuficiente ya no se borra y se redescarga en cada apertura.**
+  Con la resolución real midiendo, cualquier recorte podía provocar un bucle:
+  cada apertura borraba el vídeo y volvía a bajar unos 26 MB sin mejorar
+  (YouTube recorta sin sesión y hay clips panorámicos de contenido). Ahora la
+  comparación es por clase de resolución —un clip letterbox 1920x720 cuenta
+  como 1080p por su ancho—, sin `cookies.txt` no se vuelve a pedir más de
+  1080p (YouTube no sirve más y en pantalla 4K solo se repetiría la
+  descarga), y como último freno un fichero recién descargado no se vuelve a
+  bajar hasta pasadas 2 horas, tiempo de sobra para corregir la causa (un 429
+  puntual o cookies nuevas).
 
 ## [1.1.1] - 2026-10-15
 

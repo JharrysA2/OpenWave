@@ -2,6 +2,7 @@
 
 import os
 import re
+import time
 
 import pytest
 import yt_dlp
@@ -69,11 +70,13 @@ class TestPaths:
             p.unlink(missing_ok=True)
 
 
-def _ffprobe_falso(alto: int | None):
-    """Devuelve un `_ffmpeg_bin` falso cuya salida anuncia ``alto`` píxeles.
+def _ffprobe_falso(alto: int | None, ancho: int | None = None):
+    """Devuelve un `_ffmpeg_bin` falso cuya salida anuncia ``ancho``x``alto``.
 
-    ``None`` simula «no se puede medir» (sin ffmpeg o fichero ilegible): la
-    app debe caer al criterio viejo de 1080p en vez de reventar.
+    ``alto`` a ``None`` simula «no se puede medir» (sin ffmpeg o fichero
+    ilegible): la app debe caer al criterio viejo de 1080p en vez de reventar.
+    Por defecto el ancho es el de 16:9; pásalo a mano para clips panorámicos
+    (letterbox), cuyo ancho es el que cuenta como clase de resolución.
     """
 
     def _bin():
@@ -81,8 +84,10 @@ def _ffprobe_falso(alto: int | None):
 
     def _run(cmd, **kwargs):
         class _P:
+            # Solo se evaluta la rama de «medido» si hay alto que anunciar.
             stderr = (
-                f"Stream #0:0: Video: vp9, yuv420p, 1920x{alto}, 30 fps\n"
+                f"Stream #0:0: Video: vp9, yuv420p, "
+                f"{ancho if ancho is not None else alto * 16 // 9}x{alto}, 30 fps\n"
                 if alto
                 else "moov atom not found\n"
             )
@@ -92,11 +97,17 @@ def _ffprobe_falso(alto: int | None):
     return _bin, _run
 
 
-def _aplicar_ffprobe(monkeypatch, alto: int | None):
-    """Fija en video_fondo un ffmpeg que «mide» ``alto`` píxeles."""
-    _bin, _run = _ffprobe_falso(alto)
+def _aplicar_ffprobe(monkeypatch, alto: int | None, ancho: int | None = None):
+    """Fija en video_fondo un ffmpeg que «mide» ``ancho``x``alto`` píxeles."""
+    _bin, _run = _ffprobe_falso(alto, ancho)
     monkeypatch.setattr("video_fondo._ffmpeg_bin", _bin)
     monkeypatch.setattr("video_fondo.subprocess.run", _run)
+
+
+def _envejecer(p, seg: int = 3 * 3600):
+    """Atraviesa el reloj anti-bucle: el fichero queda con más de 2 h."""
+    viejo = time.time() - seg
+    os.utime(p, (viejo, viejo))
 
 
 class _FakeYdl:
@@ -491,6 +502,7 @@ class TestTopeCalidad:
         """Los vídeos de antes no anotaron su resolución: se mide la real."""
         p = VIDEO_DIR / "cal_viejo.mp4"
         p.write_bytes(b"x")
+        _envejecer(p)
         try:
             # Sin sidecar, la app mide el fichero: aquí sale 720p.
             _aplicar_ffprobe(monkeypatch, 720)
@@ -512,6 +524,12 @@ class TestTopeCalidad:
         p.write_bytes(b"x")
         try:
             _aplicar_ffprobe(monkeypatch, None)
+            # Con cookies no rige el techo de 1080p: manda el reloj, y el
+            # fichero ya supera las 2 h.
+            monkeypatch.setattr(
+                "video_fondo.cookies_file_opt", lambda: {"cookiefile": "ck.txt"}
+            )
+            _envejecer(p)
             assert calidad_suficiente("cal_nof") is True
             assert calidad_suficiente("cal_nof", 2160) is False
         finally:
@@ -548,6 +566,7 @@ class TestTopeCalidad:
         p = VIDEO_DIR / "cal_viejo_fmt.mp4"
         p.write_bytes(b"x")
         (VIDEO_DIR / "cal_viejo_fmt.calidad").write_text("1080", encoding="utf-8")
+        _envejecer(p)
         try:
             _aplicar_ffprobe(monkeypatch, 720)
             # El fichero es 720p: el «1080» pedido no debe taparlo.
@@ -584,8 +603,14 @@ class TestTopeCalidad:
         (VIDEO_DIR / "cal_prom_baja.calidad").write_text(
             "pedida=1080", encoding="utf-8"
         )
+        _envejecer(p)
         try:
             _aplicar_ffprobe(monkeypatch, None)
+            # Con cookies la pantalla 4K sí puede subir el tope: el reloj
+            # permite el reintento.
+            monkeypatch.setattr(
+                "video_fondo.cookies_file_opt", lambda: {"cookiefile": "ck.txt"}
+            )
             assert calidad_suficiente("cal_prom_baja", 2160) is False
             # Para la pantalla que la pidió, en cambio, no repite la descarga.
             assert calidad_suficiente("cal_prom_baja", 1080) is True
@@ -600,6 +625,7 @@ class TestTopeCalidad:
         (VIDEO_DIR / "cal_prom_corr.calidad").write_text(
             "pedida=1080", encoding="utf-8"
         )
+        _envejecer(p)
         try:
             _aplicar_ffprobe(monkeypatch, 720)
             # El fichero es 720p: la promesa de 1080p no debe darlo por bueno.
@@ -629,8 +655,14 @@ class TestTopeCalidad:
         p.write_bytes(b"viejo")
         # Descargado antes para una pantalla 1080p: el sidecar lo atestigua.
         (VIDEO_DIR / "up_vid.calidad").write_text("medida=1080", encoding="utf-8")
+        _envejecer(p)
         monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
         monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        # Con cookies la pantalla 4K sí sirve más: el reloj da paso al
+        # reintento.
+        monkeypatch.setattr(
+            "video_fondo.cookies_file_opt", lambda: {"cookiefile": "ck.txt"}
+        )
         try:
             # YouTube acaba sirviendo 2160p y eso es lo que debe quedar anotado.
             _aplicar_ffprobe(monkeypatch, 2160)
@@ -654,6 +686,7 @@ class TestTopeCalidad:
         """
         p = VIDEO_DIR / "up_recorte.mp4"
         p.write_bytes(b"viejo")
+        _envejecer(p)
         monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
         monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
         try:
@@ -661,7 +694,9 @@ class TestTopeCalidad:
             _aplicar_ffprobe(monkeypatch, 720)
             prepare_video("up_recorte", max_alto=1080)
             assert calidad_guardada("up_recorte") == 720
-            # Y al volver a abrirla, al no llegar a 1080p se corrige sola.
+            # Y al volver a abrirla, al no llegar a 1080p se corrige sola
+            # (pasadas las 2 h que marca el reloj anti-bucle).
+            _envejecer(get_output_path("up_recorte"))
             assert calidad_suficiente("up_recorte", 1080) is False
         finally:
             delete_video("up_recorte")
@@ -721,6 +756,47 @@ class TestTopeCalidad:
             p.unlink(missing_ok=True)
             (VIDEO_DIR / "up_fijo.calidad").unlink(missing_ok=True)
             video_progress.pop("up_fijo", None)
+
+    def test_no_reintenta_en_cada_apertura(self):
+        """Un fichero insuficiente no se redescarga en cada apertura.
+
+        Recién descargado no se vuelve a bajar (así no se borran y redescargan
+        26 MB en cada apertura de la pantalla de letras); el reintento llega
+        cuando el fichero cumple 2 horas.
+        """
+        p = VIDEO_DIR / "cal_reint.mp4"
+        p.write_bytes(b"x")
+        (VIDEO_DIR / "cal_reint.calidad").write_text(
+            "medida=1280x720", encoding="utf-8"
+        )
+        try:
+            # Fresco: se da por bueno aunque no llegue a 1080p...
+            assert calidad_suficiente("cal_reint", 1080) is True
+            # ...y pasadas las 2 h vuelve a permitirse el reintento.
+            _envejecer(p)
+            assert calidad_suficiente("cal_reint", 1080) is False
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "cal_reint.calidad").unlink(missing_ok=True)
+
+    def test_clip_letterbox_no_reintenta(self, monkeypatch):
+        """Un clip panorámico 1920x720 es de clase 1080p: no se redescarga.
+
+        Hay clips cuyo contenido es letterbox (1920x594, 1920x720...): el alto
+        queda por debajo del tope, pero el ancho es ya 1080p y volver a pedir
+        más solo repetiría la descarga sin mejorar nada.
+        """
+        p = VIDEO_DIR / "cal_pan.mp4"
+        p.write_bytes(b"x")
+        try:
+            _aplicar_ffprobe(monkeypatch, 720, 1920)
+            assert calidad_suficiente("cal_pan", 1080) is True
+            # En pantalla 4K sin cookies YouTube no sirve más: se da por bueno.
+            assert calidad_suficiente("cal_pan", 2160) is True
+            assert calidad_guardada("cal_pan") == 720
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "cal_pan.calidad").unlink(missing_ok=True)
 
 
 class TestDesfase:

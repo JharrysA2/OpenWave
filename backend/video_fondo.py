@@ -343,12 +343,18 @@ def calidad_suficiente(video_id: str, max_alto: int | None = None) -> bool:
     ancho, alto = dims
     if _alcanza(ancho, alto, tope):
         return True
-    if not _alcanza(ancho, alto, _TOPE_SESION) and cookies_file_opt() is None:
-        # Techo real sin sesión: YouTube no sirve más de 1080p, así que
-        # pedir más en pantalla 4K solo provocaría un bucle de descargas.
+    if (
+        tope > _TOPE_SESION
+        and _alcanza(ancho, alto, _TOPE_SESION)
+        # Sin cookies.txt YouTube no sirve más de 1080p: en pantalla 4K
+        # pedir más solo provocaría un bucle de borrado y descarga.
+        and cookies_file_opt() is None
+    ):
         return True
-    # Reloj anti-bucle: solo se reconsidera tras 2 h, dando tiempo a corregir
-    # la causa (429, cookies nuevas) sin redescargar en cada apertura.
+    # Reloj anti-bucle: un fichero recién descargado no se vuelve a bajar
+    # aunque no llegue al tope (evita redescargar 26 MB en cada apertura);
+    # el reintento llega cuando ya cumple 2 h, tiempo de sobra para
+    # corregir la causa (429 puntual, cookies nuevas).
     try:
         ruta = get_output_path(video_id)
         if ruta is None:
@@ -356,7 +362,7 @@ def calidad_suficiente(video_id: str, max_alto: int | None = None) -> bool:
         edad = time.time() - ruta.stat().st_mtime
     except OSError:
         return True
-    return edad >= _REINTENTO_SEG
+    return edad < _REINTENTO_SEG
 
 
 def _progress(video_id: str) -> dict:

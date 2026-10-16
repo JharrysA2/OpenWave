@@ -1,8 +1,17 @@
 """Tests para routes/video_routes.py — Preparación de vídeo de la pantalla de letras."""
 
+import os
+import time
+
 from cache import video_progress
 from config import VIDEO_DIR
 from video_fondo import calidad_guardada
+
+
+def _envejecer(p, seg: int = 3 * 3600):
+    """Atraviesa el reloj anti-bucle: el fichero queda con más de 2 h."""
+    viejo = time.time() - seg
+    os.utime(p, (viejo, viejo))
 
 
 class TestVideoStatus:
@@ -72,6 +81,11 @@ class TestVideoStatus:
         )
         p = VIDEO_DIR / "status_4k.mp4"
         p.write_bytes(b"x")
+        _envejecer(p)
+        # Con cookies una pantalla 4K sí puede subir el tope: manda el reloj.
+        mocker.patch(
+            "video_fondo.cookies_file_opt", return_value={"cookiefile": "ck.txt"}
+        )
         try:
             resp = client.get("/video/status/status_4k?max_alto=2160")
             assert resp.json() == {"prepared": False, "sin_videoclip": False}
@@ -95,6 +109,7 @@ class TestVideoStatus:
         )
         p = VIDEO_DIR / "status_rec.mp4"
         p.write_bytes(b"x")
+        _envejecer(p)
         try:
             resp = client.get("/video/status/status_rec?max_alto=1080")
             assert resp.json()["prepared"] is False
@@ -106,11 +121,11 @@ class TestVideoStatus:
 
     def test_status_con_resolucion_anotada_no_redescarga(self, client):
         """Si la resolución real ya alcanza el tope, no se repite (ni midiendo)."""
-        from video_fondo import _guardar_calidad
-
         p = VIDEO_DIR / "status_ok4k.mp4"
         p.write_bytes(b"x")
-        _guardar_calidad("status_ok4k", 2160)
+        (VIDEO_DIR / "status_ok4k.calidad").write_text(
+            "medida=3840x2160", encoding="utf-8"
+        )
         try:
             resp = client.get("/video/status/status_ok4k?max_alto=2160")
             assert resp.json()["prepared"] is True

@@ -62,8 +62,13 @@ class TestVideoStatus:
         resp = client.get("/video/status/bad..id")
         assert resp.status_code == 400
 
-    def test_status_con_tope_mayor_informa_no_preparado(self, client):
-        """Un vídeo a 1080p no basta para una pantalla 4K: se vuelve a bajar."""
+    def test_status_con_tope_mayor_informa_no_preparado(self, client, mocker):
+        """Un vídeo cuya resolución real no llega al tope se vuelve a bajar."""
+        mocker.patch("video_fondo._ffmpeg_bin", return_value="ffmpeg-falso")
+        mocker.patch(
+            "video_fondo.subprocess.run",
+            return_value=type("_P", (), {"stderr": "Video: vp9, yuv420p, 1920x1080"})(),
+        )
         p = VIDEO_DIR / "status_4k.mp4"
         p.write_bytes(b"x")
         try:
@@ -73,9 +78,35 @@ class TestVideoStatus:
             assert client.get("/video/status/status_4k").json()["prepared"] is True
         finally:
             p.unlink(missing_ok=True)
+            (VIDEO_DIR / "status_4k.calidad").unlink(missing_ok=True)
 
-    def test_status_con_tope_anotado_no_redescarga(self, client):
-        """Si la descarga ya se pidió a ese tope, no se repite (aunque sea 4K)."""
+    def test_status_mide_la_real_cuando_no_hay_sidecar(self, client, mocker):
+        """Descarga antigua sin sidecar: se mide el fichero y se anota lo real.
+
+        Sin sidecar, un clip que YouTube recortó a 720p no da por bueno el
+        1080p que pide la pantalla: la ruta informa «sin preparar» para que la
+        app lo vuelva a bajar.
+        """
+        mocker.patch("video_fondo._ffmpeg_bin", return_value="ffmpeg-falso")
+        mocker.patch(
+            "video_fondo.subprocess.run",
+            return_value=type("_P", (), {"stderr": "Video: vp9, yuv420p, 1280x720"})(),
+        )
+        p = VIDEO_DIR / "status_rec.mp4"
+        p.write_bytes(b"x")
+        try:
+            resp = client.get("/video/status/status_rec?max_alto=1080")
+            assert resp.json()["prepared"] is False
+            # Y la medida real quedó anotada, para no volver a sondear.
+            assert (VIDEO_DIR / "status_rec.calidad").read_text(
+                encoding="utf-8"
+            ) == "720"
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "status_rec.calidad").unlink(missing_ok=True)
+
+    def test_status_con_resolucion_anotada_no_redescarga(self, client):
+        """Si la resolución real ya alcanza el tope, no se repite (ni midiendo)."""
         from video_fondo import _guardar_calidad
 
         p = VIDEO_DIR / "status_ok4k.mp4"

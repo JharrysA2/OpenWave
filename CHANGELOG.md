@@ -6,6 +6,19 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Un vídeo de fondo recortado por YouTube ya no se queda bajo para siempre.**
+  Al preparar un clip se anotaba el tope de resolución que se había pedido, no
+  el que YouTube acabó sirviendo: sin una sesión válida YouTube recorta y puede
+  entregar 720p aunque se pidieran 1080p, y como el sidecar ya decía «1080» la
+  app daba el vídeo por bueno y no volvía a bajarlo nunca. Ahora, al preparar
+  un clip sin medida anotada, se lee la resolución real del fichero (con el
+  ffmpeg que ya viaja con la app) y es lo que queda anotado, así que un clip
+  recortado se corrige solo en la siguiente apertura. El sidecar sigue siendo
+  caché: si ya existe no se vuelve a medir, para no pagar una llamada a ffmpeg
+  en cada apertura de la pantalla de letras.
+
 ## [1.1.1] - 2026-10-15
 
 - **Cookies de YouTube opcionales.** Si dejas un `cookies.txt` (formato

@@ -67,6 +67,36 @@ class TestPaths:
             p.unlink(missing_ok=True)
 
 
+def _ffprobe_falso(alto: int | None):
+    """Devuelve un `_ffmpeg_bin` falso cuya salida anuncia ``alto`` píxeles.
+
+    ``None`` simula «no se puede medir» (sin ffmpeg o fichero ilegible): la
+    app debe caer al criterio viejo de 1080p en vez de reventar.
+    """
+
+    def _bin():
+        return "ffmpeg-falso"
+
+    def _run(cmd, **kwargs):
+        class _P:
+            stderr = (
+                f"Stream #0:0: Video: vp9, yuv420p, 1920x{alto}, 30 fps\n"
+                if alto
+                else "moov atom not found\n"
+            )
+
+        return _P()
+
+    return _bin, _run
+
+
+def _aplicar_ffprobe(monkeypatch, alto: int | None):
+    """Fija en video_fondo un ffmpeg que «mide» ``alto`` píxeles."""
+    _bin, _run = _ffprobe_falso(alto)
+    monkeypatch.setattr("video_fondo._ffmpeg_bin", _bin)
+    monkeypatch.setattr("video_fondo.subprocess.run", _run)
+
+
 class _FakeYdl:
     """YoutubeDL de mentira: «descarga» y publica el fichero final en VIDEO_DIR."""
 
@@ -440,25 +470,64 @@ class TestTopeCalidad:
     def test_calidad_suficiente_sin_fichero(self):
         assert calidad_suficiente("cal_nada", 2160) is False
 
-    def test_calidad_suficiente_asume_1080_en_descargas_antiguas(self):
-        """Los vídeos de antes no anotaron su tope: valen como 1080p."""
+    def test_calidad_suficiente_mide_la_real_en_descargas_antiguas(self, monkeypatch):
+        """Los vídeos de antes no anotaron su resolución: se mide la real."""
         p = VIDEO_DIR / "cal_viejo.mp4"
         p.write_bytes(b"x")
         try:
-            assert calidad_suficiente("cal_viejo") is True
-            assert calidad_suficiente("cal_viejo", 1080) is True
-            # Una pantalla 4K pide más de lo que se sabe descargado.
-            assert calidad_suficiente("cal_viejo", 2160) is False
+            # Sin sidecar, la app mide el fichero: aquí sale 720p.
+            _aplicar_ffprobe(monkeypatch, 720)
+            # Un 720p NO satisface el tope por defecto (1080p): se redescarga.
+            assert calidad_suficiente("cal_viejo") is False
             assert calidad_suficiente("cal_viejo", 720) is True
+            # Una pantalla que pide más de lo medido fuerza la redescarga.
+            assert calidad_suficiente("cal_viejo", 1080) is False
+            assert calidad_suficiente("cal_viejo", 2160) is False
+            # Y la medida queda anotada para no volver a sondear.
+            assert calidad_guardada("cal_viejo") == 720
         finally:
             p.unlink(missing_ok=True)
+            (VIDEO_DIR / "cal_viejo.calidad").unlink(missing_ok=True)
 
-    def test_calidad_suficiente_respeta_el_tope_anotado(self):
-        """El tope pedido queda anotado: no se vuelve a bajar aunque sea 4K."""
+    def test_calidad_suficiente_sin_ffmpeg_cae_a_1080(self, monkeypatch):
+        """Sin ffmpeg (o fichero ilegible) se sigue usando el criterio viejo."""
+        p = VIDEO_DIR / "cal_nof.mp4"
+        p.write_bytes(b"x")
+        try:
+            _aplicar_ffprobe(monkeypatch, None)
+            assert calidad_suficiente("cal_nof") is True
+            assert calidad_suficiente("cal_nof", 2160) is False
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "cal_nof.calidad").unlink(missing_ok=True)
+
+    def test_calidad_suficiente_no_sondea_si_ya_hay_sidecar(self, monkeypatch):
+        """El sidecar es caché: si ya existe, no se vuelve a llamar a ffmpeg.
+
+        Es el contrato que evita pagar una medición en cada apertura de la
+        pantalla de letras. Un clip ya anotado no se corrige midiendo otra vez.
+        """
+
+        def _boom(*args, **kwargs):
+            raise AssertionError("no debe medirse: ya hay sidecar")
+
+        monkeypatch.setattr("video_fondo.subprocess.run", _boom)
+        p = VIDEO_DIR / "cal_cache.mp4"
+        p.write_bytes(b"x")
+        (VIDEO_DIR / "cal_cache.calidad").write_text("2160", encoding="utf-8")
+        try:
+            assert calidad_suficiente("cal_cache", 2160) is True
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "cal_cache.calidad").unlink(missing_ok=True)
+
+    def test_calidad_suficiente_respeta_la_real_anotada(self, monkeypatch):
+        """Con la resolución real anotada no se vuelve a descargar."""
         p = VIDEO_DIR / "cal_4k.mp4"
         p.write_bytes(b"x")
         (VIDEO_DIR / "cal_4k.calidad").write_text("2160", encoding="utf-8")
         try:
+            _aplicar_ffprobe(monkeypatch, 2160)
             assert calidad_guardada("cal_4k") == 2160
             assert calidad_suficiente("cal_4k", 2160) is True
         finally:
@@ -466,25 +535,53 @@ class TestTopeCalidad:
             (VIDEO_DIR / "cal_4k.calidad").unlink(missing_ok=True)
 
     def test_prepare_redescarga_cuando_pide_mas_la_pantalla(self, monkeypatch):
-        """Un 1080p en pantalla 4K se vuelve a bajar y anota el tope nuevo."""
+        """Un 1080p en pantalla 4K se vuelve a bajar y anota la nueva medida."""
         p = VIDEO_DIR / "up_vid.mp4"
         p.write_bytes(b"viejo")
+        # Descargado antes para una pantalla 1080p: el sidecar lo atestigua.
+        (VIDEO_DIR / "up_vid.calidad").write_text("1080", encoding="utf-8")
         monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
         monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
         try:
+            # YouTube acaba sirviendo 2160p y eso es lo que debe quedar anotado.
+            _aplicar_ffprobe(monkeypatch, 2160)
             prepare_video("up_vid", max_alto=2160)
             assert video_progress["up_vid"]["status"] == "done"
-            # Se pidió con el filtro 4K y el tope quedó anotado.
+            # Se pidió con el filtro 4K y la resolución REAL quedó anotada.
             assert "height<=2160" in _FakeYdl.instances[0].opts["format"]
             assert calidad_guardada("up_vid") == 2160
             assert calidad_suficiente("up_vid", 2160) is True
         finally:
             delete_video("up_vid")
+            (VIDEO_DIR / "up_vid.calidad").unlink(missing_ok=True)
             video_progress.pop("up_vid", None)
             _FakeYdl.instances.clear()
 
-    def test_prepare_no_redescarga_si_el_tope_ya_se_pidio(self, monkeypatch):
-        """Tras anotar el tope, la siguiente apertura no vuelve a descargar."""
+    def test_prepare_anota_lo_que_youtube_sirvio_de_verdad(self, monkeypatch):
+        """Si YouTube recorta la descarga, se anota lo recortado, no lo pedido.
+
+        Es el bug que congelaba un clip a 720p: se pedía 1080p, YouTube daba
+        720p y el sidecar anotaba 1080p, con lo que nunca se volvía a bajar.
+        """
+        p = VIDEO_DIR / "up_recorte.mp4"
+        p.write_bytes(b"viejo")
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        try:
+            # Se pidió 1080p pero el fichero acaba siendo 720p.
+            _aplicar_ffprobe(monkeypatch, 720)
+            prepare_video("up_recorte", max_alto=1080)
+            assert calidad_guardada("up_recorte") == 720
+            # Y al volver a abrirla, al no llegar a 1080p se corrige sola.
+            assert calidad_suficiente("up_recorte", 1080) is False
+        finally:
+            delete_video("up_recorte")
+            video_progress.pop("up_recorte", None)
+            _FakeYdl.instances.clear()
+
+    def test_prepare_no_redescarga_si_la_resolucion_ya_alcanza(self, monkeypatch):
+        """Con la resolución suficiente ya anotada, la siguiente apertura no
+        vuelve a descargar."""
         p = VIDEO_DIR / "up_fijo.mp4"
         p.write_bytes(b"4k")
         (VIDEO_DIR / "up_fijo.calidad").write_text("2160", encoding="utf-8")

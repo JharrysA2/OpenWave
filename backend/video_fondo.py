@@ -13,6 +13,8 @@ El motor solo trabaja para canciones abiertas con el ajuste «Vídeo de fondo»
 encendido: coste cero en el resto de la app.
 """
 
+import re
+import subprocess
 import threading
 from contextlib import suppress
 from pathlib import Path
@@ -161,12 +163,12 @@ def is_prepared(video_id: str) -> bool:
 
 
 def _calidad_path(video_id: str) -> Path:
-    """Fichero que anota el tope de resolución con el que se descargó."""
+    """Fichero que anota la altura REAL (píxeles) del vídeo en disco."""
     return VIDEO_DIR / f"{video_id}.calidad"
 
 
 def calidad_guardada(video_id: str) -> int | None:
-    """Tope usado en la última descarga, o ``None`` si fue antes de este ajuste."""
+    """Altura real (píxeles) medida en la última comprobación, o ``None``."""
     try:
         return int(_calidad_path(video_id).read_text(encoding="utf-8").strip())
     except (OSError, ValueError):
@@ -178,19 +180,63 @@ def _guardar_calidad(video_id: str, alto: int) -> None:
         _calidad_path(video_id).write_text(str(alto), encoding="utf-8")
 
 
+def _altura_real(video_id: str) -> int | None:
+    """Altura REAL del stream de vídeo en disco, o ``None`` si no se puede medir.
+
+    Mide lo que hay de verdad en el fichero (con ffmpeg, que ya viaja con la
+    app) en vez de fiarse del tope pedido: sin sesión válida YouTube recorta la
+    resolución, y un clip letterbox trae barras que no cuentan como imagen.
+    """
+    ruta = get_output_path(video_id)
+    ffmpeg = _ffmpeg_bin()
+    if ruta is None or ffmpeg is None:
+        return None
+    try:
+        proc = subprocess.run(
+            [ffmpeg, "-hide_banner", "-i", str(ruta)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=60,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    # ffmpeg escribe el mapa de streams en stderr, p. ej.
+    # «Stream #0:0: Video: vp9, yuv420p, 1920x1080, ...».
+    match = re.search(r"Video:.*?(\d{2,5})x(\d{2,5})", proc.stderr or "")
+    if not match:
+        return None
+    try:
+        return int(match.group(2))
+    except ValueError:
+        return None
+
+
 def calidad_suficiente(video_id: str, max_alto: int | None = None) -> bool:
     """¿Alcanza el fichero en disco el tope que pide la pantalla?
 
-    Los vídeos descargados antes de este ajuste no anotaron su tope: se asume
-    el 1080p fijo que usaba el código anterior. Así una pantalla 4K repite la
-    descarga una sola vez por vídeo (tras anotar el tope pedido no vuelve a
-    bajar nada, aunque YouTube no ofrezca más).
+    Compara contra la resolución **real** del fichero, no contra el tope que se
+    pidió: sin sesión válida YouTube recorta la resolución y anotar lo pedido
+    congelaría un vídeo a 720p para siempre (se creería que ya está a 1080p).
+
+    Los vídeos descargados antes de este ajuste no anotaron su resolución: se
+    mide la una vez y se queda anotada. Así una pantalla 4K repite la descarga
+    una sola vez por vídeo, y una recortada por YouTube se corrige sola al
+    volver a abrirla.
     """
     if not is_prepared(video_id):
         return False
     guardada = calidad_guardada(video_id)
     if guardada is None:
-        guardada = _ALTO_DEFECTO
+        # Fichero de antes del ajuste: se mide y se anota la altura real.
+        real = _altura_real(video_id)
+        if real is not None:
+            _guardar_calidad(video_id, real)
+            guardada = real
+        else:
+            # Sin ffmpeg (o fichero ilegible): el criterio viejo, a ciegas.
+            guardada = _ALTO_DEFECTO
     return guardada >= _cap_alto(max_alto)
 
 
@@ -387,7 +433,9 @@ def prepare_video(
                         if p.is_file():
                             p.unlink()
             _descargar(video_id, fuente_id, max_alto)
-            _guardar_calidad(video_id, _cap_alto(max_alto))
+            # Se anota la resolución REAL conseguida, no el tope pedido: YouTube
+            # recorta con la sesión y anotar lo pedido congelaría un vídeo bajo.
+            _guardar_calidad(video_id, _altura_real(video_id) or _cap_alto(max_alto))
             _evict_if_needed()
 
         desfase = _resolver_desfase(video_id, fuente_id, usar_oficial)

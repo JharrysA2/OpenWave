@@ -28,10 +28,13 @@ que se repinta con letras/scroll). Por tanto:
   - **transitorias no modales**: `GLASS.popup` (toast/volumen/crossfade) se
     queda en `blur(6px)` — pueden flotar sobre contenido que se mueve.
   - **cristal local con vídeo de fondo** (`LyricsView`): mientras el fondo es
-    el videoclip, la barra lateral (portada + cola) difumina con `blur(20px)`
+    el videoclip, la barra lateral (portada + cola) difumina con `blur(12px)`
     y los botones de arriba (⋮ y cerrar) con `blur(6px)` — detrás hay vídeo en
-    movimiento real. Con la portada de fondo (estática) esos mismos nodos van
-    **sin** blur: el caso de siempre no cambia.
+    movimiento real, y ese blur del panel es el pase caro de la pantalla de
+    letras porque se re-ejecuta en cada frame (a 12px, con el velo encima y un
+    poco más de tinte, se lee igual que a 20px). Con la portada de fondo
+    (estática) esos mismos nodos van **sin** blur: el caso de siempre no
+    cambia.
 - **Prohibido en superficies vivas**: grids, tarjetas, listas, botones con
   hover, contenido con scroll (cada repintado re-ejecuta el blur en la iGPU) y,
   en particular, **en los scrims de los modales** (ver §7).
@@ -154,7 +157,8 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
 - Evidencia empírica propia: las mediciones con `scripts/measure-perf.ps1`
   reportan motores GPU reales (`video codec 0` = decodificación por hardware).
 - **Flags GPU forzados** (`tauri.conf.json` → `additionalBrowserArgs`):
-  `--ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy`, más
+  `--ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy
+  --force-high-performance-gpu`, más
   los defaults de wry (`--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection
   --autoplay-policy=no-user-gesture-required`) que hay que **reincluir siempre**:
   wry sustituye los suyos por completo cuando se fijan argumentos propios
@@ -162,11 +166,26 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
   «desbloquear» la GPU dedicada: el blocklist existe por drivers buggeados,
   pero si el driver falla Chromium cae solo a render por software y
   `softwareRenderer.js` lo detecta igual (modo Auto → bajo consumo).
+- **La dedicada, de verdad: `--force-high-performance-gpu`** (switch de
+  Chromium, `gpu/config/gpu_switches.cc` — el mismo que expone
+  `chrome://flags/#force-high-performance-gpu`). En un portátil con dos GPU el
+  motor elige por defecto la integrada por consumo, y el trabajo de render
+  ocurre en un proceso aparte (`msedgewebview2.exe`, hijo de OpenWave.exe con
+  `--type=gpu-process` que hereda la línea de comandos): por eso la
+  preferencia de Windows por exe sobre `OpenWave.exe` **no le llega** y la app
+  se quedaba en la integrada aunque pidiera la dedicada (limitación conocida
+  de WebView2: MicrosoftEdge/WebView2Feedback#5072 — ni `NvOptimusEnablement`
+  ni la configuración de Gráficas sobre el exe anfitrión alcanzan al proceso
+  de GPU). El switch se aplica en el proceso de GPU heredado y obliga a
+  Chromium a crear el dispositivo sobre la GPU de alto rendimiento en todo el
+  equipo (como hace Brave/Chrome con la flag activa); en equipos de gráfica
+  única no cambia nada.
 - **GPU dedicada por usuario** (MSI, `main.wxs`): el instalador escribe
   `HKCU\Software\Microsoft\DirectX\UserGpuPreferences\<exe> = GpuPreference=2;`,
   la misma preferencia «Alto rendimiento» que Configuración → Gráficas de
-  Windows. Así el sistema asigna la GPU dedicada a OpenWave si el equipo la
-  tiene (en equipos de gráfica única no hace nada).
+  Windows. Cubre el proceso anfitrión (OpenWave.exe); el render de la web es
+  lo que resuelve el switch anterior (en equipos de gráfica única no hace
+  nada ninguno de los dos).
 - La sección de diagnóstico de GPU se retiró de Ajustes → Rendimiento: el
   usuario pidió quitar el mensaje de «aceleración por hardware activa».
 - Reparto de trabajo: composición/raster/decode en GPU (WebView2 por defecto +

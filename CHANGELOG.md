@@ -16,12 +16,24 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Changed
 
-- **La GPU manda en el modo vídeo.** El instalador registra OpenWave como app
-  de «Alto rendimiento» en Configuración → Gráficas de Windows (GPU dedicada
-  si el equipo la tiene) y el WebView arranca con rasterización por GPU, copia
-  cero y sin el blocklist de drivers. Además, el vídeo de fondo se pausa solo
-  cuando la ventana está oculta o un modal la tapa: deja de decodificar mientras
-  nadie lo vea y se reanuda sincronizado al volver.
+- **La GPU manda en el modo vídeo, y ahora la dedicada de verdad.** El
+  instalador registra OpenWave como app de «Alto rendimiento» en
+  Configuración → Gráficas de Windows y el WebView arranca con rasterización
+  por GPU, copia cero y sin el blocklist de drivers. Además el arranque lleva
+  `--force-high-performance-gpu`, el switch con el que Chromium pide la GPU de
+  alto rendimiento: el render ocurre en un proceso hijo (`msedgewebview2.exe`)
+  al que la preferencia de Windows por exe no llega, así que en equipos con
+  dos GPU la app se quedaba en la integrada pese al registro (limitación
+  conocida de WebView2). El vídeo de fondo se pausa solo cuando la ventana
+  está oculta o un modal la tapa: deja de decodificar mientras nadie lo vea y
+  se reanuda sincronizado al volver.
+- **La pantalla de letras con vídeo respira mejor.** El cristal de la
+  portada + cola difumina a 12px en vez de 20px (es el pase que se vuelve a
+  ejecutar en cada frame del clip) con un punto más de tinte: la lectura es
+  la misma y el coste por frame baja en torno a un 40%.
+- **Sin degradado bajo el encabezado de la barra lateral.** La sombra de zona
+  que quedaba justo debajo de la marca, la flecha de retraer y el botón de
+  ajustes ya no se dibuja; la jerarquía la da el degradado del fondo.
 - **Adiós a las líneas de contorno finas.** La titlebar, la barra lateral, las
   cabeceras de ajustes y de modales, las filas de listas (álbumes, ajustes) y
   el editor de letras ya no dibujan hairlines de 1px: la separación es una

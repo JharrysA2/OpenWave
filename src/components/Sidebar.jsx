@@ -79,7 +79,9 @@ export const Sidebar = React.memo(function Sidebar({
             alignItems: "center",
             justifyContent: "space-between",
             gap: "4px",
-            boxShadow: SHADOWS.sepZone,
+            // Sin sombra de zona debajo: la mancha oscura del encabezado se
+            // leía como un degradado cortado justo bajo la marca. La
+            // jerarquía la da el propio degradado del fondo del sidebar.
             flexShrink: 0,
           }}
         >

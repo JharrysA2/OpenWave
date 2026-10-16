@@ -2672,12 +2672,16 @@ export function LyricsView({
           // blur (el fondo estático no lo necesita), pero sí el mismo material
           // —tinte de acento, brillo superior y sombra— sobre la portada
           // difuminada que cubre todo el fondo.
+          // Con vídeo, blur de 12px (no 20px): es el pase caro de la pantalla
+          // de letras porque se re-ejecuta en cada frame del clip, y a 12px,
+          // con el velo encima y un poco más de tinte (.15/.07), la lectura
+          // es la misma —el foco lo pone el material, no el radio.
           ...(videoGlass
             ? {
                 background:
-                  "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
+                  "linear-gradient(135deg, rgba(255,255,255,.15) 0%, rgba(255,255,255,.07) 100%)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), 0 24px 80px rgba(0,0,0,.5)",
               }
             : {

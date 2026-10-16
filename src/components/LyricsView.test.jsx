@@ -1675,9 +1675,10 @@ describe("LyricsView — vídeo de fondo", () => {
     renderLyrics();
     await screen.findByTestId("lyrics-video");
 
-    // Portada + cola → hoja de cristal (mismo material que GLASS.sheet)
+    // Portada + cola → hoja de cristal adaptada al clip (blur 12px: el pase
+    // sobre el vídeo se re-ejecuta por frame, y con 12px + tinte se lee igual)
     const panel = screen.getByTestId("lyrics-panel");
-    expect(panel.style.backdropFilter).toBe("blur(20px)");
+    expect(panel.style.backdropFilter).toBe("blur(12px)");
     expect(panel.style.background).toContain("gradient");
 
     // Los dos botones de arriba (⋮ y X) → cristal de botón del sistema

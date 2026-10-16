@@ -146,8 +146,16 @@ export const VIDEO_DRIFT_TOLERANCE = 0.4;
  * prepararlos). Con desfase negativo el vídeo aún no ha empezado y espera en
  * su primer fotograma hasta que el audio lo alcance.
  *
+ * Un clip más corto que la canción se queda en su último fotograma: pedir
+ * `play()` con `ended` reiniciaría el clip y el seek siguiente volvería a
+ * acabarlo, un bucle play/seek a cadencia de frame que reanudaba y vaciaba
+ * el decodificador 60 veces por segundo (GPU al 100% a los pocos minutos).
+ * Solo se reanuda si el audio vuelve a caer dentro del clip (seek atrás,
+ * «repetir canción»), para lo que hace falta conocer la duración real.
+ *
  * @param {{audioTime?:number, videoTime?:number, audioPaused?:boolean,
- *          videoEnded?:boolean, desfase?:number, tolerance?:number}} frame
+ *          videoEnded?:boolean, videoDuration?:number, desfase?:number,
+ *          tolerance?:number}} frame
  * @returns {{play:boolean, seekTo:number|null}}
  */
 export function planVideoSync({
@@ -155,6 +163,7 @@ export function planVideoSync({
   videoTime,
   audioPaused,
   videoEnded = false,
+  videoDuration,
   desfase = 0,
   tolerance = VIDEO_DRIFT_TOLERANCE,
 } = {}) {
@@ -168,10 +177,18 @@ export function planVideoSync({
     // El clip arranca dentro de la canción: aún no hay vídeo que mostrar.
     return { play: false, seekTo: 0 };
   }
+  if (videoEnded) {
+    // Fin del clip (más corto que la canción): último fotograma, quieto.
+    // Con duración conocida y el audio de vuelta dentro del clip se
+    // reanuda con un seek directo (sin pasar por play() desde `ended`,
+    // que reiniciaría desde el principio y desincronizaría).
+    const dur = Number(videoDuration);
+    if (Number.isFinite(objetivo) && Number.isFinite(dur) && dur > 0 && objetivo < dur) {
+      return { play: true, seekTo: objetivo };
+    }
+    return { play: false, seekTo: null };
+  }
   const drift =
     Number.isFinite(objetivo) && Number.isFinite(video) ? Math.abs(video - objetivo) : 0;
-  // Un vídeo terminado (el videoclip es más corto que la canción) se queda en
-  // su último fotograma: corregir ahí daría un bucle de seeks imposibles.
-  const seekTo = !videoEnded && drift > tolerance ? objetivo : null;
-  return { play: true, seekTo };
+  return { play: true, seekTo: drift > tolerance ? objetivo : null };
 }

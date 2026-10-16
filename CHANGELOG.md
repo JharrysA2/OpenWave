@@ -47,6 +47,13 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Fixed
 
+- **Un videoclip más corto que la canción ya no satura la GPU.** Cuando el
+  clip llegaba a su fin antes que la canción, el sincronizador seguía
+  pidiendo `play()` al vídeo terminado: cada frame lo reiniciaba y el seek
+  siguiente volvía a acabarlo, un bucle de reanudar y vaciar el decodificador
+  a cadencia de frame que disparaba el uso de GPU a los pocos minutos. El clip
+  final se queda en su último fotograma y solo se reanuda si el audio vuelve a
+  caer dentro del clip (seek atrás o «repetir canción»).
 - **Un vídeo de fondo recortado por YouTube ya no se queda bajo para siempre.**
   Al preparar un clip se anotaba el tope de resolución que se había pedido, no
   el que YouTube acabó sirviendo: sin una sesión válida YouTube recorta y puede

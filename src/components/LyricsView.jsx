@@ -1656,6 +1656,7 @@ export function LyricsView({
             videoTime: video.currentTime,
             audioPaused: audio ? audio.paused : true,
             videoEnded: video.ended,
+            videoDuration: video.duration,
             desfase: videoState.desfase ?? 0,
           });
       if (plan.play) {

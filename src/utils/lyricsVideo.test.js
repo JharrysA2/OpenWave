@@ -131,10 +131,37 @@ describe("lyricsVideo", () => {
       expect(plan.seekTo).toBe(30);
     });
 
-    it("un vídeo terminado no se reposiciona (se queda en su último fotograma)", () => {
+    it("un vídeo terminado no se reproduce ni se reposiciona (último fotograma)", () => {
+      // Pedir play() con ended reiniciaría el clip y el seek siguiente volvería
+      // a acabarlo: bucle play/seek por frame con el decodificador reanudándose
+      // y vaciando cada frame (GPU al 100% a los pocos minutos).
       expect(
         planVideoSync({ audioTime: 300, videoTime: 200, audioPaused: false, videoEnded: true }),
-      ).toEqual({ play: true, seekTo: null });
+      ).toEqual({ play: false, seekTo: null });
+    });
+
+    it("el clip terminado se queda quieto aunque conozcamos la duración y el audio siga fuera", () => {
+      expect(
+        planVideoSync({
+          audioTime: 300,
+          videoTime: 200,
+          audioPaused: false,
+          videoEnded: true,
+          videoDuration: 210,
+        }),
+      ).toEqual({ play: false, seekTo: null });
+    });
+
+    it("reanuda el clip terminado si el audio vuelve a caer dentro (seek atrás o repetir)", () => {
+      expect(
+        planVideoSync({
+          audioTime: 10,
+          videoTime: 200,
+          audioPaused: false,
+          videoEnded: true,
+          videoDuration: 210,
+        }),
+      ).toEqual({ play: true, seekTo: 10 });
     });
 
     it("sin tiempos conocidos no inventa correcciones", () => {

@@ -40,21 +40,20 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   cabeceras de ajustes y de modales, las filas de listas de álbumes y
   el editor de letras ya no dibujan hairlines de 1px: la separación es una
   sombra suave, como se pidió para la pantalla de letras.
-- **Botones y filas con el estilo de la cola en Letras.** Los botones ⋯ y ✕
-  de la pantalla de letras ya no llevan aro: usan el mismo material del
-  player bar (gradiente, brillo interior y sombra). Las opciones de la
-  configuración de letras y las filas de su sección «Apariencia» ahora son
-  filas con contorno —relleno translúcido, borde sutil, brillo interior,
-  sombra sujeta y hover de acento— como en la cola, en vez de una sombra
-  suelta debajo que se veía rara sin nada que la definiera. Los botones de
-  acción de sus modales («Buscar», «Guardar cambios» y «Cancelar») siguen el
-  mismo cristal con borde de acento, sin el halo luminoso del degradado.
+- **Botones con el estilo del player bar en Letras.** Los botones ⋯ y ✕ de
+  la pantalla, las opciones de la configuración de letras (y las filas de su
+  sección «Apariencia») y los botones de los modales que abren esas opciones
+  («Buscar», «Guardar cambios», «Cancelar» y los de cerrar) usan el mismo
+  material de los botones del player bar —cristal con gradiente, brillo
+  interior y sombra— y ninguno lleva contorno. Las opciones antes solo tenían
+  una sombra suelta debajo que, sin material, se veía rara. La hoja y sus
+  modales mantienen su desenfoque.
 - **Ajustes sin sombras raras y sin desenfoque.** La separación entre filas
   es ahora una línea de pelo solo entre filas contiguas (antes cada fila
   dejaba una banda oscura de sombra, incluso tras la última dentro de la
   tarjeta) y la cabecera usa una sombra ajustada en vez de la ancha. La
-  pantalla va sin backdrop-filter, igual que la configuración de letras y
-  sus modales: la lectura la da la base opaca (esas pantallas, sin blur).
+  pantalla va sin backdrop-filter: la lectura la da su base opaca (la barra
+  lateral y Ajustes son las pantallas sin blur).
 
 ### Removed
 

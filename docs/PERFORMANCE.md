@@ -22,12 +22,12 @@ que se repinta con letras/scroll). Por tanto:
   - **player bar** (`blur(10px)`): el scroll de las vistas y el karaoke
     pasan por detrás (y aun así `html.overlay-open` la apaga mientras un
     overlay la tapa);
-  - **cristal de modal**: `GLASS.sheet` (las hojas de opciones) difumina con
-    `blur(40px)` sobre su degradado, con el detrás congelado por
-    `overlay-open` (§7). **Excepción — pantallas sin desenfoque**: el panel
-    de Ajustes (`GLASS.settings`) y la hoja de configuración de letras con
-    sus tres modales van **sin** backdrop-filter — la lectitura la da su
-    base opaca (decisión de producto para esas pantallas);
+  - **cristal de modal**: `GLASS.sheet` (las hojas de opciones, incluida la
+    de configuración de letras y los tres modales que abren sus opciones)
+    difumina con `blur(40px)` sobre su degradado, con el detrás congelado por
+    `overlay-open` (§7). **Excepción — sin desenfoque**: el panel de Ajustes
+    (`GLASS.settings`) va sin backdrop-filter — la lectura la da su base
+    opaca (decisión de producto para esa pantalla);
   - **transitorias no modales**: `GLASS.popup` (toast/volumen/crossfade) se
     queda en `blur(6px)` — pueden flotar sobre contenido que se mueve.
   - **cristal local con vídeo de fondo** (`LyricsView`): mientras el fondo es
@@ -129,7 +129,7 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
   tienen blur», 2026-09-29). Hoy `app-hidden` solo se
   activa con la ventana invisible, pero la exención se conserva por si el
   motor reporta oculto con la ventana a la vista: solo se salva el
-  `blur(40px)` inline (Ajustes y letras ya no lo llevan); shell/player/popup
+  `blur(40px)` inline (el panel de Ajustes ya no lo lleva); shell/player/popup
   siguen apagándose y los modos explícitos de Rendimiento ganan gracias al
   `:not()`.
 - La música sigue sonando y al restaurar el primer frame recalcula el estado
@@ -256,16 +256,17 @@ que nadie ve pero que cada repintado pagaba igual.
 "backdrop-filter"]` le pintaría el velo entero de color sólido en modo
    Rendimiento (bug ya visto en el scrim de Letras).
 2. **Presupuesto de overlays = `blur(40px)` SOLO en la superficie de cristal
-   de modal:** `GLASS.sheet` (las hojas de opciones) difumina con `blur(40px)`
-   — el desenfoque visible que el diseño pide (`DESIGN.md`: mín. 20px) — y
-   **sin `saturate`**; `GLASS.popup` (toast/volumen/crossfade: no modal,
-   transitorio) se queda en `blur(6px)`; scrim, filas, resultados y cualquier
-   capa interna, **0 filtros** (el opt-out explícito `backdropFilter: "none"`,
-   de coste cero, se permite). **Pantallas sin desenfoque** (decisión de
-   producto): el panel de Ajustes (`GLASS.settings`) y la hoja de
-   configuración de letras con sus tres modales van **sin**
-   backdrop-filter — la legibilidad la sostiene su base opaca y, mientras
-   están montados, `overlay-open` congela el detrás. ¿Por qué el radio ya no
+   de modal:** `GLASS.sheet` (las hojas de opciones, incluida la de
+   configuración de letras y los modales de sus opciones) difumina con
+   `blur(40px)` — el desenfoque visible que el diseño pide (`DESIGN.md`: mín.
+   20px) — y **sin `saturate`**; `GLASS.popup` (toast/volumen/crossfade: no
+   modal, transitorio) se queda en `blur(6px)`; scrim, filas, resultados y
+   cualquier capa interna, **0 filtros** (el opt-out explícito
+   `backdropFilter: "none"`, de coste cero, se permite). **Pantalla sin
+   desenfoque** (decisión de producto): el panel de Ajustes
+   (`GLASS.settings`) va **sin** backdrop-filter — la legibilidad la
+   sostiene su base opaca y, mientras está montado, `overlay-open` congela
+   el detrás. ¿Por qué el radio ya no
    es el coste? Porque la regla 4 congeló el detrás: un `backdrop-filter`
    sobre un fondo estático lo cachea el compositor ≈0 en reposo y el radio
    solo se paga en la animación de apertura (recortada en el A/B). Si un A/B
@@ -355,9 +356,8 @@ fuera del ruido. Consumo global de la sesión: CPU 0,9 % → **0,7 %** y GPU
 
 Tests de regresión: `ModalsPerf.test.jsx` (los 11 overlays a pantalla
 completa: cristal de modal 40px en la superficie, 0 filtros en el resto),
-`LyricsView.test.jsx` (hoja de config y modales sin blur, scrim sin blur,
-resultados sin capa propia y reloj de karaoke congelado bajo el modal),
-`useOverlayLayer.test.jsx`
+`LyricsView.test.jsx` (hoja a 40px, scrim sin blur, resultados sin capa
+propia y reloj de karaoke congelado bajo el modal), `useOverlayLayer.test.jsx`
 (clase + estado React + reglas CSS de animaciones y blurs de la shell),
 `PlayerBar.test.jsx` (intervalo de progreso congelado con overlay y reanudado
 al cerrarlo), `theme.test.js` (`sheet` a `blur(40px)`, `settings` sin blur,

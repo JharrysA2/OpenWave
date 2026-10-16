@@ -16,6 +16,7 @@ encendido: coste cero en el resto de la app.
 import re
 import subprocess
 import threading
+import time
 from contextlib import suppress
 from pathlib import Path
 
@@ -86,6 +87,14 @@ _FINAL_EXTS = ("mp4", "webm")
 _ALTO_DEFECTO = 1080
 _ALTO_MIN = 720
 _ALTO_MAX = 2160
+# Techo que YouTube sirve sin cookies de sesión: sin ellas la escalera de
+# formatos nunca llega más arriba aunque se pida 4K (lo documenta _escaleras).
+_TOPE_SESION = 1080
+# Espera mínima entre reintentos de una descarga que no llegó al tope de la
+# pantalla. Comprobarlo en cada apertura borraría y bajaría el vídeo otra vez
+# (decenas de MB) sin más: con 2 h se cubre un límite de peticiones que se
+# levante o un cambio de sesión.
+_REINTENTO_SEG = 2 * 60 * 60
 
 
 def _cap_alto(max_alto: int | None) -> int:
@@ -166,14 +175,15 @@ def is_prepared(video_id: str) -> bool:
 
 
 def _calidad_path(video_id: str) -> Path:
-    """Fichero que anota la altura REAL (píxeles) del vídeo en disco."""
+    """Fichero sidecar que anota la resolución del vídeo en disco."""
     return VIDEO_DIR / f"{video_id}.calidad"
 
 
-# El sidecar anota un entero con prefijo que dice de qué habla:
-#   «medida=720»  lo que medía el fichero de verdad (altura real en píxeles);
-#   «pedida=1080» el tope que se pidió a YouTube, cuando no hubo forma de
-#                 medir la descarga (sin ffmpeg o fichero ilegible).
+# El sidecar anota un valor con prefijo que dice de qué habla:
+#   «medida=1920x720» lo que medía el fichero de verdad (ancho x alto);
+#   «medida=720»      igual, de una build que solo guardó el alto;
+#   «pedida=1080»     el tope que se pidió a YouTube, cuando no hubo forma
+#                     de medir la descarga (sin ffmpeg o fichero ilegible).
 # Los MSI anteriores escribían solo el número («1080»), que era el tope pedido
 # pero no lo decía: sin prefijo se ignoran y se vuelve a medir, para no dar por
 # bueno un valor que puede mentir.
@@ -181,38 +191,67 @@ _PREFIJO_MEDIDA = "medida="
 _PREFIJO_PROMESA = "pedida="
 
 
-def _leer_prefijo(video_id: str, prefijo: str) -> int | None:
-    """Entero que trae el sidecar tras el prefijo dado, o ``None``."""
+def _leer_prefijo(video_id: str, prefijo: str) -> str | None:
+    """Texto que trae el sidecar tras el prefijo dado, o ``None``."""
     try:
         texto = _calidad_path(video_id).read_text(encoding="utf-8").strip()
     except OSError:
         return None
     if not texto.startswith(prefijo):
         return None
+    return texto[len(prefijo) :]
+
+
+def _entero(bruto: str | None) -> int | None:
+    """Entero de un texto ya separado de su prefijo, o ``None``."""
+    if bruto is None:
+        return None
     try:
-        return int(texto[len(prefijo) :])
+        return int(bruto)
     except ValueError:
         return None
 
 
+def _medida_dims(video_id: str) -> tuple[int | None, int] | None:
+    """Resolución medida ``(ancho, alto)``, o ``None`` si no está medida.
+
+    El ancho puede ser ``None`` en sidecars de builds anteriores que solo
+    guardaron la altura: en ese caso solo se compara la altura.
+    """
+    bruto = _leer_prefijo(video_id, _PREFIJO_MEDIDA)
+    if bruto is None:
+        return None
+    if "x" in bruto:
+        ancho_s, _, alto_s = bruto.partition("x")
+        ancho, alto = _entero(ancho_s), _entero(alto_s)
+        if ancho is not None and alto is not None:
+            return ancho, alto
+        return None
+    alto = _entero(bruto)
+    return (None, alto) if alto is not None else None
+
+
 def calidad_guardada(video_id: str) -> int | None:
-    """Altura real (píxeles) medida en la última comprobación, o ``None``.
+    """Altura (píxeles) medida en la última comprobación, o ``None``.
 
     ``None`` también para sidecars sin ``medida=``, que traen una promesa o el
     criterio viejo: son el tope pedido, no lo conseguido, así que se vuelven a
     medir una vez.
     """
-    return _leer_prefijo(video_id, _PREFIJO_MEDIDA)
+    dims = _medida_dims(video_id)
+    return None if dims is None else dims[1]
 
 
 def _calidad_prometida(video_id: str) -> int | None:
     """Tope pedido en la última descarga que no se pudo medir, o ``None``."""
-    return _leer_prefijo(video_id, _PREFIJO_PROMESA)
+    return _entero(_leer_prefijo(video_id, _PREFIJO_PROMESA))
 
 
-def _guardar_calidad(video_id: str, alto: int) -> None:
+def _guardar_medida(video_id: str, ancho: int, alto: int) -> None:
     with suppress(OSError):
-        _calidad_path(video_id).write_text(f"{_PREFIJO_MEDIDA}{alto}", encoding="utf-8")
+        _calidad_path(video_id).write_text(
+            f"{_PREFIJO_MEDIDA}{ancho}x{alto}", encoding="utf-8"
+        )
 
 
 def _guardar_prometida(video_id: str, alto: int) -> None:
@@ -222,12 +261,12 @@ def _guardar_prometida(video_id: str, alto: int) -> None:
         )
 
 
-def _altura_real(video_id: str) -> int | None:
-    """Altura REAL del stream de vídeo en disco, o ``None`` si no se puede medir.
+def _resolucion_real(video_id: str) -> tuple[int, int] | None:
+    """Resolución REAL (ancho, alto) del stream de vídeo, o ``None``.
 
     Mide lo que hay de verdad en el fichero (con ffmpeg, que ya viaja con la
     app) en vez de fiarse del tope pedido: sin sesión válida YouTube recorta la
-    resolución, y un clip letterbox trae barras que no cuentan como imagen.
+    resolución y anotar lo pedido congelaría un vídeo bajo para siempre.
     """
     ruta = get_output_path(video_id)
     ffmpeg = _ffmpeg_bin()
@@ -250,9 +289,21 @@ def _altura_real(video_id: str) -> int | None:
     if not match:
         return None
     try:
-        return int(match.group(2))
+        return int(match.group(1)), int(match.group(2))
     except ValueError:
         return None
+
+
+def _alcanza(ancho: int | None, alto: int | None, tope: int) -> bool:
+    """¿Pertenece el clip a la clase de resolución ``tope`` o la supera?
+
+    Basta con que el alto llegue al tope o el ancho a su equivalente 16:9: un
+    clip letterbox 1920x720 es de clase 1080p aunque su alto solo sea 720, y
+    así no se repite la descarga en cada apertura.
+    """
+    if alto is not None and alto >= tope:
+        return True
+    return ancho is not None and ancho >= tope * 16 // 9
 
 
 def calidad_suficiente(video_id: str, max_alto: int | None = None) -> bool:
@@ -262,29 +313,50 @@ def calidad_suficiente(video_id: str, max_alto: int | None = None) -> bool:
     pidió: sin sesión válida YouTube recorta la resolución y anotar lo pedido
     congelaría un vídeo a 720p para siempre (se creería que ya está a 1080p).
 
-    Los vídeos descargados antes de este ajuste no anotaron su resolución: se
-    mide la una vez y se queda anotada. Así una pantalla 4K repite la descarga
-    una sola vez por vídeo, y una recortada por YouTube se corrige sola al
-    volver a abrirla.
+    Tres salvaguardas para no caer en el bucle de descargas (borrar y volver a
+    bajar 26 MB en cada apertura):
+
+    - sin ``cookies.txt`` YouTube no pasa de 1080p, así que un fichero de
+      clase 1080p ya se da por bueno en pantalla 4K;
+    - se vuelve a descargar solo si el fichero tiene al menos 2 horas, que es
+      tiempo suficiente para corregir un fallo puntual (429, cookies nuevas);
+    - si no hay forma de medir (sin ffmpeg o fichero ilegible), se da por
+      bueno para no repetir la operación sin información.
     """
     if not is_prepared(video_id):
         return False
-    guardada = calidad_guardada(video_id)
-    if guardada is None:
-        # Sin medida anotada (fichero de antes, promesa o sidecar del criterio
-        # viejo): se mide la altura real y esa queda guardada.
-        real = _altura_real(video_id)
+    tope = _cap_alto(max_alto)
+    dims = _medida_dims(video_id)
+    if dims is None:
+        # Sin medida anotada (fichero de antes, promesa o sidecar sin
+        # prefijo): se mide la resolución real y esa queda guardada.
+        real = _resolucion_real(video_id)
         if real is not None:
-            _guardar_calidad(video_id, real)
-            guardada = real
+            _guardar_medida(video_id, *real)
+            dims = real
         else:
-            # Sin medición posible (sin ffmpeg o fichero ilegible): si la
-            # última descarga dejó su tope pedido, se compara con él para no
-            # repetir el bucle de descargas en pantalla 4K; sin promesa, el
-            # criterio viejo a ciegas.
+            # Sin medición posible: compara con el tope pedido si lo hay,
+            # y con el criterio viejo si ni eso quedó anotado.
             prometida = _calidad_prometida(video_id)
-            guardada = prometida if prometida is not None else _ALTO_DEFECTO
-    return guardada >= _cap_alto(max_alto)
+            alto_v = prometida if prometida is not None else _ALTO_DEFECTO
+            dims = (None, alto_v)
+    ancho, alto = dims
+    if _alcanza(ancho, alto, tope):
+        return True
+    if not _alcanza(ancho, alto, _TOPE_SESION) and cookies_file_opt() is None:
+        # Techo real sin sesión: YouTube no sirve más de 1080p, así que
+        # pedir más en pantalla 4K solo provocaría un bucle de descargas.
+        return True
+    # Reloj anti-bucle: solo se reconsidera tras 2 h, dando tiempo a corregir
+    # la causa (429, cookies nuevas) sin redescargar en cada apertura.
+    try:
+        ruta = get_output_path(video_id)
+        if ruta is None:
+            return True
+        edad = time.time() - ruta.stat().st_mtime
+    except OSError:
+        return True
+    return edad >= _REINTENTO_SEG
 
 
 def _progress(video_id: str) -> dict:
@@ -482,9 +554,9 @@ def prepare_video(
             _descargar(video_id, fuente_id, max_alto)
             # Se anota la resolución REAL conseguida, no el tope pedido: YouTube
             # recorta con la sesión y anotar lo pedido congelaría un vídeo bajo.
-            real = _altura_real(video_id)
+            real = _resolucion_real(video_id)
             if real is not None:
-                _guardar_calidad(video_id, real)
+                _guardar_medida(video_id, *real)
             else:
                 # Sin medición posible: el tope pedido queda como promesa
                 # («pedida=»), que no se confunde con una medida y se corrige

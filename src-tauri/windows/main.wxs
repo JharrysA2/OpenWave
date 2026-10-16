@@ -295,6 +295,18 @@
                     <RegistryValue Name="IconUri" Type="string" Value="[!Path]" />
                     <RegistryValue Name="IconBackgroundColor" Type="string" Value="#0a0a0f" />
                 </RegistryKey>
+                <!-- Preferencia de gráficas de Windows (Configuración →
+                     Gráficas): GpuPreference=2 = «Alto rendimiento», es
+                     decir, GPU dedicada si el equipo la tiene; es la misma
+                     opción que el usuario marcaría a mano para el exe. La
+                     clave vive en este componente porque su key path ya es
+                     HKCU (todo per-user; ICE57 prohíbe mezclar HKCU con un
+                     key path de fichero, como en el componente Path). La
+                     ruta del exe se forma con [INSTALLDIR] y MSI la limpia
+                     al desinstalar. -->
+                <RegistryKey Root="HKCU" Key="Software\Microsoft\DirectX\UserGpuPreferences">
+                    <RegistryValue Name="[INSTALLDIR]OpenWave.exe" Type="string" Value="GpuPreference=2;" />
+                </RegistryKey>
                 <!-- Change the Root to HKCU for perUser installations -->
                 {{#each deep_link_protocols as |protocol| ~}}
                 <RegistryKey Root="HKLM" Key="Software\Classes\\{{protocol}}">
@@ -311,14 +323,6 @@
             </Component>
             <Component Id="Path" Guid="{{path_component_guid}}" Win64="$(var.Win64)">
                 <File Id="Path" Source="{{main_binary_path}}" KeyPath="yes" Checksum="yes"/>
-                <!-- Preferencia de gráficas de Windows (Configuración →
-                     Gráficas): GpuPreference=2 = «Alto rendimiento», es
-                     decir, GPU dedicada si el equipo la tiene. La clave se
-                     escribe con [!Path] (ruta completa del exe, key path de
-                     este componente) y MSI la limpia al desinstalar. -->
-                <RegistryKey Root="HKCU" Key="Software\Microsoft\DirectX\UserGpuPreferences">
-                    <RegistryValue Name="[!Path]" Type="string" Value="GpuPreference=2;" />
-                </RegistryKey>
                 <!-- Limpieza de INSTALLDIR: vive aquí (feature siempre
                      instalada) para que la carpeta se borre en la
                      desinstalación aunque el Menú Inicio estuviera desmarcado. -->

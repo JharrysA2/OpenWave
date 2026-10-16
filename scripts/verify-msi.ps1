@@ -276,7 +276,7 @@ Show 'Control de OptionsDlg' $optControls 20 @(0, 1, 2, 8, 9)
 Show 'TextStyle (tipografia)' $textsty 8 @(0, 1, 2, 4)
 Show 'ActionText (progreso)' $actext 6 @(0, 1, 2)
 Show 'Feature' $features 10 @(0, 2, 5)
-Show 'Registry' $reg 8 @(0, 1, 2, 3, 4)
+Show 'Registry' $reg 9 @(0, 1, 2, 3, 4)
 Show 'RemoveFile' $rfile 8
 Write-Host ''
 Write-Host "-- File: $($files.Count) ficheros --"
@@ -412,6 +412,8 @@ $checks = [ordered]@{
         [bool]($reg | Where-Object { $_[2] -eq 'Software\Microsoft\Windows\CurrentVersion\Run' })
     'Registro AppUserModelId (DisplayName OpenWave, agrupacion en TV)' =
         [bool]($reg | Where-Object { $_[2] -eq 'Software\Classes\AppUserModelId\com.soundwave.app' -and $_[3] -eq 'DisplayName' -and $_[4] -eq 'OpenWave' })
+    'Preferencia de graficas GpuPreference=2 (GPU dedicada)' =
+        [bool]($reg | Where-Object { $_[2] -eq 'Software\Microsoft\DirectX\UserGpuPreferences' -and [string]$_[3] -like '*OpenWave.exe' -and $_[4] -eq 'GpuPreference=2;' })
     'Limpieza de INSTALLDIR (RemoveFile RemoveInstallDir, Path, uninstall)' =
         [bool]($rfile | Where-Object { $_[0] -eq 'RemoveInstallDir' -and $_[1] -eq 'Path' -and $_[3] -eq 'INSTALLDIR' -and $_[4] -eq '2' })
     'Escritorio con su RemoveFile + limpieza del .lnk heredado de Inicio' =

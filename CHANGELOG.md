@@ -389,6 +389,13 @@ Cambios de infraestructura, empaquetado y publicación. Son para el flujo de
 trabajo del proyecto y **no forman parte de las notas de una versión de la app**
 (esas van en las secciones `## [X.Y.Z]`).
 
+### Fixed
+
+- **`verify-msi.ps1` contempla la nueva clave de registro del MSI**: la tabla
+  Registry pasa de 8 a 9 filas (la preferencia de gráficas `GpuPreference=2`
+  que escribe `main.wxs`) y hay una comprobación [OK] específica para esa
+  clave, para que nadie la quite sin que el verificador lo note.
+
 ### Added
 
 - **Publicación automática** (`release.yml` + `build-msi.yml`): al empujar un

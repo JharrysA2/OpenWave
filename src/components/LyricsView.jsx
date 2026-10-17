@@ -37,7 +37,6 @@ import { codeFromReason } from "../utils/errorCodes";
 import { StatusState } from "./StatusState";
 import { useSettings } from "../contexts/useSettings";
 import { useOverlayLayer, useOverlayActive } from "../hooks/useOverlayLayer";
-import { useLiveRender } from "../hooks/useLiveRender";
 import { useEscClose } from "../hooks/useEscape";
 import { usePerformance } from "../contexts/PerformanceContext";
 
@@ -1479,7 +1478,6 @@ const LyricLine = React.memo(function LyricLine({
 export function LyricsView({
   song,
   open,
-  isPlaying = false,
   onClose,
   queue,
   queueIndex = -1,
@@ -1495,7 +1493,7 @@ export function LyricsView({
   streamCacheRef,
 }) {
   const { settings, updateSetting } = useSettings();
-  const { visible, solidOn, sleeping, idle } = usePerformance();
+  const { visible, solidOn, sleeping } = usePerformance();
   const [lyrics, setLyrics] = useState(null);
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState(null);
@@ -1690,7 +1688,7 @@ export function LyricsView({
   // El `<audio>` de la app es el transporte y el reloj de referencia; el vídeo
   // lo sigue y va SIEMPRE mudo (el sonido es el de la app, nunca los dos).
   useEffect(() => {
-    if (!open || !isVideoReady(videoState) || idle) return undefined;
+    if (!open || !isVideoReady(videoState)) return undefined;
     let rafId = 0;
     const tick = () => {
       const video = videoRef.current;
@@ -1725,7 +1723,7 @@ export function LyricsView({
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [open, videoState, audioRef, visible, overlayOpen, idle]);
+  }, [open, videoState, audioRef, visible, overlayOpen]);
 
   // ── Búsqueda de letras ──────────────────────────────────────────────────
   const [searchResults, setSearchResults] = useState(null);
@@ -1953,7 +1951,7 @@ export function LyricsView({
     // al cerrar el overlay, este efecto se re-programa, resetea wordLineRef y
     // el primer tick recalcula desde audio.currentTime (mismo patrón que
     // `visible` al ocultar la ventana).
-    if (!open || !isSynced || !visible || overlayOpen || idle) return;
+    if (!open || !isSynced || !visible || overlayOpen) return;
     if (!Array.isArray(lyrics) || lyrics.length === 0) return;
     wordLineRef.current = -1; // las letras pueden haber cambiado (reload)
     let rafId = 0;
@@ -2023,7 +2021,7 @@ export function LyricsView({
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [open, isSynced, visible, overlayOpen, idle, lyrics, progressRef, audioRef]);
+  }, [open, isSynced, visible, overlayOpen, lyrics, progressRef, audioRef]);
 
   // ── Auto-scroll to current synced line ─────────────────────────────────────
 
@@ -2334,14 +2332,6 @@ export function LyricsView({
 
   // El vídeo ocupa la capa 1 (en vez de la portada) cuando está listo.
   const videoActivo = !solidOn && !sleeping && isVideoReady(videoState);
-
-  // Contenido EN VIVO: con el videoclip reproduciéndose o el karaoke
-  // avanzando la pantalla sí se mueve, así que la app no entra en reposo
-  // (app-idle) mientras eso ocurra. Con la canción en pausa la pantalla queda
-  // quieta y el reposo entra igual que en cualquier otra vista — al volver,
-  // el primer frame del karaoke y el sincronizador del vídeo releen
-  // `audio.currentTime`.
-  useLiveRender(open && isPlaying && !sleeping && (videoActivo || isSynced));
 
   // Cristal local (portada + cola, y botones de arriba) SOLO mientras el vídeo
   // es el fondo. Es lo que pide el ajuste «Vídeo de fondo»: con el clip

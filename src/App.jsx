@@ -890,7 +890,6 @@ function AppInner() {
           <LyricsView
             song={currentSong}
             open={lyricsOpen}
-            isPlaying={isPlaying}
             onClose={handleLyricsClose}
             queue={queue}
             queueIndex={queueIndex}

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useSettings } from "../../contexts/useSettings";
-import { usePerformance } from "../../contexts/PerformanceContext";
 import { SettingsSection, SettingRow, SegBtn, Slider, SettingsToggle } from "../SettingsComponents";
 import { Svg } from "./icons";
 import { Ic } from "../../icons/Icons";
@@ -20,23 +19,19 @@ export function PageReproductor({
   setSleep,
 }) {
   const { t, settings, updateSetting } = useSettings();
-  const { idle } = usePerformance();
   const accent = neonColor || "#a78bfa";
   const [localCf, setLocalCf] = useState(crossfadeDuration);
 
   // ── Temporizador de apagado ──────────────────────────────────────────────
   // `sleep` vive en App ({ at, minutes }) → sigue corriendo aunque esta
-  // página se desmonte. Aquí solo se refresca el contador cada segundo, y con
-  // la app en reposo (app-idle) ni eso: el contador se queda con el último
-  // valor y al despertar el efecto se re-programa leyendo Date.now() (reloj
-  // absoluto → el número vuelve exacto, sin deriva).
+  // página se desmonte. Aquí solo se refresca el contador cada segundo.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!sleep || idle) return undefined;
+    if (!sleep) return undefined;
     setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [sleep, idle]);
+  }, [sleep]);
 
   const remainingMs = sleep ? Math.max(0, sleep.at - now) : 0;
   const mm = Math.floor(remainingMs / 60000);

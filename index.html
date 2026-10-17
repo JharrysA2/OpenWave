@@ -310,31 +310,6 @@
       }
 
       /* ═══════════════════════════════════════════════════════════════════════
-         APP IDLE — la ventana está A LA VISTA, pero el usuario lleva
-         APP_IDLE_MS (10 s) sin tocar nada y no hay contenido en vivo
-         (PerformanceContext → flag `idle`; useLiveRender mantiene despierto
-         mientras haya videoclip, karaoke avanzando o una carga en curso).
-         Se hace lo mismo que un navegador con la página quieta: dejar de
-         producir fotogramas. Se pausan SOLO las animaciones INFINITAS (las
-         que si no siguen pidiendo frames para siempre), quedándose en su
-         fotograma actual; y los bucles JS que dependen del tiempo leen `idle`
-         y se paran (progreso del player, karaoke, sincronía del vídeo,
-         contador del temporizador de apagado). El audio NO se toca y al
-         despertar los relojes re-sincronizan desde el audio.
-         A propósito NO se usa `html.app-idle *`: una animación de ENTRADA
-         (0,2 s) que arranque en reposo —una fila que acaba de llegar, un
-         aviso, un modal— se quedaría clavada en su primer fotograma (a
-         menudo invisible) hasta que el usuario tocara algo. El shimmer de los
-         esqueletos tampoco se toca: cargando es «algo en marcha», no reposo.
-         Cualquier entrada (ratón, teclado, rueda, tacto, foco) levanta el
-         reposo al instante. ═════════════════════════════════════════════ */
-      html.app-idle .now-playing-pulse,
-      html.app-idle .connection-dot,
-      html.app-idle [style*="sw-bg-spin"] {
-        animation-play-state: paused !important;
-      }
-
-      /* ═══════════════════════════════════════════════════════════════════════
          OVERLAY OPEN — un modal/sheet/panel a pantalla completa está montado
          (clase que añade hooks/useOverlayLayer.js).
          Pausa SOLO las animaciones infinitas que quedan debajo del overlay:

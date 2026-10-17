@@ -6,7 +6,6 @@ import { MusicCover } from "./MusicCover";
 import { usePerformance } from "../contexts/PerformanceContext";
 import { useSettings } from "../contexts/useSettings";
 import { useOverlayActive } from "../hooks/useOverlayLayer";
-import { useLiveRender } from "../hooks/useLiveRender";
 import { fmtTime } from "../utils/formatTime";
 import { getBtnShapeStyle } from "../utils/playerStyles";
 import { Slider } from "./SettingsComponents";
@@ -221,12 +220,8 @@ export const PlayerBar = memo(function PlayerBar({
   const progressFillRef = useRef(null);
   const progressThumbRef = useRef(null);
   const progressTimeRef = useRef(null);
-  const { visible, idle, wake } = usePerformance();
+  const { visible } = usePerformance();
   const { settings } = useSettings();
-
-  // Mientras carga un stream hay algo en marcha (spinner + barra): la app no
-  // entra en reposo hasta que termine.
-  useLiveRender(streamLoading);
 
   // ── Ajustes aplicados en vivo ───────────────────────────────────────────
   // showProgressTime: oculta los números (actual / total) de la barra.
@@ -359,27 +354,18 @@ export const PlayerBar = memo(function PlayerBar({
   // si nadie mira la barra, y la música sigue sonando. Igual con un overlay
   // a pantalla completa montado (`useOverlayActive`): la barra queda debajo
   // del scrim, esas escrituras son invisibles y cada una repinta la región,
-  // re-ejecutando los backdrop-filter de las capas de detrás. Y con la app en
-  // REPOSO (`idle`, sin tocar nada un rato): cada tick despertaría a la iGPU
-  // para pintar una barra que nadie mira. Al salir del reposo/cerrar el
+  // re-ejecutando los backdrop-filter de las capas de detrás. Al cerrar el
   // overlay el efecto se re-programa y el primer paint lee el progressRef
   // actual, así que no se pierde progreso.
   const overlayOpen = useOverlayActive();
   useEffect(() => {
-    if (!isPlaying || !visible || overlayOpen || idle) return undefined;
+    if (!isPlaying || !visible || overlayOpen) return undefined;
 
     paintProgress(); // repaint inmediato al retomar (barra congelada el tiempo del overlay)
     const interval = setInterval(() => paintProgress(), 200);
 
     return () => clearInterval(interval);
-  }, [isPlaying, visible, overlayOpen, idle, paintProgress]);
-
-  // Cambio de contenido sin que el usuario toque nada (empieza a sonar, otra
-  // canción, termina una carga): saca a la app del reposo para que la barra
-  // vuelva a avanzar. El reposo se recupera solo APP_IDLE_MS después.
-  useEffect(() => {
-    wake();
-  }, [wake, isPlaying, song?.videoId, streamLoading]);
+  }, [isPlaying, visible, overlayOpen, paintProgress]);
 
   // Sync puntual: montaje y cada cambio de canción/duración/estado
   useEffect(() => {

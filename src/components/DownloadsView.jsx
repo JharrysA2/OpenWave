@@ -192,11 +192,10 @@ export default function DownloadsView({
       ? {
           background: accentColor,
           border: "none",
-          // Anillo adaptativo en vez de brightness(1.1): sobre acentos casi
-          // blancos (portada acromática) el brillo no se ve. El tono sale de
-          // --neon-fg → anillo oscuro sobre botón claro y viceversa.
+          // Hover con glow del acento, sin aro: el realce no dibuja un
+          // contorno alrededor del botón (ni claro ni oscuro).
           ...(hovered
-            ? { boxShadow: "0 0 0 2px color-mix(in srgb, var(--neon-fg) 30%, transparent)" }
+            ? { boxShadow: `0 6px 22px color-mix(in srgb, ${accentColor} 55%, transparent)` }
             : {}),
         }
       : { ...GLASS.btn, ...(hovered ? GLASS.btnHoverSoft : {}) }),
@@ -380,12 +379,10 @@ export default function DownloadsView({
               disabled={songs.length === 0}
               style={{
                 ...heroButton(false, false, songs.length === 0),
+                // Sin rojo: el material con el texto más claro basta para
+                // señalar la acción (la confirmación ya la pide el modal).
                 ...(heroHover === "clear"
-                  ? {
-                      background: "rgba(239,68,68,.14)",
-                      border: "1px solid rgba(239,68,68,.35)",
-                      color: "#ef4444",
-                    }
+                  ? { color: "rgba(255,255,255,.85)" }
                   : { color: "rgba(255,255,255,.4)" }),
               }}
               {...heroHoverProps("clear")}

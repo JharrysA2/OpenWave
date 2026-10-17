@@ -178,11 +178,13 @@ export const Sidebar = React.memo(function Sidebar({
                 e.currentTarget.style.transform = "scale(1.05)";
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,.12)";
+                // Material del player bar: el hover realza el cristal, no enciende
+                // un contorno ni salta a blanco plano.
+                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                 e.currentTarget.style.color = "rgba(255,255,255,.85)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,.06)";
+                e.currentTarget.style.background = GLASS.btn.background;
                 e.currentTarget.style.color = "rgba(255,255,255,.55)";
                 e.currentTarget.style.transform = "scale(1)";
               }}
@@ -225,7 +227,7 @@ export const Sidebar = React.memo(function Sidebar({
                 marginBottom: "4px",
                 fontFamily: FONT,
                 transition:
-                  "background .12s cubic-bezier(.16,1,.3,1), color .12s cubic-bezier(.16,1,.3,1), border-color .12s cubic-bezier(.16,1,.3,1), transform .12s cubic-bezier(.16,1,.3,1), font-weight .12s cubic-bezier(.16,1,.3,1)",
+                  "background .12s cubic-bezier(.16,1,.3,1), color .12s cubic-bezier(.16,1,.3,1), transform .12s cubic-bezier(.16,1,.3,1), font-weight .12s cubic-bezier(.16,1,.3,1)",
               }}
               onMouseDown={(e) => {
                 // Apple: instant feedback on pointer-down
@@ -236,17 +238,14 @@ export const Sidebar = React.memo(function Sidebar({
               }}
               onMouseEnter={(e) => {
                 if (tab !== t) {
-                  e.currentTarget.style.background = "rgba(255,255,255,.09)";
+                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                   e.currentTarget.style.color = "rgba(255,255,255,.88)";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,.12)";
                 }
               }}
               onMouseLeave={(e) => {
                 if (tab !== t) {
-                  e.currentTarget.style.background =
-                    "linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%)";
+                  e.currentTarget.style.background = GLASS.navItem.background;
                   e.currentTarget.style.color = "rgba(255,255,255,.55)";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,.06)";
                 }
               }}
             >
@@ -345,31 +344,29 @@ export const Sidebar = React.memo(function Sidebar({
                     background: isActive
                       ? "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.04) 100%)"
                       : "transparent",
-                    border: isActive ? `1px solid rgba(255,255,255,.08)` : "1px solid transparent",
-                    boxShadow: isActive
-                      ? "inset 0 1px 0 rgba(255,255,255,.08), 0 2px 8px rgba(0,0,0,.15)"
-                      : "none",
+                    // Sin contorno: la fila activa se marca con el relleno y la
+                    // sombra del material (el borde de 1px se veía como línea).
+                    boxShadow: isActive ? SHADOWS.closeBtn : "none",
                     color: isActive ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.5)",
                     fontWeight: isActive ? "700" : "500",
                     fontSize: "12.5px",
                     fontFamily: FONT,
                     transition:
-                      "background .15s cubic-bezier(.16,1,.3,1), border-color .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), box-shadow .15s cubic-bezier(.16,1,.3,1), font-weight .15s cubic-bezier(.16,1,.3,1)",
+                      "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), box-shadow .15s cubic-bezier(.16,1,.3,1), font-weight .15s cubic-bezier(.16,1,.3,1)",
                     textAlign: "left",
                     marginBottom: "3px",
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
-                      e.currentTarget.style.background =
-                        "linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%)";
-                      e.currentTarget.style.borderColor = "rgba(255,255,255,.05)";
+                      e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                      e.currentTarget.style.boxShadow = SHADOWS.closeBtn;
                       e.currentTarget.style.color = "rgba(255,255,255,.85)";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isActive) {
                       e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.borderColor = "transparent";
+                      e.currentTarget.style.boxShadow = "none";
                       e.currentTarget.style.color = "rgba(255,255,255,.5)";
                     }
                   }}

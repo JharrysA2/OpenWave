@@ -215,7 +215,6 @@ export default function ArtistView({
             ...(hoverKey === "back"
               ? {
                   background: GLASS.btnHoverSoft.background,
-                  border: GLASS.btnHoverSoft.border,
                   transform: "scale(1.05)",
                 }
               : {}),
@@ -225,7 +224,7 @@ export default function ArtistView({
             alignItems: "center",
             justifyContent: "center",
             transition:
-              "background .15s cubic-bezier(.16,1,.3,1), border-color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
+              "background .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
           }}
           {...hov("back")}
         >
@@ -311,8 +310,8 @@ export default function ArtistView({
                   following
                     ? {
                         ...GLASS.btn,
-                        border: "1px solid rgba(255,255,255,.2)",
-                        boxShadow: "none",
+                        // Siguiendo: cristal del material, sin contorno
+                        // (el estado lo dice el texto, no un aro).
                         ...(hoverKey === "follow" ? GLASS.btnHoverSoft : {}),
                         borderRadius: RADIUS.pill,
                         padding: "7px 22px",

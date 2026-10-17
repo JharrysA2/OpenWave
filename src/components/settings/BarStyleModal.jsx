@@ -110,8 +110,9 @@ export function BarStyleModal({ accent, settings, updateSetting, onClose }) {
             width: "100%",
             padding: "10px",
             borderRadius: RADIUS.default,
-            border: `1px solid ${COLORS.borderLight}`,
-            background: "transparent",
+            // Material del player bar, sin contorno (como el resto de
+            // botones de modal).
+            ...GLASS.btn,
             color: COLORS.iconActive,
             fontWeight: "700",
             cursor: "pointer",

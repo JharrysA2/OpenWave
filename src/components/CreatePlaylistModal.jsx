@@ -286,8 +286,9 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
                   width: "100%",
                   padding: "10px 12px",
                   borderRadius: "10px",
-                  border: `1px solid ${COLORS.borderActive}`,
-                  background: "rgba(255,255,255,.06)",
+                  // Material del player bar, sin contorno: el campo se
+                  // distingue por el cristal, no por un aro.
+                  ...GLASS.btn,
                   color: COLORS.textPrimary,
                   fontSize: "14px",
                   fontWeight: "600",
@@ -297,12 +298,15 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
                   boxSizing: "border-box",
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "var(--neon)";
-                  e.currentTarget.style.boxShadow = "0 0 16px var(--neon)33";
+                  // El foco realza el cristal (relleno + glow), sin encender
+                  // un aro de acento.
+                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                  e.currentTarget.style.boxShadow =
+                    "0 0 16px var(--neon)33, inset 0 1px 0 rgba(255,255,255,.16)";
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = COLORS.borderActive;
-                  e.currentTarget.style.boxShadow = "none";
+                  e.currentTarget.style.background = GLASS.btn.background;
+                  e.currentTarget.style.boxShadow = GLASS.btn.boxShadow;
                 }}
               />
               <div

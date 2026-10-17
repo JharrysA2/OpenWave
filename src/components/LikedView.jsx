@@ -140,11 +140,10 @@ export default function LikedView({
       ? {
           background: accentColor,
           border: "none",
-          // Anillo adaptativo en vez de brightness(1.1): sobre acentos casi
-          // blancos (portada acromática) el brillo no se ve. El tono sale de
-          // --neon-fg → anillo oscuro sobre botón claro y viceversa.
+          // Hover con glow del acento, sin aro: el realce no dibuja un
+          // contorno alrededor del botón (ni claro ni oscuro).
           ...(hovered
-            ? { boxShadow: "0 0 0 2px color-mix(in srgb, var(--neon-fg) 30%, transparent)" }
+            ? { boxShadow: `0 6px 22px color-mix(in srgb, ${accentColor} 55%, transparent)` }
             : {}),
         }
       : { ...GLASS.btn, ...(hovered ? GLASS.btnHoverSoft : {}) }),

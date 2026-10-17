@@ -208,8 +208,9 @@ export function AppColorModal({ accent, onClose }) {
                 width: "100%",
                 padding: "10px",
                 borderRadius: RADIUS.default,
-                border: `1px solid ${COLORS.borderLight}`,
-                background: "transparent",
+                // Material del player bar, sin contorno (como el resto de
+                // botones de modal).
+                ...GLASS.btn,
                 color: COLORS.iconActive,
                 fontWeight: "700",
                 cursor: "pointer",
@@ -356,8 +357,8 @@ export function AppColorModal({ accent, onClose }) {
                   width: "130px",
                   padding: "10px 12px",
                   borderRadius: RADIUS.default,
-                  border: `1px solid ${COLORS.borderLight}`,
-                  background: COLORS.surfaceNav,
+                  // Campo con el material, sin aro.
+                  ...GLASS.btn,
                   color: COLORS.textPrimary,
                   fontFamily: FONT,
                   fontSize: "13px",
@@ -377,8 +378,7 @@ export function AppColorModal({ accent, onClose }) {
                   flex: 1,
                   padding: "10px",
                   borderRadius: RADIUS.default,
-                  border: `1px solid ${COLORS.borderLight}`,
-                  background: "transparent",
+                  ...GLASS.btn,
                   color: COLORS.iconActive,
                   fontWeight: "700",
                   cursor: "pointer",

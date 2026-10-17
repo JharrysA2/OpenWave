@@ -4,7 +4,9 @@ import { MusicCover } from "./MusicCover";
 import { fmtTime } from "../utils/formatTime";
 import {
   COLORS,
+  GLASS,
   RADIUS,
+  SHADOWS,
   SPACING,
   TRANSITIONS,
   TYPOGRAPHY,
@@ -98,14 +100,15 @@ export default function SearchView({
         marginBottom={SPACING.gap.xwide}
       />
 
-      {/* Tabs: Música / Videos — pill-shaped con transición suave */}
+      {/* Tabs: Música / Videos — material del player bar, sin contorno */}
       <div
         style={{
           display: "flex",
           gap: "6px",
           marginBottom: "18px",
           padding: "3px",
-          background: "rgba(255,255,255,.04)",
+          background: GLASS.btn.background,
+          boxShadow: SHADOWS.closeBtn,
           borderRadius: RADIUS.pill,
           width: "fit-content",
         }}

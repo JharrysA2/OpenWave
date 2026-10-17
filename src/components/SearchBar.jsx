@@ -40,15 +40,14 @@ export function SearchBar({
         height,
         marginBottom,
         transition:
-          "background .2s cubic-bezier(.16,1,.3,1), border-color .2s cubic-bezier(.16,1,.3,1)",
+          "background .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(255,255,255,.10)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,.14)";
+        // Realza el cristal (sin contorno): mismo material, un paso más claro.
+        e.currentTarget.style.background = GLASS.btnHoverSoft.background;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = GLASS.searchbar.background;
-        e.currentTarget.style.borderColor = GLASS.searchbar.borderColor;
       }}
     >
       {showSearchButton ? (
@@ -100,8 +99,10 @@ export function SearchBar({
             ? (e) => {
                 const container = e.currentTarget.parentElement;
                 if (container) {
-                  container.style.borderColor = `${accentColor}55`;
-                  container.style.boxShadow = `0 0 0 3px ${accentColor}15, 0 0 20px ${accentColor}08`;
+                  // El foco realza el cristal (relleno + glow difuso), nunca
+                  // un aro: el contorno pegado al borde se veía como línea.
+                  container.style.background = GLASS.btnHoverSoft.background;
+                  container.style.boxShadow = `0 0 22px ${accentColor}30, inset 0 1px 0 rgba(255,255,255,.16)`;
                 }
               }
             : undefined
@@ -111,8 +112,8 @@ export function SearchBar({
             ? (e) => {
                 const container = e.currentTarget.parentElement;
                 if (container) {
-                  container.style.borderColor = "rgba(255,255,255,.08)";
-                  container.style.boxShadow = "none";
+                  container.style.background = GLASS.searchbar.background;
+                  container.style.boxShadow = GLASS.searchbar.boxShadow;
                 }
               }
             : undefined

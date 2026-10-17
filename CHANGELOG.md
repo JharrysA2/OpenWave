@@ -16,6 +16,30 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Changed
 
+- **Los últimos contornos de la interfaz se van, y todo pasa al material del
+  player bar.** Los botones y campos que aún dibujaban un aro de 1px usan ya
+  el cristal del player bar —gradiente, brillo interior y sombra— sin
+  contorno: las pestañas de la barra lateral (Inicio, Buscar, Me gusta,
+  Historial y Descargas) y sus filas de playlists, el botón de ajustes, la
+  barra de búsqueda en todas las pantallas, los iconos de las pantallas de
+  ajustes, los botones de Aleatorio, Reproducir y Seleccionar de Me gusta,
+  Historial y Descargas, y las pestañas Canciones/Álbumes/Artistas de la
+  biblioteca (y las de Música/Vídeos del buscador). El estado activo (pestaña
+  o modo selección) se marca con el relleno y el color del acento, nunca con
+  un aro; el candado de la cola de letras, el asa de arrastre y el botón
+  «Siguiendo» del artista también dejan su borde. Los tokens compartidos
+  (`GLASS.btn`, `btnHover`, `btnHoverSoft`, `navItem`, `navItemActive` y
+  `searchbar`) pierden el borde, así que el material se aplica de una vez en
+  toda la app. El hover realza el cristal y ya no deja el fondo «despegado»
+  al salir. Los botones de cancelar de los selectores de Ajustes (color de la
+  app, barra y forma de botón) y el campo de nombre de «Nueva playlist» (y su
+  vista previa hexadecimal) también dejan su contorno.
+- **El resto de borrados pierde el rojo.** «Eliminar (N)» de álbum y lista
+  (además del de biblioteca), «Eliminar playlist», «Eliminar todo» de
+  Descargas y «Limpiar» de Historial se pintan como el resto de acciones de
+  su barra: el material del player bar con el texto neutro, y al pasar el
+  ratón el texto aclara. El aviso lo da la propia selección (o el modal de
+  confirmación, donde ya lo había).
 - **La GPU manda en el modo vídeo, y ahora sin pagos cruzados.** El
   instalador registra OpenWave como app de «Alto rendimiento» en
   Configuración → Gráficas de Windows y el WebView arranca con rasterización

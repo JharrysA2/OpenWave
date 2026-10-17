@@ -415,8 +415,7 @@ export default function PlaylistView({
               onClick={() => playAll(true)}
               disabled={songs.length === 0}
               style={{
-                background: "rgba(255,255,255,.06)",
-                border: "1px solid rgba(255,255,255,.08)",
+                ...GLASS.btn,
                 borderRadius: RADIUS.pill,
                 padding: "9px 18px",
                 fontSize: "12.5px",
@@ -428,18 +427,17 @@ export default function PlaylistView({
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                transition: "background .12s, border-color .12s, opacity .12s",
+                transition: "background .12s, opacity .12s",
               }}
               onMouseEnter={(e) => {
                 if (songs.length > 0) {
-                  e.currentTarget.style.background = "rgba(255,255,255,.12)";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,.18)";
+                  // Material del player bar: el hover realza el cristal.
+                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                 }
               }}
               onMouseLeave={(e) => {
                 if (songs.length > 0) {
-                  e.currentTarget.style.background = "rgba(255,255,255,.06)";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,.08)";
+                  e.currentTarget.style.background = GLASS.btn.background;
                 }
               }}
             >
@@ -484,10 +482,9 @@ export default function PlaylistView({
               <button
                 onClick={toggleSelectMode}
                 style={{
-                  background: selectMode ? `${accentColor}18` : "rgba(255,255,255,.06)",
-                  border: selectMode
-                    ? `1px solid ${accentColor}44`
-                    : "1px solid rgba(255,255,255,.08)",
+                  ...GLASS.btn,
+                  // Modo selección: relleno del acento, sin contorno.
+                  ...(selectMode ? { background: `${accentColor}22` } : {}),
                   borderRadius: RADIUS.pill,
                   padding: "9px 16px",
                   fontSize: "12.5px",
@@ -498,18 +495,16 @@ export default function PlaylistView({
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",
-                  transition: "background .12s, border-color .12s, color .12s",
+                  transition: "background .12s, color .12s",
                 }}
                 onMouseEnter={(e) => {
                   if (!selectMode) {
-                    e.currentTarget.style.background = "rgba(255,255,255,.12)";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,.18)";
+                    e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!selectMode) {
-                    e.currentTarget.style.background = "rgba(255,255,255,.06)";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,.08)";
+                    e.currentTarget.style.background = GLASS.btn.background;
                   }
                 }}
               >
@@ -535,27 +530,26 @@ export default function PlaylistView({
               <button
                 onClick={handleRemoveSelected}
                 style={{
-                  background: "rgba(239,68,68,.12)",
-                  border: "1px solid rgba(239,68,68,.25)",
+                  ...GLASS.btn,
+                  // Sin rojo: el borrado va con el material y el color neutro
+                  // de la barra (la selección ya avisa de lo que se borra).
                   borderRadius: RADIUS.pill,
                   padding: "9px 16px",
                   fontSize: "12.5px",
                   fontWeight: "700",
-                  color: "#ef4444",
+                  color: "rgba(255,255,255,.5)",
                   fontFamily: FONT,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",
-                  transition: "background .12s, border-color .12s",
+                  transition: "background .12s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(239,68,68,.2)";
-                  e.currentTarget.style.borderColor = "rgba(239,68,68,.4)";
+                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(239,68,68,.12)";
-                  e.currentTarget.style.borderColor = "rgba(239,68,68,.25)";
+                  e.currentTarget.style.background = GLASS.btn.background;
                 }}
               >
                 {Ic.trash}
@@ -568,8 +562,8 @@ export default function PlaylistView({
               <button
                 onClick={() => setShowTransferModal(true)}
                 style={{
-                  background: "rgba(255,255,255,.06)",
-                  border: `1px solid ${accentColor}33`,
+                  ...GLASS.btn,
+                  // Mover: cristal con el texto en acento, sin contorno.
                   borderRadius: RADIUS.pill,
                   padding: "9px 16px",
                   fontSize: "12.5px",
@@ -580,15 +574,13 @@ export default function PlaylistView({
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",
-                  transition: "background .12s, border-color .12s",
+                  transition: "background .12s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,.1)";
-                  e.currentTarget.style.borderColor = `${accentColor}55`;
+                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,.06)";
-                  e.currentTarget.style.borderColor = `${accentColor}33`;
+                  e.currentTarget.style.background = GLASS.btn.background;
                 }}
               >
                 <svg
@@ -611,8 +603,7 @@ export default function PlaylistView({
             <button
               onClick={() => setShowDeleteModal(true)}
               style={{
-                background: "rgba(255,255,255,.06)",
-                border: "1px solid rgba(255,255,255,.08)",
+                ...GLASS.btn,
                 borderRadius: RADIUS.pill,
                 padding: "9px 16px",
                 fontSize: "12.5px",
@@ -623,16 +614,16 @@ export default function PlaylistView({
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                transition: "background .12s, border-color .12s, color .12s",
+                transition: "background .12s, color .12s",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(239,68,68,.15)";
-                e.currentTarget.style.borderColor = "rgba(239,68,68,.3)";
-                e.currentTarget.style.color = "#ef4444";
+                // Sin contorno ni rojo: el hover realza el cristal y aclara el
+                // texto, como el resto de acciones de la barra.
+                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                e.currentTarget.style.color = "rgba(255,255,255,.85)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,.06)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,.08)";
+                e.currentTarget.style.background = GLASS.btn.background;
                 e.currentTarget.style.color = "rgba(255,255,255,.4)";
               }}
             >

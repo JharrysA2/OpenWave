@@ -1,13 +1,17 @@
 import React, { useState } from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
-import { RADIUS } from "../utils/theme";
+import { GLASS, RADIUS, SHADOWS } from "../utils/theme";
 
 /**
  * Botones del modo selección (patrón de PlaylistView) para las vistas de
  * biblioteca: "Seleccionar" y, cuando hay selección, "Eliminar (N)" y
  * "Mover (N)". El hover es declarativo (estado interno) y nunca queda
  * "pegado" en el DOM.
+ *
+ * Todos van con el material del player bar (cristal + brillo interior +
+ * sombra) y SIN contorno: el estado (modo selección, acento) se marca con el
+ * relleno y el color, no con un aro de 1px.
  *
  * Props:
  *  - enabled: mostrar el botón "Seleccionar" (la lista tiene canciones)
@@ -41,7 +45,9 @@ export function LibrarySelectActions({
     display: "flex",
     alignItems: "center",
     gap: "8px",
-    transition: "background .12s, border-color .12s, color .12s",
+    transition: "background .12s, color .12s, box-shadow .12s",
+    border: "none",
+    boxShadow: SHADOWS.closeBtn,
   };
 
   return (
@@ -51,14 +57,12 @@ export function LibrarySelectActions({
           onClick={onToggleSelectMode}
           style={{
             ...base,
+            // Modo selección: relleno del acento. En reposo/hover, el cristal.
             background: selectMode
-              ? `${accentColor}18`
+              ? `${accentColor}22`
               : hover === "select"
-                ? "rgba(255,255,255,.12)"
-                : "rgba(255,255,255,.06)",
-            border: selectMode
-              ? `1px solid ${accentColor}44`
-              : `1px solid ${hover === "select" ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.08)"}`,
+                ? GLASS.btnHoverSoft.background
+                : GLASS.btn.background,
             color: selectMode ? accentColor : "rgba(255,255,255,.5)",
           }}
           {...hov("select")}
@@ -87,8 +91,7 @@ export function LibrarySelectActions({
             ...base,
             // Sin rojo: el borrado se pinta como el resto de acciones de la
             // barra (la selección ya avisa de lo que va a borrarse).
-            background: hover === "delete" ? "rgba(255,255,255,.12)" : "rgba(255,255,255,.06)",
-            border: `1px solid ${hover === "delete" ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.08)"}`,
+            background: hover === "delete" ? GLASS.btnHoverSoft.background : GLASS.btn.background,
             color: "rgba(255,255,255,.5)",
           }}
           {...hov("delete")}
@@ -103,8 +106,10 @@ export function LibrarySelectActions({
           onClick={onMove}
           style={{
             ...base,
-            background: hover === "move" ? "rgba(255,255,255,.1)" : "rgba(255,255,255,.06)",
-            border: `1px solid ${hover === "move" ? `${accentColor}55` : `${accentColor}33`}`,
+            background:
+              hover === "move"
+                ? `color-mix(in srgb, ${accentColor} 20%, rgba(255,255,255,.05))`
+                : `${accentColor}12`,
             color: accentColor,
           }}
           {...hov("move")}

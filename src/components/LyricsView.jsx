@@ -156,7 +156,7 @@ function SortableQueueItem({
             cursor: "grab",
             padding: "6px 6px",
             borderRadius: "6px",
-            border: `1px solid ${accentColor}33`,
+            // Sin contorno: el asa se marca con el tinte del acento.
             background: `${accentColor}15`,
             display: "flex",
             flexDirection: "column",
@@ -167,7 +167,7 @@ function SortableQueueItem({
             userSelect: "none",
             touchAction: "none",
             opacity: hovered ? 1 : 0.5,
-            transition: "opacity .12s, background .12s, border-color .12s",
+            transition: "opacity .12s, background .12s",
           }}
         >
           {/* 3 barras SVG con puntas redondeadas, más gruesas */}
@@ -2815,10 +2815,10 @@ export function LyricsView({
                 width: "32px",
                 height: "32px",
                 borderRadius: "8px",
-                border: `1px solid ${editMode ? `${mutedAccent(accentColor)}66` : `${mutedAccent(accentColor)}30`}`,
-                background: editMode
-                  ? `${mutedAccent(accentColor)}30`
-                  : `${mutedAccent(accentColor)}10`,
+                // Material del player bar, sin contorno: el candado bloqueado
+                // es cristal y desbloqueado (editMode) tinte del acento.
+                ...BAR_BTN_GLASS,
+                background: editMode ? `${mutedAccent(accentColor)}30` : BAR_BTN_GLASS.background,
                 color: safeAccentText(accentColor),
                 cursor: "pointer",
                 display: "flex",
@@ -2837,7 +2837,7 @@ export function LyricsView({
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = editMode
                   ? `${mutedAccent(accentColor)}30`
-                  : `${mutedAccent(accentColor)}10`;
+                  : BAR_BTN_GLASS.background;
                 e.currentTarget.style.color = safeAccentText(accentColor);
                 e.currentTarget.style.transform = "scale(1)";
               }}

@@ -1,10 +1,14 @@
 import React from "react";
 import { FONT } from "../constants";
-import { COLORS, RADIUS, withAlpha } from "../utils/theme";
+import { COLORS, GLASS, RADIUS, SHADOWS, withAlpha } from "../utils/theme";
 
 /**
  * Píldoras segmentadas (estilo SearchView) para las pestañas de biblioteca.
  * tabs: [{ key, label, count? }]
+ *
+ * El contenedor y las píldoras inactivas van con el material del player bar
+ * (cristal + brillo interior + sombra) y SIN contorno; la píldora activa se
+ * marca con el relleno del acento.
  */
 export default React.memo(function LibraryTabs({ tabs, value, onChange, accentColor }) {
   // Hover declarativo de las píldoras inactivas (la activa es el acento).
@@ -19,7 +23,8 @@ export default React.memo(function LibraryTabs({ tabs, value, onChange, accentCo
         gap: "6px",
         marginBottom: "18px",
         padding: "3px",
-        background: COLORS.surfaceCard,
+        background: GLASS.btn.background,
+        boxShadow: SHADOWS.closeBtn,
         borderRadius: RADIUS.pill,
         width: "fit-content",
         fontFamily: FONT,
@@ -40,7 +45,11 @@ export default React.memo(function LibraryTabs({ tabs, value, onChange, accentCo
               padding: "7px 18px",
               borderRadius: RADIUS.pill,
               border: "none",
-              background: active ? accentColor : hovered ? "rgba(255,255,255,.07)" : "transparent",
+              background: active
+                ? accentColor
+                : hovered
+                  ? GLASS.btnHoverSoft.background
+                  : "transparent",
               // Píldora activa = fondo acento → primer plano dinámico
               color: active
                 ? "var(--neon-fg)"

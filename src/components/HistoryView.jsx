@@ -172,11 +172,13 @@ export default function HistoryView({
               }}
               onMouseEnter={(e) => {
                 if (history.length > 0) {
-                  e.currentTarget.style.background = "rgba(255,255,255,.14)";
+                  // Material del player bar: el hover realza el cristal y no
+                  // borra el fondo al salir (antes quedaba transparente).
+                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "";
+                e.currentTarget.style.background = GLASS.btn.background;
               }}
             >
               {Ic.shuffle(16)}
@@ -232,12 +234,14 @@ export default function HistoryView({
               }}
               onMouseEnter={(e) => {
                 if (history.length > 0) {
-                  e.currentTarget.style.background = "rgba(239,68,68,.15)";
-                  e.currentTarget.style.color = "#ef4444";
+                  // Sin rojo: el hover realza el material (y al salir no deja
+                  // el botón sin fondo, como pasaba con background="").
+                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                  e.currentTarget.style.color = "rgba(255,255,255,.85)";
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "";
+                e.currentTarget.style.background = GLASS.btn.background;
                 e.currentTarget.style.color = "rgba(255,255,255,.4)";
               }}
             >

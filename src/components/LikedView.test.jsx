@@ -199,15 +199,16 @@ describe("LikedView", () => {
     expect(shuffle.style.background).toBe(baseBg);
   });
 
-  it("should ring the primary Reproducir button on hover without a white layer", () => {
+  it("should glow the primary Reproducir button on hover without a contour", () => {
     renderLiked({ likedSongs: [song("1")] });
     const play = screen.getByRole("button", { name: /Reproducir/ });
     const baseBg = play.style.background;
     fireEvent.mouseEnter(play);
-    // El acento no se pisa con blanco: anillo adaptativo vía --neon-fg, que sí
-    // se ve con acentos casi blancos (brightness(1.1) no lo era)
+    // El acento no se pisa con blanco: el hover es un glow del propio acento,
+    // sin aro (un `0 0 0 Npx` se veía como contorno pegado al botón).
     expect(play.style.background).toBe(baseBg);
-    expect(play.style.boxShadow).toContain("var(--neon-fg)");
+    expect(play.style.boxShadow).toContain("#a78bfa");
+    expect(play.style.boxShadow).not.toContain("0 0 0 ");
     fireEvent.mouseLeave(play);
     expect(play.style.boxShadow).toBe("");
     expect(play.style.background).toBe(baseBg);

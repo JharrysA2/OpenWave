@@ -610,29 +610,31 @@ export const GLASS = {
     background: "linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%)",
   },
 
-  /** Nav items — Liquid Glass sutil */
+  /** Nav items — material del player bar: cristal con gradiente, brillo
+   *  interior y sombra. Sin borde: el relleno y la sombra ya separan la fila
+   *  del fondo (una línea de 1px se lee como contorno, no como material). */
   navItem: {
     background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
-    border: "1px solid rgba(255,255,255,.08)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    boxShadow: SHADOWS.closeBtn,
   },
 
-  /** Nav item activo — con glow del acento */
+  /** Nav item activo — relleno del acento + brillo interior + glow, sin
+   *  contorno: el estado activo lo marca el color, no un aro. */
   navItemActive: (accentColor) => ({
     background: `color-mix(in srgb, ${accentColor} 18%, rgba(12,12,20,.8))`,
-    border: `1px solid color-mix(in srgb, ${accentColor} 35%, transparent)`,
     boxShadow:
       `inset 0 1px 0 color-mix(in srgb, ${accentColor} 25%, transparent), ` +
       `0 0 20px color-mix(in srgb, ${accentColor} 15%, transparent)`,
   }),
 
   /** Botón glass genérico — estilo Liquid Glass de LyricsView.
+   *  Sin borde: el material (gradiente + brillo interior + sombra) es el que
+   *  da el volumen; el contorno de 1px se veía como línea pegada.
    *  Sin backdrop-filter: sobre las superficies donde se usa (paneles y
    *  fondos estáticos) el blur era imperceptible, y al escalar en hover
    *  re-difuminaba su región en cada frame. */
   btn: {
     background: "linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.04) 100%)",
-    border: `1px solid ${COLORS.borderActive}`,
     boxShadow: SHADOWS.closeBtn,
   },
 
@@ -641,7 +643,6 @@ export const GLASS = {
    *  plano" y se ve doblado. */
   btnHover: {
     background: "linear-gradient(135deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,.08) 100%)",
-    border: `1px solid rgba(255,255,255,.25)`,
   },
 
   /** Botón glass hover sutil — realza el material manteniendo el gradiente.
@@ -649,7 +650,6 @@ export const GLASS = {
    *  vistas de biblioteca): btnHover salta a "blanco plano" y se ve doblado. */
   btnHoverSoft: {
     background: "linear-gradient(135deg, rgba(255,255,255,.17) 0%, rgba(255,255,255,.05) 100%)",
-    border: `1px solid rgba(255,255,255,.18)`,
   },
 
   /** Botón play — degradado del acento + glow del acento. Sin blur: es el
@@ -665,11 +665,11 @@ export const GLASS = {
   }),
 
   /** Search bar — Liquid Glass SIN backdrop-filter: va dentro del flujo de
-   *  la vista (scrollea con el contenido) y nunca pasa nada por detrás. */
+   *  la vista (scrollea con el contenido) y nunca pasa nada por detrás.
+   *  Sin borde: el cristal se sostiene con el gradiente, el brillo interior
+   *  y su sombra (el foco realza el material, no enciende un aro). */
   searchbar: {
     background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
-    border: "1px solid rgba(255,255,255,.10)",
-    borderColor: "rgba(255,255,255,.10)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 2px 8px rgba(0,0,0,.15)",
   },
 

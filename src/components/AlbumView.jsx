@@ -217,7 +217,6 @@ export default function AlbumView({
             ...(hoverKey === "back"
               ? {
                   background: GLASS.btnHoverSoft.background,
-                  border: GLASS.btnHoverSoft.border,
                   transform: "scale(1.05)",
                 }
               : {}),
@@ -227,7 +226,7 @@ export default function AlbumView({
             alignItems: "center",
             justifyContent: "center",
             transition:
-              "background .15s cubic-bezier(.16,1,.3,1), border-color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
+              "background .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
           }}
           {...hov("back")}
         >
@@ -381,11 +380,13 @@ export default function AlbumView({
               cursor: "pointer",
               transition:
                 "transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
-              boxShadow: `0 4px 20px ${withAlpha(accentColor, "55")}, 0 0 0 1px ${withAlpha(accentColor, "20")}`,
+              boxShadow: `0 4px 20px ${withAlpha(accentColor, "55")}, 0 6px 24px ${withAlpha(accentColor, "20")}`,
               ...(hoverKey === "play"
                 ? {
                     transform: "scale(1.04)",
-                    boxShadow: `0 6px 28px ${withAlpha(accentColor, "66")}, 0 0 0 1px ${withAlpha(accentColor, "30")}`,
+                    // Glow más ancho en hover, sin aro: el realce no dibuja
+                    // un contorno de 1px alrededor del botón.
+                    boxShadow: `0 6px 28px ${withAlpha(accentColor, "66")}, 0 10px 34px ${withAlpha(accentColor, "30")}`,
                   }
                 : {}),
             }}
@@ -405,8 +406,9 @@ export default function AlbumView({
               ...GLASS.btn,
               ...(albumLiked
                 ? {
+                    // Guardado: tinte del "me gusta" SIN contorno (el estado
+                    // lo marca el color del icono y del texto).
                     background: withAlpha(COLORS.likeColor, hoverKey === "like" ? "20" : "14"),
-                    border: `1px solid ${withAlpha(COLORS.likeColor, "40")}`,
                   }
                 : hoverKey === "like"
                   ? GLASS.btnHoverSoft
@@ -485,8 +487,12 @@ export default function AlbumView({
             onClick={toggleSelectMode}
             style={{
               ...GLASS.btn,
-              ...(selectMode ? { border: `1px solid ${accentColor}55` } : {}),
-              ...(hoverKey === "select" && !selectMode ? GLASS.btnHoverSoft : {}),
+              // Modo selección: relleno del acento, sin contorno.
+              ...(selectMode
+                ? { background: `${accentColor}22` }
+                : hoverKey === "select"
+                  ? GLASS.btnHoverSoft
+                  : {}),
               borderRadius: RADIUS.pill,
               padding: "9px 16px",
               fontSize: "12.5px",
@@ -527,14 +533,14 @@ export default function AlbumView({
               onClick={handleRemoveSelected}
               style={{
                 ...GLASS.btn,
-                ...(hoverKey === "delete"
-                  ? { background: "rgba(239,68,68,.2)", border: "1px solid rgba(239,68,68,.4)" }
-                  : { background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.25)" }),
+                // Sin rojo: el borrado va con el material y el color neutro
+                // de la barra (la selección ya avisa de lo que se borra).
+                ...(hoverKey === "delete" ? GLASS.btnHoverSoft : {}),
                 borderRadius: RADIUS.pill,
                 padding: "9px 16px",
                 fontSize: "12.5px",
                 fontWeight: "700",
-                color: "#ef4444",
+                color: "rgba(255,255,255,.5)",
                 fontFamily: FONT,
                 cursor: "pointer",
                 display: "flex",
@@ -555,9 +561,8 @@ export default function AlbumView({
               onClick={() => setShowTransferModal(true)}
               style={{
                 ...GLASS.btn,
-                ...(hoverKey === "transfer"
-                  ? { background: "rgba(255,255,255,.1)", border: `1px solid ${accentColor}55` }
-                  : { background: "rgba(255,255,255,.06)", border: `1px solid ${accentColor}33` }),
+                // Mover: cristal con el texto en acento, sin contorno.
+                ...(hoverKey === "transfer" ? GLASS.btnHoverSoft : {}),
                 borderRadius: RADIUS.pill,
                 padding: "9px 16px",
                 fontSize: "12.5px",
@@ -659,7 +664,7 @@ export default function AlbumView({
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
-                    transition: "background .15s, border-color .15s, color .15s",
+                    transition: "background .15s, color .15s",
                   }}
                 >
                   {isSelected && (

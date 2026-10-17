@@ -342,6 +342,19 @@
         margin: 0;
         padding: 0;
       }
+      /* CONTROLES SIN BORDE NATIVO — el material de la app (cristal del player
+         bar) no lleva contorno: el borde lo decide cada elemento. Faltaba
+         anular el del navegador: un <button> (o un campo) sin `border` se
+         quedaba con el nativo, un `2px outset` (claro arriba/izquierda, gris
+         abajo/derecha) que se ve como un aro grueso alrededor del cristal.
+         El borde inline sigue ganando —esta regla no es !important—, así que
+         los pocos sitios que lo declaran a propósito lo conservan. */
+      button,
+      input,
+      textarea,
+      select {
+        border: 0;
+      }
       /* ═══════════════════════════════════════════════════════════════════════
          SELECCIÓN DE TEXTO — deshabilitada en TODA la app (estética):
          nada muestra el subrayado azul al arrastrar (canciones, barras,

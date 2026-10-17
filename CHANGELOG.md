@@ -114,6 +114,13 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Fixed
 
+- **Los botones se quedan con el cristal y sin contorno, de verdad.** Al
+  quitarle el borde a los tokens, los botones y campos que no declaraban uno
+  propio dejaron ver el borde nativo del navegador —un `2px outset` con el
+  canto claro arriba e izquierda y gris abajo y derecha—, que se veía como un
+  aro grueso alrededor del material. La hoja base anula ahora el borde de
+  `button`, `input`, `textarea` y `select`; los sitios que lo declaran a
+  propósito lo conservan, porque la regla no lleva `!important`.
 - **Un videoclip más corto que la canción ya no satura la GPU.** Cuando el
   clip llegaba a su fin antes que la canción, el sincronizador seguía
   pidiendo `play()` al vídeo terminado: cada frame lo reiniciaba y el seek

@@ -294,7 +294,7 @@ export const PlayerBar = memo(function PlayerBar({
   //    `progressRef` (que escribe usePlayer) es la fuente de verdad. Antes
   //    un setInterval de 200ms hacía setState 5 veces por segundo y
   //    re-renderizaba toda la barra. Ahora escribimos directo al DOM:
-  //      • rAF mientras suena música (se detiene al pausar)
+  //      • un tick de 200ms mientras suena música (se detiene al pausar)
   //      • un sync puntual al montar, al cambiar canción/duración/estado
   //        y al hacer seek (pintado optimista).
   const paintProgress = useCallback(

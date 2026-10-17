@@ -72,7 +72,12 @@ const defaultProps = {
 };
 
 function renderLyrics(props = {}) {
-  return renderWithSettings(<LyricsView {...defaultProps} {...props} />);
+  // Ref NUEVO en cada render: el objeto de `defaultProps` es compartido y un
+  // test que hace clic en una línea escribe ahí (`progressRef.current = time`),
+  // contaminando la línea activa de los tests siguientes.
+  return renderWithSettings(
+    <LyricsView {...defaultProps} progressRef={{ current: 0 }} {...props} />,
+  );
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -590,11 +595,10 @@ describe("LyricsView auto-scroll latch", () => {
     expect(scrollBox).not.toBeNull();
     const calls = () => Element.prototype.scrollIntoView.mock.calls.length;
 
-    // Avanza 1000ms de reloj falso (~62 frames de rAF): progressRef=3 →
-    // línea 0 activa → scroll programático
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
+    // La línea 0 queda activa en cuanto el reloj lee progressRef (3) → scroll
+    // programático. (El reloj ya no es rAF: aplica al montar y después solo
+    // despierta cuando toca cambiar algo, así que no hace falta avanzar
+    // fotogramas para el primer centrado.)
     expect(document.querySelector('[data-testid="lyric-line-0"]').style.opacity).toBe("1");
     expect(calls()).toBe(1);
 

@@ -50,15 +50,62 @@ que se repinta con letras/scroll). Por tanto:
   `LibraryCard.test`, `AlbumCardRow.test`, `HomeView.test`, `LyricsView.test`,
   `PlayerBar.test`, `ModalsPerf.test`, `useOverlayLayer.test`.
 
-## 2. Karaoke por rAF con re-renders por cambio, no por frame
+## 2. Nada de peticiones de fotograma permanentes (regla del navegador)
 
-- Reloj = `requestAnimationFrame` muestreando `audio.currentTime` (fallback
-  `progressRef`), y `setState` **solo** al cruzar de línea o de palabra: en
-  frames muertos corre matemática pura y React no renderiza.
+Chromium **no dibuja si no hay _damage_**: el _damage_ es «la parte de la
+pantalla que ha cambiado» y el compositor **aborta el fotograma cuando está
+vacío** (`--check-damage-early`: «checks damage early and aborts the frame if no
+damage, so that clients like Android WebView don't invalidate unnecessarily»).
+Una página quieta no produce frames; lo único que mantiene despierta a la GPU es
+que haya trabajo de verdad (scroll, vídeo, una animación viva). Un
+`requestAnimationFrame` **encadenado**, en cambio, es una *petición de fotograma
+permanente*: obliga a producir 60 fotogramas/s aunque el callback no cambie
+nada — precisamente lo que `requestVideoFrameCallback` vino a resolver para el
+trabajo por fotograma de vídeo («the callback will run at the lower of the video
+frame rate and the browser paint refresh rate»).
+
+Regla de la app: **ningún bucle encadenado; se despierta cuando hay algo que
+cambiar y el reloj es el propio medio** (`<audio>`/`<video>`). Un
+`setTimeout`/intervalo que despierta y decide no cambiar nada **no pide
+fotograma**: lo que cuesta es pedirlo, no pensar.
+
+### 2.1 Karaoke: despierta justo al cruzar de palabra
+
+- Historia: `setInterval(400ms)` sobre `progressRef` (que solo se actualiza con
+  `timeupdate`, ~250 ms) llegaba hasta ~0.65 s tarde («el karaoke va lento»); un
+  rAF a 60 Hz lo arregló, pero a cambio de **60 peticiones de fotograma por
+  segundo** mientras la pantalla de Letras estaba abierta.
+- Ahora el reloj es el propio `<audio>`: sus eventos (`timeupdate` ~4 Hz y SOLO
+  con el medio en marcha, más `seeked`, `play`, `pause`, `ended`…) re-sincronizan
+  y, entre medias, un `setTimeout` despierta en el instante exacto del próximo
+  cambio (palabra o línea). `setState` **solo** al cruzar de línea o de palabra:
+  el resto de despertares es matemática pura, sin render de React y sin pedir
+  fotograma. Entre despertar y despertar: **cero fotogramas**.
+- Cada despertar **relee** el reloj del audio, así que un parón de datos
+  (`waiting`) no adelanta el resaltado: recalcula y vuelve a programar.
+- Con el medio en pausa no queda ni un temporizador: `play`/`seeked` lo
+  reanudan. Con un overlay a pantalla completa (`overlay-open`) o la ventana
+  oculta (`visible`) el efecto se desmonta entero. Sin `<audio>` (tests) hay un
+  sondeo de respaldo; la app real siempre tiene el elemento.
 - **Nunca** re-renderizar React a 60 Hz (ese sí sería el pico de CPU que
   evitamos). Las transiciones CSS (.5 s) aportan la continuidad visual.
-- El bucle se frena con `visible` y el navegador pausa rAF al ocultar la
-  ventana. _(Implementado en `LyricsView.jsx`.)_
+- _(Implementado en `LyricsView.jsx`; regresión en `LyricsView.test.jsx`.)_
+
+### 2.2 Vídeo de fondo: el `<video>` se presenta solo
+
+- El clip de Letras es un elemento del navegador: lo decodifica y lo compone él,
+  React no toca ni un fotograma. Lo único que hace la app es **comparar dos
+  relojes** (audio y vídeo) y decidir `play`/`pause`/`seekTo`
+  (`planVideoSync`), y eso solo hace falta cuando uno de los dos cambia de estado
+  o avanza.
+- Antes era otro rAF encadenado a 60 Hz: seguía pidiendo fotograma con el clip
+  terminado o con la ventana oculta (casos en los que el plan es «pausa»).
+  Ahora se aplica con los eventos del `<audio>` (`timeupdate` ~4 Hz con la
+  canción en marcha, `seeked`, `play`, `pause`, `waiting`…) y los del propio
+  `<video>` (`autoPlay` lo arranca solo: hay que poder pararlo en cuanto
+  arranca); la tolerancia del plan absorbe el resto.
+- Pausar el clip (ventana oculta o modal encima) deja de decodificar: el ahorro
+  es real y el plan lo reanuda y re-sincroniza al volver.
 
 ## 3. Sin promoción de capas forzada
 
@@ -109,7 +156,7 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
 - `PerformanceContext` añade `app-hidden` a `<html>` en cuanto la ventana queda
   oculta: animaciones con `animation-play-state: paused` (pausadas, no muertas
   ⇒ retoman donde estaban), backdrop/filter/shadow/will-change apagados con
-  CSS `!important`, rAF de letras y progreso de la barra frenados por
+  CSS `!important`, reloj de letras y progreso de la barra frenados por
   `visible`. Si la ventana sigue oculta `APP_SLEEP_MS` (15 s, exportado de
   `PerformanceContext`) pasa a **`app-sleep`**: `animation: none` +
   `transition: none` + cero efectos en todos los elementos, y los componentes liberan
@@ -139,7 +186,7 @@ Especificación vigente (2026-10-02, pedido explícito del usuario):
 - **Consumo ~0 con la ventana minimizada**: con la ventana oculta el único
   latido que queda es el de conexión al backend, reducido a 60 s (10 s si está
   caído) y con chequeo inmediato al volver a ser visible
-  (`src/utils/backendHealth.js`); el resto de bucles (rAF de letras, progreso
+  (`src/utils/backendHealth.js`); el resto de bucles (reloj de letras, progreso
   de la barra) ya está parado por `visible`, los precache usan
   `requestIdleCallback` (no corre oculto) y la cadena de crossfade solo vive
   mientras hay música sonando (2 s de cadencia, 300 ms al acercarse). Lo único
@@ -969,3 +1016,7 @@ Todo estilo con impacto potencial en GPU/CPU (backdrop-filter nuevo,
 `will-change`, blur en vivo, promoción de capas, re-renders frecuentes,
 `transition: "all"`) exige una corrida de `scripts/measure-perf.ps1` (60 s, con
 `sistema` ≈ 6-8) antes de merge. Sin medición detrás, no entra.
+
+Y ningún `requestAnimationFrame` encadenado sin medición detrás: un bucle que no
+puede apagarse es una **petición de fotograma permanente** (§2) y mantiene la
+iGPU despierta aunque no cambie nada en pantalla.

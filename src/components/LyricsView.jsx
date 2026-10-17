@@ -1383,8 +1383,8 @@ const KaraokeWords = React.memo(
 // ═══════════════════════════════════════════════════════════════════════════
 //  LyricLine — Línea sincronizada memoizada.
 //  Recibe props PRIMITIVAS + handlers estables, así React la salta cuando no
-//  cambia. El reloj rAF solo re-renderiza cuando cambia la línea activa o su
-//  palabra; el resto de la lista no se toca.
+//  cambia. El reloj de letras solo re-renderiza cuando cambia la línea activa o
+//  su palabra; el resto de la lista no se toca.
 //  ═══════════════════════════════════════════════════════════════════════════
 const LyricLine = React.memo(function LyricLine({
   index,
@@ -1514,9 +1514,9 @@ export function LyricsView({
   const scrollLatchRef = useRef(0); // performance.now() del último scroll programático
   const lastScrolledLineRef = useRef(-1); // última línea centrada por auto-scroll
   const SCROLL_LATCH_MS = 800; // ventana en ms para ignorar el smooth scroll propio
-  // ── Estado del reloj rAF (frame-preciso) ──────────────────────────────
+  // ── Estado del reloj de letras (dirigido por eventos del <audio>) ──────
   //    `wordIdx` lo escribe el reloj SOLO al cruzar de palabra; los mirrors
-  //    en ref evitan setState redundantes en cada frame.
+  //    en ref evitan setState redundantes en cada despertar.
   const [wordIdx, setWordIdx] = useState(-1);
   const wordIdxRef = useRef(-1); // último wordIdx escrito (mirror)
   const wordLineRef = useRef(-1); // línea a la que pertenece wordListRef
@@ -1687,24 +1687,40 @@ export function LyricsView({
 
   // El `<audio>` de la app es el transporte y el reloj de referencia; el vídeo
   // lo sigue y va SIEMPRE mudo (el sonido es el de la app, nunca los dos).
+  //
+  // Sin bucle: el `<video>` se presenta solo (lo decodifica y lo compone el
+  // navegador, React no toca ni un fotograma) y lo único que hacemos aquí es
+  // COMPARAR DOS RELOJES, y eso solo hace falta cuando uno de los dos cambia
+  // de estado o avanza. Antes era un rAF encadenado a 60 Hz: seguía pidiendo
+  // fotograma con el clip terminado o con la ventana oculta (casos en los que
+  // el plan es «pausa»), o sea trabajo por fotograma para leer dos números.
+  // Los eventos del `<audio>` (`timeupdate` ~4 Hz con la canción en marcha,
+  // `seeked`, `play`, `pause`…) y los del propio `<video>` (arranca solo por
+  // `autoPlay` y hay que poder pararlo) cubren todo lo que puede
+  // desincronizar; la tolerancia del plan absorbe el resto.
   useEffect(() => {
     if (!open || !isVideoReady(videoState)) return undefined;
-    let rafId = 0;
-    const tick = () => {
-      const video = videoRef.current;
-      const audio = audioRef?.current;
-      if (!video) return;
-      rafId = requestAnimationFrame(tick);
-      // Con la ventana oculta o un modal encima el vídeo no se ve: se pausa
-      // y se deja de planificar (ahorro de decodificación); al volver, el
-      // mismo plan lo reanuda y re-sincroniza con el audio.
+    const video = videoRef.current;
+    const audio = audioRef?.current;
+    if (!video) return undefined;
+    // El `<audio>` real avisa por eventos (en los tests el ref es parcial).
+    const conEventos = typeof audio?.addEventListener === "function";
+
+    // Un paso del plan: pausar si no se ve; si no, seguir al audio.
+    const aplicar = () => {
       const oculto = !visible || overlayOpen;
+      // Se lee del ref y no del elemento capturado: al acabar un fundido
+      // cruzado los dos `<audio>` intercambian papeles (`usePlayer`).
+      const a = audioRef?.current;
+      // Con la ventana oculta o un modal encima el vídeo no se ve: se pausa y
+      // deja de decodificar (ahorro real); al volver, el mismo plan lo
+      // reanuda y re-sincroniza con el audio.
       const plan = oculto
         ? { play: false, seekTo: null }
         : planVideoSync({
-            audioTime: audio?.currentTime,
+            audioTime: a?.currentTime,
             videoTime: video.currentTime,
-            audioPaused: audio ? audio.paused : true,
+            audioPaused: a ? a.paused : true,
             videoEnded: video.ended,
             videoDuration: video.duration,
             desfase: videoState.desfase ?? 0,
@@ -1712,7 +1728,7 @@ export function LyricsView({
       if (plan.play) {
         if (video.paused) {
           // jsdom no implementa play(): devuelve undefined. La guarda evita
-          // romper el bucle; en el WebView real devuelve una promesa.
+          // romper nada; en el WebView real devuelve una promesa.
           const p = video.play();
           if (p && typeof p.catch === "function") p.catch(() => {});
         }
@@ -1721,8 +1737,31 @@ export function LyricsView({
       }
       if (plan.seekTo !== null) video.currentTime = plan.seekTo;
     };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+
+    // El audio manda el ritmo; el vídeo avisa de su propio estado (`autoPlay`
+    // lo arranca solo, así que hay que poder pararlo en cuanto arranca).
+    const eventosAudio = [
+      "timeupdate",
+      "seeked",
+      "seeking",
+      "play",
+      "playing",
+      "pause",
+      "waiting",
+      "stalled",
+      "ratechange",
+      "loadedmetadata",
+      "durationchange",
+      "ended",
+    ];
+    const eventosVideo = ["play", "playing", "pause", "ended", "loadedmetadata", "seeked"];
+    if (conEventos) eventosAudio.forEach((ev) => audio.addEventListener(ev, aplicar));
+    eventosVideo.forEach((ev) => video.addEventListener(ev, aplicar));
+    aplicar();
+    return () => {
+      if (conEventos) eventosAudio.forEach((ev) => audio.removeEventListener(ev, aplicar));
+      eventosVideo.forEach((ev) => video.removeEventListener(ev, aplicar));
+    };
   }, [open, videoState, audioRef, visible, overlayOpen]);
 
   // ── Búsqueda de letras ──────────────────────────────────────────────────
@@ -1930,44 +1969,53 @@ export function LyricsView({
   // `overlayOpen` está declarado arriba, junto al sincronizador del vídeo:
   // el reloj de karaoke de abajo se detiene mientras haya un overlay.
 
-  // ── Reloj de letras por rAF (frame-preciso) ───────────────────────────
-  //    Antes: setInterval(400ms) sobre progressRef (que solo se actualiza
-  //    con `timeupdate`, ~250ms) → hasta ~0.65s de retraso real: palabras y
-  //    cambios de línea llegaban tarde ("el karaoke va lento"). Ahora: rAF
-  //    muestreando `audio.currentTime` directamente (el mismo reloj que
-  //    usan los renderizadores de karaoke serios; progressRef queda como
-  //    fallback p.ej. en tests). setState SOLO cuando cambia la línea o la
-  //    palabra → menos re-renders que el tick forzado de antes (~150/canción
-  //    a cualquier hora) y encadenado exacto en el frame. En frames muertos
-  //    solo corre matemática (sin render de React); el navegador pausa rAF
-  //    al ocultar la ventana y `visible` lo frena si la ventana pierde el
-  //    foco — al volver, el primer frame recalcula donde va la canción.
+  // ── Reloj de letras: despierta SOLO cuando cambia el resaltado ────────
+  //    Historia: `setInterval(400ms)` sobre progressRef (que solo se
+  //    actualiza con `timeupdate`, ~250ms) llegaba hasta ~0.65s tarde ("el
+  //    karaoke va lento"). El rAF a 60 Hz lo arregló, pero un rAF encadenado
+  //    es una PETICIÓN DE FOTOGRAMA PERMANENTE: mientras la pantalla de
+  //    letras estaba abierta el compositor producía 60 fotogramas/s aunque
+  //    entre palabra y palabra no cambiara absolutamente nada. Eso es justo
+  //    lo que NO hace un navegador: Chromium «aborta el fotograma si no hay
+  //    damage» (`--check-damage-early`) y una página quieta no produce
+  //    frames. Ahora el reloj es el propio `<audio>`: sus eventos
+  //    (`timeupdate` ~4 Hz y SOLO con el medio en marcha, más `seeked`,
+  //    `play`, `pause`…) re-sincronizan, y entre medias un `setTimeout`
+  //    despierta en el instante exacto del próximo cambio (palabra o línea,
+  //    que es cuando el resaltado cambia de verdad). Entre despertar y
+  //    despertar no se pide ni un fotograma y con el audio en pausa no queda
+  //    ni un temporizador. `progressRef` sigue siendo el reloj de respaldo.
 
   useEffect(() => {
     // Con un overlay a pantalla completa montado (modal "Buscar letras",
     // Ajustes…) las letras quedan DETRÁS del scrim: los setState de línea y
-    // palabra solo repintan un fondo invisible y re-ejecutan los
-    // backdrop-filter de detrás en cada frame. El bucle se detiene entero y,
+    // palabra solo repintan un fondo invisible. El reloj se detiene entero y,
     // al cerrar el overlay, este efecto se re-programa, resetea wordLineRef y
-    // el primer tick recalcula desde audio.currentTime (mismo patrón que
-    // `visible` al ocultar la ventana).
-    if (!open || !isSynced || !visible || overlayOpen) return;
-    if (!Array.isArray(lyrics) || lyrics.length === 0) return;
+    // recalcula desde audio.currentTime (mismo patrón que `visible`).
+    if (!open || !isSynced || !visible || overlayOpen) return undefined;
+    if (!Array.isArray(lyrics) || lyrics.length === 0) return undefined;
     wordLineRef.current = -1; // las letras pueden haber cambiado (reload)
-    let rafId = 0;
+    let timerId = 0;
 
+    const audio = audioRef?.current;
+    // El `<audio>` REAL avisa por eventos; si el ref no trae uno de verdad
+    // (tests, ref con forma parcial) se cae al sondeo lento de abajo.
+    const conEventos = typeof audio?.addEventListener === "function";
+
+    // Se lee SIEMPRE del ref (no del elemento capturado): al acabar un fundido
+    // cruzado los dos `<audio>` de la app intercambian papeles
+    // (`usePlayer`: `audioRef.current = nextAudio`), así que el reloj tiene que
+    // seguir al que suena ahora.
     const readTime = () => {
       const t = audioRef?.current?.currentTime;
       if (typeof t === "number" && !Number.isNaN(t)) return t;
       return typeof progressRef?.current === "number" ? progressRef.current : 0;
     };
 
-    const tick = () => {
-      rafId = requestAnimationFrame(tick);
-      const t = readTime();
-      if (typeof t !== "number" || Number.isNaN(t)) return;
-
-      // ── Línea activa: búsqueda binaria (~8 comparaciones por frame) ──
+    // Aplica el estado de karaoke para `t` y devuelve el instante (reloj del
+    // audio) del PRÓXIMO cambio de resaltado, o `null` si no hay ninguno.
+    const apply = (t) => {
+      // ── Línea activa: búsqueda binaria (~8 comparaciones) ──
       let lo = 0,
         hi = lyrics.length - 1,
         idx = -1;
@@ -1984,43 +2032,116 @@ export function LyricsView({
         currentLineRef.current = idx;
         setCurrentLine(idx);
       }
+      if (idx < 0) return null; // antes de la primera línea no cambia nada
 
       // ── Palabra activa (cambia ~1-6 veces por segundo) ──
-      let w = -1;
-      if (idx >= 0) {
-        if (wordLineRef.current !== idx) {
-          wordLineRef.current = idx;
-          wordListRef.current = lyrics[idx].text.split(/\s+/).filter((x) => x.length > 0);
+      if (wordLineRef.current !== idx) {
+        wordLineRef.current = idx;
+        wordListRef.current = lyrics[idx].text.split(/\s+/).filter((x) => x.length > 0);
+      }
+      const words = wordListRef.current;
+      const lineStart = lyrics[idx].time;
+      const lineEnd = idx < lyrics.length - 1 ? lyrics[idx + 1].time : lineStart + 5;
+      const lineDuration = Math.max(lineEnd - lineStart, 0.5);
+      if (!words || words.length === 0) {
+        if (wordIdxRef.current !== -1) {
+          wordIdxRef.current = -1;
+          setWordIdx(-1);
         }
-        const words = wordListRef.current;
-        if (words.length > 0) {
-          const lineStart = lyrics[idx].time;
-          const lineEnd = idx < lyrics.length - 1 ? lyrics[idx + 1].time : lineStart + 5;
-          const lineDuration = Math.max(lineEnd - lineStart, 0.5);
-          const progressInLine = Math.min(Math.max((t - lineStart) / lineDuration, 0), 1);
-          // ⭐ Resaltado proporcional a CARACTERES (no uniforme por palabra):
-          //    el karaoke avanza según la longitud real de cada palabra.
-          const totalChars = words.reduce((s, x) => s + x.length, 0) || 1;
-          const targetChars = progressInLine * totalChars;
-          let acc = 0;
-          w = words.length - 1;
-          for (let wi = 0; wi < words.length; wi++) {
-            acc += words[wi].length;
-            if (targetChars < acc) {
-              w = wi;
-              break;
-            }
-          }
+        return lineEnd;
+      }
+      const progressInLine = Math.min(Math.max((t - lineStart) / lineDuration, 0), 1);
+      // ⭐ Resaltado proporcional a CARACTERES (no uniforme por palabra):
+      //    el karaoke avanza según la longitud real de cada palabra.
+      const totalChars = words.reduce((s, x) => s + x.length, 0) || 1;
+      const targetChars = progressInLine * totalChars;
+      let acc = 0;
+      let w = words.length - 1;
+      let nextAt = lineEnd; // al acabar la línea cambia la LÍNEA activa
+      for (let wi = 0; wi < words.length; wi++) {
+        acc += words[wi].length;
+        if (targetChars < acc) {
+          w = wi;
+          // Instante exacto en que el resaltado pasa a la palabra siguiente.
+          nextAt = lineStart + (acc / totalChars) * lineDuration;
+          break;
         }
       }
       if (w !== wordIdxRef.current) {
         wordIdxRef.current = w;
         setWordIdx(w);
       }
+      return Math.min(nextAt, lineEnd);
     };
 
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    // El `<audio>` es el reloj de la app: sus eventos marcan cada cambio real
+    // (avance, búsqueda, pausa) y `timeupdate` (~4 Hz con la canción en
+    // marcha) corrige cualquier deriva.
+    const eventos = [
+      "timeupdate",
+      "seeked",
+      "seeking",
+      "play",
+      "playing",
+      "pause",
+      "ended",
+      "ratechange",
+      "loadedmetadata",
+      "durationchange",
+    ];
+    let enganchado = null;
+    const engancha = (el) => eventos.forEach((ev) => el.addEventListener(ev, step));
+    const suelta = (el) => eventos.forEach((ev) => el.removeEventListener(ev, step));
+
+    // Un paso del reloj: aplica y programa el despertar siguiente.
+    const step = () => {
+      // Si los `<audio>` han intercambiado papeles (crossfade), el reloj se
+      // pasa al que suena ahora antes de leer.
+      const el = conEventos ? audioRef?.current : null;
+      if (el !== enganchado) {
+        if (enganchado) suelta(enganchado);
+        if (el) engancha(el);
+        enganchado = el;
+      }
+      const t = readTime();
+      if (typeof t !== "number" || Number.isNaN(t)) return;
+      const nextAt = apply(t);
+      clearTimeout(timerId);
+      timerId = 0;
+      // Sin `<audio>` (tests, entornos sin elemento de audio) el avance no
+      // tiene quien lo avise: de eso se encarga el sondeo de respaldo de
+      // abajo, aquí no se programa nada.
+      if (nextAt === null || !el) return;
+      // Con el medio parado no se programa NADA (el audio no avanza): sus
+      // eventos (`play`, `seeked`, `timeupdate`) reanudan el reloj. Cada
+      // despertar RELEE el reloj, así que un parón de datos (`waiting`) no
+      // adelanta el resaltado: recalcula y vuelve a programar.
+      if (el.paused || el.ended) return;
+      // 20 ms de colchón: no se encadenan despertares en el mismo instante.
+      const ms = Math.max((nextAt - t) * 1000, 0) + 20;
+      timerId = setTimeout(step, ms);
+    };
+
+    if (!conEventos) {
+      // Respaldo sin `<audio>`: sondeo lento (el reloj no puede quedarse
+      // quieto). En la app real SIEMPRE hay elemento de audio.
+      const pollId = setInterval(step, 250);
+      step();
+      return () => {
+        clearTimeout(timerId);
+        clearInterval(pollId);
+      };
+    }
+
+    engancha(audio);
+    enganchado = audio;
+    step();
+
+    return () => {
+      clearTimeout(timerId);
+      suelta(enganchado);
+      enganchado = null;
+    };
   }, [open, isSynced, visible, overlayOpen, lyrics, progressRef, audioRef]);
 
   // ── Auto-scroll to current synced line ─────────────────────────────────────
@@ -2092,8 +2213,8 @@ export function LyricsView({
   const handleLineClick = useCallback(
     (time) => {
       if (!settings.lyricsClickSeek) return;
-      // ⭐ Pintado optimista: el reloj rAF lee audio.currentTime en el
-      //    siguiente frame (o progressRef si el audio aún no existe).
+      // ⭐ Pintado optimista: el reloj de letras relee audio.currentTime en
+      //    cuanto llega `seeked` (o progressRef si el audio aún no existe).
       if (progressRef && typeof time === "number") progressRef.current = time;
       if (onSeek && typeof time === "number") {
         onSeek(time);
@@ -3070,8 +3191,8 @@ export function LyricsView({
                   currentLine >= 0 ? Math.abs(i - currentLine) : Math.max(0, 2 - i);
                 const lineDistance = Math.min(rawDistance, 10);
 
-                // ── Palabra iluminada: la escribe el reloj rAF; solo la
-                //    línea activa la recibe (el resto, -1 = apagado) ──
+                // ── Palabra iluminada: la escribe el reloj de letras; solo
+                //    la línea activa la recibe (el resto, -1 = apagado) ──
                 const activeWordIdx = isActive ? wordIdx : -1;
 
                 // ⭐ LyricLine memoizada: con props primitivas y handlers

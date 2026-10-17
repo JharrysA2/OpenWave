@@ -441,7 +441,7 @@ describe("PlayerBar — progreso imperativo", () => {
     );
   });
 
-  it("avanza con requestAnimationFrame mientras suena música", async () => {
+  it("avanza con su tick mientras suena música", async () => {
     const progressRef = { current: 0 };
     renderBar({ song, duration: 200, isPlaying: true, progressRef });
 
@@ -454,13 +454,13 @@ describe("PlayerBar — progreso imperativo", () => {
     expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(0.500)");
   });
 
-  it("no repinta en pausa: el loop rAF está detenido", async () => {
+  it("no repinta en pausa: el tick está detenido", async () => {
     const progressRef = { current: 40 };
     renderBar({ song, duration: 200, isPlaying: false, progressRef });
     await waitFor(() => expect(screen.getByTestId("progress-time")).toHaveTextContent("0:40"));
 
     progressRef.current = 120;
-    await new Promise((resolve) => setTimeout(resolve, 60)); // varios frames de rAF
+    await new Promise((resolve) => setTimeout(resolve, 60)); // menos de un tick
 
     expect(screen.getByTestId("progress-time")).toHaveTextContent("0:40");
     expect(screen.getByTestId("progress-fill").style.transform).toBe("scaleX(0.200)");

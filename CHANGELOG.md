@@ -16,6 +16,21 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Changed
 
+- **La interfaz deja de pedir fotogramas cuando no hay nada que cambiar.** El
+  reloj del karaoke y el sincronizador del vídeo de fondo eran bucles de
+  `requestAnimationFrame` encadenados: mientras la pantalla de Letras estaba
+  abierta mantenían al compositor produciendo 60 fotogramas por segundo aunque
+  entre palabra y palabra —o con el videoclip ya terminado— no cambiara nada en
+  pantalla. Ahora el reloj es el propio `<audio>`: sus eventos (`timeupdate`
+  ~4 Hz y solo con el medio en marcha, más `seeked`, `play`, `pause`…)
+  re-sincronizan y un temporizador despierta justo en el instante del próximo
+  cambio de palabra o de línea, así que entre despertar y despertar no se pide
+  ni un fotograma y con la música en pausa no queda ningún temporizador. El
+  vídeo de fondo se sigue solo con esos mismos eventos (más los suyos propios,
+  porque `autoPlay` lo arranca solo) comparando los dos relojes: sin bucle, el
+  `<video>` se presenta por sí mismo. El karaoke sigue igual de fino (cambia
+  exactamente al cruzar la palabra, que era el motivo del bucle) y el ahorro se
+  nota sobre todo con la ventana quieta o el clip parado.
 - **Los últimos contornos de la interfaz se van, y todo pasa al material del
   player bar.** Los botones y campos que aún dibujaban un aro de 1px usan ya
   el cristal del player bar —gradiente, brillo interior y sombra— sin

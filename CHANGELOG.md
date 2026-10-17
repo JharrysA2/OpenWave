@@ -55,6 +55,13 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   que tapaba el desenfoque y contornos de 1px —el de acento que llevaba
   encima y el blanco que trae el propio cristal de hoja—; ahora difumina
   como el resto de hojas y se apoya solo en el material y la sombra.
+- **Los campos y los iconos de las hojas, sin contornos.** En «Buscar letras»
+  los dos campos (canción y artista) y en «Editar letras» el cuadro de texto
+  usan el material del player bar —cristal, brillo interior y sombra— y al
+  enfocarlos se realza el cristal en vez de encenderse un aro de acento. En
+  las opciones de canción, álbum, artista y lista los botones de icono y el de
+  cerrar pierden su contorno y pasan al mismo material, y «Eliminar de
+  biblioteca» deja el rojo y se pinta como el resto de botones.
 - **Sin sombras separadoras en las hojas de opciones.** La hoja de opciones
   de una canción (y la de álbumes, artistas y listas) ya no dibuja la sombra
   que separaba el nombre de las opciones; tampoco los modales de letras la

@@ -458,14 +458,18 @@ function SearchLyricsModal({
     width: "100%",
     padding: "12px 14px",
     borderRadius: "12px",
-    border: `1px solid ${accentColor}33`,
-    background: "rgba(0,0,0,.25)",
+    // Sin contorno: mismo material que el resto de botones —cristal, brillo
+    // interior y sombra del player bar—; al enfocarlo se realza el cristal en
+    // vez de encenderse un aro de acento.
+    border: "none",
+    background: GLASS.btn.background,
+    boxShadow: SHADOWS.closeBtn,
     color: "rgba(255,255,255,.9)",
     fontSize: "14px",
     fontFamily: FONT,
     outline: "none",
     boxSizing: "border-box",
-    transition: "border-color .2s",
+    transition: "background .2s",
   };
 
   return (
@@ -482,10 +486,10 @@ function SearchLyricsModal({
         placeholder="Título de la canción"
         style={inputSt}
         onFocus={(e) => {
-          e.target.style.borderColor = accentColor;
+          e.target.style.background = GLASS.btnHoverSoft.background;
         }}
         onBlur={(e) => {
-          e.target.style.borderColor = `${accentColor}33`;
+          e.target.style.background = GLASS.btn.background;
         }}
       />
       <input
@@ -495,10 +499,10 @@ function SearchLyricsModal({
         placeholder="Artista"
         style={{ ...inputSt, marginTop: "10px" }}
         onFocus={(e) => {
-          e.target.style.borderColor = accentColor;
+          e.target.style.background = GLASS.btnHoverSoft.background;
         }}
         onBlur={(e) => {
-          e.target.style.borderColor = `${accentColor}33`;
+          e.target.style.background = GLASS.btn.background;
         }}
       />
       <button
@@ -888,8 +892,11 @@ function EditLyricsModal({ accentColor, lyrics, onEditLyrics, onClose }) {
         style={{
           width: "100%",
           minHeight: "300px",
-          background: "rgba(0,0,0,.3)",
-          border: `1px solid ${accentColor}33`,
+          // Sin contorno: mismo material que los botones (cristal, brillo
+          // interior y sombra del player bar); el foco realza el cristal.
+          background: GLASS.btn.background,
+          border: "none",
+          boxShadow: SHADOWS.closeBtn,
           borderRadius: "12px",
           padding: "14px",
           color: "rgba(255,255,255,.9)",
@@ -899,13 +906,13 @@ function EditLyricsModal({ accentColor, lyrics, onEditLyrics, onClose }) {
           resize: "vertical",
           outline: "none",
           boxSizing: "border-box",
-          transition: "border-color .2s",
+          transition: "background .2s",
         }}
         onFocus={(e) => {
-          e.target.style.borderColor = accentColor;
+          e.target.style.background = GLASS.btnHoverSoft.background;
         }}
         onBlur={(e) => {
-          e.target.style.borderColor = `${accentColor}33`;
+          e.target.style.background = GLASS.btn.background;
         }}
         placeholder="[00:12.00] Primera línea&#10;[00:16.50] Segunda línea"
       />

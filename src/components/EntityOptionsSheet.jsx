@@ -2,7 +2,7 @@ import React from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
-import { COLORS, RADIUS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
+import { COLORS, RADIUS, TRANSITIONS, GLASS, SHADOWS, withAlpha } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { useEscClose } from "../hooks/useEscape";
 
@@ -62,7 +62,6 @@ export function EntityOptionsSheet({
           icon: Ic.heart(liked, 22),
           color: liked ? COLORS.likeColor : null,
           bg: liked ? withAlpha(COLORS.likeColor, "1a") : null,
-          border: liked ? withAlpha(COLORS.likeColor, "40") : null,
           action: () => {
             onToggleLike?.();
             onClose();
@@ -73,7 +72,6 @@ export function EntityOptionsSheet({
           icon: Ic.download(22),
           color: downloadLabel && downloadLabel !== "Descargar álbum" ? "var(--neon)" : null,
           bg: downloadLabel && downloadLabel !== "Descargar álbum" ? "var(--neon-18)" : null,
-          border: downloadLabel && downloadLabel !== "Descargar álbum" ? "var(--neon)" : null,
           action: () => {
             onDownload?.();
             onClose();
@@ -161,7 +159,6 @@ export function EntityOptionsSheet({
           ),
           color: liked ? COLORS.likeColor : null,
           bg: liked ? withAlpha(COLORS.likeColor, "1a") : null,
-          border: liked ? withAlpha(COLORS.likeColor, "40") : null,
           action: () => {
             onToggleLike?.();
             onClose();
@@ -305,10 +302,10 @@ export function EntityOptionsSheet({
             onMouseEnter={() => setHoverIdx("close")}
             onMouseLeave={() => setHoverIdx((k) => (k === "close" ? null : k))}
             style={{
-              // Superficie opaca plana: la hoja YA es cristal — otro glass
-              // encima se veía como un doble efecto blanquecino.
-              background: hoverIdx === "close" ? "rgba(0,0,0,.45)" : "rgba(0,0,0,.28)",
-              border: "1px solid rgba(255,255,255,.10)",
+              // Material del player bar: cristal, brillo interior y sombra,
+              // sin contorno (el aro de 1px se veía sobre el cristal de la hoja).
+              background: GLASS.btn.background,
+              border: "none",
               borderRadius: RADIUS.full,
               width: "34px",
               height: "34px",
@@ -318,6 +315,7 @@ export function EntityOptionsSheet({
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
+              boxShadow: SHADOWS.closeBtn,
               transition: TRANSITIONS.fast,
             }}
           >
@@ -365,11 +363,12 @@ export function EntityOptionsSheet({
                   width: "50px",
                   height: "50px",
                   borderRadius: RADIUS.full,
-                  // Opaco y plano: el color de fondo solo lo aporta el estado
-                  // (♥ activo, descargando); si no, otra capa translúcida
-                  // encima del cristal acumulaba blanco.
-                  background: btn.bg || "rgba(0,0,0,.28)",
-                  border: `1.5px solid ${btn.border || "rgba(255,255,255,.10)"}`,
+                  // Material del player bar: cristal con brillo interior y
+                  // sombra, sin contorno. El relleno del estado (♥ activo,
+                  // descargando) manda cuando existe.
+                  background: btn.bg || GLASS.btn.background,
+                  border: "none",
+                  boxShadow: SHADOWS.closeBtn,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",

@@ -138,11 +138,6 @@ export function SongOptionsSheet({
         : dlPct !== null
           ? "var(--neon-18)"
           : null,
-      border: song.downloaded
-        ? withAlpha(COLORS.successColor, "40")
-        : dlPct !== null
-          ? "var(--neon)"
-          : null,
       action: song.downloaded
         ? async () => {
             // Sin catch, un fallo (backend caído, red) moría como promesa
@@ -165,7 +160,6 @@ export function SongOptionsSheet({
       icon: Ic.heart(liked, 22),
       color: liked ? COLORS.likeColor : null,
       bg: liked ? withAlpha(COLORS.likeColor, "1a") : null,
-      border: liked ? withAlpha(COLORS.likeColor, "40") : null,
       action: () => {
         onLike(song.videoId, song);
         onClose();
@@ -292,9 +286,8 @@ export function SongOptionsSheet({
                 <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
               </svg>
             ),
-            color: COLORS.errorText,
-            bg: withAlpha(COLORS.errorText, "14"),
-            border: withAlpha(COLORS.errorText, "33"),
+            // Sin rojo: el borrado se pinta como el resto de botones (el
+            // material ya lo distingue); el color de peligro sobraba aquí.
             action: () => {
               onDeleteSong(song.videoId || song.video_id);
               onClose();
@@ -426,9 +419,10 @@ export function SongOptionsSheet({
           <button
             onClick={onClose}
             style={{
-              background:
-                "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-              border: "1px solid rgba(255,255,255,.14)",
+              // Material del player bar: cristal, brillo interior y sombra,
+              // sin contorno (el aro de 1px se veía sobre el cristal de la hoja).
+              background: GLASS.btn.background,
+              border: "none",
               borderRadius: RADIUS.full,
               width: "34px",
               height: "34px",
@@ -438,7 +432,7 @@ export function SongOptionsSheet({
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              boxShadow: SHADOWS.settingsClose,
+              boxShadow: SHADOWS.closeBtn,
               transition: TRANSITIONS.normal,
             }}
           >
@@ -483,8 +477,12 @@ export function SongOptionsSheet({
                   width: "50px",
                   height: "50px",
                   borderRadius: RADIUS.full,
-                  background: btn.bg || COLORS.surfaceNav,
-                  border: `1.5px solid ${btn.border || "rgba(255,255,255,.08)"}`,
+                  // Material del player bar: cristal con brillo interior y
+                  // sombra, sin contorno. El relleno del estado (♥ activo,
+                  // descargando, descargada) manda cuando existe.
+                  background: btn.bg || GLASS.btn.background,
+                  border: "none",
+                  boxShadow: SHADOWS.closeBtn,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",

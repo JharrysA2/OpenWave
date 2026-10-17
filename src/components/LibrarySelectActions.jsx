@@ -85,9 +85,11 @@ export function LibrarySelectActions({
           onClick={onDelete}
           style={{
             ...base,
-            background: hover === "delete" ? "rgba(239,68,68,.2)" : "rgba(239,68,68,.12)",
-            border: `1px solid ${hover === "delete" ? "rgba(239,68,68,.4)" : "rgba(239,68,68,.25)"}`,
-            color: "#ef4444",
+            // Sin rojo: el borrado se pinta como el resto de acciones de la
+            // barra (la selección ya avisa de lo que va a borrarse).
+            background: hover === "delete" ? "rgba(255,255,255,.12)" : "rgba(255,255,255,.06)",
+            border: `1px solid ${hover === "delete" ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.08)"}`,
+            color: "rgba(255,255,255,.5)",
           }}
           {...hov("delete")}
         >

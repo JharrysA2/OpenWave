@@ -575,8 +575,10 @@ function SearchLyricsModal({
                 onClose();
               }}
               style={{
-                background: `linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)`,
-                border: `1px solid ${accentColor}22`,
+                // Material del player bar: cristal, brillo interior y sombra,
+                // sin contorno (el aro de acento sobraba aquí).
+                background: GLASS.btn.background,
+                border: "none",
                 borderRadius: "12px",
                 padding: "12px 14px",
                 cursor: "pointer",
@@ -584,20 +586,18 @@ function SearchLyricsModal({
                 color: "rgba(255,255,255,.7)",
                 fontSize: "13px",
                 fontFamily: FONT,
-                transition: "background .15s, border-color .15s, transform .15s",
+                transition: "background .15s, transform .15s",
                 // Sin backdrop-filter: cada resultado creaba su propia capa
                 // blur apilada sobre la de la hoja (N blurs encadenados que se
                 // re-ejecutaban con cada repintado de detrás).
-                boxShadow: "0 2px 10px rgba(0,0,0,.25)",
+                boxShadow: SHADOWS.closeBtn,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = `linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.05) 100%)`;
-                e.currentTarget.style.borderColor = accentColor;
+                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
                 e.currentTarget.style.transform = "translateY(-1px)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = `linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)`;
-                e.currentTarget.style.borderColor = `${accentColor}22`;
+                e.currentTarget.style.background = GLASS.btn.background;
                 e.currentTarget.style.transform = "translateY(0)";
               }}
             >

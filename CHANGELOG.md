@@ -62,6 +62,15 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   las opciones de canción, álbum, artista y lista los botones de icono y el de
   cerrar pierden su contorno y pasan al mismo material, y «Eliminar de
   biblioteca» deja el rojo y se pinta como el resto de botones.
+- **Las tarjetas de Inicio, con el material del player bar.** Las tarjetas de
+  canciones, álbumes y playlists de Inicio pierden el contorno y pasan al
+  cristal de los botones del player bar —brillo interior y sombra incluidos—
+  conservando las esquinas redondeadas; la tarjeta que está sonando se
+  distingue por el tinte y el glow del acento, ya sin aro. Las filas de
+  resultados del buscador de letras también dejan su contorno.
+- **La biblioteca deja de pintar el borrado en rojo.** El botón «Eliminar (N)»
+  de la barra de selección se pinta como el resto de acciones de la barra (la
+  propia selección ya avisa de lo que se va a borrar).
 - **Sin sombras separadoras en las hojas de opciones.** La hoja de opciones
   de una canción (y la de álbumes, artistas y listas) ya no dibuja la sombra
   que separaba el nombre de las opciones; tampoco los modales de letras la

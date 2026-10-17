@@ -9,6 +9,7 @@ import {
   RADIUS,
   SPACING,
   TYPOGRAPHY,
+  SHADOWS,
   withAlpha,
   ANIMATIONS,
   GLASS,
@@ -166,27 +167,35 @@ function FeedCard({
   openOptions,
 }) {
   const isPlaying = Boolean(item.videoId) && currentSong?.videoId === item.videoId;
+  // Material del player bar: cristal, brillo interior y sombra del botón. La
+  // tarjeta en reproducción se distingue por el tinte y el glow del acento, no
+  // por un contorno.
+  const cardShadow = isPlaying
+    ? `inset 0 1px 0 rgba(255,255,255,.12), 0 0 16px ${withAlpha(accentColor, "33")}`
+    : SHADOWS.closeBtn;
+  const cardHoverShadow = isPlaying
+    ? `inset 0 1px 0 rgba(255,255,255,.12), 0 8px 24px rgba(0,0,0,.35), 0 0 20px ${withAlpha(accentColor, "44")}`
+    : "inset 0 1px 0 rgba(255,255,255,.12), 0 8px 24px rgba(0,0,0,.35)";
   return (
     <div
       onClick={onClick}
       style={{
         ...ANIMATIONS.fadeSlideUp(160 + Math.min(index, 10) * 45),
-        ...GLASS.card,
         // Sin backdrop-filter por tarjeta (regresión de rendimiento, mismo
         // criterio que LibraryCard): sobre la rejilla plana era imperceptible.
         backdropFilter: undefined,
         WebkitBackdropFilter: undefined,
+        // Sin contorno: cristal del player bar y las esquinas redondeadas de
+        // siempre.
         background: isPlaying
           ? `linear-gradient(135deg, ${withAlpha(accentColor, "18")}, ${withAlpha(accentColor, "08")})`
-          : GLASS.card.background,
+          : GLASS.btn.background,
         borderRadius: RADIUS.card,
         cursor: "pointer",
         transition:
-          "background .2s cubic-bezier(.16,1,.3,1), transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1), border-color .2s cubic-bezier(.16,1,.3,1)",
-        border: isPlaying ? `1.5px solid ${withAlpha(accentColor, "44")}` : GLASS.card.border,
-        boxShadow: isPlaying
-          ? `0 0 16px ${withAlpha(accentColor, "33")}, inset 0 1px 0 rgba(255,255,255,.06)`
-          : "none",
+          "background .2s cubic-bezier(.16,1,.3,1), transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
+        border: "none",
+        boxShadow: cardShadow,
         position: "relative",
         // Banda horizontal: ancho fijo por tarjeta (la fila hace scroll-x).
         width: "180px",
@@ -195,16 +204,16 @@ function FeedCard({
       onMouseEnter={(e) => {
         e.currentTarget.style.background = isPlaying
           ? `linear-gradient(135deg, ${withAlpha(accentColor, "22")}, ${withAlpha(accentColor, "10")})`
-          : GLASS.cardHover.background;
+          : GLASS.btnHoverSoft.background;
         e.currentTarget.style.transform = "translateY(-3px)";
-        e.currentTarget.style.boxShadow = `0 8px 24px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.06)`;
+        e.currentTarget.style.boxShadow = cardHoverShadow;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = isPlaying
           ? `linear-gradient(135deg, ${withAlpha(accentColor, "18")}, ${withAlpha(accentColor, "08")})`
-          : GLASS.card.background;
+          : GLASS.btn.background;
         e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.boxShadow = cardShadow;
       }}
     >
       {/* Cover con overlay sutil de gradiente en la parte inferior */}
@@ -341,14 +350,20 @@ function FeedCard({
 function PlaylistCard({ playlist, index, accentColor, onClick }) {
   const cover = playlist.cover || playlist.first_cover;
   const count = Number(playlist.song_count || 0);
+  // Mismo material que las tarjetas del inicio: cristal del player bar, sin
+  // contorno y con las esquinas redondeadas de siempre.
+  const cardShadow = SHADOWS.closeBtn;
+  const cardHoverShadow = "inset 0 1px 0 rgba(255,255,255,.12), 0 8px 24px rgba(0,0,0,.35)";
   return (
     <div
       onClick={onClick}
       style={{
         ...ANIMATIONS.fadeSlideUp(160 + Math.min(index, 10) * 45),
-        ...GLASS.card,
         backdropFilter: undefined,
         WebkitBackdropFilter: undefined,
+        background: GLASS.btn.background,
+        border: "none",
+        boxShadow: cardShadow,
         borderRadius: RADIUS.card,
         cursor: "pointer",
         position: "relative",
@@ -359,12 +374,14 @@ function PlaylistCard({ playlist, index, accentColor, onClick }) {
           "background .2s cubic-bezier(.16,1,.3,1), transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = GLASS.cardHover.background;
+        e.currentTarget.style.background = GLASS.btnHoverSoft.background;
         e.currentTarget.style.transform = "translateY(-3px)";
+        e.currentTarget.style.boxShadow = cardHoverShadow;
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = GLASS.card.background;
+        e.currentTarget.style.background = GLASS.btn.background;
         e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = cardShadow;
       }}
     >
       <div

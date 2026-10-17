@@ -4,7 +4,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SettingsProvider } from "./SettingsContext";
-import { PerformanceProvider, usePerformance } from "./PerformanceContext";
+import { PerformanceProvider, usePerformance, APP_IDLE_MS } from "./PerformanceContext";
+import { useLiveRender } from "../hooks/useLiveRender";
 import { SW_SETTINGS_KEY } from "../constants";
 
 // Los tests corren con cwd en la raíz del proyecto (npm test)
@@ -373,6 +374,136 @@ function PerfProbe() {
   );
 }
 
+// ── Reposo con la ventana A LA VISTA (app-idle) ─────────────────────────────
+//  Mismo objetivo que el congelado por visibilidad, pero en el caso normal:
+//  la ventana se ve y el usuario lleva un rato sin tocar nada → no hay nada
+//  nuevo que pintar, así que la app deja de producir fotogramas (iGPU a 0)
+//  hasta la siguiente entrada. El audio sigue intacto.
+
+describe("app-idle — reposo por inactividad con la ventana a la vista", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockSoftware.mockReturnValue(false);
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it(`sin tocar nada ${APP_IDLE_MS} ms → 'app-idle' y CERO timers pendientes`, async () => {
+    await act(async () => {
+      renderProvider();
+    });
+    expect(classes()).not.toContain("app-idle");
+    act(() => {
+      vi.advanceTimersByTime(APP_IDLE_MS);
+    });
+    expect(classes()).toContain("app-idle");
+    // Ni un temporizador vivo: en reposo la app no se despierta sola (solo
+    // la levanta una entrada del usuario o un cambio de contenido).
+    expect(vi.getTimerCount()).toBe(0);
+    expect(classes()).not.toContain("app-hidden");
+    expect(classes()).not.toContain("app-sleep");
+  });
+
+  it("cualquier entrada lo levanta al instante (puntero, tecla, rueda)", async () => {
+    await act(async () => {
+      renderProvider();
+    });
+    act(() => {
+      vi.advanceTimersByTime(APP_IDLE_MS);
+    });
+    expect(classes()).toContain("app-idle");
+
+    const entradas = ["pointermove", "keydown", "wheel", "pointerdown"];
+    for (const tipo of entradas) {
+      act(() => {
+        window.dispatchEvent(new Event(tipo));
+      });
+      expect(classes()).not.toContain("app-idle");
+      // Y vuelve a entrar solo cuando pasa otra vez el margen.
+      act(() => {
+        vi.advanceTimersByTime(APP_IDLE_MS);
+      });
+      expect(classes()).toContain("app-idle");
+    }
+  });
+
+  it("la entrada a mitad del margen rearma el vencimiento (no se adelanta)", async () => {
+    await act(async () => {
+      renderProvider();
+    });
+    act(() => {
+      vi.advanceTimersByTime(APP_IDLE_MS - 1000);
+    });
+    act(() => {
+      window.dispatchEvent(new Event("pointermove"));
+    });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(classes()).not.toContain("app-idle");
+    act(() => {
+      vi.advanceTimersByTime(APP_IDLE_MS - 1000);
+    });
+    expect(classes()).toContain("app-idle");
+  });
+
+  it("contenido en vivo (useLiveRender) → la app NO entra en reposo", async () => {
+    const { unmount } = await act(async () =>
+      render(
+        <SettingsProvider>
+          <PerformanceProvider>
+            <LiveProbe live />
+          </PerformanceProvider>
+        </SettingsProvider>,
+      ),
+    );
+    act(() => {
+      vi.advanceTimersByTime(APP_IDLE_MS * 3);
+    });
+    expect(classes()).not.toContain("app-idle");
+
+    // Al terminar el contenido en vivo (se desmonta la sonda) entra el reposo.
+    await act(async () => {
+      unmount();
+    });
+    await act(async () => {
+      renderProvider();
+    });
+    act(() => {
+      vi.advanceTimersByTime(APP_IDLE_MS);
+    });
+    expect(classes()).toContain("app-idle");
+  });
+
+  it("con la ventana OCULTA manda app-hidden y no se marca reposo", async () => {
+    await act(async () => {
+      renderProvider();
+    });
+    await act(async () => {
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        get: () => "hidden",
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    act(() => {
+      vi.advanceTimersByTime(APP_IDLE_MS * 2);
+    });
+    expect(classes()).toContain("app-hidden");
+    expect(classes()).not.toContain("app-idle");
+    delete document.visibilityState;
+  });
+});
+
+/** Declara contenido en vivo (vídeo/karaoke/carga) para que no haya reposo. */
+function LiveProbe({ live = true }) {
+  useLiveRender(live);
+  return <div data-testid="live-probe" />;
+}
+
 describe("app-hidden — reglas CSS de index.html (presupuesto §4)", () => {
   it("con la ventana OCULTA apaga backdrop-filter/filtro/sombras de todo", () => {
     const html = readProjectFile("index.html");
@@ -422,5 +553,23 @@ describe("app-sleep — reglas CSS de index.html (sueño profundo ≥15 s)", () 
     expect(html).toMatch(/html\.app-sleep \*[^}]*filter:\s*none\s*!important/);
     expect(html).toMatch(/html\.app-sleep \*[^}]*box-shadow:\s*none\s*!important/);
     expect(html).toMatch(/html\.app-sleep \*[^}]*will-change:\s*auto\s*!important/);
+  });
+});
+
+describe("app-idle — reglas CSS de index.html (reposo con la ventana a la vista)", () => {
+  it("pausa SOLO las animaciones infinitas (el contenido nuevo no se queda a medias)", () => {
+    const html = readProjectFile("index.html");
+    // Nada de `html.app-idle *`: una animación de ENTRADA (0,2 s) que arrancase
+    // en reposo —una fila recién llegada, un aviso, un modal— se quedaría
+    // clavada en su primer fotograma (a menudo invisible) hasta que el usuario
+    // tocara algo. Se pausa lo que si no pide frames para siempre.
+    expect(html).not.toMatch(/html\.app-idle \*\s*[,{]/);
+    expect(html).toMatch(
+      /html\.app-idle \.now-playing-pulse[^{]*\{[^}]*animation-play-state:\s*paused\s*!important/,
+    );
+    expect(html).toMatch(/html\.app-idle \.connection-dot/);
+    expect(html).toMatch(/html\.app-idle \[style\*="sw-bg-spin"\]/);
+    // El shimmer de los esqueletos no se pausa (cargando = algo en marcha).
+    expect(html).not.toMatch(/html\.app-idle \.skeleton/);
   });
 });

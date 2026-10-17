@@ -105,6 +105,20 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   tarjeta) y la cabecera usa una sombra ajustada en vez de la ancha. La
   pantalla va sin backdrop-filter: la lectura la da su base opaca (la barra
   lateral y Ajustes son las pantallas sin blur).
+- **La app deja de dibujar cuando no pasa nada, como un navegador.** Con la
+  ventana a la vista y diez segundos sin tocar nada —siempre que no haya
+  contenido en vivo en pantalla— la app entra en reposo: se pausan las
+  animaciones que si no estarían girando para siempre (el pulso
+  «reproduciendo» de Inicio, el punto de conexión y la rotación del fondo de
+  Letras) y se paran los bucles que antes seguían pidiendo fotogramas con la
+  pantalla quieta (el avance de la barra del reproductor, el karaoke, la
+  sincronía del vídeo y el contador del temporizador de apagado). Sin nada
+  moviéndose el compositor no produce ni un fotograma, así que la GPU se queda
+  a cero hasta que se hace algo nuevo; basta mover el ratón o pulsar una tecla
+  para volver al instante, y los relojes se re-sincronizan desde el audio, sin
+  desfase. El audio nunca se toca, y hay contenido que mantiene la app
+  despierta porque es lo que se está viendo: el videoclip de fondo, el karaoke
+  avanzando y las cargas en curso.
 
 ### Removed
 

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useMemo, useEffect, useState } from "react";
 import { useVisibility } from "../hooks/useVisibility";
+import { useIdle } from "../hooks/useIdle";
+import { useLiveRenderActive } from "../hooks/useLiveRender";
 import { useSettings } from "./useSettings";
 import { isSoftwareRenderer } from "../utils/softwareRenderer";
 
@@ -13,6 +15,8 @@ const PerformanceContext = createContext({
   solidOn: false,
   visible: true,
   sleeping: false,
+  idle: false,
+  wake: () => {},
 });
 
 /** Sueño profundo: ms que la ventana debe llevar OCULTA antes de apagar
@@ -21,8 +25,12 @@ const PerformanceContext = createContext({
  *  es al minimizar/ocultar, y a los 15 s se entra en app-sleep. */
 export const APP_SLEEP_MS = 15000;
 
+/** Reposo: ms sin NINGUNA entrada del usuario antes de dejar de dibujar con
+ *  la ventana a la vista (app-idle). Ver docs/PERFORMANCE.md §4. */
+export const APP_IDLE_MS = 10000;
+
 /**
- * PerformanceProvider — sin humo, solo 3 cosas:
+ * PerformanceProvider — sin humo, solo 4 cosas:
  *
  *  1) ESCUCHA la visibilidad de la ventana (useVisibility: visibilitychange,
  *     SIN foco). Si la ventana queda OCULTA (minimizada/tapada) añade la
@@ -49,13 +57,30 @@ export const APP_SLEEP_MS = 15000;
  *     rendimiento apagó).
  *
  *  3) Expone vía contexto los toggles RESUELTOS (blurOn, animOn, shadowOn,
- *     visible, sleeping) para que la página de rendimiento y los componentes
- *     sepan qué está activo SIN re-leer los ajustes ni re-calcular CSS.
+ *     visible, sleeping, idle) para que la página de rendimiento y los
+ *     componentes sepan qué está activo SIN re-leer los ajustes ni
+ *     re-calcular CSS.
+ *
+ *  4) REPOSO (app-idle): con la ventana a la vista, si el usuario lleva
+ *     APP_IDLE_MS sin tocar nada y no hay contenido en vivo (useLiveRender:
+ *     vídeo de fondo, karaoke, carga en curso), la app deja de dibujar:
+ *     animaciones CSS pausadas y bucles JS parados por el flag `idle`. Es el
+ *     comportamiento de un navegador con la página quieta — el compositor no
+ *     produce fotogramas y la iGPU queda a cero. Cualquier entrada levanta el
+ *     reposo al instante (`wake`) y los relojes re-sincronizan solos desde el
+ *     audio (audio.currentTime / progressRef), sin deriva.
  */
 export function PerformanceProvider({ children }) {
   const { settings } = useSettings();
   const visible = useVisibility();
   const [sleeping, setSleeping] = useState(false);
+
+  // Reposo por inactividad del usuario + contenido en vivo (vídeo, karaoke,
+  // carga): mientras haya algo de eso en pantalla, la app debe seguir
+  // dibujando aunque el usuario no toque nada.
+  const { idle: userInactive, wake } = useIdle(APP_IDLE_MS);
+  const live = useLiveRenderActive();
+  const idle = visible && !live && userInactive;
 
   const mode = settings.perfMode || "auto";
   const customBlur = settings.perfBlur !== false;
@@ -115,6 +140,11 @@ export function PerformanceProvider({ children }) {
     // Sueño profundo a los 15 s de oculta: animaciones apagadas y
     // recursos pesados liberados (LyricsView descarga su fondo).
     root.classList.toggle("app-sleep", sleeping && pauseHidden);
+    // Reposo con la ventana a la vista: sin entradas del usuario y sin
+    // contenido en vivo → animaciones pausadas y bucles JS parados (`idle`).
+    // El compositor deja de producir fotogramas (iGPU a cero) hasta la
+    // siguiente entrada.
+    root.classList.toggle("app-idle", idle);
     return () => {
       root.classList.remove(
         "perf-blur-off",
@@ -123,11 +153,15 @@ export function PerformanceProvider({ children }) {
         "perf-solid",
         "app-hidden",
         "app-sleep",
+        "app-idle",
       );
     };
-  }, [flags, visible, sleeping, blurStyle, pauseHidden]);
+  }, [flags, visible, sleeping, blurStyle, pauseHidden, idle]);
 
-  const value = useMemo(() => ({ ...flags, visible, sleeping }), [flags, visible, sleeping]);
+  const value = useMemo(
+    () => ({ ...flags, visible, sleeping, idle, wake }),
+    [flags, visible, sleeping, idle, wake],
+  );
 
   return <PerformanceContext.Provider value={value}>{children}</PerformanceContext.Provider>;
 }

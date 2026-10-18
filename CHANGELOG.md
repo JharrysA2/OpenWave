@@ -511,13 +511,14 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 
 ### Fixed
 
-- **Instalar con `install-msi.ps1 -Launch` ya no deja dos OpenWave abiertos.**
-  La instalación usaba `msiexec /qb` y, con interfaz, el MSI **autolanza** la
-  app al registrar la identidad (acción AUTOLAUNCHAPP): quedaban en marcha la
-  instancia del instalador y la del `-Launch`, cada una con su vídeo de fondo y
-  su cristal sobre la misma iGPU → la GPU al doble y la ventana de delante a
-  tirones (parece que la app va a 2 fps). Ahora el script instala con `/qn` (sin
-  autolanzado) y, si ya hay una instancia arrancada, no abre otra.
+- **Instalar con `install-msi.ps1 -Launch` ya no puede dejar dos OpenWave
+  abiertos.** La instalación usa `msiexec /qb` y el MSI puede autolanzar la app
+  al registrar la identidad (acción AUTOLAUNCHAPP), así que el `-Launch` añadía
+  una segunda instancia: dos ventanas con su vídeo de fondo y su cristal sobre
+  la misma iGPU → la GPU al doble y la delante a tirones (parece que la app va a
+  2 fps). Ahora, si ya hay una instancia arrancada, el script no abre otra y se
+  limita a verificar `/health`. (`/qn` se probó para no depender del autolanzado
+  y msiexec devolvía 1603: esta instalación necesita la secuencia de UI.)
 - **`verify-msi.ps1` contempla la nueva clave de registro del MSI**: la tabla
   Registry pasa de 8 a 9 filas (la preferencia de gráficas `GpuPreference=2`
   que escribe `main.wxs`) y hay una comprobación [OK] específica para esa

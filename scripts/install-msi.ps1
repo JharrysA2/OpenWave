@@ -66,13 +66,12 @@ if ($owner) {
 Start-Sleep -Seconds 2
 
 # ── 3. Instalar ──────────────────────────────────────────────────────────────
-# /qn (sin interfaz) y NO /qb: con /qb el MSI autolanza la app al registrar la
-# identidad (accion AUTOLAUNCHAPP) y el -Launch de abajo abria una SEGUNDA
-# instancia — dos WebView con su video y su cristal sobre la misma iGPU: la GPU
-# sube al doble y la ventana de delante se ve a tirones. Con /qn solo arranca la
-# instancia que abrimos aqui (la instalacion a mano, a doble clic, no cambia).
-Write-Host 'Instalando (msiexec /i /qn /norestart)...'
-$p = Start-Process -FilePath 'msiexec.exe' -ArgumentList @('/i', $MsiPath, '/qn', '/norestart') -Wait -PassThru
+# /qb (barra de progreso): con UI el MSI autolanza la app al registrar la
+# identidad (accion AUTOLAUNCHAPP), asi que hay que contar con esa instancia —
+# el paso 4 comprueba si ya esta en marcha y NO abre otra. (/qn se probo y
+# msiexec devolvia 1603: esta instalacion necesita la secuencia de UI.)
+Write-Host 'Instalando (msiexec /i /qb /norestart)...'
+$p = Start-Process -FilePath 'msiexec.exe' -ArgumentList @('/i', $MsiPath, '/qb', '/norestart') -Wait -PassThru
 if ($p.ExitCode -ne 0) { throw "msiexec ha fallado (codigo $($p.ExitCode))." }
 $installedVersion = (Get-Item -LiteralPath $exe).VersionInfo.FileVersion
 Write-Host "Instalado. Version en disco: $installedVersion"

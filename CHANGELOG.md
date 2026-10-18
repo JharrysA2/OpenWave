@@ -16,6 +16,20 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Changed
 
+- **El karaoke gasta mucho menos con el vídeo de fondo.** La letra animada
+  cambiaba de tamaño con una transición continua, y eso obliga al navegador a
+  rehacer el diseño y repintar toda el área visible de la letra en cada
+  fotograma del cambio de línea (unas 40 pasadas, justo cuando las líneas
+  vecinas se recolocan); con el videoclip detrás cada repintado se compone
+  encima de un fondo que se mueve, y ahí salían los picos de GPU. Ahora el
+  tamaño va **escalonado** (`steps(8)`: ~2 px por paso a 44 px, no se ve) y el
+  peso de cada palabra también (`steps(4)`), así que ese trabajo baja a 8 y 4
+  pasadas respectivamente. El «lente» de tamaños queda además en tres escalones
+  (activa / vecina / resto) en vez de una curva continua, así que cada cambio de
+  línea toca el tamaño de menos líneas (~4 en vez de ~7); la única diferencia
+  visible son ~3 px en la segunda vecina. La suavidad del karaoke se mantiene
+  intacta: el fundido de color y la opacidad/escala siguen siendo continuos
+  porque se resuelven en el compositor, sin rehacer el diseño.
 - **La interfaz deja de pedir fotogramas cuando no hay nada que cambiar.** El
   reloj del karaoke y el sincronizador del vídeo de fondo eran bucles de
   `requestAnimationFrame` encadenados: mientras la pantalla de Letras estaba

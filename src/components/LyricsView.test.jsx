@@ -455,12 +455,56 @@ describe("LyricsView", () => {
     spans.forEach((s) => {
       expect(s.style.transition).toContain("color .5s");
       expect(s.style.transition).toContain("font-weight .4s");
+      // El peso va escalonado: interpolar `font-weight` re-formaba los glifos
+      // (y podía cambiar el número de líneas del verso) en cada frame, con
+      // palabra nueva cada ~200–400 ms → trabajo casi continuo.
+      expect(s.style.transition).toContain("font-weight .4s steps(4");
       expect(s.style.transition).not.toContain("text-shadow");
     });
     const lit = spans.find((s) => s.style.color && s.style.color !== unlitColor);
     expect(lit).toBeTruthy();
     expect(lit.style.textShadow).toContain("16px");
     expect(lit.style.textShadow).not.toContain("32px");
+  });
+
+  it("el zoom de la línea activa va escalonado (steps) y el lente cuantiza el tamaño", async () => {
+    // Interpolar `font-size` re-formaba los glifos y re-layout de toda el área
+    // visible en cada frame del cambio de línea (~40 por cambio, justo cuando
+    // se reposicionan las vecinas): es el pico del karaoke con vídeo detrás.
+    // `steps(8)` reparte ese trabajo en 8 pasos sin cambio visible (≈2 px por
+    // paso a 44px) y el lente queda en tres escalones, así que cada cambio de
+    // línea toca el tamaño de menos líneas.
+    const lrcLines = [
+      "[00:01.00]Linea uno",
+      "[00:02.00]Linea dos",
+      "[00:03.00]Linea tres",
+      "[00:04.00]Linea cuatro",
+      "[00:05.00]Linea cinco",
+      "[00:06.00]Linea seis",
+    ];
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) {
+        return Promise.resolve({ lyrics: lrcLines, source: "lrcLib" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+    // t=2.5 → línea activa = índice 1 (empieza en 00:02.00)
+    renderLyrics({ progressRef: { current: 2.5 } });
+    const active = await screen.findByTestId("lyric-line-1");
+    await waitFor(() => expect(active.style.opacity).toBe("1"), { timeout: 3000 });
+
+    expect(active.style.transition).toContain("font-size .65s steps(8");
+    expect(active.style.transition).toContain("transform .65s");
+    expect(active.style.transition).not.toContain("font-size .65s cubic-bezier");
+
+    const pxAt = (i) => parseFloat(screen.getByTestId(`lyric-line-${i}`).style.fontSize);
+    // Escalón de la vecina (d=1, 0.96) por encima del resto (d≥2, 0.78)
+    expect(pxAt(2)).toBeGreaterThan(pxAt(3));
+    // Y todas las líneas a d≥2 comparten tamaño: un cambio de línea no las toca
+    expect(new Set([3, 4, 5].map(pxAt)).size).toBe(1);
   });
 
   // ── Recargar letras nunca re-usa el cache viejo ni hace doble fetch ──────

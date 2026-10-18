@@ -1358,9 +1358,13 @@ const KaraokeWords = React.memo(
             // a palabra («palabra a palabra no es suave»). SIN transición de
             // text-shadow: interpolar el blur re-rasterizaba el glow en cada
             // frame de la transición (doble radio −10,7 pts en la pareja K;
-            // el radio de32px, −4 pts por sí solo en PD/PE).
-            transition:
-              "color .5s cubic-bezier(.25,.1,.25,1), font-weight .4s cubic-bezier(.25,.1,.25,1)",
+            // el radio de 32px, −4 pts por sí solo en PD/PE).
+            // El PESO también va escalonado: interpolar `font-weight` re-forma
+            // los glifos, puede cambiar el número de líneas del verso y
+            // re-layout de la línea en cada frame — y hay palabra nueva cada
+            // ~200–400 ms, así que el trabajo era casi continuo. Con 4 pasos
+            // el peso llega igual y el coste se divide entre 4.
+            transition: "color .5s cubic-bezier(.25,.1,.25,1), font-weight .4s steps(4, end)",
             color: isLit ? "#ffffff" : COLORS.textTertiary,
             fontWeight: isActiveWord ? "900" : isLit ? "700" : "500",
             // Glow de un solo radio: el 32px aportaba poco halo y costaba
@@ -1405,10 +1409,15 @@ const LyricLine = React.memo(function LyricLine({
   const basePx = parseFloat(lyricsFontSize) || 36;
 
   // ── Lente cilíndrico ligero: font-size + escala + opacidad (sin 3D compositing) ──
-  //    Font-size: jerarquía de tamaño (afecta layout, sin overlap).
+  //    Font-size: jerarquía de tamaño (afecta layout, sin overlap). Va
+  //    CUANTIZADO en tres escalones —activa / vecina / resto—: con la curva
+  //    continua, cada cambio de línea tocaba el font-size de ~7 líneas a la
+  //    vez (re-layout y repintado de toda el área visible, el pico que sube
+  //    la GPU). Con los escalones solo cambian ~4 y a 44px la diferencia
+  //    con la curva anterior es de ~3px (d=2: 0.84 → 0.78).
   //    scaleX/scaleY: los extremos se comprimen → curvatura tipo tubo.
   //    opacity: las lejanas se atenúan como profundidad de campo.
-  const sizeFactor = isActive ? 1.3 : Math.max(0.78, 1 - 0.04 * lineDistance * lineDistance);
+  const sizeFactor = isActive ? 1.3 : lineDistance <= 1 ? 0.96 : 0.78;
   const lineFontPx = basePx * sizeFactor;
   const scaleX = isActive ? 1 : Math.max(0.6, 1 - 0.05 * lineDistance);
   const scaleY = isActive ? 1 : Math.max(0.85, 1 - 0.015 * lineDistance);
@@ -1435,8 +1444,16 @@ const LyricLine = React.memo(function LyricLine({
         fontSize: `${lineFontPx.toFixed(1)}px`,
         fontWeight: isActive ? "900" : isNearActive ? "700" : "500",
         lineHeight: isActive ? "1.5" : "1.7",
+        // font-size ESCALONADO (steps): interpolar el tamaño re-forma los
+        // glifos y obliga a style recalc + LAYOUT + repintado de toda el área
+        // visible en cada frame, porque en cada cambio de línea se reposicionan
+        // las vecinas (el «one-shot del bloque completo al cambiar de línea»
+        // que quedaba pendiente en docs/PERFORMANCE.md §9.2, y que con el vídeo
+        // detrás se nota más). Con 8 pasos el resultado se ve igual (≈2 px de
+        // salto por paso a 44px) y el trabajo se reparte entre 8 pasos en vez
+        // de ~40 frames. `opacity` y `transform` son de composición: no repintan.
         transition:
-          "opacity .6s cubic-bezier(.25,.1,.25,1), font-size .65s cubic-bezier(.25,.1,.25,1), transform .65s cubic-bezier(.25,.1,.25,1)",
+          "opacity .6s cubic-bezier(.25,.1,.25,1), font-size .65s steps(8, end), transform .65s cubic-bezier(.25,.1,.25,1)",
         transform: `scaleX(${scaleX}) scaleY(${scaleY})`,
         transformOrigin: align === "center" ? "center top" : "left top",
         cursor: clickSeek ? "pointer" : "default",

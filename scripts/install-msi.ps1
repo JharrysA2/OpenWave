@@ -66,8 +66,13 @@ if ($owner) {
 Start-Sleep -Seconds 2
 
 # ── 3. Instalar ──────────────────────────────────────────────────────────────
-Write-Host 'Instalando (msiexec /i /qb /norestart)...'
-$p = Start-Process -FilePath 'msiexec.exe' -ArgumentList @('/i', $MsiPath, '/qb', '/norestart') -Wait -PassThru
+# /qn (sin interfaz) y NO /qb: con /qb el MSI autolanza la app al registrar la
+# identidad (accion AUTOLAUNCHAPP) y el -Launch de abajo abria una SEGUNDA
+# instancia — dos WebView con su video y su cristal sobre la misma iGPU: la GPU
+# sube al doble y la ventana de delante se ve a tirones. Con /qn solo arranca la
+# instancia que abrimos aqui (la instalacion a mano, a doble clic, no cambia).
+Write-Host 'Instalando (msiexec /i /qn /norestart)...'
+$p = Start-Process -FilePath 'msiexec.exe' -ArgumentList @('/i', $MsiPath, '/qn', '/norestart') -Wait -PassThru
 if ($p.ExitCode -ne 0) { throw "msiexec ha fallado (codigo $($p.ExitCode))." }
 $installedVersion = (Get-Item -LiteralPath $exe).VersionInfo.FileVersion
 Write-Host "Instalado. Version en disco: $installedVersion"
@@ -78,8 +83,13 @@ if (-not $Launch) {
     exit 0
 }
 
-Write-Host 'Arrancando OpenWave...'
-Start-Process -FilePath $exe | Out-Null
+$running = @(Get-Process OpenWave -ErrorAction SilentlyContinue)
+if ($running.Count -gt 0) {
+    Write-Host ("OpenWave ya esta en marcha (PID " + (($running | ForEach-Object { $_.Id }) -join ', ') + '): no abro otra instancia.')
+} else {
+    Write-Host 'Arrancando OpenWave...'
+    Start-Process -FilePath $exe | Out-Null
+}
 $ok = $false
 for ($i = 0; $i -lt 40; $i++) {
     Start-Sleep -Milliseconds 500

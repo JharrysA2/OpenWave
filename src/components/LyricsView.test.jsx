@@ -455,10 +455,9 @@ describe("LyricsView", () => {
     spans.forEach((s) => {
       expect(s.style.transition).toContain("color .5s");
       expect(s.style.transition).toContain("font-weight .4s");
-      // El peso va escalonado: interpolar `font-weight` re-formaba los glifos
-      // (y podía cambiar el número de líneas del verso) en cada frame, con
-      // palabra nueva cada ~200–400 ms → trabajo casi continuo.
-      expect(s.style.transition).toContain("font-weight .4s steps(4");
+      // Nada escalonado: `steps()` en el peso se veía a tirones (probado y
+      // descartado) — la iluminación palabra a palabra debe ser continua.
+      expect(s.style.transition).not.toContain("steps(");
       expect(s.style.transition).not.toContain("text-shadow");
     });
     const lit = spans.find((s) => s.style.color && s.style.color !== unlitColor);
@@ -467,13 +466,14 @@ describe("LyricsView", () => {
     expect(lit.style.textShadow).not.toContain("32px");
   });
 
-  it("el zoom de la línea activa va escalonado (steps) y el lente cuantiza el tamaño", async () => {
+  it("el zoom de la línea activa se acorta (no se escalona) y el lente cuantiza el tamaño", async () => {
     // Interpolar `font-size` re-formaba los glifos y re-layout de toda el área
     // visible en cada frame del cambio de línea (~40 por cambio, justo cuando
     // se reposicionan las vecinas): es el pico del karaoke con vídeo detrás.
-    // `steps(8)` reparte ese trabajo en 8 pasos sin cambio visible (≈2 px por
-    // paso a 44px) y el lente queda en tres escalones, así que cada cambio de
-    // línea toca el tamaño de menos líneas.
+    // Se acorta la transición a .3 s —movimiento continuo, la mitad de frames—
+    // y el lente queda en tres escalones, así que cada cambio de línea toca el
+    // tamaño de menos líneas. `steps()` se probó y se descartó: repartía el
+    // trabajo en 8 saltos y el crecimiento se veía a tirones.
     const lrcLines = [
       "[00:01.00]Linea uno",
       "[00:02.00]Linea dos",
@@ -496,9 +496,9 @@ describe("LyricsView", () => {
     const active = await screen.findByTestId("lyric-line-1");
     await waitFor(() => expect(active.style.opacity).toBe("1"), { timeout: 3000 });
 
-    expect(active.style.transition).toContain("font-size .65s steps(8");
+    expect(active.style.transition).toContain("font-size .3s cubic-bezier");
     expect(active.style.transition).toContain("transform .65s");
-    expect(active.style.transition).not.toContain("font-size .65s cubic-bezier");
+    expect(active.style.transition).not.toContain("steps(");
 
     const pxAt = (i) => parseFloat(screen.getByTestId(`lyric-line-${i}`).style.fontSize);
     // Escalón de la vecina (d=1, 0.96) por encima del resto (d≥2, 0.78)

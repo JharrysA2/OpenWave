@@ -16,20 +16,18 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Changed
 
-- **El karaoke gasta mucho menos con el vídeo de fondo.** La letra animada
-  cambiaba de tamaño con una transición continua, y eso obliga al navegador a
-  rehacer el diseño y repintar toda el área visible de la letra en cada
-  fotograma del cambio de línea (unas 40 pasadas, justo cuando las líneas
-  vecinas se recolocan); con el videoclip detrás cada repintado se compone
-  encima de un fondo que se mueve, y ahí salían los picos de GPU. Ahora el
-  tamaño va **escalonado** (`steps(8)`: ~2 px por paso a 44 px, no se ve) y el
-  peso de cada palabra también (`steps(4)`), así que ese trabajo baja a 8 y 4
-  pasadas respectivamente. El «lente» de tamaños queda además en tres escalones
-  (activa / vecina / resto) en vez de una curva continua, así que cada cambio de
-  línea toca el tamaño de menos líneas (~4 en vez de ~7); la única diferencia
-  visible son ~3 px en la segunda vecina. La suavidad del karaoke se mantiene
-  intacta: el fundido de color y la opacidad/escala siguen siendo continuos
-  porque se resuelven en el compositor, sin rehacer el diseño.
+- **El karaoke gasta menos con el vídeo de fondo.** La letra animada cambiaba de
+  tamaño con una transición larga (.65 s), y eso obliga al navegador a rehacer
+  el diseño y repintar toda el área visible de la letra en cada fotograma del
+  cambio de línea (unas 40 pasadas, justo cuando las líneas vecinas se
+  recolocan); con el videoclip detrás, cada repintado se compone encima de un
+  fondo que se mueve, y ahí estaban los picos de GPU. La transición del tamaño
+  dura ahora **.3 s** (la mitad de fotogramas y el movimiento sigue siendo
+  continuo) y el «lente» de tamaños queda en **tres escalones** (activa / vecina
+  / resto) en vez de una curva continua, así que cada cambio de línea toca el
+  tamaño de menos líneas (~4 en vez de ~7); la única diferencia visible son ~3 px
+  en la segunda vecina. La suavidad palabra a palabra (fundido de color y peso)
+  se queda intacta, que es lo que le da el aire al karaoke.
 - **La interfaz deja de pedir fotogramas cuando no hay nada que cambiar.** El
   reloj del karaoke y el sincronizador del vídeo de fondo eran bucles de
   `requestAnimationFrame` encadenados: mientras la pantalla de Letras estaba
@@ -513,6 +511,13 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 
 ### Fixed
 
+- **Instalar con `install-msi.ps1 -Launch` ya no deja dos OpenWave abiertos.**
+  La instalación usaba `msiexec /qb` y, con interfaz, el MSI **autolanza** la
+  app al registrar la identidad (acción AUTOLAUNCHAPP): quedaban en marcha la
+  instancia del instalador y la del `-Launch`, cada una con su vídeo de fondo y
+  su cristal sobre la misma iGPU → la GPU al doble y la ventana de delante a
+  tirones (parece que la app va a 2 fps). Ahora el script instala con `/qn` (sin
+  autolanzado) y, si ya hay una instancia arrancada, no abre otra.
 - **`verify-msi.ps1` contempla la nueva clave de registro del MSI**: la tabla
   Registry pasa de 8 a 9 filas (la preferencia de gráficas `GpuPreference=2`
   que escribe `main.wxs`) y hay una comprobación [OK] específica para esa

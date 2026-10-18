@@ -1359,12 +1359,13 @@ const KaraokeWords = React.memo(
             // text-shadow: interpolar el blur re-rasterizaba el glow en cada
             // frame de la transición (doble radio −10,7 pts en la pareja K;
             // el radio de 32px, −4 pts por sí solo en PD/PE).
-            // El PESO también va escalonado: interpolar `font-weight` re-forma
-            // los glifos, puede cambiar el número de líneas del verso y
-            // re-layout de la línea en cada frame — y hay palabra nueva cada
-            // ~200–400 ms, así que el trabajo era casi continuo. Con 4 pasos
-            // el peso llega igual y el coste se divide entre 4.
-            transition: "color .5s cubic-bezier(.25,.1,.25,1), font-weight .4s steps(4, end)",
+            // El fondo (color) y el PESO se interpolan como antes: se probó
+            // `steps(4)` en el peso para recortar los re-layout por palabra y
+            // la iluminación se veía escalonada — la suavidad palabra a palabra
+            // es justo lo que se pidió al restaurar el fade. El coste de esta
+            // transición ya se midió ≈ 0 (sonda J, §9.2).
+            transition:
+              "color .5s cubic-bezier(.25,.1,.25,1), font-weight .4s cubic-bezier(.25,.1,.25,1)",
             color: isLit ? "#ffffff" : COLORS.textTertiary,
             fontWeight: isActiveWord ? "900" : isLit ? "700" : "500",
             // Glow de un solo radio: el 32px aportaba poco halo y costaba
@@ -1444,16 +1445,18 @@ const LyricLine = React.memo(function LyricLine({
         fontSize: `${lineFontPx.toFixed(1)}px`,
         fontWeight: isActive ? "900" : isNearActive ? "700" : "500",
         lineHeight: isActive ? "1.5" : "1.7",
-        // font-size ESCALONADO (steps): interpolar el tamaño re-forma los
-        // glifos y obliga a style recalc + LAYOUT + repintado de toda el área
-        // visible en cada frame, porque en cada cambio de línea se reposicionan
-        // las vecinas (el «one-shot del bloque completo al cambiar de línea»
-        // que quedaba pendiente en docs/PERFORMANCE.md §9.2, y que con el vídeo
-        // detrás se nota más). Con 8 pasos el resultado se ve igual (≈2 px de
-        // salto por paso a 44px) y el trabajo se reparte entre 8 pasos en vez
-        // de ~40 frames. `opacity` y `transform` son de composición: no repintan.
+        // font-size: interpolar el tamaño re-forma los glifos y obliga a style
+        // recalc + LAYOUT + repintado de toda el área visible en cada frame,
+        // porque en cada cambio de línea se reposicionan las vecinas (el
+        // «one-shot del bloque completo al cambiar de línea» que quedaba
+        // pendiente en docs/PERFORMANCE.md §9.2). Se acorta a .3 s: el
+        // movimiento sigue siendo continuo (60 fps, sin saltos) pero dura la
+        // mitad, así que son ~18 frames de trabajo en vez de ~40.
+        // (Probado y DESCARTADO `steps(8)`: repartía el mismo trabajo en 8
+        // saltos y el crecimiento se veía a tirones — «como a 2 fps».)
+        // `opacity` y `transform` son de composición: no repintan.
         transition:
-          "opacity .6s cubic-bezier(.25,.1,.25,1), font-size .65s steps(8, end), transform .65s cubic-bezier(.25,.1,.25,1)",
+          "opacity .6s cubic-bezier(.25,.1,.25,1), font-size .3s cubic-bezier(.25,.1,.25,1), transform .65s cubic-bezier(.25,.1,.25,1)",
         transform: `scaleX(${scaleX}) scaleY(${scaleY})`,
         transformOrigin: align === "center" ? "center top" : "left top",
         cursor: clickSeek ? "pointer" : "default",

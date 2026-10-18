@@ -89,11 +89,14 @@ fotograma**: lo que cuesta es pedirlo, no pensar.
   sondeo de respaldo; la app real siempre tiene el elemento.
 - **Nunca** re-renderizar React a 60 Hz (ese sí sería el pico de CPU que
   evitamos). Las transiciones CSS (.5 s) aportan la continuidad visual.
-- Las transiciones que **afectan al layout** (`font-size`, `font-weight`) van
-  **cuantizadas con `steps()`**: interpolar esas propiedades re-forma los
-  glifos y rehace el diseño + repintado del área en **cada fotograma** de la
-  transición (ver §9.3). `opacity` y `transform` sí se interpolan: se resuelven
-  en el compositor.
+- Las transiciones que **afectan al layout** (`font-size`) son **cortas** (.3 s):
+  interpolar el tamaño re-forma los glifos y rehace el diseño + repintado del
+  área en **cada fotograma**, así que la duración es directamente trabajo (ver
+  §9.3). `opacity` y `transform` sí se interpolan largos (.6/.65 s): se resuelven
+  en el compositor y son la suavidad visible.
+- **Nada de `steps()` para ahorrar esos fotogramas**: reparte el trabajo en
+  saltos discretos y el movimiento se ve a tirones («como a 2 fps»). Probado en
+  el karaoke y descartado (§9.3).
 - _(Implementado en `LyricsView.jsx`; regresión en `LyricsView.test.jsx`.)_
 
 ### 2.2 Vídeo de fondo: el `<video>` se presenta solo
@@ -715,7 +718,7 @@ de media) para ver la FORMA de la onda:
   exige cuantizar la distancia de las líneas lejanas o rediseñar la
   jerarquía de tamaños. En cuanto el usuario confirme que la onda es
   sostenible, cerramos. → **Atacado en §9.3** (lente cuantizado +
-  `steps()` en las transiciones que afectan al layout).
+  transición de tamaño más corta).
 
 ### 9.3 Ronda 4 (2026-10-17): karaoke + vídeo de fondo → picos de ~60%
 
@@ -724,39 +727,45 @@ vídeo de fondo **y karaoke sincronizado** → picos de GPU de ~60 %; la misma
 pantalla con la letra **sin sincronizar** (sin línea activa ni animación) → ~20 %
 estable. El pico lo produce, por tanto, la **animación de la letra**.
 
-**Diagnóstico (mecanismo del navegador).** `font-size` y `font-weight` son
-propiedades que **afectan al layout** (MDN: `font-size`/`font-weight` ⇒ style
-recalc + **layout** + repaint; `color` ⇒ solo repaint; `transform`/`opacity` en
-capa propia ⇒ solo composición). Interpolarlas con una transición continua
-significa **rehacer el diseño y repintar en cada fotograma** de la transición:
-
-1. `font-size .65s` en la línea: ~40 fotogramas por cambio de línea, y no solo
-   la línea activa — **las vecinas se reposicionan** al crecer, así que el
-   repintado es de toda el área visible de la letra. Es el «one-shot del bloque
-   completo al cambiar de línea» que quedó **pendiente en §9.2**.
-2. `font-weight .4s` palabra a palabra: re-forma los glifos (puede cambiar el
-   número de filas de un verso) y hay palabra nueva cada ~200–400 ms, o sea
-   trabajo casi continuo.
-3. El lente de tamaños era una **curva continua**: mover la línea activa
-   cambiaba el `font-size` de ~7 líneas en el mismo fotograma. Cuantas más
-   líneas cambien de tamaño a la vez, más caro es ese fotograma.
-
-Sobre el vídeo, cada repintado de la letra se compone además encima de un fondo
-que cambia por su cuenta (el `<video>`), que es lo que lo sube muy por encima de
-la misma escena con la portada difuminada de §9.2.
+**Diagnóstico (mecanismo del navegador).** `font-size` es una propiedad que
+**afecta al layout** (MDN: `font-size`/`font-weight` ⇒ style recalc + **layout** +
+repaint; `color` ⇒ solo repaint; `transform`/`opacity` en capa propia ⇒ solo
+composición). Interpolarlo obliga a **rehacer el diseño y repintar en cada
+fotograma** de la transición, y al cambiar de línea **se reposicionan las
+vecinas**, así que el repintado es de toda el área visible de la letra: es el
+«one-shot del bloque completo al cambiar de línea» que quedaba **pendiente en
+§9.2**. Con el vídeo detrás se nota más porque cada repintado se compone encima
+de un fondo que se mueve por su cuenta (el `<video>`).
 
 **Implementado (`LyricsView.jsx`):**
 
 | Antes | Ahora | Por qué |
 | ----- | ----- | ------- |
-| `font-size .65s cubic-bezier(…)` | `font-size .65s steps(8, end)` | ~8 pasadas de layout/repintado por cambio de línea en vez de ~40; ≈2 px de salto por paso a 44 px (invisible) |
-| `font-weight .4s cubic-bezier(…)` | `font-weight .4s steps(4, end)` | igual, palabra a palabra: 4 pasadas por palabra en vez de ~24 |
+| `font-size .65s` | `font-size .3s` | la mitad de fotogramas de layout/repintado por cambio de línea (~18 en vez de ~40) y el movimiento sigue siendo continuo, sin saltos |
 | `sizeFactor = 1 − 0.04·d²` (d = 0…3+) | tres escalones: activa 1.3 · vecina 0.96 · resto 0.78 | cada cambio de línea toca el tamaño de ~4 líneas en vez de ~7. El único valor que cambia de verdad es d=2: 0.84 → 0.78 (~3 px a 44 px base) |
 
-- `opacity` y `transform` siguen con transición continua (.6 s / .65 s): son
-  **de composición**, no repintan, y son los que sostienen la suavidad (el
-  tamaño llega escalonado y la opacidad/escala lo funden). El fundido de color
-  (`color .5s`, sonda J en §9.2 ≈ 0 pts) se mantiene intacto.
+- `opacity` (.6 s) y `transform` (.65 s) siguen largos: son **de composición**,
+  no repintan, y sostienen la suavidad (el tamaño llega más corto y la
+  opacidad/escala lo funden). El fundido de color por palabra (`color .5s`,
+  sonda J ≈ 0 pts) y su peso (`font-weight .4s`) quedan **igual**: esa suavidad
+  palabra a palabra es intocable.
+
+- **Probado y DESCARTADO: `steps()`** (`font-size .65s steps(8)` +
+  `font-weight .4s steps(4)`). Repartía el mismo trabajo en saltos discretos
+  para no repintar en los fotogramas intermedios, pero el resultado **se veía a
+  tirones** —el crecimiento de la línea activa daba la impresión de ir «como a
+  2 fps»— y en la medición del usuario el consumo no bajó, subió. Regla que
+  queda: para las propiedades que afectan al layout, **acortar** la transición,
+  nunca cuantizarla.
+
+- **Higiene de la medición (esto invalidaba las cifras).** `install-msi.ps1
+  -Launch` instalaba con `/qb` y, con interfaz, el MSI **autolanza** la app al
+  registrar la identidad (acción AUTOLAUNCHAPP): la instancia del instalador y
+  la del `-Launch` convivían, con **dos vídeos y dos hojas de cristal sobre la
+  misma iGPU** → la GPU al doble y la ventana de delante a tirones. Ahora la
+  instalación por script usa `/qn` y, si ya hay una instancia arrancada, no abre
+  otra. **Antes de medir: comprobar que solo hay un `OpenWave.exe`.**
+
 - **Descartado con razonamiento (no romper la estética)**: quitar del todo la
   transición de `font-size` y dejar el crecimiento en manos de `transform:
   scale()` —estilo FLIP— sería lo más barato (crecimiento compuesto, un solo
@@ -764,8 +773,9 @@ la misma escena con la portada difuminada de §9.2.
   ~15 px de glifo en cada cambio de línea (hoy lo funde la transición) y, como
   los versos **envuelven** en varias filas y su altura depende del tamaño, no se
   puede reservar la altura sin medir cada línea en JS.
+
 - **Verificación**: la medición que fija el presupuesto es la del usuario. Este
-  parche reduce el **trabajo por fotograma** (menos pasadas de layout y menos
+  parche reduce el **trabajo por fotograma** (menos fotogramas de layout y menos
   líneas afectadas) sin cambiar la estética salvo los ~3 px de la segunda
   vecina; la serie de GPU queda pendiente de su repaso.
 

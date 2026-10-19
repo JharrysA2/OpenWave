@@ -117,11 +117,11 @@ fotograma**: lo que cuesta es pedirlo, no pensar.
   arranca); la tolerancia del plan absorbe el resto.
 - Pausar el clip (ventana oculta o modal encima) deja de decodificar: el ahorro
   es real y el plan lo reanuda y re-sincroniza al volver.
-- El clip se pide a **≤30 fps** cuando YouTube lo sirve al **mismo alto**
-  (`_escaleras` en `backend/video_fondo.py`): es un fondo tras el velo, así que
-  los fotogramas extra de un 1080p60 no aportan nada visible y cuestan
-  decodificación y presentación. La preferencia fija el alto del tope y deja
-  detrás la cadena de siempre: **nunca** baja la resolución ni descarta opciones.
+- La descarga prioriza **calidad** sobre rapidez: cada intento baja a un
+  temporal, se mide y se publica el mejor (§9.5). La escalera se detiene en
+  cuanto un intento llega al tope de la pantalla —o a su mitad—, así que el
+  caso normal sigue costando **una** descarga; solo se prueban los demás
+  clientes cuando la sesión devolvió una lista recortada (p. ej. 360p).
 
 ## 3. Sin promoción de capas forzada
 
@@ -801,17 +801,17 @@ cambie el aspecto):
 | ---- | ---------- | -------------------------------- |
 | Cristal del panel (12 px sobre el vídeo) | el `backdrop-filter` se **re-ejecuta en cada fotograma** porque su fondo (clip + velo) se mueve: es el pase más caro de la interfaz | **no**: la única palanca real es que el fondo sea estático (el cristal dejaría de mostrar el clip) |
 | Velo de la pantalla (`lyrics-dim`) | dos gradientes a pantalla completa re-mezclados sobre el vídeo cada fotograma (~4 Mpx) | **no**: es el aspecto (velo + tinte de acento); quitarlo o fundirlo cambia la lectura |
-| Vídeo 1080p60 | decodificación + presentación del clip | **sí** → ≤30 fps (ver abajo) |
+| Vídeo 1080p60 | decodificación + presentación del clip | probado y **retirado**: filtrar por el alto exacto a ≤30 fps no vale (§9.5) |
 | Énfasis por palabra (`font-weight`) | interpolar el peso re-diseña y repinta la línea activa en cada fotograma | **sí** → acortar la transición (ver abajo) |
 | Zoom de línea (`font-size .3 s`) | cada cambio de línea re-forma y repinta ~4 líneas durante ~18 fotogramas | no sin saltos (§9.3: `scale()` daría un salto de ~15 px) |
 | Cristal de los botones ⋮/✕ (6 px) | dos capas de blur sobre el clip re-ejecutadas por fotograma | sí, pero el área es de ~4 kpx (≈1 %): no compensa el cambio de aspecto |
 | Trabajo vivo detrás de Letras (pulso de Inicio, progreso a 5 Hz del PlayerBar) | siguen activos porque la vista de Letras **no** marca `overlay-open` | es invisible, pero es contenido **oculto** tras una superficie opaca: el compositor lo culla y no compensa tocar el mecanismo del reloj |
 
-- **Aplicado — clip a ≤30 fps (`backend/video_fondo.py`).** `_escaleras` pone
-  delante la alternativa `bv*[height=alto][fps<=30]…` y deja **detrás** la
-  cadena de siempre. La preferencia fija el alto del tope, así que **no cambia
-  la resolución**; si la sesión no sirve ese formato, la descarga es exactamente
-  la de antes. Detrás del velo, 30 fps se ve igual.
+- **Probado y RETIRADO — clip a ≤30 fps (`backend/video_fondo.py`).** La
+  alternativa `bv*[height=alto][fps<=30]…` iba delante de la cadena de siempre,
+  pero YouTube anota la altura **real** del fotograma: un «1080p» panorámico
+  mide 1920x720, así que `height=1080` no encontraba nada y la descarga caía al
+  360p del intento siguiente (§9.5). Se retira.
 - **Aplicado — peso de palabra `.4 s → .15 s` (`LyricsView.jsx`).** El peso sí
   toca layout y hay palabra nueva cada 200-400 ms, así que a .4 s la línea se
   re-diseñaba en casi todos los fotogramas; a .15 s son ~9 fotogramas por palabra
@@ -827,6 +827,34 @@ cambie el aspecto):
 - **Verificación.** `vitest` (transiciones del karaoke) y
   `pytest test_video_fondo.py` (escaleras a 1080 y a 4K). La cifra que fija el
   presupuesto la mide el usuario.
+
+### 9.5 Ronda 6 (2026-10-19): descargas sin congelarse en 360p y clip centrado
+
+**Petición.** «Las descargas nuevas no se descargan a 1080p, se ven a muy baja
+resolución… y cuando no encuentra un vídeo a las resoluciones normales marca que
+no tiene vídeo aunque sí lo tenga. No importa la resolución del vídeo, solo
+ponlo en el centro; deja los bordes negros que genera el vídeo, está bien, pero
+si tiene 1080p, que lo ponga.»
+
+**Diagnóstico (caché y logs reales de la app).** Los clips nuevos salieron a
+640x240 y 640x280 (clase 360p) **sin ningún** «intento fallido» en el log: el
+primer intento (cliente «embed») se quedó con lo primero que encontró. El mismo
+día, con la misma build, otro videoclip bajó a 1920x1080 y el filtro del tope
+(reproducido con el mismo yt-dlp) elige 1920x720 para uno de los degradados: la
+sesión de YouTube sirve unas veces la lista completa y otras una recortada.
+
+| Causa | Arreglo |
+| ----- | ------- |
+| `_escaleras` filtraba por `height=1080` **exacto** para preferir 30 fps | retirado: el alto real de un 1080p letterbox es 720, así que el filtro no encontraba nada y la cadena caía al 360p del intento siguiente |
+| La escalera se quedaba con el **primer** intento que produjera un fichero, aunque fuera 360p | cada intento baja a un temporal, se mide y se publica el **mejor**; solo se sigue probando mientras el resultado está claramente degradado (por debajo de la mitad del tope) |
+| El reintento por tope borraba el clip **antes** de descargar: si la descarga fallaba, la canción se quedaba sin vídeo | el clip en disco solo se reemplaza cuando la descarga nueva lo **mejora**; si falla, se conserva y la pantalla sigue con él |
+| El clip se pintaba con `object-fit: cover` (recortaba los bordes) | `object-fit: contain` + fondo negro: se ve entero y centrado, con franjas negras si el aspecto no cuadra con la ventana (pedido explícito) |
+
+- **Verificación.** `pytest test_video_fondo.py` (conserva el clip si falla la
+  redescarga; publica el mejor intento) y `vitest` (`objectFit: contain`).
+- **Nota.** Con la sesión degradada el clip puede quedarse en 360p: la escalera
+  prueba los demás clientes y el reintento de las 2 h vuelve a intentarlo. La
+  vía fiable para pasar de 1080p sigue siendo `cookies.txt`.
 
 ## 10. Task Manager: un solo grupo «OpenWave» (paquete sparse de identidad, plan C)
 

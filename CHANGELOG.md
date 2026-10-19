@@ -16,12 +16,21 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Changed
 
-- **El vídeo de fondo se descarga a 30 fps cuando existe al mismo alto.** El
-  clip va detrás del velo de la pantalla de Letras, así que los fotogramas por
-  encima de 30 no aportan nada visible y sí cuestan decodificación y
-  presentación con la ventana abierta. La escalera de descarga prueba primero el
-  alto del tope a ≤30 fps y, si la sesión no lo sirve, sigue con la cadena de
-  siempre: la resolución elegida no cambia y no se descarta ninguna opción.
+- **El vídeo de fondo se descarga con la mejor calidad que dé la sesión, no con
+  la primera que aparezca.** La escalera de descarga daba por buena la primera
+  descarga que produjera un fichero, aunque YouTube hubiera servido a ese
+  cliente una lista de formatos recortada (sin sesión es habitual: clips de
+  640x240 en el mismo equipo que minutos antes bajaba 1920x1080). Ahora cada
+  intento se mide y se publica el mejor; solo se siguen probando los demás
+  clientes mientras el resultado esté claramente degradado, así que el caso
+  normal sigue costando una sola descarga. También se retiró el filtro por
+  altura exacta que se había añadido para preferir clips de 30 fps: un «1080p»
+  panorámico mide 1920x720, así que el filtro no encontraba nada y la cadena
+  caía al 360p del intento siguiente.
+- **El videoclip de fondo se ve entero y centrado.** Antes se pintaba con
+  `object-fit: cover`, que recortaba los bordes de los clips cuya relación de
+  aspecto no cuadra con la ventana; ahora se ajusta sin recortar (las franjas
+  que sobren las pinta el propio reproductor en negro).
 - **El engordado de cada palabra del karaoke tarda .15 s en vez de .4 s.** El
   peso de la letra afecta al diseño (cambia el ancho de los glifos) y, con una
   palabra nueva cada 200-400 ms, la línea activa se estaba re-diseñando y
@@ -153,6 +162,11 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Fixed
 
+- **Un fallo de red ya no deja la canción sin videoclip.** El reintento por
+  resolución borraba el clip en disco antes de volver a descargarlo; si la
+  descarga fallaba, el vídeo desaparecía y la pantalla caía a la portada («no
+  tiene vídeo» aunque sí lo tuviera). Ahora el fichero solo se reemplaza cuando
+  la descarga nueva lo mejora, así que el clip que ya funcionaba se conserva.
 - **Los botones se quedan con el cristal y sin contorno, de verdad.** Al
   quitarle el borde a los tokens, los botones y campos que no declaraban uno
   propio dejaron ver el borde nativo del navegador —un `2px outset` con el

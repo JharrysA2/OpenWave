@@ -2585,7 +2585,12 @@ export function LyricsView({
               inset: 0,
               width: "100%",
               height: "100%",
-              objectFit: "cover",
+              // El clip se ve entero y centrado: si su relación de aspecto no
+              // es la de la ventana quedan franjas negras (fondo del propio
+              // elemento), pero no se recorta nada. Con «cover» se perdían los
+              // bordes de los videoclips panorámicos.
+              objectFit: "contain",
+              backgroundColor: "#000",
               contain: "paint",
             }}
           />

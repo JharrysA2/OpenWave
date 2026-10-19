@@ -3,6 +3,7 @@
 import os
 import re
 import time
+from pathlib import Path
 
 import pytest
 import yt_dlp
@@ -130,7 +131,8 @@ class _FakeYdl:
         m = re.search(r"v=([\w-]+)$", urls[0])
         assert m, f"URL no esperada: {urls[0]}"
         self.video_id = m.group(1)
-        out = VIDEO_DIR / f"{self.video_id}.mp4"
+        # yt-dlp escribe donde dice el `outtmpl` del intento (un temporal).
+        out = Path(str(self.opts["outtmpl"]).replace("%(ext)s", "mp4"))
         out.write_bytes(b"fake-video")
         # Disparar los hooks como una descarga real (progreso + fin).
         for hook in self.opts.get("progress_hooks", []):
@@ -272,6 +274,80 @@ class TestPrepareVideo:
             video_progress.pop("cknav", None)
             _FakeYdl.instances.clear()
 
+    def test_conserva_el_clip_si_falla_la_redescarga(self, monkeypatch):
+        """Un fallo al re-bajar no puede dejar la canción sin vídeo.
+
+        El reintento por tope de resolución borraba el fichero antes de
+        descargar: si la descarga fallaba, el clip desaparecía y la pantalla
+        caía a la portada («no tiene vídeo» aunque sí lo tuviera).
+        """
+        p = VIDEO_DIR / "keep_id.mp4"
+        p.write_bytes(b"x")
+        _envejecer(p)
+        _aplicar_ffprobe(monkeypatch, 360)
+
+        class _Fail:
+            def __init__(self, opts):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def download(self, urls):
+                raise yt_dlp.utils.DownloadError("403 Forbidden")
+
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _Fail)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        try:
+            prepare_video("keep_id")
+            assert p.exists()
+            assert video_progress["keep_id"]["status"] == "done"
+        finally:
+            delete_video("keep_id")
+            video_progress.pop("keep_id", None)
+
+    def test_se_queda_con_el_mejor_intento(self, monkeypatch):
+        """Un cliente degradado no congela el clip en 360p.
+
+        YouTube puede servir una lista recortada al cliente «embed» y la
+        completa a otro: se mide cada intento y se publica el mejor, no el
+        primero que llegue.
+        """
+
+        class _DosClases(_FakeYdl):
+            def download(self, urls):
+                m = re.search(r"v=([\w-]+)$", urls[0])
+                self.video_id = m.group(1)
+                out = Path(str(self.opts["outtmpl"]).replace("%(ext)s", "mp4"))
+                out.write_bytes(b"fake-video")
+
+        def _run(cmd, **kwargs):
+            ruta = str(cmd[-1])
+            alto = 360 if ".try0." in ruta else 1080
+
+            class _P:
+                stderr = (
+                    f"Stream #0:0: Video: h264, yuv420p, "
+                    f"{alto * 16 // 9}x{alto}, 25 fps\n"
+                )
+
+            return _P()
+
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _DosClases)
+        monkeypatch.setattr("video_fondo._ffmpeg_bin", lambda: "ffmpeg-falso")
+        monkeypatch.setattr("video_fondo.subprocess.run", _run)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        try:
+            prepare_video("mejor_id")
+            assert calidad_guardada("mejor_id") == 1080
+            assert not list(VIDEO_DIR.glob("mejor_id.try*"))
+        finally:
+            delete_video("mejor_id")
+            video_progress.pop("mejor_id", None)
+
 
 class TestCalidad:
     """El vídeo de fondo se pide con lo necesario para llegar a 1080p."""
@@ -391,8 +467,10 @@ class TestVideoclipOficial:
 
             def download(self, links):
                 urls.extend(links)
-                # yt-dlp publica el fichero final con el nombre de la CANCIÓN.
-                (VIDEO_DIR / "of_song.mp4").write_bytes(b"videoclip")
+                # yt-dlp publica el fichero con el nombre de la CANCIÓN (el
+                # `outtmpl` del intento, no el id del videoclip descargado).
+                out = Path(str(self.opts["outtmpl"]).replace("%(ext)s", "mp4"))
+                out.write_bytes(b"videoclip")
 
         monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _Ydl)
         monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
@@ -440,7 +518,7 @@ class TestVideoclipOficial:
 
         class _Ydl:
             def __init__(self, opts):
-                pass
+                self.opts = opts
 
             def __enter__(self):
                 return self
@@ -450,7 +528,8 @@ class TestVideoclipOficial:
 
             def download(self, links):
                 urls.extend(links)
-                (VIDEO_DIR / "sin_of.mp4").write_bytes(b"v")
+                out = Path(str(self.opts["outtmpl"]).replace("%(ext)s", "mp4"))
+                out.write_bytes(b"v")
 
         def _explota(video_id):
             raise AssertionError("no debería buscar el videoclip oficial")
@@ -479,27 +558,23 @@ class TestTopeCalidad:
     def test_hay_fallback_sin_filtro(self):
         assert _MP4["format"].endswith("/bv*+ba/b")
 
-    def test_prefiere_el_mismo_alto_a_30fps(self):
-        """El clip es un fondo: se pide el alto del tope a ≤30 fps antes.
+    def test_no_fija_un_alto_exacto(self):
+        """Nunca ``height=alto``: un «1080p» letterbox mide 1920x720.
 
-        Un videoclip 1080p60 se bajaba a 60 (doble decodificación y doble
-        presentación para algo que va tras el velo de la pantalla de letras).
-        La alternativa de 30 fps va DELANTE pero fijando el mismo alto, así que
-        la resolución elegida no cambia; la cadena de siempre queda detrás
-        intacta, de modo que si la sesión no sirve ese formato nada cambia.
+        YouTube anota la altura REAL del fotograma, así que el filtro por alto
+        exacto no encontraba nada en los clips panorámicos y la descarga caía
+        al 360p del intento siguiente. La escalera solo capa con ``<=``.
         """
         for escalera in (_MP4, _MP4_EMBEDDED, _MP4_ANDROID, _WEBM_ANDROID):
-            assert escalera["format"].startswith("bv*[height=1080][fps<=30]")
-            assert "[height<=1080]" in escalera["format"]
-        # El tramo de 30 fps precede al de siempre (no al revés).
-        assert _MP4["format"].index("[fps<=30]") < _MP4["format"].index(
-            "[height<=1080]"
-        )
+            assert "[height=1080]" not in escalera["format"]
+            assert "[fps<=30]" not in escalera["format"]
+            assert "height<=1080" in escalera["format"]
 
-    def test_prefiere_30fps_tambien_con_pantalla_4k(self):
+    def test_escaleras_4k_tampoco_fijan_el_alto(self):
         embedded, mp4, mp4_android, webm_android = _escaleras(2160)
         for escalera in (embedded, mp4, mp4_android, webm_android):
-            assert escalera["format"].startswith("bv*[height=2160][fps<=30]")
+            assert "[height=2160]" not in escalera["format"]
+            assert "height<=2160" in escalera["format"]
 
     def test_cap_alto_sanea_el_valor_de_la_pantalla(self):
         """El valor llega del navegador: se acota al rango que admite YouTube."""

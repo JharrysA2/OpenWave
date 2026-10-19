@@ -1632,6 +1632,9 @@ describe("LyricsView — vídeo de fondo", () => {
 
     const video = await screen.findByTestId("lyrics-video");
     expect(video).toHaveAttribute("src", "http://127.0.0.1:8765/video/file/1");
+    // El clip se ve entero y centrado: franjas negras si el aspecto no cuadra.
+    expect(video).toHaveStyle({ objectFit: "contain" });
+    expect(video.style.backgroundColor).toBe("rgb(0, 0, 0)");
     expect(mockApiPost).not.toHaveBeenCalled();
   });
 

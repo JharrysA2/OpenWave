@@ -109,22 +109,17 @@ def _cap_alto(max_alto: int | None) -> int:
 def _escaleras(alto: int) -> list[dict]:
     """Escaleras de formatos con el tope ``alto`` dado.
 
-    Cada cadena prueba PRIMERO el alto del tope a ≤30 fps y, si la sesión no
-    lo sirve, sigue con la cadena de siempre: el clip es un FONDO (va tras el
-    velo de la pantalla de letras), así que los fotogramas por encima de 30 no
-    aportan nada visible y sí cuestan decodificación y presentación en la
-    iGPU. El filtro de fps se fija al MISMO alto (``height=alto``), nunca a
-    «uno más pequeño»: no cambia la resolución elegida. Todas terminan en un
-    fallback sin filtro: si la sesión no ofrece el mejor formato, la selección
-    degrada en vez de fallar.
+    Se filtra solo con ``height<=alto``, nunca con un alto exacto: YouTube
+    anota la altura REAL del fotograma incluso en los clips letterbox, así que
+    un «1080p» panorámico puede medir 1920x720 y un filtro ``height=1080`` no
+    encontraría nada (se probó: dejaba la descarga degradada al 360p del
+    intento siguiente). Todas las cadenas terminan en un fallback sin filtro:
+    si la sesión no ofrece el mejor formato, la selección degrada en vez de
+    fallar.
     """
     cap = f"height<={alto}"
-    # Cabeza de 30 fps (mismo alto exacto) + cadena de siempre detrás.
-    treinta_mp4 = f"bv*[height={alto}][fps<=30][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
-    treinta_webm = f"bv*[height={alto}][fps<=30][ext=webm]+ba[ext=webm]"
     cadena_mp4 = (
-        f"{treinta_mp4}"
-        f"/bv*[{cap}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
+        f"bv*[{cap}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
         f"/b[{cap}][ext=mp4][vcodec^=avc1]/bv*[{cap}]+ba/b[{cap}]/bv*+ba/b"
     )
     return [
@@ -135,15 +130,13 @@ def _escaleras(alto: int) -> list[dict]:
         },
         {"format": cadena_mp4, "merge_output_format": "mp4"},
         {
-            "format": f"{treinta_mp4}"
-            f"/bv*[{cap}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
+            "format": f"bv*[{cap}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
             f"/b[{cap}][ext=mp4][vcodec^=avc1]/b[{cap}]/b",
             "merge_output_format": "mp4",
             "extractor_args": {"youtube": {"player_client": ["android"]}},
         },
         {
-            "format": f"{treinta_webm}"
-            f"/bv*[{cap}][ext=webm]+ba[ext=webm]/bv*[{cap}]+ba/bv*+ba/b",
+            "format": f"bv*[{cap}][ext=webm]+ba[ext=webm]/bv*[{cap}]+ba/bv*+ba/b",
             "merge_output_format": "webm",
             "extractor_args": {"youtube": {"player_client": ["android"]}},
         },
@@ -273,14 +266,13 @@ def _guardar_prometida(video_id: str, alto: int) -> None:
         )
 
 
-def _resolucion_real(video_id: str) -> tuple[int, int] | None:
-    """Resolución REAL (ancho, alto) del stream de vídeo, o ``None``.
+def _resolucion_fichero(ruta: Path | None) -> tuple[int, int] | None:
+    """Resolución REAL (ancho, alto) del stream de vídeo de ``ruta``, o ``None``.
 
     Mide lo que hay de verdad en el fichero (con ffmpeg, que ya viaja con la
     app) en vez de fiarse del tope pedido: sin sesión válida YouTube recorta la
     resolución y anotar lo pedido congelaría un vídeo bajo para siempre.
     """
-    ruta = get_output_path(video_id)
     ffmpeg = _ffmpeg_bin()
     if ruta is None or ffmpeg is None:
         return None
@@ -304,6 +296,27 @@ def _resolucion_real(video_id: str) -> tuple[int, int] | None:
         return int(match.group(1)), int(match.group(2))
     except ValueError:
         return None
+
+
+def _resolucion_real(video_id: str) -> tuple[int, int] | None:
+    """Resolución REAL del vídeo final en disco, o ``None``."""
+    return _resolucion_fichero(get_output_path(video_id))
+
+
+def _clase_alto(ancho: int, alto: int) -> int:
+    """Altura equivalente 16:9 de una resolución.
+
+    Un clip letterbox 1920x720 es de clase 1080p aunque su alto real sea 720:
+    para comparar dos descargas se toma la mayor entre el alto y el que
+    correspondería por el ancho.
+    """
+    return max(alto, ancho * 9 // 16)
+
+
+def _clase_fichero(ruta: Path) -> int | None:
+    """Clase de resolución de un fichero, o ``None`` si no se puede medir."""
+    dims = _resolucion_fichero(ruta)
+    return None if dims is None else _clase_alto(*dims)
 
 
 def _alcanza(ancho: int | None, alto: int | None, tope: int) -> bool:
@@ -414,6 +427,60 @@ def sin_videoclip(video_id: str) -> bool:
     return consultado and oficial is None
 
 
+def _temporal(video_id: str, intento: int) -> Path | None:
+    """Fichero que dejó el intento ``intento`` (``{id}.tryN.mp4|webm``)."""
+    for ext in _FINAL_EXTS:
+        p = VIDEO_DIR / f"{video_id}.try{intento}.{ext}"
+        if p.is_file():
+            return p
+    return None
+
+
+def _limpiar_temporales(video_id: str) -> None:
+    """Borra los restos de los intentos (``{id}.try*``), fragmentos incluidos."""
+    for p in VIDEO_DIR.glob(f"{video_id}.try*"):
+        with suppress(OSError):
+            if p.is_file():
+                p.unlink()
+
+
+def _publicar_mejor(
+    video_id: str, mejor: tuple[int, Path] | None, error: Exception | None
+) -> None:
+    """Publica el mejor intento como ``{id}.<ext>`` sin perder uno mejor.
+
+    Si no hubo descarga pero ya había un clip en disco, se conserva y se
+    devuelve: un fallo de red no puede dejar la canción sin vídeo.
+    """
+    if mejor is None:
+        if get_output_path(video_id) is not None:
+            logger.warning(
+                "vídeo %s: la descarga nueva falló%s; se conserva el clip en disco",
+                video_id,
+                f" ({error})" if error else "",
+            )
+            return
+        raise RuntimeError(
+            "No se pudo preparar el vídeo" + (f": {error}" if error else "")
+        )
+
+    clase, ruta = mejor
+    actual = get_output_path(video_id)
+    if clase > 0 and actual is not None:
+        clase_actual = _clase_fichero(actual)
+        if clase_actual is not None and clase_actual >= clase:
+            with suppress(OSError):
+                ruta.unlink()
+            logger.info(
+                "vídeo %s: la descarga nueva no mejora el clip en disco", video_id
+            )
+            return
+    if actual is not None:
+        with suppress(OSError):
+            actual.unlink()
+    ruta.replace(VIDEO_DIR / f"{video_id}{ruta.suffix}")
+
+
 def _descargar(video_id: str, fuente_id: str, max_alto: int | None = None) -> None:
     """Descarga y muxea el vídeo de origen en ``{video_id}.mp4``.
 
@@ -432,9 +499,15 @@ def _descargar(video_id: str, fuente_id: str, max_alto: int | None = None) -> No
     cliente, atajada); por encima de 1080p solo una sesión con cookies
     llega a 4K, y si no, la cadena degrada al mejor disponible.
 
-    Lanza si ningún intento publica el fichero final.
+    Cada intento baja a un temporal propio y se publica el MEJOR, no el
+    primero: con la sesión degradada YouTube sirve una lista recortada a un
+    cliente (p. ej. 360p al «embed») y la completa a otro, así que quedarse con
+    el primero congelaba el clip en 360p. Si ya había un clip en disco solo se
+    reemplaza cuando la descarga nueva lo mejora: un fallo de red no borra el
+    vídeo que ya funcionaba.
     """
-    embedded, mp4, mp4_android, webm_android = _escaleras(_cap_alto(max_alto))
+    tope = _cap_alto(max_alto)
+    embedded, mp4, mp4_android, webm_android = _escaleras(tope)
     attempts: list[dict] = []
     file_auth = cookies_file_opt()
     if file_auth:
@@ -444,7 +517,6 @@ def _descargar(video_id: str, fuente_id: str, max_alto: int | None = None) -> No
         attempts.append({**mp4, **auth})
         attempts.append({**webm_android, **auth})
     base = {
-        "outtmpl": str(VIDEO_DIR / f"{video_id}.%(ext)s"),
         "progress_hooks": [_hook_for(video_id)],
         "quiet": True,
         "no_warnings": True,
@@ -458,24 +530,50 @@ def _descargar(video_id: str, fuente_id: str, max_alto: int | None = None) -> No
     if ffmpeg_dir:
         base["ffmpeg_location"] = ffmpeg_dir
 
+    mejor: tuple[int, Path] | None = None
     last_error: Exception | None = None
-    for opts in attempts:
-        try:
-            _dl(fuente_id, {**base, **opts})
-        except yt_dlp.utils.DownloadError as e:
-            last_error = e
-            logger.warning("vídeo %s intento fallido: %s", video_id, e)
-            continue
-        if get_output_path(video_id) is not None:
-            break
-    else:
-        # El for-else solo llega aquí si NINGÚN intento publicó un fichero.
-        raise RuntimeError(
-            "No se pudo preparar el vídeo" + (f": {last_error}" if last_error else "")
-        )
-
-    if get_output_path(video_id) is None:
-        raise RuntimeError("yt-dlp no produjo ningún fichero muxado")
+    _limpiar_temporales(video_id)
+    try:
+        for n, opts in enumerate(attempts):
+            try:
+                _dl(
+                    fuente_id,
+                    {
+                        **base,
+                        **opts,
+                        "outtmpl": str(VIDEO_DIR / f"{video_id}.try{n}.%(ext)s"),
+                    },
+                )
+            except yt_dlp.utils.DownloadError as e:
+                last_error = e
+                logger.warning("vídeo %s intento fallido: %s", video_id, e)
+                continue
+            nuevo = _temporal(video_id, n)
+            if nuevo is None:
+                continue
+            clase = _clase_fichero(nuevo)
+            if clase is None:
+                # Sin ffmpeg no hay forma de comparar: vale lo primero que
+                # llegue, como antes.
+                if mejor is None:
+                    mejor = (0, nuevo)
+                break
+            if mejor is None or clase > mejor[0]:
+                if mejor is not None:
+                    with suppress(OSError):
+                        mejor[1].unlink()
+                mejor = (clase, nuevo)
+            else:
+                with suppress(OSError):
+                    nuevo.unlink()
+            # Solo se gasta otra descarga cuando el resultado está claramente
+            # degradado (por debajo de la mitad del tope): ahí la sesión pudo
+            # devolver una lista recortada y otro cliente puede mejorarla.
+            if clase >= tope // 2:
+                break
+        _publicar_mejor(video_id, mejor, last_error)
+    finally:
+        _limpiar_temporales(video_id)
 
 
 def _descartar_por_desfase(video_id: str) -> None:
@@ -556,19 +654,15 @@ def prepare_video(
         else:
             if is_prepared(video_id):
                 # Tope de resolución insuficiente (p. ej. pantalla nueva 4K):
-                # se retira el fichero viejo y se baja de nuevo con el tope
-                # actual. Si la nueva descarga falla, el estado queda en
-                # «error» y el reintento vuelve a intentarlo.
+                # se vuelve a bajar con el tope actual. NO se borra el clip
+                # antes: _descargar baja a un temporal y solo reemplaza el de
+                # disco si lo mejora, así que un fallo de red (o una sesión
+                # degradada) nunca deja la canción sin vídeo.
                 logger.info(
                     "vídeo %s: se repite la descarga con tope %dp",
                     video_id,
                     _cap_alto(max_alto),
                 )
-                for ext in _FINAL_EXTS:
-                    with suppress(OSError):
-                        p = VIDEO_DIR / f"{video_id}.{ext}"
-                        if p.is_file():
-                            p.unlink()
             _descargar(video_id, fuente_id, max_alto)
             # Se anota la resolución REAL conseguida, no el tope pedido: YouTube
             # recorta con la sesión y anotar lo pedido congelaría un vídeo bajo.

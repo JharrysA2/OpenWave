@@ -21,8 +21,9 @@ que nunca se oyen dos pistas a la vez.
 - **El clip se encuadra solo en el área de letras**: el panel de portada y cola
   (380 px) queda fuera, con el fondo de la pantalla (el degradado del acento) y
   sin cristal. El encaje usa la relación de aspecto real del fichero
-  (`videoWidth`/`videoHeight`, que llega con `loadedmetadata`) contra la del
-  área (medida con la columna de letras y un `resize` de la ventana):
+  (`videoWidth`/`videoHeight`, que llegan con `loadedmetadata`, `loadeddata` o
+  `canplay`) contra la del área (medida con la columna de letras, antes del
+  primer pintado, y en cada `resize` de la ventana):
   - **Más ancho que el área** (lo normal en un videoclip): `object-fit: cover`,
     que llena de arriba abajo recortando los lados.
   - **Más angosto** (vertical): `object-fit: contain` con

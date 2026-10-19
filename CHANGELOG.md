@@ -35,7 +35,10 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   es más ancho que el área hace zoom para llenar de arriba abajo (recortando los
   lados), y si es más angosto se queda a su ancho pegado al borde derecho, sin
   zoom; lo que sobre lo pinta el fondo de la pantalla (el degradado del acento),
-  no una franja negra.
+  no una franja negra. El tamaño del fichero se lee del propio `<video>` en los
+  tres avisos del navegador (`loadedmetadata`, `loadeddata`, `canplay`): con el
+  clip ya en caché no siempre pasa por el primero, y quedarse sin ese dato
+  devolvía el encuadre antiguo.
 - **El panel de portada y cola deja de llevar cristal difuminado.** Como el clip
   ya no se mueve detrás, su `backdrop-filter: blur(12px)` solo desenfocaba un
   fondo estático y se re-evaluaba con cada fotograma del vídeo: era el pase

@@ -1760,7 +1760,7 @@ describe("LyricsView — vídeo de fondo", () => {
   // ── Encuadre del clip en el área de letras ───────────────────────────────
 
   /** Mide el área de letras y el tamaño del fichero, como en la app real. */
-  async function encuadrar({ left, anchoArea, altoArea, ancho, alto }) {
+  async function encuadrar({ left, anchoArea, altoArea, ancho, alto, evento = "loadedmetadata" }) {
     const video = await screen.findByTestId("lyrics-video");
     const col = screen.getByTestId("lyrics-scroll");
     col.getBoundingClientRect = () => ({
@@ -1777,7 +1777,7 @@ describe("LyricsView — vídeo de fondo", () => {
     act(() => window.dispatchEvent(new Event("resize")));
     Object.defineProperty(video, "videoWidth", { value: ancho, configurable: true });
     Object.defineProperty(video, "videoHeight", { value: alto, configurable: true });
-    fireEvent(video, new Event("loadedmetadata"));
+    fireEvent(video, new Event(evento));
     return video;
   }
 
@@ -1826,6 +1826,25 @@ describe("LyricsView — vídeo de fondo", () => {
 
     expect(video.style.objectFit).toBe("contain");
     expect(video.style.objectPosition).toMatch(/right/);
+    expect(video.style.left).toBe("380px");
+  });
+
+  it("encuadra igual si el navegador solo avisa con `loadeddata`", async () => {
+    preparado();
+    renderLyrics();
+
+    // Con el fichero en caché el navegador puede saltarse `loadedmetadata`; el
+    // encuadre no puede depender de ese único aviso.
+    const video = await encuadrar({
+      left: 380,
+      anchoArea: 1540,
+      altoArea: 1048,
+      ancho: 1920,
+      alto: 816,
+      evento: "loadeddata",
+    });
+
+    expect(video.style.objectFit).toBe("cover");
     expect(video.style.left).toBe("380px");
   });
 

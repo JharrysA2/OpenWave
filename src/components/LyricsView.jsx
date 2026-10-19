@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { FONT } from "../constants";
 import {
   COLORS,
@@ -1576,16 +1576,36 @@ export function LyricsView({
   //    no tiene videoclip) el fondo sigue siendo la portada.
   const [videoState, setVideoState] = useState(VIDEO_PREP_INITIAL);
   const videoRef = useRef(null);
-  // Área donde vive el clip: la columna de letras, sin el panel de portada y
-  // cola. Se mide al abrir y cuando la ventana cambia de tamaño (el panel es
-  // de ancho fijo): es lo único que necesita el encuadre, y así el vídeo no
-  // tapa ni un píxel del panel.
-  const [areaVideo, setAreaVideo] = useState(null); // { left, aspecto }
-  // Tamaño real del fichero, que llega con `loadedmetadata`: de ahí sale su
-  // relación de aspecto, sin preguntar al backend ni decodificar nada.
+  // El encuadre necesita dos datos, y ninguno se recalcula por fotograma: el
+  // tamaño real del fichero (de ahí sale su relación de aspecto) y el área
+  // donde vive el clip, la columna de letras sin el panel de portada y cola.
   const [dimVideo, setDimVideo] = useState(null); // { ancho, alto }
+  const [areaVideo, setAreaVideo] = useState(null); // { left, aspecto }
 
-  useEffect(() => {
+  // El tamaño del fichero lo sabe el propio `<video>`. Se pregunta en los tres
+  // avisos que da el navegador (con el medio ya en caché no siempre pasa por
+  // `loadedmetadata`), porque sin dato el encuadre se queda en el de siempre:
+  // franjas arriba y abajo en un clip panorámico y franjas a los lados en uno
+  // angosto, que es justo lo que no queremos.
+  const leerDim = useCallback(() => {
+    const v = videoRef.current;
+    if (!v?.videoWidth || !v.videoHeight) return;
+    setDimVideo((prev) =>
+      prev && prev.ancho === v.videoWidth && prev.alto === v.videoHeight
+        ? prev
+        : { ancho: v.videoWidth, alto: v.videoHeight },
+    );
+  }, []);
+
+  // Otra canción: el tamaño del clip anterior ya no vale.
+  useLayoutEffect(() => {
+    setDimVideo(null);
+  }, [song?.videoId]);
+
+  // La columna de letras la miden el navegador y un evento, no un bucle; y se
+  // mide antes del primer pintado, para que el clip no aparezca un fotograma
+  // tapando el panel.
+  useLayoutEffect(() => {
     if (!open) return undefined;
     const medir = () => {
       const col = lyricsContainerRef.current;
@@ -2617,13 +2637,11 @@ export function LyricsView({
             playsInline
             autoPlay
             preload="auto"
-            // El tamaño real del fichero decide el encuadre (ver `encaje`).
-            onLoadedMetadata={(e) =>
-              setDimVideo({
-                ancho: e.currentTarget.videoWidth,
-                alto: e.currentTarget.videoHeight,
-              })
-            }
+            // El tamaño real del fichero decide el encuadre (ver `encaje`):
+            // se pregunta en los tres avisos que da el navegador.
+            onLoadedMetadata={leerDim}
+            onLoadedData={leerDim}
+            onCanPlay={leerDim}
             // Si el vídeo no se puede reproducir se avisa (con reintento) en
             // vez de quedarse mudo en «sin preparar».
             onError={() =>

@@ -24,6 +24,9 @@ que nunca se oyen dos pistas a la vez.
   dejar hueco en ningún eje y lo que sobra se recorta —sin franjas negras ni del
   reproductor ni del fichero—. Un clip panorámico recorta los lados; uno
   vertical, arriba y abajo.
+  - Ojo: un `<video>` es un elemento **reemplazado**. Con `top/bottom/left/right`
+    no se estira: se queda en su tamaño intrínseco (1920×816, por ejemplo) y
+    deja el fondo a la vista. Su caja necesita `width`/`height` explícitos.
   - No hay trabajo por fotograma: `object-fit`/`object-position` son de
     composición, y no se consulta la relación de aspecto del fichero.
   - El borde izquierdo sale del ancho real de la columna de letras (medido antes

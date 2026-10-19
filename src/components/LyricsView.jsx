@@ -2604,11 +2604,14 @@ export function LyricsView({
             style={{
               position: "absolute",
               top: 0,
-              bottom: 0,
-              right: 0,
-              // El panel de portada y cola se queda fuera: el clip empieza en su
-              // borde (sin medida todavía, en esos 380 px fijos del panel).
+              // Un `<video>` es un elemento REEMPLAZADO: con `top/bottom/left/
+              // right` no se estira —toma su tamaño intrínseco (1920×816, p.
+              // ej.) y deja hueco hasta el borde—. Por eso el ancho y el alto
+              // van explícitos: así la caja es el área de letras y «cover»
+              // llena los dos ejes.
               left: `${areaVideo?.left ?? 380}px`,
+              width: `calc(100% - ${areaVideo?.left ?? 380}px)`,
+              height: "100%",
               // «cover»: el clip se escala lo justo para llenar el área en los
               // dos ejes y lo que sobra se recorta —sin franjas negras ni del
               // reproductor ni del propio fichero—. Es una propiedad de

@@ -1799,8 +1799,11 @@ describe("LyricsView — vídeo de fondo", () => {
     expect(video.style.objectPosition).toMatch(/center/);
     // Y no invade el panel de portada y cola: empieza donde acaba el panel.
     expect(video.style.left).toBe("380px");
-    // El ancho no se estira: lo pone el encaje, no un 100%.
-    expect(video.style.width).toBe("");
+    // El ancho y el alto van explícitos: un `<video>` es reemplazado y con
+    // `top/bottom/left/right` NO se estira, se queda en su tamaño intrínseco
+    // (eso era el hueco de abajo). La caja tiene que ser el área de letras.
+    expect(video.style.width).toBe("calc(100% - 380px)");
+    expect(video.style.height).toBe("100%");
   });
 
   it("el clip empieza en el borde del panel, no dentro, cuando cambia la ventana", async () => {
@@ -1810,6 +1813,7 @@ describe("LyricsView — vídeo de fondo", () => {
     const video = await medirArea(320, 1000, 700);
 
     expect(video.style.left).toBe("320px");
+    expect(video.style.width).toBe("calc(100% - 320px)");
     expect(video.style.objectFit).toBe("cover");
   });
 
@@ -1820,6 +1824,7 @@ describe("LyricsView — vídeo de fondo", () => {
     // jsdom no mide: el respaldo son los 380 px fijos del panel.
     const video = await screen.findByTestId("lyrics-video");
     expect(video.style.left).toBe("380px");
+    expect(video.style.width).toBe("calc(100% - 380px)");
     expect(video.style.objectFit).toBe("cover");
   });
 

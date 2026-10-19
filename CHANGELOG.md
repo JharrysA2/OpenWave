@@ -27,14 +27,15 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   altura exacta que se había añadido para preferir clips de 30 fps: un «1080p»
   panorámico mide 1920x720, así que el filtro no encontraba nada y la cadena
   caía al 360p del intento siguiente.
-- **El videoclip de fondo llena siempre el área de las letras.** Antes cabía
-  entero y centrado (`contain`): los clips panorámicos dejaban franjas negras
-  arriba y abajo, y además el vídeo se colaba por detrás del panel de portada y
-  cola, que no cuenta. Ahora ocupa solo esa área y se escala con «cover» lo
-  justo para no dejar hueco en ningún eje (un panorámico recorta los lados; uno
-  vertical, arriba y abajo), sin fondo negro propio y sin depender de medir el
-  fichero: es una propiedad de composición, así que no cuesta trabajo por
-  fotograma.
+- **El videoclip de fondo llena siempre el área de las letras.** Antes se
+  quedaba en su tamaño intrínseco (un `<video>` es un elemento reemplazado: con
+  `top/bottom/left/right` no se estira) y dejaba una franja del fondo a la vista
+  —abajo en los clips panorámicos, a la derecha en los angostos—; encima, el
+  panel de portada y cola quedaba tapado. Ahora la caja del clip es exactamente
+  el área de las letras (ancho y alto explícitos) y se escala con «cover» lo
+  justo para no dejar hueco en ningún eje: un panorámico recorta los lados y uno
+  vertical, arriba y abajo. Sin fondo negro propio, sin medir el fichero y sin
+  trabajo por fotograma: es una propiedad de composición.
 - **El panel de portada y cola deja de llevar cristal difuminado.** Como el clip
   ya no se mueve detrás, su `backdrop-filter: blur(12px)` solo desenfocaba un
   fondo estático y se re-evaluaba con cada fotograma del vídeo: era el pase

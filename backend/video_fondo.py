@@ -24,6 +24,7 @@ import yt_dlp
 from cache import video_progress
 from config import PROJECT_DIR, VIDEO_CACHE_MAX_BYTES, VIDEO_DIR, YT_DLP_CACHE_DIR
 from db import (
+    db_delete_all_videoclip_oficial,
     db_delete_videoclip_oficial,
     db_get_desfase_videoclip,
     db_get_videoclip_oficial,
@@ -31,7 +32,7 @@ from db import (
     db_set_videoclip_oficial,
 )
 from logging_config import get_logger
-from videoclip import DESAJUSTE_SIN_MEDIDA, resolver_videoclip
+from videoclip import DESAJUSTE_SIN_MEDIDA, VIGENCIA_SIN_CLIP, resolver_videoclip
 from ytdlp_auth import browser_cookie_opts, cookies_file_opt
 
 logger = get_logger(__name__)
@@ -421,9 +422,11 @@ def sin_videoclip(video_id: str) -> bool:
     """¿Está resuelto que esta canción NO tiene videoclip oficial?
 
     Lo dice la caché de ``videoclip_oficial``: así la pantalla puede quedarse con
-    la portada sin repetir la búsqueda al volver a abrir la canción.
+    la portada sin repetir la búsqueda al volver a abrir la canción. El «no
+    tiene» caduca (``VIGENCIA_SIN_CLIP``): pasado ese tiempo la pantalla vuelve
+    a preparar el vídeo, por si el no-resultado venía de un fallo puntual.
     """
-    consultado, oficial = db_get_videoclip_oficial(video_id)
+    consultado, oficial = db_get_videoclip_oficial(video_id, VIGENCIA_SIN_CLIP)
     return consultado and oficial is None
 
 
@@ -935,11 +938,11 @@ def listar_videos_cacheados() -> list[dict]:
 def delete_all_videos() -> dict:
     """Vaciar TODA la caché de vídeos de fondo. Devuelve ``{n, bytes}``.
 
-    Borra lo que haya en VIDEO_DIR (finales, sidecars e intermedios) y
-    olvida los videoclips oficiales resueltos: la próxima apertura vuelve a
-    prepararlos desde cero.
+    Borra lo que haya en VIDEO_DIR (finales, sidecars e intermedios) y olvida
+    todos los videoclips oficiales resueltos —también los «no tiene», que no
+    dejan fichero—: la próxima apertura vuelve a resolverlos y prepararlos
+    desde cero.
     """
-    ids: set[str] = set()
     n = 0
     liberados = 0
     for p in VIDEO_DIR.glob("*"):
@@ -950,13 +953,10 @@ def delete_all_videos() -> dict:
             p.unlink()
         except OSError:
             continue
-        if p.suffix.lstrip(".") in _FINAL_EXTS and "." not in p.stem:
-            ids.add(p.stem)
         n += 1
         liberados += size
-    for vid in ids:
-        with suppress(Exception):
-            db_delete_videoclip_oficial(vid)
+    with suppress(Exception):
+        db_delete_all_videoclip_oficial()
     if n:
         logger.info(
             "Caché de vídeos vaciada: %d fichero(s), %.1f MB",

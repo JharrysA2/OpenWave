@@ -1,7 +1,8 @@
 """Tests para backend/videoclip.py — Videoclip oficial de una canción."""
 
-from db import db_get_videoclip_oficial
+from db import db_get_videoclip_oficial, db_set_videoclip_oficial, get_db
 from videoclip import (
+    VIGENCIA_SIN_CLIP,
     _segundos,
     elegir_candidato,
     normalizar_titulo,
@@ -59,6 +60,18 @@ def _video(video_id, titulo, artista, duracion, tipo=OMV):
         "duration": duracion,
         "videoType": tipo,
     }
+
+
+def _envejecer(video_id: str, horas: float | None = None) -> None:
+    """Retrasar la marca del «no tiene»: simula una resolución antigua."""
+    horas = VIGENCIA_SIN_CLIP / 3600 + 1 if horas is None else horas
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE videoclip_oficial "
+            "SET resuelto_at = strftime('%Y-%m-%dT%H:%M:%S','now', ?) "
+            "WHERE video_id = ?",
+            (f"-{horas} hours", video_id),
+        )
 
 
 class TestNormalizar:
@@ -249,6 +262,36 @@ class TestPuntuacion:
         )
         assert 0 < aproximado < exacta
 
+    def test_titulo_corto_cuenta_si_lo_que_sobra_es_el_artista(self):
+        """Caso real: la canción se llama «MVP'» y el vídeo «C.R.O - MVP'»."""
+        assert (
+            puntuar_candidato(
+                "MVP'",
+                "C.R.O",
+                138,
+                _video("clip", "C.R.O - MVP' (Video Oficial)", "C.R.O", "2:19"),
+            )
+            > 0
+        )
+
+    def test_titulo_corto_con_palabras_de_mas_se_rechaza(self):
+        """Caso real: «Gas» no se queda con «GAS (Deluxe Edition)»: el título
+        corto coincide, pero sobran palabras de una versión de la canción."""
+        assert (
+            puntuar_candidato(
+                "Gas",
+                "C.R.O",
+                146,
+                _video(
+                    "deluxe",
+                    "05. C.R.O - 542 - GAS (Deluxe Edition)",
+                    "MDBCrew",
+                    "2:30",
+                ),
+            )
+            < 0
+        )
+
 
 class TestElegir:
     """Elección del mejor candidato."""
@@ -337,6 +380,30 @@ class TestResolver:
         )
         assert resolver_videoclip("of_atv_no") is None
         assert db_get_videoclip_oficial("of_atv_no") == (True, None)
+
+    def test_el_no_tiene_reciente_no_repite_la_busqueda(self, monkeypatch):
+        """Un «no tiene» del día vale: no se vuelve a preguntar cada apertura."""
+        monkeypatch.setattr("videoclip.get_ytm", lambda: _YtmFalso(fallar_todo=True))
+        db_set_videoclip_oficial("of_negativa_nueva", None)
+        assert resolver_videoclip("of_negativa_nueva") is None
+
+    def test_el_no_tiene_caducado_se_vuelve_a_buscar(self, monkeypatch):
+        """Un «no tiene» viejo no puede dejar la canción en la portada.
+
+        Caso real: la descarga de un candidato que no cuadraba con la canción
+        acabó cacheando «sin videoclip» en una que sí lo tenía.
+        """
+        monkeypatch.setattr(
+            "videoclip.get_ytm",
+            lambda: _YtmFalso(
+                watch=_watch("Mi Alma", "C.R.O", "3:16", ATV),
+                search=[_video("clipe", "C.R.O - Mi Alma", "C.R.O", "3:16")],
+            ),
+        )
+        db_set_videoclip_oficial("of_negativa_vieja", None, desajuste=13)
+        _envejecer("of_negativa_vieja")
+        assert resolver_videoclip("of_negativa_vieja") == "clipe"
+        assert db_get_videoclip_oficial("of_negativa_vieja") == (True, "clipe")
 
     def test_la_busqueda_vacia_no_se_cachea(self, monkeypatch):
         """0 resultados = la consulta no respondió: se vuelve a buscar.

@@ -592,20 +592,49 @@ def db_get_artist_feedback_scores(artist_names: list[str]) -> dict:
 # ── Vídeo de fondo: videoclip oficial (caché de la resolución) ───────────────────────
 
 
-def db_get_videoclip_oficial(video_id: str) -> tuple[bool, str | None]:
+def _resuelto_caducado(marca: str | None, vigencia: float) -> bool:
+    """¿La marca ``%Y-%m-%dT%H:%M:%S`` (UTC) es más antigua que ``vigencia`` s?
+
+    Sin marca legible se da por caducada: más vale volver a preguntar que
+    quedarse con un «no tiene» de fecha desconocida.
+    """
+    try:
+        cuando = datetime.strptime(str(marca), "%Y-%m-%dT%H:%M:%S").replace(tzinfo=UTC)
+    except (TypeError, ValueError):
+        return True
+    return (datetime.now(UTC) - cuando).total_seconds() > vigencia
+
+
+def db_get_videoclip_oficial(
+    video_id: str, vigencia: float | None = None
+) -> tuple[bool, str | None]:
     """Leer la resolución del videoclip oficial cacheada para una canción.
 
     Devuelve ``(consultado, oficial_id)``. ``consultado=False`` → todavía no se
     resolvió nada. ``consultado=True`` con ``oficial_id=None`` → ya se buscó y
-    la canción **no tiene** videoclip oficial (no se vuelve a preguntar).
+    la canción **no tiene** videoclip oficial.
+
+    ``vigencia`` (segundos) solo afecta a los «no tiene»: pasado ese tiempo
+    devuelve ``(False, None)`` y se vuelve a resolver. Un «no tiene» puede ser
+    la huella de un fallo puntual (una descarga que no llegó a medir el
+    desfase), así que no puede quedarse ahí para siempre. Los aciertos no
+    caducan: el videoclip de una canción no cambia.
     """
     with get_db() as conn:
         row = conn.execute(
-            "SELECT oficial_id FROM videoclip_oficial WHERE video_id=?", (video_id,)
+            "SELECT oficial_id, resuelto_at FROM videoclip_oficial WHERE video_id=?",
+            (video_id,),
         ).fetchone()
     if row is None:
         return False, None
-    return True, (row["oficial_id"] or None)
+    oficial = row["oficial_id"] or None
+    if (
+        oficial is None
+        and vigencia is not None
+        and _resuelto_caducado(row["resuelto_at"], vigencia)
+    ):
+        return False, None
+    return True, oficial
 
 
 def db_set_videoclip_oficial(
@@ -669,3 +698,13 @@ def db_delete_videoclip_oficial(video_id: str) -> None:
     """Olvidar la resolución de una canción (se volverá a buscar al preparar)."""
     with _db_lock, get_db() as conn:
         conn.execute("DELETE FROM videoclip_oficial WHERE video_id=?", (video_id,))
+
+
+def db_delete_all_videoclip_oficial() -> None:
+    """Olvidar TODAS las resoluciones de videoclip (vaciar la caché de vídeos).
+
+    Incluye los «no tiene»: son justo los que no dejan fichero en disco y, por
+    tanto, los que no se pueden alcanzar borrando vídeos uno a uno.
+    """
+    with _db_lock, get_db() as conn:
+        conn.execute("DELETE FROM videoclip_oficial")

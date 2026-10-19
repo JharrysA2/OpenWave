@@ -38,6 +38,12 @@ DESAJUSTE_SIN_MEDIDA = 5
 # que sea otro vídeo (o una mezcla). Más allá no se acepta ni midiendo.
 _MAX_DESAJUSTE_ABSOLUTO = 120
 
+# Vigencia del «esta canción no tiene videoclip»: pasado este tiempo se vuelve
+# a preguntar. Un no-resultado puede ser la huella de un fallo puntual (una
+# búsqueda degradada, una descarga que no llegó a medir el desfase) y no puede
+# dejar la canción con la portada para siempre.
+VIGENCIA_SIN_CLIP = 24 * 3600
+
 # Palabras que delatan una versión que NO es el videoclip oficial. Se buscan
 # como palabra completa sobre el título normalizado (con paréntesis incluidos:
 # «(Official Audio)» también descarta). Si la palabra está también en el título
@@ -109,19 +115,47 @@ def _segundos(duracion) -> int | None:
     return segundos or None
 
 
-def _puntos_titulo(titulo: str, candidato: str) -> float:
-    """Puntos por el título: 3 si es el mismo, 2 si uno contiene al otro."""
+def _puntos_titulo(titulo: str, candidato: str, artista: str = "") -> float:
+    """Puntos por el título: 3 si es el mismo, 2 si uno contiene al otro.
+
+    La contención se comprueba por palabras completas. Si alguno de los dos
+    títulos es corto (menos de cuatro letras) no basta con que la palabra
+    aparezca: el resto del título del vídeo tiene que ser el nombre del
+    artista, que es lo que separa «C.R.O - MVP'» de «GAS (Deluxe Edition)».
+    """
     n_cancion = normalizar_titulo(titulo)
     n_video = normalizar_titulo(candidato)
     if not n_cancion or not n_video:
         return _RECHAZO
     if n_cancion == n_video:
         return 3.0
-    if len(n_cancion) >= 4 and n_cancion in n_video:
-        return 2.0
-    if len(n_video) >= 4 and n_video in n_cancion:
+    if len(n_cancion) < 4 or len(n_video) < 4:
+        if _titulo_corto_dentro(n_cancion, n_video, artista):
+            return 2.0
+        return _RECHAZO
+    if _palabras_dentro(n_cancion, n_video) or _palabras_dentro(n_video, n_cancion):
         return 2.0
     return _RECHAZO
+
+
+def _palabras_dentro(contenido: str, contenedor: str) -> bool:
+    """¿Están todas las palabras de ``contenido`` entre las de ``contenedor``?"""
+    palabras = contenido.split()
+    return bool(palabras) and set(palabras).issubset(set(contenedor.split()))
+
+
+def _titulo_corto_dentro(cancion: str, video: str, artista: str) -> bool:
+    """¿Un título corto cabe en el del vídeo sin más palabras que el artista?
+
+    «mvp» vale en «c r o mvp» (lo que sobra es C.R.O); no valdría en «05 c r o
+    542 gas deluxe edition», donde sobran palabras que no son ni la canción ni
+    el artista: señal de que es otra versión de la misma canción.
+    """
+    propias = set(cancion.split())
+    if not propias:
+        return False
+    sobrantes = set(video.split()) - set(_limpiar(artista).split())
+    return propias == sobrantes
 
 
 def _nombres_canal(candidato: dict) -> list[str]:
@@ -191,7 +225,7 @@ def puntuar_candidato(
     un vídeo declarado como videoclip oficial (``OMV``) gana al resto.
     """
     titulo_video = candidato.get("title") or ""
-    puntos = _puntos_titulo(titulo, titulo_video)
+    puntos = _puntos_titulo(titulo, titulo_video, artista)
     if puntos <= _RECHAZO:
         return _RECHAZO
     if (candidato.get("videoType") or "") == _ATV or _canal_topic(candidato):
@@ -359,13 +393,15 @@ def _resolver(video_id: str) -> tuple[str | None, int | None, bool]:
 def resolver_videoclip(video_id: str, usar_cache: bool = True) -> str | None:
     """ID del videoclip oficial de la canción, o ``None`` si no tiene.
 
-    El resultado (incluido el «no tiene») se cachea en la base de datos: la
-    consulta se hace una vez por canción. Si la consulta no se puede completar
-    devuelve el propio id de la canción: la pantalla descarga entonces su
-    vídeo, como hacía antes de esta función, y no se cachea nada.
+    El resultado se cachea en la base de datos: la consulta se hace una vez por
+    canción. Los aciertos no se repiten nunca; los «no tiene» caducan
+    (``VIGENCIA_SIN_CLIP``) porque pueden ser la huella de un fallo puntual.
+    Si la consulta no se puede completar devuelve el propio id de la canción:
+    la pantalla descarga entonces su vídeo, como hacía antes de esta función, y
+    no se cachea nada.
     """
     if usar_cache:
-        consultado, guardado = db_get_videoclip_oficial(video_id)
+        consultado, guardado = db_get_videoclip_oficial(video_id, VIGENCIA_SIN_CLIP)
         if consultado:
             return guardado
     resultado, desajuste, cacheable = _resolver(video_id)

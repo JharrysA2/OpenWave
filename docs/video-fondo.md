@@ -35,17 +35,22 @@ eso el backend busca el **videoclip oficial** de verdad:
 
 - `videoclip.py` consigue la ficha de la canción (`get_watch_playlist` y, si
   falla, `get_song`), busca vídeos con su título y artista y puntúa cada
-  candidato con reglas duras: mismo título, que no sea un canal «- Topic» ni un
-  `ATV`, ni una versión anunciada como no oficial (letra, cover, directo, remix,
-  karaoke…), y que lo suba el artista o un sello/VEVO con el artista en el
-  título. Entre los válidos ganan la marca `OMV` de YouTube y la duración.
+  candidato con reglas duras: mismo título (comparado por palabras, para que un
+  título corto como «MVP'» valga dentro de «C.R.O - MVP'» y «Gas» no valga en
+  «GAS (Deluxe Edition)»), que no sea un canal «- Topic» ni un `ATV`, ni una
+  versión anunciada como no oficial (letra, cover, directo, remix, karaoke…), y
+  que lo suba el artista o un sello/VEVO con el artista en el título. Entre los
+  válidos ganan la marca `OMV` de YouTube y la duración.
 - **La duración tiene que cuadrar** (±5 s). Si el videoclip dura bastante más o
   menos que la canción, lleva intro, outro o es otra mezcla: las dos líneas de
   tiempo no cuadran y el fondo se vería desfasado toda la canción, así que el
   candidato se descarta (aunque sea el videoclip oficial).
 - La resolución se cachea en la tabla `videoclip_oficial`: `oficial_id` vacío
   significa «se buscó y esta canción no tiene videoclip». Los fallos de red no
-  se cachean (se reintentan al volver a abrir).
+  se cachean (se reintentan al volver a abrir) y los «no tiene» caducan al día
+  (`VIGENCIA_SIN_CLIP`): un no-resultado puede venir de una búsqueda degradada o
+  de una descarga que no llegó a medir el desfase, y no puede dejar la canción
+  con la portada para siempre. Los aciertos no caducan.
 - **Si la canción no tiene videoclip oficial se queda la portada** y no se
   descarga nada.
 

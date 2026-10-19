@@ -162,6 +162,23 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Fixed
 
+- **Una canción que sí tiene videoclip ya no se queda con la portada para
+  siempre.** El «esta canción no tiene videoclip» se cacheaba sin caducidad, así
+  que un no-resultado puntual —una búsqueda degradada o un candidato que no
+  llegó a medir el desfase— dejaba la canción sin vídeo aunque lo tuviera, y no
+  había forma de deshacerlo (vaciar la caché de vídeos tampoco: esos «no tiene»
+  no dejan fichero). Ahora los «no tiene» caducan al día y se vuelven a
+  comprobar; los aciertos, que no cambian, se siguen cacheando.
+- **Los títulos cortos ya encuentran su videoclip.** La comparación pedía cuatro
+  letras y que el título de la canción apareciera como trozo del de YouTube, así
+  que una canción de tres letras no podía casar con «Artista - Título (Video
+  Oficial)». Ahora se compara por palabras y, con títulos cortos, se exige que
+  lo que sobra en el título del vídeo sea el nombre del artista y no otra
+  versión de la canción.
+- **Vaciar la caché de vídeos olvida también los «no tiene videoclip».** Esos no
+  dejan fichero en disco, así que borrar los vídeos no los tocaba; ahora el
+  vaciado borra todas las resoluciones y la próxima apertura vuelve a
+  preguntarle a YouTube.
 - **Un fallo de red ya no deja la canción sin videoclip.** El reintento por
   resolución borraba el clip en disco antes de volver a descargarlo; si la
   descarga fallaba, el vídeo desaparecía y la pantalla caía a la portada («no

@@ -9,7 +9,7 @@ import pytest
 import yt_dlp
 from cache import video_progress
 from config import VIDEO_DIR
-from db import db_get_videoclip_oficial, db_set_videoclip_oficial
+from db import db_get_videoclip_oficial, db_set_videoclip_oficial, get_db
 from video_fondo import (
     _MP4,
     _MP4_ANDROID,
@@ -22,6 +22,7 @@ from video_fondo import (
     _search_ffmpeg_dir,
     calidad_guardada,
     calidad_suficiente,
+    delete_all_videos,
     delete_video,
     get_output_path,
     get_video_path,
@@ -30,6 +31,7 @@ from video_fondo import (
     sin_videoclip,
     video_cache_size,
 )
+from videoclip import VIGENCIA_SIN_CLIP
 
 
 @pytest.fixture(autouse=True)
@@ -447,6 +449,18 @@ class TestDeleteVideo:
         assert delete_video("nada_por_aqui") is False
         # No debe quedar basura del intento.
         assert list(VIDEO_DIR.glob("nada_por_aqui.*")) == []
+
+
+class TestVaciarCache:
+    """Vaciar la caché de vídeos olvida también los «no tiene videoclip»."""
+
+    def test_vaciar_olvida_los_no_tiene_sin_fichero(self):
+        """Un «no tiene» no deja fichero: borrando vídeos no se alcanzaría."""
+        db_set_videoclip_oficial("sin_clip_cache", None)
+        db_set_videoclip_oficial("con_clip_cache", "otro_id")
+        delete_all_videos()
+        assert db_get_videoclip_oficial("sin_clip_cache") == (False, None)
+        assert db_get_videoclip_oficial("con_clip_cache") == (False, None)
 
 
 class TestVideoclipOficial:
@@ -983,6 +997,18 @@ class TestDesfase:
             _FakeYdl.instances.clear()
 
 
+def _envejecer_resolucion(video_id: str, horas: float | None = None) -> None:
+    """Retrasar la marca del «no tiene»: simula una resolución antigua."""
+    horas = VIGENCIA_SIN_CLIP / 3600 + 1 if horas is None else horas
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE videoclip_oficial "
+            "SET resuelto_at = strftime('%Y-%m-%dT%H:%M:%S','now', ?) "
+            "WHERE video_id = ?",
+            (f"-{horas} hours", video_id),
+        )
+
+
 class TestSinVideoclip:
     """sin_videoclip() lee la resolución cacheada."""
 
@@ -993,6 +1019,18 @@ class TestSinVideoclip:
         db_set_videoclip_oficial("sin_clip", None)
         assert sin_videoclip("sin_clip") is True
 
+    def test_no_resultado_caducado_no_afirma_nada(self):
+        """Pasada la vigencia el «no tiene» se vuelve a comprobar."""
+        db_set_videoclip_oficial("sin_clip_viejo", None)
+        _envejecer_resolucion("sin_clip_viejo")
+        assert sin_videoclip("sin_clip_viejo") is False
+
     def test_resolucion_con_videoclip(self):
         db_set_videoclip_oficial("con_clip", "otro_id")
         assert sin_videoclip("con_clip") is False
+
+    def test_resolucion_con_videoclip_no_caduca(self):
+        """El videoclip de una canción no cambia: los aciertos no caducan."""
+        db_set_videoclip_oficial("clip_viejo", "otro_id")
+        _envejecer_resolucion("clip_viejo")
+        assert db_get_videoclip_oficial("clip_viejo") == (True, "otro_id")

@@ -109,12 +109,22 @@ def _cap_alto(max_alto: int | None) -> int:
 def _escaleras(alto: int) -> list[dict]:
     """Escaleras de formatos con el tope ``alto`` dado.
 
-    Todas terminan en un fallback sin filtro: si la sesión no ofrece el mejor
-    formato, la selección degrada en vez de fallar.
+    Cada cadena prueba PRIMERO el alto del tope a ≤30 fps y, si la sesión no
+    lo sirve, sigue con la cadena de siempre: el clip es un FONDO (va tras el
+    velo de la pantalla de letras), así que los fotogramas por encima de 30 no
+    aportan nada visible y sí cuestan decodificación y presentación en la
+    iGPU. El filtro de fps se fija al MISMO alto (``height=alto``), nunca a
+    «uno más pequeño»: no cambia la resolución elegida. Todas terminan en un
+    fallback sin filtro: si la sesión no ofrece el mejor formato, la selección
+    degrada en vez de fallar.
     """
     cap = f"height<={alto}"
+    # Cabeza de 30 fps (mismo alto exacto) + cadena de siempre detrás.
+    treinta_mp4 = f"bv*[height={alto}][fps<=30][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
+    treinta_webm = f"bv*[height={alto}][fps<=30][ext=webm]+ba[ext=webm]"
     cadena_mp4 = (
-        f"bv*[{cap}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
+        f"{treinta_mp4}"
+        f"/bv*[{cap}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
         f"/b[{cap}][ext=mp4][vcodec^=avc1]/bv*[{cap}]+ba/b[{cap}]/bv*+ba/b"
     )
     return [
@@ -125,13 +135,15 @@ def _escaleras(alto: int) -> list[dict]:
         },
         {"format": cadena_mp4, "merge_output_format": "mp4"},
         {
-            "format": f"bv*[{cap}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
+            "format": f"{treinta_mp4}"
+            f"/bv*[{cap}][ext=mp4][vcodec^=avc1]+ba[ext=m4a]"
             f"/b[{cap}][ext=mp4][vcodec^=avc1]/b[{cap}]/b",
             "merge_output_format": "mp4",
             "extractor_args": {"youtube": {"player_client": ["android"]}},
         },
         {
-            "format": f"bv*[{cap}][ext=webm]+ba[ext=webm]/bv*[{cap}]+ba/bv*+ba/b",
+            "format": f"{treinta_webm}"
+            f"/bv*[{cap}][ext=webm]+ba[ext=webm]/bv*[{cap}]+ba/bv*+ba/b",
             "merge_output_format": "webm",
             "extractor_args": {"youtube": {"player_client": ["android"]}},
         },

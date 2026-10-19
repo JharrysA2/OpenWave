@@ -479,6 +479,28 @@ class TestTopeCalidad:
     def test_hay_fallback_sin_filtro(self):
         assert _MP4["format"].endswith("/bv*+ba/b")
 
+    def test_prefiere_el_mismo_alto_a_30fps(self):
+        """El clip es un fondo: se pide el alto del tope a ≤30 fps antes.
+
+        Un videoclip 1080p60 se bajaba a 60 (doble decodificación y doble
+        presentación para algo que va tras el velo de la pantalla de letras).
+        La alternativa de 30 fps va DELANTE pero fijando el mismo alto, así que
+        la resolución elegida no cambia; la cadena de siempre queda detrás
+        intacta, de modo que si la sesión no sirve ese formato nada cambia.
+        """
+        for escalera in (_MP4, _MP4_EMBEDDED, _MP4_ANDROID, _WEBM_ANDROID):
+            assert escalera["format"].startswith("bv*[height=1080][fps<=30]")
+            assert "[height<=1080]" in escalera["format"]
+        # El tramo de 30 fps precede al de siempre (no al revés).
+        assert _MP4["format"].index("[fps<=30]") < _MP4["format"].index(
+            "[height<=1080]"
+        )
+
+    def test_prefiere_30fps_tambien_con_pantalla_4k(self):
+        embedded, mp4, mp4_android, webm_android = _escaleras(2160)
+        for escalera in (embedded, mp4, mp4_android, webm_android):
+            assert escalera["format"].startswith("bv*[height=2160][fps<=30]")
+
     def test_cap_alto_sanea_el_valor_de_la_pantalla(self):
         """El valor llega del navegador: se acota al rango que admite YouTube."""
         assert _cap_alto(None) == 1080

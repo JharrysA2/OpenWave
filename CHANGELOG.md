@@ -16,6 +16,18 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Changed
 
+- **El vídeo de fondo se descarga a 30 fps cuando existe al mismo alto.** El
+  clip va detrás del velo de la pantalla de Letras, así que los fotogramas por
+  encima de 30 no aportan nada visible y sí cuestan decodificación y
+  presentación con la ventana abierta. La escalera de descarga prueba primero el
+  alto del tope a ≤30 fps y, si la sesión no lo sirve, sigue con la cadena de
+  siempre: la resolución elegida no cambia y no se descarta ninguna opción.
+- **El engordado de cada palabra del karaoke tarda .15 s en vez de .4 s.** El
+  peso de la letra afecta al diseño (cambia el ancho de los glifos) y, con una
+  palabra nueva cada 200-400 ms, la línea activa se estaba re-diseñando y
+  repintando en casi todos los fotogramas. Con .15 s el cambio dura ~9
+  fotogramas, sigue siendo continuo (nada de saltos escalonados) y el trabajo
+  por palabra cae alrededor de dos tercios; la palabra en reposo se ve igual.
 - **El karaoke gasta menos con el vídeo de fondo.** La letra animada cambiaba de
   tamaño con una transición larga (.65 s), y eso obliga al navegador a rehacer
   el diseño y repintar toda el área visible de la letra en cada fotograma del

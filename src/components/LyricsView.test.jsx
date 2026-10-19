@@ -421,7 +421,9 @@ describe("LyricsView", () => {
     // la sombra; el radio de32px, −4 pts solo — PD/PE), PERO el snap total
     // rompió la suavidad palabra a palabra. Sonda J: el fade de color
     // costó ~0 pts (19,9% vs 20,0% de control pareado) → se restaura
-    // color .5s + font-weight .4s y se mantiene fuera la sombra.
+    // color .5s + font-weight .15s (el peso sí toca layout: acortar la
+    // transición recorta los re-layout por palabra sin escalonar nada) y
+    // se mantiene fuera la sombra.
     const lrcLines = ["[00:01.00]Hello beautiful world"];
     mockApiGet.mockImplementation((path) => {
       if (path.startsWith("/lyrics/")) {
@@ -454,7 +456,7 @@ describe("LyricsView", () => {
     expect(spans.length).toBeGreaterThan(2);
     spans.forEach((s) => {
       expect(s.style.transition).toContain("color .5s");
-      expect(s.style.transition).toContain("font-weight .4s");
+      expect(s.style.transition).toContain("font-weight .15s");
       // Nada escalonado: `steps()` en el peso se veía a tirones (probado y
       // descartado) — la iluminación palabra a palabra debe ser continua.
       expect(s.style.transition).not.toContain("steps(");

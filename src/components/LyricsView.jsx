@@ -1359,13 +1359,18 @@ const KaraokeWords = React.memo(
             // text-shadow: interpolar el blur re-rasterizaba el glow en cada
             // frame de la transición (doble radio −10,7 pts en la pareja K;
             // el radio de 32px, −4 pts por sí solo en PD/PE).
-            // El fondo (color) y el PESO se interpolan como antes: se probó
-            // `steps(4)` en el peso para recortar los re-layout por palabra y
-            // la iluminación se veía escalonada — la suavidad palabra a palabra
-            // es justo lo que se pidió al restaurar el fade. El coste de esta
-            // transición ya se midió ≈ 0 (sonda J, §9.2).
+            // El fondo (color) y el PESO se interpolan: se probó `steps(4)` en
+            // el peso para recortar los re-layout por palabra y la iluminación
+            // se veía escalonada — la suavidad palabra a palabra es justo lo
+            // que se pidió al restaurar el fade. Pero el peso SÍ afecta al
+            // layout (cambia el ancho de los glifos) y con palabra nueva cada
+            // 200-400 ms una transición de .4s tenía la línea re-diseñándose
+            // y repintándose en casi todos los fotogramas. A .15s el cambio
+            // dura ~9 fotogramas (sigue siendo continuo, sin saltos) y el
+            // trabajo por palabra cae ~2,7×; en reposo se ve igual (el peso
+            // final es el de siempre).
             transition:
-              "color .5s cubic-bezier(.25,.1,.25,1), font-weight .4s cubic-bezier(.25,.1,.25,1)",
+              "color .5s cubic-bezier(.25,.1,.25,1), font-weight .15s cubic-bezier(.25,.1,.25,1)",
             color: isLit ? "#ffffff" : COLORS.textTertiary,
             fontWeight: isActiveWord ? "900" : isLit ? "700" : "500",
             // Glow de un solo radio: el 32px aportaba poco halo y costaba

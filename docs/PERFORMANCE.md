@@ -89,11 +89,14 @@ fotograma**: lo que cuesta es pedirlo, no pensar.
   sondeo de respaldo; la app real siempre tiene el elemento.
 - **Nunca** re-renderizar React a 60 Hz (ese sí sería el pico de CPU que
   evitamos). Las transiciones CSS (.5 s) aportan la continuidad visual.
-- Las transiciones que **afectan al layout** (`font-size`) son **cortas** (.3 s):
-  interpolar el tamaño re-forma los glifos y rehace el diseño + repintado del
-  área en **cada fotograma**, así que la duración es directamente trabajo (ver
-  §9.3). `opacity` y `transform` sí se interpolan largos (.6/.65 s): se resuelven
-  en el compositor y son la suavidad visible.
+- Las transiciones que **afectan al layout** (`font-size`, `font-weight`) son
+  **cortas** (.3 s y .15 s): interpolar el tamaño o el peso re-forma los glifos y
+  rehace el diseño + repintado del área en **cada fotograma**, así que la
+  duración es directamente trabajo (§9.3 y §9.4). En el peso influye además la
+  **frecuencia**: hay palabra nueva cada 200-400 ms, de modo que a .4 s la línea
+  estaba re-diseñándose en casi todos los fotogramas. `opacity` y `transform` sí
+  se interpolan largos (.6/.65 s): se resuelven en el compositor y son la
+  suavidad visible.
 - **Nada de `steps()` para ahorrar esos fotogramas**: reparte el trabajo en
   saltos discretos y el movimiento se ve a tirones («como a 2 fps»). Probado en
   el karaoke y descartado (§9.3).
@@ -114,6 +117,11 @@ fotograma**: lo que cuesta es pedirlo, no pensar.
   arranca); la tolerancia del plan absorbe el resto.
 - Pausar el clip (ventana oculta o modal encima) deja de decodificar: el ahorro
   es real y el plan lo reanuda y re-sincroniza al volver.
+- El clip se pide a **≤30 fps** cuando YouTube lo sirve al **mismo alto**
+  (`_escaleras` en `backend/video_fondo.py`): es un fondo tras el velo, así que
+  los fotogramas extra de un 1080p60 no aportan nada visible y cuestan
+  decodificación y presentación. La preferencia fija el alto del tope y deja
+  detrás la cadena de siempre: **nunca** baja la resolución ni descarta opciones.
 
 ## 3. Sin promoción de capas forzada
 
@@ -778,6 +786,47 @@ de un fondo que se mueve por su cuenta (el `<video>`).
   parche reduce el **trabajo por fotograma** (menos fotogramas de layout y menos
   líneas afectadas) sin cambiar la estética salvo los ~3 px de la segunda
   vecina; la serie de GPU queda pendiente de su repaso.
+
+### 9.4 Ronda 5 (2026-10-19): auditoría del consumo con vídeo de fondo
+
+**Petición.** «Revisa qué está consumiendo tanto, sin tomar testeos por tu
+cuenta, solo audítalo» y después «aplica lo que no cambie la estética». Esta
+ronda es, por tanto, **auditoría de código** (sin medir) más los cambios que no
+se ven.
+
+**Dónde está el coste** (por orden, y por qué no todo se puede quitar sin que
+cambie el aspecto):
+
+| Foco | Qué cuesta | ¿Se puede quitar sin que se vea? |
+| ---- | ---------- | -------------------------------- |
+| Cristal del panel (12 px sobre el vídeo) | el `backdrop-filter` se **re-ejecuta en cada fotograma** porque su fondo (clip + velo) se mueve: es el pase más caro de la interfaz | **no**: la única palanca real es que el fondo sea estático (el cristal dejaría de mostrar el clip) |
+| Velo de la pantalla (`lyrics-dim`) | dos gradientes a pantalla completa re-mezclados sobre el vídeo cada fotograma (~4 Mpx) | **no**: es el aspecto (velo + tinte de acento); quitarlo o fundirlo cambia la lectura |
+| Vídeo 1080p60 | decodificación + presentación del clip | **sí** → ≤30 fps (ver abajo) |
+| Énfasis por palabra (`font-weight`) | interpolar el peso re-diseña y repinta la línea activa en cada fotograma | **sí** → acortar la transición (ver abajo) |
+| Zoom de línea (`font-size .3 s`) | cada cambio de línea re-forma y repinta ~4 líneas durante ~18 fotogramas | no sin saltos (§9.3: `scale()` daría un salto de ~15 px) |
+| Cristal de los botones ⋮/✕ (6 px) | dos capas de blur sobre el clip re-ejecutadas por fotograma | sí, pero el área es de ~4 kpx (≈1 %): no compensa el cambio de aspecto |
+| Trabajo vivo detrás de Letras (pulso de Inicio, progreso a 5 Hz del PlayerBar) | siguen activos porque la vista de Letras **no** marca `overlay-open` | es invisible, pero es contenido **oculto** tras una superficie opaca: el compositor lo culla y no compensa tocar el mecanismo del reloj |
+
+- **Aplicado — clip a ≤30 fps (`backend/video_fondo.py`).** `_escaleras` pone
+  delante la alternativa `bv*[height=alto][fps<=30]…` y deja **detrás** la
+  cadena de siempre. La preferencia fija el alto del tope, así que **no cambia
+  la resolución**; si la sesión no sirve ese formato, la descarga es exactamente
+  la de antes. Detrás del velo, 30 fps se ve igual.
+- **Aplicado — peso de palabra `.4 s → .15 s` (`LyricsView.jsx`).** El peso sí
+  toca layout y hay palabra nueva cada 200-400 ms, así que a .4 s la línea se
+  re-diseñaba en casi todos los fotogramas; a .15 s son ~9 fotogramas por palabra
+  (~2,7× menos trabajo) y el cambio sigue siendo **continuo** (nada de `steps()`,
+  que fue justo el error de §9.3). En reposo el peso final es el de siempre.
+- **Descartado por el criterio de la app (no tocar la estética).**
+  `-webkit-text-stroke` en vez de `font-weight` quitaría el re-layout, pero el
+  énfasis se leería como un contorno y no como un engrosado real; arrancar el
+  cristal del panel con una portada pre-difuminada mataría el pase caro, pero el
+  cristal dejaría de mostrar el vídeo; bajar el radio del cristal de 12 a 8 px
+  no aporta (el coste lo dominan el **área** del panel y las **pasadas** del
+  desenfoque, no el radio) y sí se vería.
+- **Verificación.** `vitest` (transiciones del karaoke) y
+  `pytest test_video_fondo.py` (escaleras a 1080 y a 4K). La cifra que fija el
+  presupuesto la mide el usuario.
 
 ## 10. Task Manager: un solo grupo «OpenWave» (paquete sparse de identidad, plan C)
 

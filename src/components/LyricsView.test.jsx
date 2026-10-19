@@ -1632,10 +1632,10 @@ describe("LyricsView — vídeo de fondo", () => {
 
     const video = await screen.findByTestId("lyrics-video");
     expect(video).toHaveAttribute("src", "http://127.0.0.1:8765/video/file/1");
-    // Sin medidas todavía (ni tamaño del fichero ni área de letras): el clip
-    // entero y centrado, como siempre. El elemento no pinta fondo propio: las
-    // franjas las pone el fondo de la pantalla, no un negro.
-    expect(video).toHaveStyle({ objectFit: "contain" });
+    // El clip llena el área en cuanto aparece: «cover» no necesita conocer su
+    // relación de aspecto ni el tamaño del fichero. Sin fondo propio (ni negro
+    // ni franjas del reproductor): el recorte es del propio vídeo.
+    expect(video).toHaveStyle({ objectFit: "cover" });
     expect(video.style.backgroundColor).toBe("");
     expect(mockApiPost).not.toHaveBeenCalled();
   });
@@ -1759,8 +1759,8 @@ describe("LyricsView — vídeo de fondo", () => {
 
   // ── Encuadre del clip en el área de letras ───────────────────────────────
 
-  /** Mide el área de letras y el tamaño del fichero, como en la app real. */
-  async function encuadrar({ left, anchoArea, altoArea, ancho, alto, evento = "loadedmetadata" }) {
+  /** Coloca la columna de letras donde estaría en la app real. */
+  async function medirArea(left, anchoArea, altoArea) {
     const video = await screen.findByTestId("lyrics-video");
     const col = screen.getByTestId("lyrics-scroll");
     col.getBoundingClientRect = () => ({
@@ -1775,9 +1775,6 @@ describe("LyricsView — vídeo de fondo", () => {
       toJSON: () => {},
     });
     act(() => window.dispatchEvent(new Event("resize")));
-    Object.defineProperty(video, "videoWidth", { value: ancho, configurable: true });
-    Object.defineProperty(video, "videoHeight", { value: alto, configurable: true });
-    fireEvent(video, new Event(evento));
     return video;
   }
 
@@ -1790,62 +1787,40 @@ describe("LyricsView — vídeo de fondo", () => {
     });
   }
 
-  it("el clip panorámico llena el área de letras con zoom (recorta los lados)", async () => {
+  it("el clip llena el área de letras con zoom, sea cual sea su aspecto", async () => {
     preparado();
     renderLyrics();
 
-    // Área de letras 1540x1048 (1.47:1) y clip 1920x816 (2.35:1): más ancho.
-    const video = await encuadrar({
-      left: 380,
-      anchoArea: 1540,
-      altoArea: 1048,
-      ancho: 1920,
-      alto: 816,
-    });
+    const video = await medirArea(380, 1540, 1048);
 
+    // «cover»: se escala lo justo para no dejar hueco en ningún eje (un clip
+    // panorámico recorta los lados; uno vertical, arriba y abajo).
     expect(video.style.objectFit).toBe("cover");
     expect(video.style.objectPosition).toMatch(/center/);
     // Y no invade el panel de portada y cola: empieza donde acaba el panel.
     expect(video.style.left).toBe("380px");
-    // El ancho no se estira: lo pone el encaje (cover/contain), no un 100%.
+    // El ancho no se estira: lo pone el encaje, no un 100%.
     expect(video.style.width).toBe("");
   });
 
-  it("el clip angosto se pega al borde derecho, sin zoom", async () => {
+  it("el clip empieza en el borde del panel, no dentro, cuando cambia la ventana", async () => {
     preparado();
     renderLyrics();
 
-    // Clip vertical 1080x1920 (0.56:1) en la misma área: más angosto que ella.
-    const video = await encuadrar({
-      left: 380,
-      anchoArea: 1540,
-      altoArea: 1048,
-      ancho: 1080,
-      alto: 1920,
-    });
+    const video = await medirArea(320, 1000, 700);
 
-    expect(video.style.objectFit).toBe("contain");
-    expect(video.style.objectPosition).toMatch(/right/);
-    expect(video.style.left).toBe("380px");
+    expect(video.style.left).toBe("320px");
+    expect(video.style.objectFit).toBe("cover");
   });
 
-  it("encuadra igual si el navegador solo avisa con `loadeddata`", async () => {
+  it("sin medida del área el clip arranca igualmente en el borde del panel", async () => {
     preparado();
     renderLyrics();
 
-    // Con el fichero en caché el navegador puede saltarse `loadedmetadata`; el
-    // encuadre no puede depender de ese único aviso.
-    const video = await encuadrar({
-      left: 380,
-      anchoArea: 1540,
-      altoArea: 1048,
-      ancho: 1920,
-      alto: 816,
-      evento: "loadeddata",
-    });
-
-    expect(video.style.objectFit).toBe("cover");
+    // jsdom no mide: el respaldo son los 380 px fijos del panel.
+    const video = await screen.findByTestId("lyrics-video");
     expect(video.style.left).toBe("380px");
+    expect(video.style.objectFit).toBe("cover");
   });
 
   it("sin el ajuste no hay cristal local y el fondo cubre todo como siempre", () => {

@@ -18,21 +18,17 @@ que nunca se oyen dos pistas a la vez.
 - **El vídeo va un punto atenuado** (velo `.36/.55/.78`, frente al `.5/.7/.9` de
   la portada) para que la letra blanca gane contraste sobre el movimiento del
   clip.
-- **El clip se encuadra solo en el área de letras**: el panel de portada y cola
-  (380 px) queda fuera, con el fondo de la pantalla (el degradado del acento) y
-  sin cristal. El encaje usa la relación de aspecto real del fichero
-  (`videoWidth`/`videoHeight`, que llegan con `loadedmetadata`, `loadeddata` o
-  `canplay`) contra la del área (medida con la columna de letras, antes del
-  primer pintado, y en cada `resize` de la ventana):
-  - **Más ancho que el área** (lo normal en un videoclip): `object-fit: cover`,
-    que llena de arriba abajo recortando los lados.
-  - **Más angosto** (vertical): `object-fit: contain` con
-    `object-position: right center`, o sea a su ancho y pegado al borde derecho,
-    sin zoom; la franja que sobra a la izquierda es el fondo de la pantalla.
-  - El elemento no pinta fondo propio: no hay franjas negras del reproductor.
-  - Son dos propiedades de composición y solo se recalculan al llegar el
-    `loadedmetadata` o al redimensionar, así que no hay trabajo de layout por
-    fotograma.
+- **El clip se encuadra solo en el área de letras y la llena entera**: el panel
+  de portada y cola (380 px) queda fuera, con el fondo de la pantalla y sin
+  cristal. El encaje es `object-fit: cover`: el vídeo se escala lo justo para no
+  dejar hueco en ningún eje y lo que sobra se recorta —sin franjas negras ni del
+  reproductor ni del fichero—. Un clip panorámico recorta los lados; uno
+  vertical, arriba y abajo.
+  - No hay trabajo por fotograma: `object-fit`/`object-position` son de
+    composición, y no se consulta la relación de aspecto del fichero.
+  - El borde izquierdo sale del ancho real de la columna de letras (medido antes
+    del primer pintado y al redimensionar), con los 380 px del panel como
+    respaldo: el clip nunca lo tapa.
 - **Los botones de arriba (⋮ y cerrar) llevan su propio cristal** (`blur(6px)`):
   están dentro del área del vídeo y el clip se mueve detrás.
 - **Sin vídeo no hay cristal por pieza**: con la portada difuminada de fondo

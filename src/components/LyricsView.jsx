@@ -1576,35 +1576,12 @@ export function LyricsView({
   //    no tiene videoclip) el fondo sigue siendo la portada.
   const [videoState, setVideoState] = useState(VIDEO_PREP_INITIAL);
   const videoRef = useRef(null);
-  // El encuadre necesita dos datos, y ninguno se recalcula por fotograma: el
-  // tamaño real del fichero (de ahí sale su relación de aspecto) y el área
-  // donde vive el clip, la columna de letras sin el panel de portada y cola.
-  const [dimVideo, setDimVideo] = useState(null); // { ancho, alto }
-  const [areaVideo, setAreaVideo] = useState(null); // { left, aspecto }
+  // Ancho del panel de portada y cola (es un `width` fijo en el JSX de abajo):
+  // el clip empieza justo donde acaba. Se mide al abrir y en cada cambio de
+  // tamaño por si el panel deja de ser fijo, pero el respaldo es el propio
+  // 380: así el clip nunca puede taparlo por quedarse sin medida.
+  const [areaVideo, setAreaVideo] = useState(null); // { left }
 
-  // El tamaño del fichero lo sabe el propio `<video>`. Se pregunta en los tres
-  // avisos que da el navegador (con el medio ya en caché no siempre pasa por
-  // `loadedmetadata`), porque sin dato el encuadre se queda en el de siempre:
-  // franjas arriba y abajo en un clip panorámico y franjas a los lados en uno
-  // angosto, que es justo lo que no queremos.
-  const leerDim = useCallback(() => {
-    const v = videoRef.current;
-    if (!v?.videoWidth || !v.videoHeight) return;
-    setDimVideo((prev) =>
-      prev && prev.ancho === v.videoWidth && prev.alto === v.videoHeight
-        ? prev
-        : { ancho: v.videoWidth, alto: v.videoHeight },
-    );
-  }, []);
-
-  // Otra canción: el tamaño del clip anterior ya no vale.
-  useLayoutEffect(() => {
-    setDimVideo(null);
-  }, [song?.videoId]);
-
-  // La columna de letras la miden el navegador y un evento, no un bucle; y se
-  // mide antes del primer pintado, para que el clip no aparezca un fotograma
-  // tapando el panel.
   useLayoutEffect(() => {
     if (!open) return undefined;
     const medir = () => {
@@ -1612,32 +1589,14 @@ export function LyricsView({
       if (!col) return;
       const r = col.getBoundingClientRect();
       if (r.width <= 0 || r.height <= 0) return;
-      const medida = { left: Math.round(r.left), aspecto: r.width / r.height };
-      setAreaVideo((prev) =>
-        prev && prev.left === medida.left && prev.aspecto === medida.aspecto ? prev : medida,
-      );
+      const left = Math.round(r.left);
+      setAreaVideo((prev) => (prev && prev.left === left ? prev : { left }));
     };
     medir();
     window.addEventListener("resize", medir);
     return () => window.removeEventListener("resize", medir);
   }, [open]);
 
-  // Encuadre del clip dentro de esa área, con las dos relaciones de aspecto.
-  // No se recalcula por fotograma: solo cambia si llega otro vídeo o si se
-  // redimensiona la ventana, y el resultado son dos propiedades de composición
-  // (`object-fit`/`object-position`), sin trabajo de layout en cada frame.
-  const encaje = useMemo(() => {
-    if (!dimVideo?.ancho || !dimVideo?.alto || !areaVideo?.aspecto) {
-      // Sin medidas todavía: el clip entero y centrado, como siempre.
-      return { fit: "contain", pos: "center" };
-    }
-    // Más ancho que el área (lo normal en un videoclip): «cover» para llenar
-    // de arriba abajo, recortando los lados. Más angosto: se queda a su ancho,
-    // pegado al borde derecho y sin zoom.
-    return dimVideo.ancho / dimVideo.alto >= areaVideo.aspecto
-      ? { fit: "cover", pos: "center" }
-      : { fit: "contain", pos: "right center" };
-  }, [dimVideo, areaVideo]);
   const prepareEsRef = useRef(null);
   // Token por apertura/canción: invalida los callbacks del vídeo anterior.
   const videoReqRef = useRef(0);
@@ -2637,11 +2596,6 @@ export function LyricsView({
             playsInline
             autoPlay
             preload="auto"
-            // El tamaño real del fichero decide el encuadre (ver `encaje`):
-            // se pregunta en los tres avisos que da el navegador.
-            onLoadedMetadata={leerDim}
-            onLoadedData={leerDim}
-            onCanPlay={leerDim}
             // Si el vídeo no se puede reproducir se avisa (con reintento) en
             // vez de quedarse mudo en «sin preparar».
             onError={() =>
@@ -2652,16 +2606,16 @@ export function LyricsView({
               top: 0,
               bottom: 0,
               right: 0,
-              // El panel de portada y cola se queda fuera: desde su borde hasta
-              // el derecho de la ventana.
-              left: areaVideo ? `${areaVideo.left}px` : 0,
-              // Video más ancho que el área: «cover» llena de arriba abajo
-              // recortando los lados. Más angosto: se queda a su ancho, pegado
-              // al borde derecho, y lo que sobra a la izquierda es el fondo de
-              // la pantalla. Sin franjas negras propias: el fondo del elemento
-              // es transparente y deja ver el degradado del acento.
-              objectFit: encaje.fit,
-              objectPosition: encaje.pos,
+              // El panel de portada y cola se queda fuera: el clip empieza en su
+              // borde (sin medida todavía, en esos 380 px fijos del panel).
+              left: `${areaVideo?.left ?? 380}px`,
+              // «cover»: el clip se escala lo justo para llenar el área en los
+              // dos ejes y lo que sobra se recorta —sin franjas negras ni del
+              // reproductor ni del propio fichero—. Es una propiedad de
+              // composición: no hay trabajo de layout ni de JS por fotograma, y
+              // no depende de conocer la relación de aspecto del fichero.
+              objectFit: "cover",
+              objectPosition: "center",
               contain: "paint",
             }}
           />

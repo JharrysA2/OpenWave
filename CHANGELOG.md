@@ -27,18 +27,14 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   altura exacta que se había añadido para preferir clips de 30 fps: un «1080p»
   panorámico mide 1920x720, así que el filtro no encontraba nada y la cadena
   caía al 360p del intento siguiente.
-- **El videoclip de fondo se encuadra en el área de las letras.** Antes ocupaba
-  toda la ventana con `object-fit: contain`, así que a los clips panorámicos les
-  sobraban franjas negras arriba y abajo y además se colaban por detrás del
-  panel de portada y cola, que no cuenta. Ahora el clip vive solo en el área de
-  las letras y el encaje depende de la relación de aspecto real del fichero: si
-  es más ancho que el área hace zoom para llenar de arriba abajo (recortando los
-  lados), y si es más angosto se queda a su ancho pegado al borde derecho, sin
-  zoom; lo que sobre lo pinta el fondo de la pantalla (el degradado del acento),
-  no una franja negra. El tamaño del fichero se lee del propio `<video>` en los
-  tres avisos del navegador (`loadedmetadata`, `loadeddata`, `canplay`): con el
-  clip ya en caché no siempre pasa por el primero, y quedarse sin ese dato
-  devolvía el encuadre antiguo.
+- **El videoclip de fondo llena siempre el área de las letras.** Antes cabía
+  entero y centrado (`contain`): los clips panorámicos dejaban franjas negras
+  arriba y abajo, y además el vídeo se colaba por detrás del panel de portada y
+  cola, que no cuenta. Ahora ocupa solo esa área y se escala con «cover» lo
+  justo para no dejar hueco en ningún eje (un panorámico recorta los lados; uno
+  vertical, arriba y abajo), sin fondo negro propio y sin depender de medir el
+  fichero: es una propiedad de composición, así que no cuesta trabajo por
+  fotograma.
 - **El panel de portada y cola deja de llevar cristal difuminado.** Como el clip
   ya no se mueve detrás, su `backdrop-filter: blur(12px)` solo desenfocaba un
   fondo estático y se re-evaluaba con cada fotograma del vídeo: era el pase

@@ -1576,6 +1576,48 @@ export function LyricsView({
   //    no tiene videoclip) el fondo sigue siendo la portada.
   const [videoState, setVideoState] = useState(VIDEO_PREP_INITIAL);
   const videoRef = useRef(null);
+  // Área donde vive el clip: la columna de letras, sin el panel de portada y
+  // cola. Se mide al abrir y cuando la ventana cambia de tamaño (el panel es
+  // de ancho fijo): es lo único que necesita el encuadre, y así el vídeo no
+  // tapa ni un píxel del panel.
+  const [areaVideo, setAreaVideo] = useState(null); // { left, aspecto }
+  // Tamaño real del fichero, que llega con `loadedmetadata`: de ahí sale su
+  // relación de aspecto, sin preguntar al backend ni decodificar nada.
+  const [dimVideo, setDimVideo] = useState(null); // { ancho, alto }
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const medir = () => {
+      const col = lyricsContainerRef.current;
+      if (!col) return;
+      const r = col.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return;
+      const medida = { left: Math.round(r.left), aspecto: r.width / r.height };
+      setAreaVideo((prev) =>
+        prev && prev.left === medida.left && prev.aspecto === medida.aspecto ? prev : medida,
+      );
+    };
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, [open]);
+
+  // Encuadre del clip dentro de esa área, con las dos relaciones de aspecto.
+  // No se recalcula por fotograma: solo cambia si llega otro vídeo o si se
+  // redimensiona la ventana, y el resultado son dos propiedades de composición
+  // (`object-fit`/`object-position`), sin trabajo de layout en cada frame.
+  const encaje = useMemo(() => {
+    if (!dimVideo?.ancho || !dimVideo?.alto || !areaVideo?.aspecto) {
+      // Sin medidas todavía: el clip entero y centrado, como siempre.
+      return { fit: "contain", pos: "center" };
+    }
+    // Más ancho que el área (lo normal en un videoclip): «cover» para llenar
+    // de arriba abajo, recortando los lados. Más angosto: se queda a su ancho,
+    // pegado al borde derecho y sin zoom.
+    return dimVideo.ancho / dimVideo.alto >= areaVideo.aspecto
+      ? { fit: "cover", pos: "center" }
+      : { fit: "contain", pos: "right center" };
+  }, [dimVideo, areaVideo]);
   const prepareEsRef = useRef(null);
   // Token por apertura/canción: invalida los callbacks del vídeo anterior.
   const videoReqRef = useRef(0);
@@ -2479,11 +2521,9 @@ export function LyricsView({
   // El vídeo ocupa la capa 1 (en vez de la portada) cuando está listo.
   const videoActivo = !solidOn && !sleeping && isVideoReady(videoState);
 
-  // Cristal local (portada + cola, y botones de arriba) SOLO mientras el vídeo
-  // es el fondo. Es lo que pide el ajuste «Vídeo de fondo»: con el clip
-  // moviéndose detrás, esas piezas necesitan su propia hoja de cristal. Con la
-  // portada difuminada de fondo NO hay cristal local y todo vuelve al aspecto
-  // de siempre (el cristal cubre todo el fondo). Ver `videoActivo`.
+  // Cristal local de los botones de arriba, que sí flotan sobre el clip (están
+  // dentro del área de letras). El panel de portada y cola ya no lleva: queda
+  // fuera del área del vídeo. Ver `videoActivo` y `encaje`.
   const videoGlass = videoActivo;
 
   // ── Estilo glass compartido para botones superiores ──────────────────
@@ -2565,7 +2605,9 @@ export function LyricsView({
             abrir Letras +341MB / cerrar −191MB medidos). Al volver a verse
             se remonta con la misma src → repaint inmediato, sin recarga. */}
         {/* Capa 1: el vídeo de fondo cuando está listo; si no (o si la canción
-            no tiene videoclip) la portada difuminada de siempre. */}
+            no tiene videoclip) la portada difuminada de siempre.
+            El clip vive SOLO en el área de letras: el panel de portada y cola
+            no cuenta, y ahí se ve el fondo de la pantalla. */}
         {!solidOn && !sleeping && videoActivo && (
           <video
             ref={videoRef}
@@ -2575,6 +2617,13 @@ export function LyricsView({
             playsInline
             autoPlay
             preload="auto"
+            // El tamaño real del fichero decide el encuadre (ver `encaje`).
+            onLoadedMetadata={(e) =>
+              setDimVideo({
+                ancho: e.currentTarget.videoWidth,
+                alto: e.currentTarget.videoHeight,
+              })
+            }
             // Si el vídeo no se puede reproducir se avisa (con reintento) en
             // vez de quedarse mudo en «sin preparar».
             onError={() =>
@@ -2582,15 +2631,19 @@ export function LyricsView({
             }
             style={{
               position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              // El clip se ve entero y centrado: si su relación de aspecto no
-              // es la de la ventana quedan franjas negras (fondo del propio
-              // elemento), pero no se recorta nada. Con «cover» se perdían los
-              // bordes de los videoclips panorámicos.
-              objectFit: "contain",
-              backgroundColor: "#000",
+              top: 0,
+              bottom: 0,
+              right: 0,
+              // El panel de portada y cola se queda fuera: desde su borde hasta
+              // el derecho de la ventana.
+              left: areaVideo ? `${areaVideo.left}px` : 0,
+              // Video más ancho que el área: «cover» llena de arriba abajo
+              // recortando los lados. Más angosto: se queda a su ancho, pegado
+              // al borde derecho, y lo que sobra a la izquierda es el fondo de
+              // la pantalla. Sin franjas negras propias: el fondo del elemento
+              // es transparente y deja ver el degradado del acento.
+              objectFit: encaje.fit,
+              objectPosition: encaje.pos,
               contain: "paint",
             }}
           />
@@ -2862,28 +2915,13 @@ export function LyricsView({
           zIndex: 1,
           // Sin línea separadora: la jerarquía la da el material, como en el
           // player bar (border none + inset highlight + sombra).
-          // Con el vídeo de fondo la portada y la cola van sobre una hoja de
-          // cristal (Liquid Glass): el clip se mueve detrás y, sin
-          // difuminarlo, la portada y la lista no se leerían. Sin vídeo no hay
-          // blur (el fondo estático no lo necesita), pero sí el mismo material
-          // —tinte de acento, brillo superior y sombra— sobre la portada
-          // difuminada que cubre todo el fondo.
-          // Con vídeo, blur de 12px (no 20px): es el pase caro de la pantalla
-          // de letras porque se re-ejecuta en cada frame del clip, y a 12px,
-          // con el velo encima y un poco más de tinte (.15/.07), la lectura
-          // es la misma —el foco lo pone el material, no el radio.
-          ...(videoGlass
-            ? {
-                background:
-                  "linear-gradient(135deg, rgba(255,255,255,.15) 0%, rgba(255,255,255,.07) 100%)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), 0 24px 80px rgba(0,0,0,.5)",
-              }
-            : {
-                background: `linear-gradient(180deg, ${accentColor}30 0%, transparent 100%)`,
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,.08), 0 18px 50px rgba(0,0,0,.35)",
-              }),
+          // El panel ya no tiene vídeo detrás (el clip se encuadra solo en el
+          // área de letras), así que no lleva cristal ni `backdrop-filter`: ese
+          // desenfoque se re-evaluaba con cada fotograma del clip y era el pase
+          // caro de la pantalla. Queda el material de siempre —tinte de acento,
+          // brillo superior y sombra— sobre el fondo de la pantalla.
+          background: `linear-gradient(180deg, ${accentColor}30 0%, transparent 100%)`,
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,.08), 0 18px 50px rgba(0,0,0,.35)",
         }}
       >
         {/* Album art — CUADRADO completo */}

@@ -27,10 +27,21 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   altura exacta que se había añadido para preferir clips de 30 fps: un «1080p»
   panorámico mide 1920x720, así que el filtro no encontraba nada y la cadena
   caía al 360p del intento siguiente.
-- **El videoclip de fondo se ve entero y centrado.** Antes se pintaba con
-  `object-fit: cover`, que recortaba los bordes de los clips cuya relación de
-  aspecto no cuadra con la ventana; ahora se ajusta sin recortar (las franjas
-  que sobren las pinta el propio reproductor en negro).
+- **El videoclip de fondo se encuadra en el área de las letras.** Antes ocupaba
+  toda la ventana con `object-fit: contain`, así que a los clips panorámicos les
+  sobraban franjas negras arriba y abajo y además se colaban por detrás del
+  panel de portada y cola, que no cuenta. Ahora el clip vive solo en el área de
+  las letras y el encaje depende de la relación de aspecto real del fichero: si
+  es más ancho que el área hace zoom para llenar de arriba abajo (recortando los
+  lados), y si es más angosto se queda a su ancho pegado al borde derecho, sin
+  zoom; lo que sobre lo pinta el fondo de la pantalla (el degradado del acento),
+  no una franja negra.
+- **El panel de portada y cola deja de llevar cristal difuminado.** Como el clip
+  ya no se mueve detrás, su `backdrop-filter: blur(12px)` solo desenfocaba un
+  fondo estático y se re-evaluaba con cada fotograma del vídeo: era el pase
+  caro de la pantalla. Vuelve al material de siempre (tinte del acento, brillo y
+  sombra). Los botones de arriba, que sí flotan sobre el clip, conservan el
+  suyo.
 - **El engordado de cada palabra del karaoke tarda .15 s en vez de .4 s.** El
   peso de la letra afecta al diseño (cambia el ancho de los glifos) y, con una
   palabra nueva cada 200-400 ms, la línea activa se estaba re-diseñando y

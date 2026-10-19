@@ -1632,9 +1632,11 @@ describe("LyricsView — vídeo de fondo", () => {
 
     const video = await screen.findByTestId("lyrics-video");
     expect(video).toHaveAttribute("src", "http://127.0.0.1:8765/video/file/1");
-    // El clip se ve entero y centrado: franjas negras si el aspecto no cuadra.
+    // Sin medidas todavía (ni tamaño del fichero ni área de letras): el clip
+    // entero y centrado, como siempre. El elemento no pinta fondo propio: las
+    // franjas las pone el fondo de la pantalla, no un negro.
     expect(video).toHaveStyle({ objectFit: "contain" });
-    expect(video.style.backgroundColor).toBe("rgb(0, 0, 0)");
+    expect(video.style.backgroundColor).toBe("");
     expect(mockApiPost).not.toHaveBeenCalled();
   });
 
@@ -1729,7 +1731,7 @@ describe("LyricsView — vídeo de fondo", () => {
 
   // ── Cristal local con el vídeo de fondo (⋮ → Apariencia) ──────────────────
 
-  it("con el vídeo de fondo, la portada+cola y los botones llevan cristal", async () => {
+  it("con el vídeo de fondo solo los botones de arriba llevan cristal", async () => {
     conAjuste();
     mockApiGet.mockImplementation((path) => {
       if (path.startsWith("/lyrics/")) return Promise.resolve({ lyrics: null });
@@ -1740,18 +1742,91 @@ describe("LyricsView — vídeo de fondo", () => {
     renderLyrics();
     await screen.findByTestId("lyrics-video");
 
-    // Portada + cola → hoja de cristal adaptada al clip (blur 12px: el pase
-    // sobre el vídeo se re-ejecuta por frame, y con 12px + tinte se lee igual)
+    // Portada + cola: quedan fuera del área del clip, así que no llevan
+    // cristal ni `backdrop-filter` (ese desenfoque se re-evaluaba con cada
+    // fotograma del clip y era el pase caro de la pantalla).
     const panel = screen.getByTestId("lyrics-panel");
-    expect(panel.style.backdropFilter).toBe("blur(12px)");
+    expect(panel.style.backdropFilter ?? "").toBe("");
     expect(panel.style.background).toContain("gradient");
 
-    // Los dos botones de arriba (⋮ y X) → cristal de botón del sistema
+    // Los dos botones de arriba (⋮ y X) sí flotan sobre el clip → cristal
     expect(screen.getByTitle("Cerrar letras").style.backdropFilter).toBe("blur(6px)");
     expect(screen.getByTitle("Configuración de letras").style.backdropFilter).toBe("blur(6px)");
 
     // El clip va un punto más atenuado para que la letra gane contraste
     expect(screen.getByTestId("lyrics-dim").style.backgroundImage).toMatch(/rgba\(5,5,10,\.36\)/);
+  });
+
+  // ── Encuadre del clip en el área de letras ───────────────────────────────
+
+  /** Mide el área de letras y el tamaño del fichero, como en la app real. */
+  async function encuadrar({ left, anchoArea, altoArea, ancho, alto }) {
+    const video = await screen.findByTestId("lyrics-video");
+    const col = screen.getByTestId("lyrics-scroll");
+    col.getBoundingClientRect = () => ({
+      left,
+      top: 0,
+      right: left + anchoArea,
+      bottom: altoArea,
+      width: anchoArea,
+      height: altoArea,
+      x: left,
+      y: 0,
+      toJSON: () => {},
+    });
+    act(() => window.dispatchEvent(new Event("resize")));
+    Object.defineProperty(video, "videoWidth", { value: ancho, configurable: true });
+    Object.defineProperty(video, "videoHeight", { value: alto, configurable: true });
+    fireEvent(video, new Event("loadedmetadata"));
+    return video;
+  }
+
+  function preparado() {
+    conAjuste();
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) return Promise.resolve({ lyrics: null });
+      if (path.startsWith("/video/status/")) return Promise.resolve({ prepared: true });
+      return Promise.resolve({});
+    });
+  }
+
+  it("el clip panorámico llena el área de letras con zoom (recorta los lados)", async () => {
+    preparado();
+    renderLyrics();
+
+    // Área de letras 1540x1048 (1.47:1) y clip 1920x816 (2.35:1): más ancho.
+    const video = await encuadrar({
+      left: 380,
+      anchoArea: 1540,
+      altoArea: 1048,
+      ancho: 1920,
+      alto: 816,
+    });
+
+    expect(video.style.objectFit).toBe("cover");
+    expect(video.style.objectPosition).toMatch(/center/);
+    // Y no invade el panel de portada y cola: empieza donde acaba el panel.
+    expect(video.style.left).toBe("380px");
+    // El ancho no se estira: lo pone el encaje (cover/contain), no un 100%.
+    expect(video.style.width).toBe("");
+  });
+
+  it("el clip angosto se pega al borde derecho, sin zoom", async () => {
+    preparado();
+    renderLyrics();
+
+    // Clip vertical 1080x1920 (0.56:1) en la misma área: más angosto que ella.
+    const video = await encuadrar({
+      left: 380,
+      anchoArea: 1540,
+      altoArea: 1048,
+      ancho: 1080,
+      alto: 1920,
+    });
+
+    expect(video.style.objectFit).toBe("contain");
+    expect(video.style.objectPosition).toMatch(/right/);
+    expect(video.style.left).toBe("380px");
   });
 
   it("sin el ajuste no hay cristal local y el fondo cubre todo como siempre", () => {

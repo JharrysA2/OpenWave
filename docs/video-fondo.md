@@ -13,15 +13,27 @@ vídeo en movimiento. El `<audio>` de la app sigue siendo la fuente sonora y el
 reloj de referencia: el vídeo va **mudo** y solo corrige su deriva contra él, así
 que nunca se oyen dos pistas a la vez.
 
-## Aspecto: velo y cristal
+## Aspecto: velo, encuadre y cristal
 
 - **El vídeo va un punto atenuado** (velo `.36/.55/.78`, frente al `.5/.7/.9` de
   la portada) para que la letra blanca gane contraste sobre el movimiento del
   clip.
-- **Con el vídeo de fondo, la barra lateral (portada + cola) y los botones de
-  arriba (⋮ y cerrar) llevan su propio cristal** (portada+cola `blur(20px)`,
-  botones `blur(6px)`): si no, el clip se movería por detrás de la portada y de
-  la lista y no se leerían bien.
+- **El clip se encuadra solo en el área de letras**: el panel de portada y cola
+  (380 px) queda fuera, con el fondo de la pantalla (el degradado del acento) y
+  sin cristal. El encaje usa la relación de aspecto real del fichero
+  (`videoWidth`/`videoHeight`, que llega con `loadedmetadata`) contra la del
+  área (medida con la columna de letras y un `resize` de la ventana):
+  - **Más ancho que el área** (lo normal en un videoclip): `object-fit: cover`,
+    que llena de arriba abajo recortando los lados.
+  - **Más angosto** (vertical): `object-fit: contain` con
+    `object-position: right center`, o sea a su ancho y pegado al borde derecho,
+    sin zoom; la franja que sobra a la izquierda es el fondo de la pantalla.
+  - El elemento no pinta fondo propio: no hay franjas negras del reproductor.
+  - Son dos propiedades de composición y solo se recalculan al llegar el
+    `loadedmetadata` o al redimensionar, así que no hay trabajo de layout por
+    fotograma.
+- **Los botones de arriba (⋮ y cerrar) llevan su propio cristal** (`blur(6px)`):
+  están dentro del área del vídeo y el clip se mueve detrás.
 - **Sin vídeo no hay cristal por pieza**: con la portada difuminada de fondo
   vuelve el aspecto de siempre, el cristal cubriendo todo. Esto incluye a las
   canciones sin videoclip oficial (o cuyo vídeo aún se está preparando): la

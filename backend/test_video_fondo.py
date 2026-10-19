@@ -142,6 +142,37 @@ class _FakeYdl:
             hook({"status": "finished"})
 
 
+class _PrimeroConCero(_FakeYdl):
+    """FakeYdl con los dos primeros intentos cayendo por un 403 pasajero.
+
+    Del 3.º al 4.º (clientes de respaldo) «baja» 360p; de ahí en adelante,
+    1080p: reproduce la escalera cuando la URL buena falla en mal momento.
+    """
+
+    llamadas = 0
+
+    def download(self, urls):
+        type(self).llamadas += 1
+        if type(self).llamadas <= 2:
+            raise yt_dlp.utils.DownloadError("HTTP Error 403: Forbidden")
+        m = re.search(r"v=([\w-]+)$", urls[0])
+        self.video_id = m.group(1)
+        out = Path(str(self.opts["outtmpl"]).replace("%(ext)s", "mp4"))
+        out.write_bytes(b"360" if type(self).llamadas <= 4 else b"1080")
+
+
+def _run_clase_del_fichero(cmd, **kwargs):
+    """ffprobe falso: la «resolución» es lo que el fake escribió en el fichero."""
+    clase = int(Path(str(cmd[-1])).read_bytes())
+
+    class _P:
+        stderr = (
+            f"Stream #0:0: Video: h264, yuv420p, {clase * 16 // 9}x{clase}, 25 fps\n"
+        )
+
+    return _P()
+
+
 class TestPrepareVideo:
     """prepare_video con yt-dlp mockeado."""
 
@@ -349,6 +380,31 @@ class TestPrepareVideo:
         finally:
             delete_video("mejor_id")
             video_progress.pop("mejor_id", None)
+
+    def test_repite_los_intentos_de_1080p_si_el_primero_da_403(self, monkeypatch):
+        """Un 403 pasajero no puede dejar el clip en 360p.
+
+        El intento «embed» es el único que da 1080p sin cookies: si su URL da
+        403 en ese momento, los intentos de respaldo solo llegan a 360p y el
+        clip se quedaba ahí (es el caso del clip de «After House», 640x272 en
+        disco teniendo 1920x816 disponible). Se repiten al final y el 1080p
+        que llega se publica.
+        """
+        monkeypatch.setattr("video_fondo.cookies_file_opt", lambda: None)
+        monkeypatch.setattr("video_fondo.browser_cookie_opts", lambda: [])
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _PrimeroConCero)
+        _PrimeroConCero.llamadas = 0
+        monkeypatch.setattr("video_fondo._ffmpeg_bin", lambda: "ffmpeg-falso")
+        monkeypatch.setattr("video_fondo.subprocess.run", _run_clase_del_fichero)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        try:
+            prepare_video("repi_id")
+            assert video_progress["repi_id"]["status"] == "done"
+            assert calidad_guardada("repi_id") == 1080
+            assert not list(VIDEO_DIR.glob("repi_id.try*"))
+        finally:
+            delete_video("repi_id")
+            video_progress.pop("repi_id", None)
 
 
 class TestCalidad:

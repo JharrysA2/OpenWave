@@ -508,6 +508,9 @@ def _descargar(video_id: str, fuente_id: str, max_alto: int | None = None) -> No
     el primero congelaba el clip en 360p. Si ya había un clip en disco solo se
     reemplaza cuando la descarga nueva lo mejora: un fallo de red no borra el
     vídeo que ya funcionaba.
+
+    Los intentos que pueden dar 1080p se repiten al final de la escalera: un
+    403 de YouTube es pasajero y sin repetir se publicaba el 360p de respaldo.
     """
     tope = _cap_alto(max_alto)
     embedded, mp4, mp4_android, webm_android = _escaleras(tope)
@@ -519,6 +522,14 @@ def _descargar(video_id: str, fuente_id: str, max_alto: int | None = None) -> No
     for auth in browser_cookie_opts():
         attempts.append({**mp4, **auth})
         attempts.append({**webm_android, **auth})
+    # Los dos primeros intentos son los únicos que pueden dar 1080p sin
+    # cookies, así que se repiten al final: YouTube devuelve 403 en la URL de
+    # un intento bueno de forma pasajera (la misma descarga funciona segundos
+    # después: se ha medido 1920x816 con este mismo código justo tras un 403) y
+    # sin repetir la escalera acababa publicando el 360p de los clientes de
+    # respaldo, que no pueden dar más. Solo se llega a estas repeticiones si el
+    # mejor resultado sigue claramente degradado.
+    attempts += [embedded, mp4]
     base = {
         "progress_hooks": [_hook_for(video_id)],
         "quiet": True,

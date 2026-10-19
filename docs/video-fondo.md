@@ -68,6 +68,10 @@ degradan sin fallar) y lo cachea con evicción LRU (6 GB). Las rutas del motor:
 - `GET /video/file/{id}`: el fichero muxado, con soporte de rangos HTTP.
 - `DELETE /video/{id}`: borra el vídeo preparado y olvida la resolución.
 
+Los intentos que pueden dar 1080p sin cookies (el cliente «embed» y el mp4
+anónimo) se repiten al final de la escalera: un 403 de YouTube es pasajero, y
+sin repetir se publicaba el 360p de los clientes de respaldo.
+
 El motor solo trabaja para canciones abiertas con el ajuste encendido: coste
 cero en el resto de la app.
 

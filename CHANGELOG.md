@@ -162,6 +162,12 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Fixed
 
+- **El 1080p de un videoclip no se pierde por un 403 pasajero.** Si YouTube
+  rechazaba la URL del intento que da 1080p, la escalera seguía y publicaba el
+  360p de los clientes de respaldo (que no pueden dar más): el clip se quedaba
+  a 640x272 teniendo 1920x816 disponible, y hasta pasadas 2 horas no se
+  reintentaba. Ese intento y el anónimo —los dos únicos que pasan de 360p sin
+  cookies— se repiten al final de la escalera, y el 1080p que llega se publica.
 - **El desfase del videoclip ya no se descarta por un pico vecino.** La
   comparación de sonoridad rechazaba el resultado cuando aparecía un segundo
   pico a menos de 2 s del bueno, aunque puntuara bastante peor (el caso normal:

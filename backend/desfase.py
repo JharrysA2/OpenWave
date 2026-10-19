@@ -33,6 +33,11 @@ _CORR_MINIMA = 0.75
 # Separación mínima (s) entre el pico principal y el segundo pico para descartar
 # ambigüedad (repeticiones/estrofas). 2 s es razonable.
 _MARGEN_PICOS = 2.0
+# Cuánto puede bajar la correlación del segundo pico respecto al mejor para
+# seguir considerándolo un empate: dos posiciones que puntúan casi igual no se
+# pueden distinguir y el desfase no se arriesga. Un pico claramente peor (el
+# caso normal: la misma canción en el vídeo y ruido alrededor) no es empate.
+_MARGEN_CORR = 0.05
 # Búsqueda de desfase entre -120 s y +120 s (tope de seguridad).
 _BUSQUEDA_MAX_S = 120.0
 
@@ -109,11 +114,11 @@ def desfase_por_envolventes(video: list[float], cancion: list[float]) -> float |
                 segundo_pos, segundo_corr = pos, corr
     if mejor_pos < 0 or mejor_corr < _CORR_MINIMA:
         return None
-    if (
-        segundo_pos >= 0
-        and segundo_corr >= _CORR_MINIMA
-        and abs(segundo_pos - mejor_pos) <= margen
-    ):
+    if segundo_pos >= 0 and segundo_corr >= mejor_corr - _MARGEN_CORR:
+        # Dos posiciones puntúan casi igual: no hay forma de saber cuál es la
+        # buena (repeticiones, vídeo con la canción dos veces) y no se arriesga.
+        # Un segundo pico claramente peor es lo normal (el resto del vídeo) y no
+        # impide dar el desfase: la correlación de la posición buena manda.
         logger.warning(
             "desfase: pico ambiguo (%.2f s corr %.2f / %.2f s corr %.2f)",
             mejor_pos * _FRAME,

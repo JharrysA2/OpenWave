@@ -162,6 +162,14 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Fixed
 
+- **El desfase del videoclip ya no se descarta por un pico vecino.** La
+  comparación de sonoridad rechazaba el resultado cuando aparecía un segundo
+  pico a menos de 2 s del bueno, aunque puntuara bastante peor (el caso normal:
+  el audio del clip no es el mismo máster que la canción, así que la misma
+  música medio segundo al lado también correlaciona). Se descartaba un
+  videoclip que estaba perfectamente alineado y la canción se quedaba con la
+  portada. Ahora solo se descarta si los dos picos puntúan casi igual de bien
+  (diferencia de correlación ≤ 0,05).
 - **Una canción que sí tiene videoclip ya no se queda con la portada para
   siempre.** El «esta canción no tiene videoclip» se cacheaba sin caducidad, así
   que un no-resultado puntual —una búsqueda degradada o un candidato que no

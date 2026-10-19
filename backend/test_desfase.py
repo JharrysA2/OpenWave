@@ -68,6 +68,23 @@ class TestBusquedaDeDesfase:
             is None
         )
 
+    def test_master_distinto_da_el_desfase_y_no_lo_llama_ambiguo(self):
+        """Caso real: el audio del clip no es el mismo máster que la canción.
+
+        La posición buena puntúa ~0,97 y medio segundo al lado ~0,86 (la misma
+        música, otro máster), así que la buena manda y el desfase se acepta.
+        Antes se descartaba por «pico ambiguo» y la canción se quedaba con la
+        portada aunque el videoclip estuviera ahí.
+        """
+        rnd = random.Random(3)
+        bruto = [rnd.uniform(1, 100) for _ in range(120)]
+        # Envolvente «musical»: suave, con estructura de un par de segundos.
+        cancion = [sum(bruto[i : i + 20]) / 20 for i in range(100)]
+        # El vídeo: 2,5 s de intro y el mismo tema con otro máster (la mezcla
+        # cambia tramo a tramo, así que la posición buena no puntúa 1,00).
+        video = [50.0] * 25 + [c * (1.0 + rnd.uniform(-0.1, 0.1)) for c in cancion]
+        assert desfase_por_envolventes(video, cancion) == pytest.approx(2.5, abs=0.6)
+
     def test_dos_inicios_cercanos_se_descartan_por_ambiguos(self):
         """La canción parece empezar en dos sitios a menos de 2 s (patrón
         repetido, estrofas): no se puede decidir y no se arriesga."""

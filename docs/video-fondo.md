@@ -71,6 +71,20 @@ degradan sin fallar) y lo cachea con evicción LRU (6 GB). Las rutas del motor:
 El motor solo trabaja para canciones abiertas con el ajuste encendido: coste
 cero en el resto de la app.
 
+## Desfase con la canción
+
+Un videoclip que dura más que la canción (intro, outro, créditos) no puede ir a
+la par: el fondo se vería desfasado toda la canción. `desfase.py` busca la
+canción dentro del audio del vídeo comparando la sonoridad de las dos pistas
+(envolventes RMS de 100 ms) y devuelve la posición en la que encaja; es lo que
+la pantalla adelanta el vídeo. Si la comparación no da un resultado claro
+(correlación baja o dos posiciones que puntúan casi igual), el vídeo se descarta
+y queda la portada.
+
+Un segundo pico *vecino* con la correlación claramente más baja no es un empate:
+es la misma música con el máster del vídeo. Manda el pico bueno; lo que decide
+es la diferencia de correlación (`_MARGEN_CORR`), no la distancia entre picos.
+
 ## Calidad
 
 YouTube firma los formatos de más de 360p (`n-sig`): sin descifrar la firma,

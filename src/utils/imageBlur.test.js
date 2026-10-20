@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { preblurToDataUrl } from "./imageBlur";
+import { preblurToDataUrl, preblurUrlToDataUrl } from "./imageBlur";
 import tauriConf from "../../src-tauri/tauri.conf.json";
 
 describe("CSP de producción — cadena del pre-difuminado de Letras", () => {
@@ -147,5 +147,74 @@ describe("preblurToDataUrl", () => {
 
     expect(url).toBe("data:image/webp;base64,x");
     expect(toDataURL).toHaveBeenCalledWith("image/webp", 0.9);
+  });
+});
+
+describe("preblurUrlToDataUrl — descarga por blob (nunca contamina el canvas)", () => {
+  // Regresión real (2026-10-19, app instalada): el pre-difuminado se pedía con
+  // un `<img crossOrigin>` al proxy de miniaturas. Si el proxy fallaba UNA vez
+  // (5xx/red), el respaldo cargaba la URL directa del CDN sin CORS: el canvas
+  // quedaba contaminado, `bgBlurUrl` vacío y la capa de fondo se quedaba con
+  // el `filter: blur(12px)` de respaldo re-ejecutándose en cada repintado
+  // (70% de iGPU con el vídeo apagado frente a 36% con él). El blob de fetch
+  // es del mismo origen, así que el canvas siempre se puede leer.
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("resuelve null sin URL o si la descarga falla", async () => {
+    expect(await preblurUrlToDataUrl("")).toBeNull();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 502 })),
+    );
+    expect(await preblurUrlToDataUrl("http://127.0.0.1:8765/x")).toBeNull();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+    expect(await preblurUrlToDataUrl("http://127.0.0.1:8765/x")).toBeNull();
+  });
+
+  it("descarta respuestas que no son imagen", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        blob: async () => new Blob(["<html></html>"], { type: "text/html" }),
+      })),
+    );
+    expect(await preblurUrlToDataUrl("http://127.0.0.1:8765/x")).toBeNull();
+  });
+
+  it("difumina el bitmap y lo cierra", async () => {
+    const bitmap = { width: 640, height: 360, close: vi.fn() };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        blob: async () => new Blob(["jpg"], { type: "image/jpeg" }),
+      })),
+    );
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => bitmap),
+    );
+    const ctx = { filter: "", drawImage: vi.fn(), imageSmoothingQuality: "" };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctx);
+    vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue("data:image/webp;base64,x");
+
+    const url = await preblurUrlToDataUrl("http://127.0.0.1:8765/thumbnail-proxy?url=x");
+
+    expect(url).toBe("data:image/webp;base64,x");
+    // jsdom: innerWidth=1024 → ancho 960 y alto 540
+    expect(ctx.drawImage).toHaveBeenCalledWith(bitmap, 0, 0, 960, 540);
+    expect(ctx.filter).toContain("blur(");
+    expect(bitmap.close).toHaveBeenCalled();
   });
 });

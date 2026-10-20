@@ -32,7 +32,7 @@ import {
   planVideoSync,
   videoFileUrl,
 } from "../utils/lyricsVideo";
-import { preblurToDataUrl } from "../utils/imageBlur";
+import { preblurUrlToDataUrl } from "../utils/imageBlur";
 import { codeFromReason } from "../utils/errorCodes";
 import { StatusState } from "./StatusState";
 import { useSettings } from "../contexts/useSettings";
@@ -2306,7 +2306,7 @@ export function LyricsView({
     let cancelled = false;
     const proxyUrl = `${api.base}/thumbnail-proxy?url=${encodeURIComponent(bgThumb)}`;
 
-    const succeed = (url, img) => {
+    const succeed = (url) => {
       if (cancelled) return;
       setBgSrc(url);
       setBgLoaded(true);
@@ -2322,8 +2322,20 @@ export function LyricsView({
         // convertToBlob FUERA del hilo principal (la codificación es el 99%
         // del coste: medido 147 ms síncronos a 1280² → hueco máximo de 18 ms
         // con convertToBlob → sin longtask en la apertura de Letras).
-        const blurred = await preblurToDataUrl(img);
-        if (!cancelled && blurred) setBgBlurUrl(blurred);
+        // Se descarga por fetch (blob → bitmap): un `<img crossOrigin>` del
+        // proxy falla si el proxy falla una vez y entonces el respaldo directo
+        // deja el canvas contaminado → la capa se quedaba con el `filter:
+        // blur(12px)` de respaldo en cada repintado (70% de iGPU medido).
+        // El blob es del mismo origen y nunca contamina.
+        for (const url of [proxyUrl, bgThumb]) {
+          if (cancelled) return;
+          const blurred = await preblurUrlToDataUrl(url);
+          if (cancelled) return;
+          if (blurred) {
+            setBgBlurUrl(blurred);
+            return;
+          }
+        }
       };
       if (typeof window.requestIdleCallback === "function") {
         window.requestIdleCallback(run, { timeout: 1500 });
@@ -2335,16 +2347,16 @@ export function LyricsView({
       if (!cancelled) setBgLoaded(true);
     };
 
-    // Try proxy first (should be pre-cached from usePlayer)
+    // Primer paint: la imagen en sí. Da igual que venga del proxy o del CDN
+    // (pintar no necesita CORS); el difuminado ya no depende de esta carga.
     const imgProxy = new Image();
     imgProxy.crossOrigin = "anonymous";
-    imgProxy.onload = () => succeed(proxyUrl, imgProxy);
+    imgProxy.onload = () => succeed(proxyUrl);
     imgProxy.onerror = () => {
       if (cancelled) return;
-      // Fallback: try direct URL (sin crossOrigin: si el canvas queda
-      // contaminado, succeed() deja bgBlurUrl vacío y manda el filtro CSS)
+      // Respaldo directo: pinta igual (el canvas del pre-blur va por blob).
       const imgDirect = new Image();
-      imgDirect.onload = () => succeed(bgThumb, imgDirect);
+      imgDirect.onload = () => succeed(bgThumb);
       imgDirect.onerror = fail;
       imgDirect.src = bgThumb;
     };

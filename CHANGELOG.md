@@ -6,6 +6,21 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **El fondo de Letras se quedaba con el desenfoque en vivo y por eso gastaba
+  más con el vídeo apagado que con él.** El pre-difuminado se pedía con una
+  `<img crossOrigin>` al proxy de miniaturas: si esa carga fallaba una sola vez,
+  el respaldo usaba la URL directa del CDN —que pinta igual— pero sin CORS, así
+  que el canvas quedaba contaminado, el pre-difuminado se descartaba y la capa
+  se quedaba **para siempre** con el `filter: blur(12px) saturate(1.2)
+  brightness(0.7)` de respaldo sobre toda la pantalla. Ese filtro se re-ejecuta
+  en cada repintado de la letra (comprobado en la app instalada: el fondo seguía
+  con el filtro y la imagen remota, no con la textura pre-difuminada). Ahora la
+  imagen se descarga con `fetch` y se difumina desde el **blob** —mismo origen,
+  nunca contamina—, probando primero el proxy y luego la URL directa; cuando
+  llega la textura pre-difuminada, el filtro desaparece de la capa.
+
 ### Added
 
 - **Los vídeos de fondo se pueden borrar desde Ajustes → Almacenamiento.** La

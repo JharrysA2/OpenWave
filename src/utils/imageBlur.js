@@ -60,8 +60,9 @@ function blobToDataUrl(blob) {
 
 export async function preblurToDataUrl(img, opts = {}) {
   try {
-    const nw = img?.naturalWidth || 0;
-    const nh = img?.naturalHeight || 0;
+    // vale una <img> (naturalWidth) o un ImageBitmap (width)
+    const nw = img?.naturalWidth || img?.width || 0;
+    const nh = img?.naturalHeight || img?.height || 0;
     if (!nw || !nh) return null;
 
     const viewportW = opts.viewportWidth ?? (window.innerWidth || 1920);
@@ -112,6 +113,59 @@ export async function preblurToDataUrl(img, opts = {}) {
     return fallback?.startsWith("data:image/jpeg") ? fallback : null;
   } catch {
     // toDataURL lanza si el canvas está contaminado (imagen cross-origin sin CORS)
+    return null;
+  }
+}
+
+/** Carga una URL como <img> (para el respaldo sin createImageBitmap). */
+function loadImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+/**
+ * Pre-difumina una imagen descargada por `fetch` y devuelve su data URL.
+ *
+ * Existe porque el camino de `<img crossOrigin>` no es fiable: si el proxy de
+ * miniaturas falla una sola vez (red, 5xx, proxy ocupado), el fondo cae al
+ * `<img>` directo del CDN —que sí pinta— y ese canvas queda **contaminado**,
+ * así que `toDataURL`/`convertToBlob` lanzan y la capa se queda PARA SIEMPRE
+ * con el `filter: blur(12px)` de respaldo re-ejecutándose en cada repintado.
+ * Un blob descargado con fetch es del mismo origen: nunca contamina.
+ *
+ * Resuelve a null si la descarga falla, el tipo no es una imagen o el motor
+ * no puede decodificarla; el llamante decide el respaldo.
+ */
+export async function preblurUrlToDataUrl(url, opts = {}) {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, { mode: "cors", credentials: "omit" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (!blob || !blob.size) return null;
+    if (typeof blob.type === "string" && blob.type && !blob.type.startsWith("image/")) {
+      return null;
+    }
+    if (typeof createImageBitmap === "function") {
+      const bmp = await createImageBitmap(blob);
+      try {
+        return await preblurToDataUrl(bmp, opts);
+      } finally {
+        bmp.close?.();
+      }
+    }
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      const img = await loadImage(objectUrl);
+      return img ? await preblurToDataUrl(img, opts) : null;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  } catch {
     return null;
   }
 }

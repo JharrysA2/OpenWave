@@ -871,24 +871,35 @@ infinito.
 ciclo (el reloj es el `<audio>`); la rotación (`sw-bg-spin`) está **apagada** en
 su configuración (`lyricsRotateBg: false`, leído de su `localStorage`) y el
 pre-difuminado corre **una vez por canción** (`useEffect` con deps
-`[open, bgThumb]`, sin realimentación). Tampoco hay `filter` vivo sobre el
-fondo: el canvas se genera y, si fallara, el `blur(12px)` de respaldo ya estaba
-medido como irrelevante (§9.1).
+`[open, bgThumb]`, sin realimentación).
 
-**Mecanismo (por qué el vídeo sale más barato).** Con el clip encendido el
-fondo de Letras es un **`<video>`**: un elemento que Chromium promueve a **capa
-propia** del compositor, así que el repintado de una palabra del karaoke toca
-solo la capa del texto. Con el clip apagado, en su lugar está la **portada
-pre-difuminada + el velo**, dos `div` de pantalla completa que se rasterizan
-**dentro de la capa raíz**: cada palabra iluminada (color + `font-weight`, ~9
-fotogramas por palabra) obliga a rehacer la textura completa a 1080p —
-exactamente el coste que en §9.1 se atribuyó al «blur de fondo» y que aquí no
-es el desenfoque, sino el **re-rasterizado de la capa**.
+**Causa real (inspección del DOM de la app instalada, sin medir GPU).** Con el
+vídeo apagado, la capa de fondo tenía
+
+```
+filter: blur(12px) saturate(1.2) brightness(0.7)     ← filtro EN VIVO
+background-image: url("https://yt3.googleusercontent.com/…")  ← imagen remota
+```
+
+es decir, **el respaldo**, no la textura pre-difuminada. La cadena del
+pre-difuminado fallaba en silencio: pedía la imagen con una
+`<img crossOrigin="anonymous">` al `/thumbnail-proxy`; si esa carga falla una
+vez (el proxy devolvió un 5xx en esa sesión), el respaldo carga la URL directa
+del CDN **sin CORS** → el canvas queda **contaminado** → `convertToBlob`/
+`toDataURL` lanzan → `bgBlurUrl` vacío → la capa se queda **para siempre** con el
+filtro CSS, que se re-ejecuta en cada repintado de la palabra del karaoke sobre
+toda la pantalla (0,76 Mpx a 1100×688; 2,07 Mpx maximizada). Eso explica el
+70% con el vídeo apagado: el `<video>` no lleva filtro, el fondo sí.
 
 **Implementado (invisible):**
 
+- **Pre-difuminado desde un blob de `fetch`** (`preblurUrlToDataUrl` en
+  `utils/imageBlur.js`): el blob es del mismo origen, así que el canvas **nunca**
+  queda contaminado; se intenta primero el proxy y después la URL directa. Al
+  llegar la textura, la capa pierde el `filter` (queda solo la imagen difuminada
+  del canvas, que es el flujo diseñado en §9).
 - **Capa propia para el fondo y para el velo** (`will-change: transform`).
-  Nunca `will-change: filter`: aquel re-ejecutaba el desenfoque en cada
+  Nunca `will-change: filter`: aquel re-ejecutaría el desenfoque en cada
   repintado. Es la diferencia con el `will-change` descartado en §9.2, que se
   probó sobre la capa **en rotación** y con la ventana ocluida (firma de
   oclusión 0–3,7%), no sobre capas estáticas.
@@ -897,11 +908,13 @@ es el desenfoque, sino el **re-rasterizado de la capa**.
   `inset: 0` deja el mismo recorte `cover` (la textura va difuminada) y quita
   **21% de píxeles** a la superficie más grande de la vista.
 
-**Verificación.** `vitest` (`will-change: transform` en la capa y el velo; cero
-`filter` en el fondo). La cifra la vuelve a medir el usuario: si el consumo con
-vídeo apagado no baja hasta el del vídeo, el siguiente paso es fundir el velo
-**dentro** de la capa del fondo (una sola capa de pantalla completa en vez de
-dos), que ya cambia estructura pero no aspecto.
+**Verificación.** `vitest` (`preblurUrlToDataUrl`: descarga fallida, respuesta
+que no es imagen, bitmap cerrado; capa y velo con `will-change: transform`; cero
+`filter` en el fondo) y comprobación en la app instalada: la capa debe quedar con
+`filter: none` y `background-image: url("data:image/webp;…")`. La cifra la vuelve
+a medir el usuario; si aún no baja al nivel del vídeo, el siguiente paso es
+fundir el velo **dentro** de la capa del fondo (una sola capa de pantalla
+completa en vez de dos), que cambia estructura pero no aspecto.
 
 
 ## 10. Task Manager: un solo grupo «OpenWave» (paquete sparse de identidad, plan C)

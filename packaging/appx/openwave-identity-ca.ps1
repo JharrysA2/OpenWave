@@ -17,11 +17,22 @@
   el detalle queda en openwave-identity.log (y en TEMP si el INSTALLDIR ya
   no existe, como al desinstalar).
 
-  -Mode Register   : importa la confianza del certificado (por usuario,
-                     CurrentUser\TrustedPeople; sin ella Add-AppxPackage da
-                     0x800B0109) y registra el paquete con
-                     Remove-Add (idempotente y actualiza la ExternalLocation;
-                     con la misma version sin remover daria 0x80073CF9).
+  -Mode Register   : importa la confianza del certificado y registra el
+                     paquete con Remove-Add (idempotente y actualiza la
+                     ExternalLocation; con la misma version sin remover daria
+                     0x80073CF9).
+                     La confianza se importa en DOS almacenes:
+                       - CurrentUser\TrustedPeople (no requiere elevacion).
+                       - LocalMachine\TrustedPeople (con elevacion), que es el
+                         que Add-AppxPackage exige de verdad para validar la
+                         firma (2026-10-19: con el cert solo en CurrentUser el
+                         alta fallo con 0x800B0109 y el paquete quedo fuera).
+                     Cada build renueva el certificado autofirmado (CN=
+                     OpenWave), asi que la confianza se comprueba POR
+                     THUMBPRINT y no por presencia de un cert del mismo
+                     subject: si no esta el de esta build, se importa. Si el
+                     alta vuelve a fallar con 0x800B0109 se re-importa y se
+                     reintenta una vez.
   -Mode Unregister : quita el paquete (desinstalacion normal; el MSI no lo
                      invoca en upgrades via NOT UPGRADINGPRODUCTCODE).
 
@@ -55,6 +66,24 @@ function Log([string]$msg) {
     }
 }
 
+# Importa el certificado de la build en un almacen y comprueba que quedo por
+# thumbprint (si ya estaba el de OTRA build con el mismo subject, Import no
+# cambia nada y hay que saberlo). Devuelve $true si quedo presente.
+function ImportaConfianza([string]$store, [string]$cerPath, [string]$thumb) {
+    try {
+        Import-Certificate -FilePath $cerPath -CertStoreLocation $store -ErrorAction Stop | Out-Null
+    } catch { }
+    $presente = Get-ChildItem $store -ErrorAction SilentlyContinue |
+        Where-Object { $_.Thumbprint -eq $thumb }
+    return [bool]$presente
+}
+
+function EsElevado {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    return (New-Object Security.Principal.WindowsPrincipal($id)).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
 try {
     Log ('start dir=' + $scriptDir)
     if ($Mode -eq 'Register') {
@@ -62,27 +91,59 @@ try {
         $msix = Join-Path $scriptDir 'openwave-identity.msix'
         if (-not (Test-Path -LiteralPath $msix)) { throw ('falta el paquete: ' + $msix) }
 
+        # Thumbprint del cert de ESTA build (cada build renueva el certificado).
+        $thumb = ''
         try {
-            Import-Certificate -FilePath $cer -CertStoreLocation Cert:\CurrentUser\TrustedPeople -ErrorAction SilentlyContinue | Out-Null
-            Log 'cert: confianza presente en CurrentUser\TrustedPeople'
-        } catch { Log ('cert: ERR ' + $_.Exception.Message) }
+            $thumb = (Get-PfxCertificate -FilePath $cer).Thumbprint
+        } catch { Log ('cert: ERR leyendo thumbprint ' + $_.Exception.Message) }
+        Log ('cert: thumbprint=' + $thumb)
+
+        $okUser = ImportaConfianza 'Cert:\CurrentUser\TrustedPeople' $cer $thumb
+        Log ('cert: CurrentUser\TrustedPeople ' + $(if ($okUser) { 'presente' } else { 'NO quedo' }))
+
+        $okMachine = $false
+        if (EsElevado) {
+            $okMachine = ImportaConfianza 'Cert:\LocalMachine\TrustedPeople' $cer $thumb
+            Log ('cert: LocalMachine\TrustedPeople ' + $(if ($okMachine) { 'presente' } else { 'NO quedo' }))
+        } else {
+            Log 'cert: sin elevacion: LocalMachine\TrustedPeople no se toca'
+        }
 
         try {
             Get-AppxPackage -Name OpenWave | Remove-AppxPackage -ErrorAction Stop
             Log 'remove: ok (o paquete previo inexistente)'
         } catch { Log ('remove: ' + $_.Exception.Message) }
 
-        try {
-            # ExternalLocation = esta misma carpeta (el <msix> del exe exige
-            # que el payload este donde se ejecuta). SIN barra final: con
-            # ($scriptDir + '\') el boton de la barra de tareas no pinta el
-            # icono del paquete (renderiza un punto/cuadrado diminuto) aunque
-            # el registro del paquete quede IDENTICO y la extraccion via
-            # IShellItemImageFactory devuelva la onda morada; sin la barra si
-            # pinta. Verificado en vivo con las tres parejas 2026-10-05.
-            Add-AppxPackage -Path $msix -ExternalLocation $scriptDir -ErrorAction Stop
-            Log 'add: ok'
-        } catch { Log ('add: ERR ' + $_.Exception.Message); exit 1 }
+        for ($intento = 1; $intento -le 2; $intento++) {
+            try {
+                # ExternalLocation = esta misma carpeta (el <msix> del exe exige
+                # que el payload este donde se ejecuta). SIN barra final: con
+                # ($scriptDir + '\') el boton de la barra de tareas no pinta el
+                # icono del paquete (renderiza un punto/cuadrado diminuto) aunque
+                # el registro del paquete quede IDENTICO y la extraccion via
+                # IShellItemImageFactory devuelva la onda morada; sin la barra si
+                # pinta. Verificado en vivo con las tres parejas 2026-10-05.
+                Add-AppxPackage -Path $msix -ExternalLocation $scriptDir -ErrorAction Stop
+                Log 'add: ok'
+                break
+            } catch {
+                $err = $_.Exception.Message
+                Log ('add intento ' + $intento + ': ERR ' + $err)
+                if ($intento -eq 1 -and $err -like '*0x800B0109*') {
+                    # Confianza rechazada: re-importar (y, con elevacion, en
+                    # LocalMachine, donde la validacion mira de verdad) y
+                    # repetir el alta una sola vez.
+                    $okUser = ImportaConfianza 'Cert:\CurrentUser\TrustedPeople' $cer $thumb
+                    Log ('cert: reimport CurrentUser ' + $(if ($okUser) { 'presente' } else { 'NO quedo' }))
+                    if (EsElevado) {
+                        $okMachine = ImportaConfianza 'Cert:\LocalMachine\TrustedPeople' $cer $thumb
+                        Log ('cert: reimport LocalMachine ' + $(if ($okMachine) { 'presente' } else { 'NO quedo' }))
+                    }
+                    continue
+                }
+                exit 1
+            }
+        }
 
         Log 'done'
         exit 0

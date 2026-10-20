@@ -294,6 +294,15 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 
 ### Fixed
 
+- **La identidad del paquete (Task Manager en un grupo) ya no se pierde al
+  instalar un MSI construido en CI.** El certificado de una build de CI es
+  nuevo en cada build y la SAC solo lo importaba como de confianza en el
+  almacén por usuario, mientras que `Add-AppxPackage` valida la firma contra
+  el almacén del equipo: el alta fallaba con `0x800B0109` después de quitar
+  el paquete previo y la app quedaba agrupada como «Administrador de
+  WebView2». Ahora la SAC importa la confianza por thumbprint también en el
+  almacén del equipo (con reintento si el alta vuelve a rechazar la firma) y
+  `install-msi.ps1` repara en caliente si el paquete quedó sin registrar.
 - **Instalar con `install-msi.ps1 -Launch` ya no puede dejar dos OpenWave
   abiertos.** La instalación usa `msiexec /qb` y el MSI puede autolanzar la app
   al registrar la identidad (acción AUTOLAUNCHAPP), así que el `-Launch` añadía

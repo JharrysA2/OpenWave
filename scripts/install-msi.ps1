@@ -76,6 +76,47 @@ if ($p.ExitCode -ne 0) { throw "msiexec ha fallado (codigo $($p.ExitCode))." }
 $installedVersion = (Get-Item -LiteralPath $exe).VersionInfo.FileVersion
 Write-Host "Instalado. Version en disco: $installedVersion"
 
+# ── 3b. Identidad: auto-reparacion ───────────────────────────────────────────
+# El registro del paquete sparse lo hace la SAC del MSI (RegisterIdentity con
+# Return=ignore), pero puede no llegar a producirse: la SAC corre elevada y si
+# falla lo deja en su log (openwave-identity.log), que es donde se vio el caso
+# del 2026-10-19 (remove ok, add con 0x800B0109: el cert de la build no estaba
+# de confianza en LocalMachine\TrustedPeople, unico almacen que Add-AppxPackage
+# valida de verdad). Si la app queda sin identidad funciona igual, pero Task
+# Manager la separa en "Administrador de WebView2". Aqui se repara en caliente:
+# importar la confianza del cert instalado y re-registrar el paquete.
+$pkg = Get-AppxPackage -Name OpenWave -ErrorAction SilentlyContinue
+if (-not $pkg) {
+    Write-Host 'Identidad sin registrar: reparando (confianza + registro)...'
+    $cer = Join-Path $appDir 'openwave-identity.cer'
+    $ca  = Join-Path $appDir 'openwave-identity-ca.ps1'
+    try {
+        $thumb = (Get-PfxCertificate -FilePath $cer).Thumbprint
+        Import-Certificate -FilePath $cer -CertStoreLocation Cert:\CurrentUser\TrustedPeople -ErrorAction SilentlyContinue | Out-Null
+        # LocalMachine exige elevacion: el msiexec de arriba ya paso UAC, asi
+        # que se eleva una sola vez para el import; sin ella Add-AppxPackage
+        # rechaza la firma (0x800B0109) y Task Manager separa la app.
+        Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @(
+            '-NoProfile', '-NonInteractive', '-Command',
+            "Import-Certificate -FilePath '$cer' -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null"
+        ) | Out-Null
+        $trusted = @(Get-ChildItem 'Cert:\LocalMachine\TrustedPeople' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Thumbprint -eq $thumb })
+        Write-Host ("  confianza thumbprint {0}: LocalMachine {1}" -f $thumb, $(if ($trusted) { 'presente' } else { 'NO quedo' }))
+    } catch {
+        Write-Host ("  import de confianza no completado: " + $_.Exception.Message)
+    }
+    if (Test-Path -LiteralPath $ca) {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -NonInteractive -File $ca -Mode Register
+        $pkg = Get-AppxPackage -Name OpenWave -ErrorAction SilentlyContinue
+    }
+    if ($pkg) {
+        Write-Host ("  identidad registrada: " + $pkg.PackageFamilyName)
+    } else {
+        Write-Host '  AVISO: la identidad sigue sin registrar; la app funciona pero Task Manager la agrupara como WebView2.'
+    }
+}
+
 # ── 4. (Opcional) Arrancar y verificar ───────────────────────────────────────
 if (-not $Launch) {
     Write-Host 'Listo. (usa -Launch para arrancar y verificar)'

@@ -1257,6 +1257,44 @@ gate → instalación → medición):
   re-registrar el paquete y el lanzamiento puede perder la carrera — dejar
   que el usuario relance o pasar `AUTOLAUNCHAPP=1`.
 
+**Incidente 2026-10-20: identidad perdida con el MSI construido en CI.**
+Síntoma: Task Manager volvió a separar a los 6 hijos WV2 en «Administrador de
+WebView2» y `Get-AppxPackage OpenWave` daba vacío. Causa (log
+`openwave-identity.log` en `%TEMP%`, entrada de la SAC del 19 a las 21:43, que
+SÍ corrió): **el certificado de una build de CI es nuevo en cada build** — el
+runner no tiene almacén persistente, a diferencia de la copia Windows, que
+reutiliza el mismo cert mientras no caduque (por eso las builds locales del
+2026-10-05 al 15 no lo sufrieron: su cert, `C49B…`, ya estaba de confianza en
+`LocalMachine\TrustedPeople` desde el diagnóstico inicial). La SAC antigua
+importaba la confianza solo en `CurrentUser\TrustedPeople` y firmaba
+«confianza presente» sin comprobar nada; `Add-AppxPackage`, en cambio, valida
+la firma contra `LocalMachine\TrustedPeople` → el alta falló con `0x800B0109`
+*después* de que el `Remove-AppxPackage` previo quitara el paquete: desregistrado
+in place, sin identidad desde entonces (la app funciona igual; solo cambia el
+agrupado del Task Manager y el AUMID).
+
+Arreglo (2026-10-20):
+
+- `packaging/appx/openwave-identity-ca.ps1`: confianza por **thumbprint** del
+  cert de ESTA build (no por subject, que enmascara la rotación), importada en
+  `CurrentUser\TrustedPeople` y — si corre elevada, que es como corre dentro
+  del MSI — también en `LocalMachine\TrustedPeople`; si el alta vuelve a
+  fallar con `0x800B0109`, reimporta y reintenta el alta una vez. Sin acentos
+  en el fichero a propósito (PowerShell 5.1 lo lee como ANSI sin BOM).
+- `scripts/install-msi.ps1`: auto-reparación tras instalar — si
+  `Get-AppxPackage` no ve el paquete, importa la confianza (con un UAC
+  dedicado para el almacén de equipo) y relanza `-Mode Register` de la SAC
+  instalada.
+- Reparación en vivo de la máquina: import del cert de la build (`9DA5…`) en
+  `LocalMachine\TrustedPeople` + `Register` de la SAC instalada → paquete
+  `OpenWave_pr6hx30mntjwm v1.1.1.0` registrado y los 7 procesos (exe + 6 WV2)
+  dentro del paquete (sonda `GetPackageFamilyName`, `hr=0`; Task Manager otra
+  vez con el grupo único «OpenWave (7)»).
+- El MSI v1.1.1 publicado lleva la SAC antigua (import solo por usuario):
+  reinstalado a mano puede volver a perder la identidad; vía `install-msi.ps1`
+  queda reparado por la auto-reparación. El arreglo viaja en la próxima build
+  (empaquetado: no sube versión).
+
 ## Regla de oro
 
 Todo estilo con impacto potencial en GPU/CPU (backdrop-filter nuevo,

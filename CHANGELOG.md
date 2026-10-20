@@ -39,7 +39,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   estrena el logo de la app junto al nombre, con «Wave» en el acento de la
   canción. Sigue sin `backdrop-filter`: no hay movimiento detrás, así que
   difuminar sería coste invisible; el hover y el cierre en rojo son fondo y
-  color, nada que componga por fotograma.
+  color, nada que componga por fotograma. **Nota:** a petición final del
+  usuario el minilogo se retiró de la marca (queda el nombre bicolor).
 - **El fondo de Letras deja de gastar por fotograma.** Con el vídeo de fondo
   apagado, la portada difuminada y el velo se pintaban en la misma capa que la
   letra y, además, la portada llevaba el desenfoque en vivo: cada palabra del

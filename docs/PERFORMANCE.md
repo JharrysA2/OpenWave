@@ -850,11 +850,59 @@ sesión de YouTube sirve unas veces la lista completa y otras una recortada.
 | El reintento por tope borraba el clip **antes** de descargar: si la descarga fallaba, la canción se quedaba sin vídeo | el clip en disco solo se reemplaza cuando la descarga nueva lo **mejora**; si falla, se conserva y la pantalla sigue con él |
 | El clip se pintaba con `object-fit: cover` (recortaba los bordes) | `object-fit: contain` + fondo negro: se ve entero y centrado, con franjas negras si el aspecto no cuadra con la ventana (pedido explícito) |
 
+> **Revisado después (misma fecha):** el usuario pidió lo contrario —que el
+> clip **llene** el área de letras— y el encuadre volvió a `cover` con caja
+> explícita (§9.6). El `contain` dejó franjas y ya no es el estado de la app.
+
 - **Verificación.** `pytest test_video_fondo.py` (conserva el clip si falla la
   redescarga; publica el mejor intento) y `vitest` (`objectFit: contain`).
 - **Nota.** Con la sesión degradada el clip puede quedarse en 360p: la escalera
   prueba los demás clientes y el reintento de las 2 h vuelve a intentarlo. La
   vía fiable para pasar de 1080p sigue siendo `cookies.txt`.
+
+### 9.6 Ronda 7 (2026-10-19): con el vídeo APAGADO la GPU sube más que con el vídeo
+
+**Reporte del usuario** (medido por él): en Letras, **sin** vídeo de fondo la
+iGPU sube por encima del **60%**; **con** el videoclip de la canción se queda en
+**≤36%**. La pregunta era si hay algún `filter`/blur superpuesto o un bucle
+infinito.
+
+**No hay bucle.** Los únicos `requestAnimationFrame` se retiraron en este mismo
+ciclo (el reloj es el `<audio>`); la rotación (`sw-bg-spin`) está **apagada** en
+su configuración (`lyricsRotateBg: false`, leído de su `localStorage`) y el
+pre-difuminado corre **una vez por canción** (`useEffect` con deps
+`[open, bgThumb]`, sin realimentación). Tampoco hay `filter` vivo sobre el
+fondo: el canvas se genera y, si fallara, el `blur(12px)` de respaldo ya estaba
+medido como irrelevante (§9.1).
+
+**Mecanismo (por qué el vídeo sale más barato).** Con el clip encendido el
+fondo de Letras es un **`<video>`**: un elemento que Chromium promueve a **capa
+propia** del compositor, así que el repintado de una palabra del karaoke toca
+solo la capa del texto. Con el clip apagado, en su lugar está la **portada
+pre-difuminada + el velo**, dos `div` de pantalla completa que se rasterizan
+**dentro de la capa raíz**: cada palabra iluminada (color + `font-weight`, ~9
+fotogramas por palabra) obliga a rehacer la textura completa a 1080p —
+exactamente el coste que en §9.1 se atribuyó al «blur de fondo» y que aquí no
+es el desenfoque, sino el **re-rasterizado de la capa**.
+
+**Implementado (invisible):**
+
+- **Capa propia para el fondo y para el velo** (`will-change: transform`).
+  Nunca `will-change: filter`: aquel re-ejecutaba el desenfoque en cada
+  repintado. Es la diferencia con el `will-change` descartado en §9.2, que se
+  probó sobre la capa **en rotación** y con la ventana ocluida (firma de
+  oclusión 0–3,7%), no sobre capas estáticas.
+- **Sin el 110% ni el `scale(1.1)` cuando «Girar el fondo» está apagado.** Ese
+  margen solo existe para que no asome el borde de la capa al rotarla; sin giro,
+  `inset: 0` deja el mismo recorte `cover` (la textura va difuminada) y quita
+  **21% de píxeles** a la superficie más grande de la vista.
+
+**Verificación.** `vitest` (`will-change: transform` en la capa y el velo; cero
+`filter` en el fondo). La cifra la vuelve a medir el usuario: si el consumo con
+vídeo apagado no baja hasta el del vídeo, el siguiente paso es fundir el velo
+**dentro** de la capa del fondo (una sola capa de pantalla completa en vez de
+dos), que ya cambia estructura pero no aspecto.
+
 
 ## 10. Task Manager: un solo grupo «OpenWave» (paquete sparse de identidad, plan C)
 

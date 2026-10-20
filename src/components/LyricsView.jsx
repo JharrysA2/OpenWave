@@ -2658,7 +2658,12 @@ export function LyricsView({
                     // ~5 pts sin tocar la suavidad.
                     animationTimingFunction: "steps(720, jump-none)",
                   }
-                : { inset: "-5%", transform: "scale(1.1)" }),
+                : // Sin giro no hace falta el margen del 110%: ese scale(1.1)
+                  // solo existe para que no asome el borde de la capa al
+                  // rotarla. Quitarlo deja el mismo recorte `cover` (la
+                  // textura va difuminada) y ahorra ~21% de píxeles en la
+                  // superficie más grande de la vista.
+                  { inset: 0 }),
               backgroundImage: bgLoaded && bgLayerSrc ? `url(${bgLayerSrc})` : "none",
               backgroundSize: "cover",
               backgroundPosition: "center",
@@ -2677,6 +2682,12 @@ export function LyricsView({
               opacity: bgLoaded ? 1 : 0,
               transition: "opacity .3s cubic-bezier(.16,1,.3,1)",
               contain: "paint",
+              // Capa PROPIA en el compositor: si el fondo se rasteriza dentro
+              // de la capa raíz, cada palabra del karaoke obliga a repintar la
+              // textura completa a 1080p (justo lo que no pasa con el vídeo,
+              // que ya es una capa aparte). `transform` y no `filter`: aquel
+              // re-ejecutaba el desenfoque en cada repintado.
+              willChange: "transform",
             }}
           />
         )}
@@ -2701,6 +2712,9 @@ export function LyricsView({
               }),
               radial-gradient(ellipse at 30% 40%, ${accentColor}33 0%, transparent 70%)
             `,
+            // Misma razón que el fondo: el velo es estático y de pantalla
+            // completa; promovido no se re-rasteriza con cada palabra.
+            willChange: "transform",
           }}
         />
       </div>

@@ -16,6 +16,26 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Changed
 
+- **La barra superior pasa al material de la app y sus botones llevan iconos
+  dibujados a trazo.** La barra deja el aire de marco de Windows —rectángulos
+  pegados al borde— por el vocabulario del resto de la interfaz: pastillas
+  cuadradas con el radio de la UI, iconos de 1,3 px con extremos redondeados,
+  brillo interior arriba, hairline abajo y una sombra más contenida. La marca
+  estrena el logo de la app junto al nombre, con «Wave» en el acento de la
+  canción. Sigue sin `backdrop-filter`: no hay movimiento detrás, así que
+  difuminar sería coste invisible; el hover y el cierre en rojo son fondo y
+  color, nada que componga por fotograma.
+- **El fondo de Letras deja de re-rasterizarse con cada palabra del karaoke.**
+  Con el vídeo de fondo apagado, la portada difuminada y el velo se pintaban en
+  la misma capa que la letra, así que cada palabra obligaba a rehacer la
+  textura completa a 1080p; con el vídeo encendido eso no pasaba porque el
+  `<video>` ya es una capa aparte del compositor —de ahí que el consumo fuese
+  *mayor* sin vídeo que con él—. Ahora ambos son capas propias
+  (`will-change: transform`, nunca `filter`) y, cuando «Girar el fondo» está
+  apagado, la capa pierde el 110% y el `scale(1.1)` que solo servían para que no
+  asomara el borde al rotarla: mismo recorte «cover» sobre una textura
+  difuminada, 21% menos de píxeles en la superficie más grande de la vista.
+
 - **El vídeo de fondo se descarga con la mejor calidad que dé la sesión, no con
   la primera que aparezca.** La escalera de descarga daba por buena la primera
   descarga que produjera un fichero, aunque YouTube hubiera servido a ese

@@ -854,9 +854,11 @@ describe("LyricsView — contraste dinámico sobre acento", () => {
 });
 
 describe("LyricsView — rendimiento del fondo", () => {
-  it("la capa de fondo no lleva filter CSS ni will-change (pre-difuminado en canvas)", () => {
+  it("la capa de fondo no lleva filter CSS: va pre-difuminada en canvas", () => {
     // La cadena blur+saturate+brightness en CSS costaba ~1.8% GPU en Letras
     // (y will-change: filter lo duplicaba): va pre-difuminada en canvas.
+    // `will-change: transform` sí: promueve la capa para que el karaoke no
+    // la re-rasterice (nunca `filter`, que re-ejecutaría el desenfoque).
     const { container } = render(
       <SettingsProvider>
         <LyricsView {...defaultProps} />
@@ -865,7 +867,7 @@ describe("LyricsView — rendimiento del fondo", () => {
     const bg = container.querySelector('[data-testid="lyrics-bg"]');
     expect(bg).toBeTruthy();
     expect(bg.style.filter).toBe("");
-    expect(bg.style.willChange).toBe("");
+    expect(bg.style.willChange).toBe("transform");
   });
 
   it("«Girar el fondo» usa steps(720) y capa diagonal hypot(): continuo caro y360 se veía en pausas", () => {

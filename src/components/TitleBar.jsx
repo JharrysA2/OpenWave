@@ -1,6 +1,40 @@
 import React from "react";
-import { GLASS, SHADOWS } from "../utils/theme";
+import { Logo } from "./Logo";
 import { winCtrl } from "../utils/windowControls";
+
+/**
+ * Barra de título propia (la ventana no lleva marco nativo).
+ *
+ * Material: el mismo vocabulario que el resto de la app —cristal estático,
+ * brillo interior arriba y una sombra fina de separación—, sin
+ * `backdrop-filter`: no hay movimiento detrás, así que el desenfoque sería
+ * coste invisible. Los tres iconos van dibujados a trazo (1,3 px, extremos
+ * redondeados) en un viewBox de 16 px para que se vean nítidos a cualquier
+ * escala; los botones son pastillas cuadradas con el radio de la UI, no los
+ * rectángulos pegados al borde del marco de Windows.
+ */
+
+const CONTROLS = [
+  {
+    key: "min",
+    title: "Minimizar",
+    onClick: winCtrl.minimize,
+    icon: <path d="M3.4 8.4h9.2" />,
+  },
+  {
+    key: "max",
+    title: "Maximizar",
+    onClick: winCtrl.maximize,
+    icon: <rect x="3.3" y="3.3" width="9.4" height="9.4" rx="2.3" />,
+  },
+  {
+    key: "close",
+    title: "Cerrar",
+    onClick: winCtrl.close,
+    close: true,
+    icon: <path d="M4.7 4.7l6.6 6.6M11.3 4.7l-6.6 6.6" />,
+  },
+];
 
 export function TitleBar() {
   return (
@@ -9,11 +43,11 @@ export function TitleBar() {
       className="app-titlebar"
       style={{
         display: "flex",
-        alignItems: "stretch",
+        alignItems: "center",
         justifyContent: "space-between",
         height: "32px",
         flexShrink: 0,
-        padding: "0 0 0 14px",
+        padding: "0 8px 0 12px",
         userSelect: "none",
         WebkitUserSelect: "none",
         position: "relative",
@@ -22,109 +56,89 @@ export function TitleBar() {
         //    carga (1500000), de modales/hojas (1000000+) y de las letras
         //    (9999). Es la chrome de ventana: min/max/cerrar nunca se tapa.
         zIndex: 2147483100,
-        ...GLASS.titleBar,
-        // Sin línea de contorno: la separación con el contenido es sombra.
-        boxShadow: SHADOWS.sepZone,
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,.075) 0%, rgba(255,255,255,.035) 55%, rgba(255,255,255,.02) 100%)",
+        // Separación por luz y sombra, no por contorno: brillo de 1 px arriba,
+        // hairline oscura abajo y la sombra de zona de siempre, más contenida.
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,.07), " +
+          "inset 0 -1px 0 rgba(0,0,0,.32), " +
+          "0 10px 28px rgba(0,0,0,.30)",
       }}
     >
-      <span
-        style={{
-          fontSize: "12px",
-          fontWeight: "800",
-          color: "rgba(255,255,255,.45)",
-          letterSpacing: ".5px",
-          alignSelf: "center",
-        }}
-      >
-        OpenWave
+      <span style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+        <Logo size={15} testId="titlebar-logo" />
+        <span
+          style={{
+            fontSize: "12px",
+            fontWeight: 700,
+            letterSpacing: ".35px",
+            lineHeight: 1,
+            color: "rgba(255,255,255,.72)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Open
+          <span style={{ color: "color-mix(in srgb, var(--neon) 70%, #fff)" }}>Wave</span>
+        </span>
       </span>
-      <div style={{ display: "flex", alignItems: "stretch" }}>
-        {/* ── Window controls — square, flush, full title-bar height like Windows ── */}
-        {[
-          {
-            onClick: winCtrl.minimize,
-            title: "Minimizar",
-            svg: (
-              <svg width="10" height="10" viewBox="0 0 12 12">
-                <rect x="1" y="9.5" width="10" height="1.5" fill="currentColor" rx="1" />
-              </svg>
-            ),
-          },
-          {
-            onClick: winCtrl.maximize,
-            title: "Maximizar",
-            svg: (
-              <svg width="10" height="10" viewBox="0 0 12 12">
-                <rect
-                  x="2"
-                  y="2.5"
-                  width="8"
-                  height="8"
-                  rx="1.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                />
-              </svg>
-            ),
-          },
-          {
-            onClick: winCtrl.close,
-            title: "Cerrar",
-            svg: (
-              <svg width="10" height="10" viewBox="0 0 12 12">
-                <path
-                  d="M2.5 2.5 L9.5 9.5 M9.5 2.5 L2.5 9.5"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
-            ),
-            close: true,
-          },
-        ].map(({ onClick, title, svg, close }) => (
+
+      <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+        {CONTROLS.map(({ key, title, onClick, icon, close }) => (
           <button
-            key={title}
+            key={key}
             onClick={onClick}
             title={title}
+            aria-label={title}
             style={{
-              width: "46px",
-              minWidth: "46px",
-              height: "100%",
+              width: "32px",
+              height: "26px",
+              padding: 0,
               background: "transparent",
               border: "none",
-              color: "rgba(255,255,255,.45)",
+              borderRadius: "8px",
+              color: "rgba(255,255,255,.5)",
               cursor: "pointer",
-              borderRadius: "0",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               transition:
-                "background .1s cubic-bezier(.16,1,.3,1), color .1s cubic-bezier(.16,1,.3,1)",
+                "background .12s cubic-bezier(.16,1,.3,1), color .12s cubic-bezier(.16,1,.3,1)",
               flexShrink: 0,
             }}
             onMouseDown={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,.06)";
+              e.currentTarget.style.background = close ? "#c93c41" : "rgba(255,255,255,.16)";
             }}
             onMouseUp={(e) => {
-              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.background = close ? "#e5484d" : "rgba(255,255,255,.10)";
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = close
-                ? "rgba(239,68,68,.85)"
-                : "rgba(255,255,255,.14)";
-              e.currentTarget.style.color = close ? "#fff" : "rgba(255,255,255,.9)";
+              e.currentTarget.style.background = close ? "#e5484d" : "rgba(255,255,255,.10)";
+              e.currentTarget.style.color = "#fff";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "rgba(255,255,255,.45)";
+              e.currentTarget.style.color = "rgba(255,255,255,.5)";
             }}
           >
-            {svg}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              {icon}
+            </svg>
           </button>
         ))}
       </div>
     </div>
   );
 }
+
+export default TitleBar;

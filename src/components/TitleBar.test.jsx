@@ -21,8 +21,7 @@ describe("TitleBar", () => {
     expect(bar).toHaveAttribute("data-tauri-drag-region");
     expect(bar).toHaveClass("app-titlebar");
     expect(bar).toHaveTextContent("OpenWave");
-    // Sin minilogo en la marca (se retiró a petición del usuario): la barra
-    // firma con el texto bicolor, no con el icono de la app.
+    // La marca es el nombre bicolor: la barra no lleva el icono de la app.
     expect(screen.queryByTestId("titlebar-logo")).not.toBeInTheDocument();
   });
 

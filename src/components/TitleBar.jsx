@@ -66,8 +66,6 @@ export function TitleBar() {
       }}
     >
       <span style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
-        {/* Sin minilogo a petición del usuario: la barra firma solo con el
-            nombre bicolor, a la izquierda y dentro de la zona de arrastre. */}
         <span
           style={{
             fontSize: "12px",

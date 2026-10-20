@@ -466,6 +466,32 @@ describe("LyricsView", () => {
     expect(lit).toBeTruthy();
     expect(lit.style.textShadow).toContain("16px");
     expect(lit.style.textShadow).not.toContain("32px");
+    // Un solo escalón de peso: DM Sans se declara 400–700, así que el 900 de
+    // la palabra activa se recortaba a 700 (glifos idénticos) pero su
+    // interpolación 700↔900 seguía marcando la línea como sucia al apagarse
+    // la palabra anterior. Ningún span pide 900 ya.
+    spans.forEach((s) => expect(s.style.fontWeight).not.toBe("900"));
+  });
+
+  it("el scroller de letras es capa propia para el glide del auto-scroll", async () => {
+    // `scrollIntoView` suave al cambiar de línea medía ~9 pts por pico sin
+    // capa: cada fotograma del desplazamiento re-rasterizaba el texto que se
+    // movía. `will-change: scroll-position` deja que el compositor desplace
+    // la capa ya rasterizada (mismo aspecto, sin repintar durante el glide).
+    const lrcLines = ["[00:01.00]Hello beautiful world"];
+    mockApiGet.mockImplementation((path) => {
+      if (path.startsWith("/lyrics/")) {
+        return Promise.resolve({ lyrics: lrcLines, source: "lrcLib" });
+      }
+      if (path.startsWith("/queue/")) {
+        return Promise.resolve({ tracks: [] });
+      }
+      return Promise.resolve({});
+    });
+    renderLyrics({ progressRef: { current: 1.5 } });
+    await screen.findByTestId("lyric-line-0");
+    const scroller = screen.getByTestId("lyrics-scroll");
+    expect(scroller.style.willChange).toBe("scroll-position");
   });
 
   it("el zoom de la línea activa se acorta (no se escalona) y el lente cuantiza el tamaño", async () => {
@@ -854,11 +880,14 @@ describe("LyricsView — contraste dinámico sobre acento", () => {
 });
 
 describe("LyricsView — rendimiento del fondo", () => {
-  it("la capa de fondo no lleva filter CSS: va pre-difuminada en canvas", () => {
-    // La cadena blur+saturate+brightness en CSS costaba ~1.8% GPU en Letras
-    // (y will-change: filter lo duplicaba): va pre-difuminada en canvas.
-    // `will-change: transform` sí: promueve la capa para que el karaoke no
-    // la re-rasterice (nunca `filter`, que re-ejecutaría el desenfoque).
+  it("la capa de fondo no lleva filter CSS ni capa propia en el compositor", () => {
+    // 1) Sin `filter`: la cadena blur+saturate+brightness en vivo se
+    //    re-ejecutaba en cada repintado (la causa del 70% con el vídeo
+    //    apagado, §9.6). Va pre-difuminada en canvas.
+    // 2) Sin `will-change`: con el filtro fuera, promocionar la capa solo
+    //    añade una textura de pantalla completa que el compositor vuelve a
+    //    mezclar cada fotograma (~8 MB a 1920×1047). Dentro de la capa raíz
+    //    el fondo se redibuja únicamente en las teselas del texto (§9.7).
     const { container } = render(
       <SettingsProvider>
         <LyricsView {...defaultProps} />
@@ -867,7 +896,7 @@ describe("LyricsView — rendimiento del fondo", () => {
     const bg = container.querySelector('[data-testid="lyrics-bg"]');
     expect(bg).toBeTruthy();
     expect(bg.style.filter).toBe("");
-    expect(bg.style.willChange).toBe("transform");
+    expect(bg.style.willChange).toBe("");
   });
 
   it("«Girar el fondo» usa steps(720) y capa diagonal hypot(): continuo caro y360 se veía en pausas", () => {

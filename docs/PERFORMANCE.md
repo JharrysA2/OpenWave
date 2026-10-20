@@ -912,9 +912,50 @@ toda la pantalla (0,76 Mpx a 1100×688; 2,07 Mpx maximizada). Eso explica el
 que no es imagen, bitmap cerrado; capa y velo con `will-change: transform`; cero
 `filter` en el fondo) y comprobación en la app instalada: la capa debe quedar con
 `filter: none` y `background-image: url("data:image/webp;…")`. La cifra la vuelve
-a medir el usuario; si aún no baja al nivel del vídeo, el siguiente paso es
-fundir el velo **dentro** de la capa del fondo (una sola capa de pantalla
-completa en vez de dos), que cambia estructura pero no aspecto.
+a medir el usuario. Nota: las dos promociones de capa de esta ronda se retiran en
+§9.7 (sin filtro que evitar, solo sumaban mezclas de pantalla completa).
+
+### 9.7 Ronda 8 (2026-10-19): con el filtro ya fuera, el coste es el número de capas
+
+**Reporte del usuario** (medido por él): el arreglo de §9.6 funciona (la capa de
+fondo ya no lleva `filter`), pero siguen apareciendo **picos de más del 50%**.
+
+**Qué queda (inspección del DOM, sin medir GPU).** El suelo de la pantalla es el
+texto: la propia descomposición de §9.2/§9.3 lo dejó medido en **~25 pts** (ocultar
+las letras bajaba a 9,4%), y de ahí ya no se baja sin tocar el aspecto. Pero el
+paquete de §9.6 añadió dos capas promocionadas (`will-change: transform` en el
+fondo y en el velo) **sin medición detrás**, y esas dos capas cuestan ancho de
+banda en cada fotograma: a 1920×1047 cada capa de pantalla completa son ~8 MB
+que el compositor vuelve a leer y mezclar aunque nada haya cambiado. Con el
+texto del karaoke repintando encima, tres capas de fondo (raíz + fondo + velo)
+son ~24 MB/fotograma; el vídeo, en cambio, va por su plano de hardware y no
+suma mezcla — que es justo la asimetría que reportó el usuario.
+
+**Implementado (invisible, sin cambio de aspecto):**
+
+- **Fondo y velo SIN capa propia.** La promoción tenía sentido mientras el
+  fondo llevaba el `filter` en vivo (había que impedir que se re-ejecutara);
+  al desaparecer el filtro solo añade capas. Dentro de la capa raíz el fondo se
+  redibuja únicamente en las teselas sucias del karaoke (~0,5 Mpx), que es
+  mucho menos que mezclar dos texturas de 2 Mpx por fotograma.
+- **Karaoke: un solo escalón de peso.** DM Sans se declara `400 700` en
+  `index.html`, así que `font-weight: 900` de la palabra activa se recortaba a
+  700 (glifos idénticos) pero su interpolación 700↔900 seguía marcando la línea
+  como sucia ~9 fotogramas cada vez que se apagaba la palabra anterior: medio
+  trabajo por palabra, cero cambio visible.
+- **Scroller de letras como capa de scroll** (`will-change: scroll-position`).
+  El glide de `scrollIntoView` al salir de la banda 30–70% costaba ~9 pts por
+  pico (§9.3) porque cada fotograma del desplazamiento re-rasterizaba el texto
+  en movimiento; con la capa el compositor desplaza lo ya rasterizado.
+
+**Verificación.** `vitest` (fondo sin `filter` ni `will-change`; ningún span de
+karaoke pide 900; el scroller pide `scroll-position`) y a ojo en la app
+instalada. El velo sigue siendo un elemento aparte en vez de fundirse con el
+fondo: sin capas propias los dos se rasterizan en la misma capa, así que
+fusionarlos ya no ahorra mezclas; queda como opción si la medición no baja.
+Si los picos siguen altos, las palancas restantes **sí** cambian aspecto: glow
+solo en la palabra activa, transición de peso del karaoke a 0 (queda el fade de
+color) y lente de línea de .3 s a .2 s.
 
 
 ## 10. Task Manager: un solo grupo «OpenWave» (paquete sparse de identidad, plan C)

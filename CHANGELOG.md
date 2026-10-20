@@ -40,16 +40,18 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   canción. Sigue sin `backdrop-filter`: no hay movimiento detrás, así que
   difuminar sería coste invisible; el hover y el cierre en rojo son fondo y
   color, nada que componga por fotograma.
-- **El fondo de Letras deja de re-rasterizarse con cada palabra del karaoke.**
-  Con el vídeo de fondo apagado, la portada difuminada y el velo se pintaban en
-  la misma capa que la letra, así que cada palabra obligaba a rehacer la
-  textura completa a 1080p; con el vídeo encendido eso no pasaba porque el
-  `<video>` ya es una capa aparte del compositor —de ahí que el consumo fuese
-  *mayor* sin vídeo que con él—. Ahora ambos son capas propias
-  (`will-change: transform`, nunca `filter`) y, cuando «Girar el fondo» está
-  apagado, la capa pierde el 110% y el `scale(1.1)` que solo servían para que no
-  asomara el borde al rotarla: mismo recorte «cover» sobre una textura
-  difuminada, 21% menos de píxeles en la superficie más grande de la vista.
+- **El fondo de Letras deja de gastar por fotograma.** Con el vídeo de fondo
+  apagado, la portada difuminada y el velo se pintaban en la misma capa que la
+  letra y, además, la portada llevaba el desenfoque en vivo: cada palabra del
+  karaoke lo volvía a ejecutar sobre toda la pantalla (el 70% que se veía sin
+  vídeo). Ahora la portada llega pre-difuminada desde el canvas —sin `filter`—
+  y ni ella ni el velo se promueven a capas propias: sin filtro que evitar, una
+  capa de pantalla completa solo añade una textura que el compositor vuelve a
+  mezclar cada fotograma. Se quedan en la capa de la letra, que solo repinta
+  las teselas que cambian. Y, cuando «Girar el fondo» está apagado, la capa
+  pierde el 110% y el `scale(1.1)` que solo servían para que no asomara el borde
+  al rotarla: mismo recorte «cover» sobre una textura difuminada, 21% menos de
+  píxeles en la superficie más grande de la vista.
 
 - **El vídeo de fondo se descarga con la mejor calidad que dé la sesión, no con
   la primera que aparezca.** La escalera de descarga daba por buena la primera
@@ -83,6 +85,17 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   repintando en casi todos los fotogramas. Con .15 s el cambio dura ~9
   fotogramas, sigue siendo continuo (nada de saltos escalonados) y el trabajo
   por palabra cae alrededor de dos tercios; la palabra en reposo se ve igual.
+- **Cada palabra del karaoke engorda una sola vez, sin trabajo de más.** La
+  palabra activa pedía `font-weight: 900`, pero DM Sans se declara 400–700: los
+  glifos salían idénticos a 700 y, aun así, su interpolación 700↔900 marcaba la
+  línea como sucia durante ~9 fotogramas cada vez que la palabra anterior dejaba
+  de estar activa. Con un único escalón de peso, cada palabra nueva re-forma la
+  línea una vez (500→700) y la anterior ya no anima nada. No cambia ni un píxel.
+- **El auto-scroll de las letras no repinta durante el desplazamiento.** El
+  «glide» suave al cambiar de línea re-rasterizaba el texto en movimiento en
+  cada fotograma (medido antes: ~9 puntos por pico). El contenedor de letras es
+  ahora capa de scroll (`will-change: scroll-position`): el compositor desplaza
+  lo ya rasterizado y el karaoke sigue repintando solo sus propias teselas.
 - **El karaoke gasta menos con el vídeo de fondo.** La letra animada cambiaba de
   tamaño con una transición larga (.65 s), y eso obliga al navegador a rehacer
   el diseño y repintar toda el área visible de la letra en cada fotograma del

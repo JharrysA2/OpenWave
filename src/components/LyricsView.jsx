@@ -1347,7 +1347,6 @@ const KaraokeWords = React.memo(
       const isSpace = /^\s+$/.test(part);
       if (!isSpace) idx++;
       const isLit = !isSpace && idx <= activeWordIdx;
-      const isActiveWord = !isSpace && idx === activeWordIdx;
       return (
         <span
           key={pi}
@@ -1372,7 +1371,15 @@ const KaraokeWords = React.memo(
             transition:
               "color .5s cubic-bezier(.25,.1,.25,1), font-weight .15s cubic-bezier(.25,.1,.25,1)",
             color: isLit ? "#ffffff" : COLORS.textTertiary,
-            fontWeight: isActiveWord ? "900" : isLit ? "700" : "500",
+            // Un solo escalón de peso iluminado (700). Antes la palabra activa
+            // iba a 900, pero DM Sans se declara `font-weight: 400 700`
+            // (index.html, fuente variable): 900 se recorta a 700 y los glifos
+            // son IDÉNTICOS. Aun así la interpolación 700↔900 marcaba la línea
+            // como sucia y la re-formaba ~9 fotogramas al apagarse la palabra
+            // anterior: trabajo de layout/repintado sin ningún cambio visible.
+            // Con un solo escalón cada palabra nueva re-forma la línea una vez
+            // (500→700) y la anterior ya no anima nada.
+            fontWeight: isLit ? "700" : "500",
             // Glow de un solo radio: el 32px aportaba poco halo y costaba
             // ~4 pts por sí solo (pareja PD/PE: 32,3% → 28,3%). El 16px
             // conserva el «glow sutil» del diseño.
@@ -2694,12 +2701,14 @@ export function LyricsView({
               opacity: bgLoaded ? 1 : 0,
               transition: "opacity .3s cubic-bezier(.16,1,.3,1)",
               contain: "paint",
-              // Capa PROPIA en el compositor: si el fondo se rasteriza dentro
-              // de la capa raíz, cada palabra del karaoke obliga a repintar la
-              // textura completa a 1080p (justo lo que no pasa con el vídeo,
-              // que ya es una capa aparte). `transform` y no `filter`: aquel
-              // re-ejecutaba el desenfoque en cada repintado.
-              willChange: "transform",
+              // SIN capa propia (`will-change`). Con el `filter` de respaldo
+              // fuera de la ecuación, promocionar el fondo ya no evita ningún
+              // desenfoque: solo añade una textura de pantalla completa que el
+              // compositor vuelve a MEZCLAR en cada fotograma. A 1920×1047 son
+              // ~8 MB por capa y fotograma; con el texto del karaoke animándose
+              // encima, quitar capas ahorra más ancho de banda que el repintado
+              // por teselas que evita (el fondo se vuelve a dibujar solo en las
+              // teselas sucias del texto, ~0,5 Mpx). Ver §9.7.
             }}
           />
         )}
@@ -2724,9 +2733,10 @@ export function LyricsView({
               }),
               radial-gradient(ellipse at 30% 40%, ${accentColor}33 0%, transparent 70%)
             `,
-            // Misma razón que el fondo: el velo es estático y de pantalla
-            // completa; promovido no se re-rasteriza con cada palabra.
-            willChange: "transform",
+            // Igual que el fondo: sin capa propia. El velo es estático; como
+            // capa obliga a mezclar 2 Mpx cada fotograma y, sin filtros que
+            // re-ejecutar, no aporta nada. Dentro de la capa raíz solo se
+            // redibuja en las teselas que toca el karaoke.
           }}
         />
       </div>
@@ -3193,6 +3203,14 @@ export function LyricsView({
           display: "flex",
           justifyContent: textAlign === "center" ? "center" : "flex-start",
           zIndex: 1,
+          // El «glide» del auto-scroll (`scrollIntoView` suave al cambiar de
+          // línea) medía ~9 pts por pico cuando el scroller no era una capa
+          // propia: cada fotograma del desplazamiento re-rasterizaba el texto
+          // que se movía. `scroll-position` promueve SOLO el scroller —el
+          // compositor desplaza la capa ya rasterizada y no se repinta nada
+          // mientras dura el desplazamiento—. No cambia ni un píxel: el
+          // karaoke sigue repintando sus propias teselas cuando cambia.
+          willChange: "scroll-position",
           // ⭐ Las letras sincronizadas no deben poder seleccionarse: al
           //    mantener el clic y arrastrar salía el subrayado azul.
           userSelect: "none",

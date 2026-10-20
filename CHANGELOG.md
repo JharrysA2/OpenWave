@@ -6,374 +6,38 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
-## [1.2.0] - 2026-10-20
-
-### Fixed
-
-- **El fondo de Letras se quedaba con el desenfoque en vivo y por eso gastaba
-  más con el vídeo apagado que con él.** El pre-difuminado se pedía con una
-  `<img crossOrigin>` al proxy de miniaturas: si esa carga fallaba una sola vez,
-  el respaldo usaba la URL directa del CDN —que pinta igual— pero sin CORS, así
-  que el canvas quedaba contaminado, el pre-difuminado se descartaba y la capa
-  se quedaba **para siempre** con el `filter: blur(12px) saturate(1.2)
-  brightness(0.7)` de respaldo sobre toda la pantalla. Ese filtro se re-ejecuta
-  en cada repintado de la letra (comprobado en la app instalada: el fondo seguía
-  con el filtro y la imagen remota, no con la textura pre-difuminada). Ahora la
-  imagen se descarga con `fetch` y se difumina desde el **blob** —mismo origen,
-  nunca contamina—, probando primero el proxy y luego la URL directa; cuando
-  llega la textura pre-difuminada, el filtro desaparece de la capa.
+## [1.1.1] - 2026-10-20
 
 ### Added
 
-- **Los vídeos de fondo se pueden borrar desde Ajustes → Almacenamiento.** La
-  nueva sección «Vídeos de fondo» lista cada clip cacheado con su canción,
-  tamaño y resolución medida, y permite borrar uno a uno (con confirmación) o
-  vaciar toda la caché de una vez; el espacio se libera al momento y la próxima
-  apertura vuelve a preparar el clip desde cero.
+- **La pantalla de letras puede llevar el videoclip de la canción de fondo.**
+  Se elige el clip oficial de la canción, se descarga con la mejor calidad
+  disponible de la sesión (1080p; hasta 4K cuando la pantalla lo admite), llena
+  el área de letras completa y arranca al tempo de la música: el desfase entre
+  clip y canción se mide al preparar el vídeo y se compensa al reproducirlo. Si
+  la canción no tiene clip o la preparación falla, se avisa en pantalla con
+  botón de reintento.
+- **La caché de vídeos se administra desde Ajustes → Almacenamiento.** Se
+  lista cada clip con su tamaño y resolución, y se puede borrar uno a uno o
+  vaciarla entera; el espacio queda libre en el momento.
 
 ### Changed
 
-- **La barra superior pasa al material de la app y sus botones llevan iconos
-  dibujados a trazo.** La barra deja el aire de marco de Windows —rectángulos
-  pegados al borde— por el vocabulario del resto de la interfaz: pastillas
-  cuadradas con el radio de la UI, iconos de 1,3 px con extremos redondeados,
-  brillo interior arriba, hairline abajo y una sombra más contenida. La marca
-  estrena el logo de la app junto al nombre, con «Wave» en el acento de la
-  canción. Sigue sin `backdrop-filter`: no hay movimiento detrás, así que
-  difuminar sería coste invisible; el hover y el cierre en rojo son fondo y
-  color, nada que componga por fotograma. **Nota:** a petición final del
-  usuario el minilogo se retiró de la marca (queda el nombre bicolor).
-- **El fondo de Letras deja de gastar por fotograma.** Con el vídeo de fondo
-  apagado, la portada difuminada y el velo se pintaban en la misma capa que la
-  letra y, además, la portada llevaba el desenfoque en vivo: cada palabra del
-  karaoke lo volvía a ejecutar sobre toda la pantalla (el 70% que se veía sin
-  vídeo). Ahora la portada llega pre-difuminada desde el canvas —sin `filter`—
-  y ni ella ni el velo se promueven a capas propias: sin filtro que evitar, una
-  capa de pantalla completa solo añade una textura que el compositor vuelve a
-  mezclar cada fotograma. Se quedan en la capa de la letra, que solo repinta
-  las teselas que cambian. Y, cuando «Girar el fondo» está apagado, la capa
-  pierde el 110% y el `scale(1.1)` que solo servían para que no asomara el borde
-  al rotarla: mismo recorte «cover» sobre una textura difuminada, 21% menos de
-  píxeles en la superficie más grande de la vista.
-
-- **El vídeo de fondo se descarga con la mejor calidad que dé la sesión, no con
-  la primera que aparezca.** La escalera de descarga daba por buena la primera
-  descarga que produjera un fichero, aunque YouTube hubiera servido a ese
-  cliente una lista de formatos recortada (sin sesión es habitual: clips de
-  640x240 en el mismo equipo que minutos antes bajaba 1920x1080). Ahora cada
-  intento se mide y se publica el mejor; solo se siguen probando los demás
-  clientes mientras el resultado esté claramente degradado, así que el caso
-  normal sigue costando una sola descarga. También se retiró el filtro por
-  altura exacta que se había añadido para preferir clips de 30 fps: un «1080p»
-  panorámico mide 1920x720, así que el filtro no encontraba nada y la cadena
-  caía al 360p del intento siguiente.
-- **El videoclip de fondo llena siempre el área de las letras.** Antes se
-  quedaba en su tamaño intrínseco (un `<video>` es un elemento reemplazado: con
-  `top/bottom/left/right` no se estira) y dejaba una franja del fondo a la vista
-  —abajo en los clips panorámicos, a la derecha en los angostos—; encima, el
-  panel de portada y cola quedaba tapado. Ahora la caja del clip es exactamente
-  el área de las letras (ancho y alto explícitos) y se escala con «cover» lo
-  justo para no dejar hueco en ningún eje: un panorámico recorta los lados y uno
-  vertical, arriba y abajo. Sin fondo negro propio, sin medir el fichero y sin
-  trabajo por fotograma: es una propiedad de composición.
-- **El panel de portada y cola deja de llevar cristal difuminado.** Como el clip
-  ya no se mueve detrás, su `backdrop-filter: blur(12px)` solo desenfocaba un
-  fondo estático y se re-evaluaba con cada fotograma del vídeo: era el pase
-  caro de la pantalla. Vuelve al material de siempre (tinte del acento, brillo y
-  sombra). Los botones de arriba, que sí flotan sobre el clip, conservan el
-  suyo.
-- **El engordado de cada palabra del karaoke tarda .15 s en vez de .4 s.** El
-  peso de la letra afecta al diseño (cambia el ancho de los glifos) y, con una
-  palabra nueva cada 200-400 ms, la línea activa se estaba re-diseñando y
-  repintando en casi todos los fotogramas. Con .15 s el cambio dura ~9
-  fotogramas, sigue siendo continuo (nada de saltos escalonados) y el trabajo
-  por palabra cae alrededor de dos tercios; la palabra en reposo se ve igual.
-- **Cada palabra del karaoke engorda una sola vez, sin trabajo de más.** La
-  palabra activa pedía `font-weight: 900`, pero DM Sans se declara 400–700: los
-  glifos salían idénticos a 700 y, aun así, su interpolación 700↔900 marcaba la
-  línea como sucia durante ~9 fotogramas cada vez que la palabra anterior dejaba
-  de estar activa. Con un único escalón de peso, cada palabra nueva re-forma la
-  línea una vez (500→700) y la anterior ya no anima nada. No cambia ni un píxel.
-- **El auto-scroll de las letras no repinta durante el desplazamiento.** El
-  «glide» suave al cambiar de línea re-rasterizaba el texto en movimiento en
-  cada fotograma (medido antes: ~9 puntos por pico). El contenedor de letras es
-  ahora capa de scroll (`will-change: scroll-position`): el compositor desplaza
-  lo ya rasterizado y el karaoke sigue repintando solo sus propias teselas.
-- **El karaoke gasta menos con el vídeo de fondo.** La letra animada cambiaba de
-  tamaño con una transición larga (.65 s), y eso obliga al navegador a rehacer
-  el diseño y repintar toda el área visible de la letra en cada fotograma del
-  cambio de línea (unas 40 pasadas, justo cuando las líneas vecinas se
-  recolocan); con el videoclip detrás, cada repintado se compone encima de un
-  fondo que se mueve, y ahí estaban los picos de GPU. La transición del tamaño
-  dura ahora **.3 s** (la mitad de fotogramas y el movimiento sigue siendo
-  continuo) y el «lente» de tamaños queda en **tres escalones** (activa / vecina
-  / resto) en vez de una curva continua, así que cada cambio de línea toca el
-  tamaño de menos líneas (~4 en vez de ~7); la única diferencia visible son ~3 px
-  en la segunda vecina. La suavidad palabra a palabra (fundido de color y peso)
-  se queda intacta, que es lo que le da el aire al karaoke.
-- **La interfaz deja de pedir fotogramas cuando no hay nada que cambiar.** El
-  reloj del karaoke y el sincronizador del vídeo de fondo eran bucles de
-  `requestAnimationFrame` encadenados: mientras la pantalla de Letras estaba
-  abierta mantenían al compositor produciendo 60 fotogramas por segundo aunque
-  entre palabra y palabra —o con el videoclip ya terminado— no cambiara nada en
-  pantalla. Ahora el reloj es el propio `<audio>`: sus eventos (`timeupdate`
-  ~4 Hz y solo con el medio en marcha, más `seeked`, `play`, `pause`…)
-  re-sincronizan y un temporizador despierta justo en el instante del próximo
-  cambio de palabra o de línea, así que entre despertar y despertar no se pide
-  ni un fotograma y con la música en pausa no queda ningún temporizador. El
-  vídeo de fondo se sigue solo con esos mismos eventos (más los suyos propios,
-  porque `autoPlay` lo arranca solo) comparando los dos relojes: sin bucle, el
-  `<video>` se presenta por sí mismo. El karaoke sigue igual de fino (cambia
-  exactamente al cruzar la palabra, que era el motivo del bucle) y el ahorro se
-  nota sobre todo con la ventana quieta o el clip parado.
-- **Los últimos contornos de la interfaz se van, y todo pasa al material del
-  player bar.** Los botones y campos que aún dibujaban un aro de 1px usan ya
-  el cristal del player bar —gradiente, brillo interior y sombra— sin
-  contorno: las pestañas de la barra lateral (Inicio, Buscar, Me gusta,
-  Historial y Descargas) y sus filas de playlists, el botón de ajustes, la
-  barra de búsqueda en todas las pantallas, los iconos de las pantallas de
-  ajustes, los botones de Aleatorio, Reproducir y Seleccionar de Me gusta,
-  Historial y Descargas, y las pestañas Canciones/Álbumes/Artistas de la
-  biblioteca (y las de Música/Vídeos del buscador). El estado activo (pestaña
-  o modo selección) se marca con el relleno y el color del acento, nunca con
-  un aro; el candado de la cola de letras, el asa de arrastre y el botón
-  «Siguiendo» del artista también dejan su borde. Los tokens compartidos
-  (`GLASS.btn`, `btnHover`, `btnHoverSoft`, `navItem`, `navItemActive` y
-  `searchbar`) pierden el borde, así que el material se aplica de una vez en
-  toda la app. El hover realza el cristal y ya no deja el fondo «despegado»
-  al salir. Los botones de cancelar de los selectores de Ajustes (color de la
-  app, barra y forma de botón) y el campo de nombre de «Nueva playlist» (y su
-  vista previa hexadecimal) también dejan su contorno.
-- **El resto de borrados pierde el rojo.** «Eliminar (N)» de álbum y lista
-  (además del de biblioteca), «Eliminar playlist», «Eliminar todo» de
-  Descargas y «Limpiar» de Historial se pintan como el resto de acciones de
-  su barra: el material del player bar con el texto neutro, y al pasar el
-  ratón el texto aclara. El aviso lo da la propia selección (o el modal de
-  confirmación, donde ya lo había).
-- **La GPU manda en el modo vídeo, y ahora sin pagos cruzados.** El
-  instalador registra OpenWave como app de «Alto rendimiento» en
-  Configuración → Gráficas de Windows y el WebView arranca con rasterización
-  por GPU, copia cero y sin el blocklist de drivers. El arranque **ya no
-  lleva** `--force-high-performance-gpu`: en un portátil con la señal
-  saliendo por la integrada, forzar el render en la dedicada hacía que cada
-  frame pagara un copiado cruzado constante (motor Copy ≈27%). Medido en la
-  misma máquina, la pantalla de letras con vídeo activo pasa de ≈50% de GPU
-  total (copy 27 · 3d 10 · decode 8) a ≈20% con la ventana normal y ≈40%
-  maximizada (3d y decode sobre la integrada, sin copia), y el uso en reposo
-  sonando cae de ≈36% a ≈7%. El vídeo de fondo se pausa solo cuando la
-  ventana está oculta o un modal la tapa: deja de decodificar mientras nadie
-  lo vea y se reanuda sincronizado al volver.
-- **La pantalla de letras con vídeo respira mejor.** El cristal de la
-  portada + cola difumina a 12px en vez de 20px (es el pase que se vuelve a
-  ejecutar en cada frame del clip) con un punto más de tinte: la lectura es
-  la misma y el coste por frame baja en torno a un 40%.
-- **Sin degradado bajo el encabezado de la barra lateral.** La sombra de zona
-  que quedaba justo debajo de la marca, la flecha de retraer y el botón de
-  ajustes ya no se dibuja; la jerarquía la da el degradado del fondo.
-- **Adiós a las líneas de contorno finas.** La titlebar, la barra lateral, las
-  cabeceras de ajustes y de modales, las filas de listas de álbumes y
-  el editor de letras ya no dibujan hairlines de 1px: la separación es una
-  sombra suave, como se pidió para la pantalla de letras.
-- **Botones con el estilo del player bar en Letras.** Los botones ⋯ y ✕ de
-  la pantalla, las opciones de la configuración de letras (y las filas de su
-  sección «Apariencia») y los botones de los modales que abren esas opciones
-  («Buscar», «Guardar cambios», «Cancelar» y los de cerrar) usan el mismo
-  material de los botones del player bar —cristal con gradiente, brillo
-  interior y sombra— y ninguno lleva contorno. Las opciones antes solo tenían
-  una sombra suelta debajo que, sin material, se veía rara. Los selectores de
-  «Tamaño» y «Alineación» de la sección «Apariencia» son botones del mismo
-  material: la opción activa se marca con el relleno del acento, no con un
-  contorno.
-- **El cristal de la hoja de configuración de letras, a la vista.** La hoja
-  (y los modales de sus opciones) llevaba una capa oscura bajo el degradado
-  que tapaba el desenfoque y contornos de 1px —el de acento que llevaba
-  encima y el blanco que trae el propio cristal de hoja—; ahora difumina
-  como el resto de hojas y se apoya solo en el material y la sombra.
-- **Los campos y los iconos de las hojas, sin contornos.** En «Buscar letras»
-  los dos campos (canción y artista) y en «Editar letras» el cuadro de texto
-  usan el material del player bar —cristal, brillo interior y sombra— y al
-  enfocarlos se realza el cristal en vez de encenderse un aro de acento. En
-  las opciones de canción, álbum, artista y lista los botones de icono y el de
-  cerrar pierden su contorno y pasan al mismo material, y «Eliminar de
-  biblioteca» deja el rojo y se pinta como el resto de botones.
-- **Las tarjetas de Inicio, con el material del player bar.** Las tarjetas de
-  canciones, álbumes y playlists de Inicio pierden el contorno y pasan al
-  cristal de los botones del player bar —brillo interior y sombra incluidos—
-  conservando las esquinas redondeadas; la tarjeta que está sonando se
-  distingue por el tinte y el glow del acento, ya sin aro. Las filas de
-  resultados del buscador de letras también dejan su contorno.
-- **La biblioteca deja de pintar el borrado en rojo.** El botón «Eliminar (N)»
-  de la barra de selección se pinta como el resto de acciones de la barra (la
-  propia selección ya avisa de lo que se va a borrar).
-- **Sin sombras separadoras en las hojas de opciones.** La hoja de opciones
-  de una canción (y la de álbumes, artistas y listas) ya no dibuja la sombra
-  que separaba el nombre de las opciones; tampoco los modales de letras la
-  que separaba su cabecera del contenido. La jerarquía la da el material.
-- **Ajustes sin sombras raras y sin desenfoque.** La separación entre filas
-  es ahora una línea de pelo solo entre filas contiguas (antes cada fila
-  dejaba una banda oscura de sombra, incluso tras la última dentro de la
-  tarjeta) y la cabecera usa una sombra ajustada en vez de la ancha. La
-  pantalla va sin backdrop-filter: la lectura la da su base opaca (la barra
-  lateral y Ajustes son las pantallas sin blur).
-
-### Removed
-
-- **El aviso de aceleración por hardware se retiró de Rendimiento.** La sección
-  «GPU» de Ajustes → Rendimiento («Aceleración por hardware activa» / «Render
-  por software») ya no aparece en la interfaz.
-
-### Fixed
-
-- **El 1080p de un videoclip no se pierde por un 403 pasajero.** Si YouTube
-  rechazaba la URL del intento que da 1080p, la escalera seguía y publicaba el
-  360p de los clientes de respaldo (que no pueden dar más): el clip se quedaba
-  a 640x272 teniendo 1920x816 disponible, y hasta pasadas 2 horas no se
-  reintentaba. Ese intento y el anónimo —los dos únicos que pasan de 360p sin
-  cookies— se repiten al final de la escalera, y el 1080p que llega se publica.
-- **El desfase del videoclip ya no se descarta por un pico vecino.** La
-  comparación de sonoridad rechazaba el resultado cuando aparecía un segundo
-  pico a menos de 2 s del bueno, aunque puntuara bastante peor (el caso normal:
-  el audio del clip no es el mismo máster que la canción, así que la misma
-  música medio segundo al lado también correlaciona). Se descartaba un
-  videoclip que estaba perfectamente alineado y la canción se quedaba con la
-  portada. Ahora solo se descarta si los dos picos puntúan casi igual de bien
-  (diferencia de correlación ≤ 0,05).
-- **Una canción que sí tiene videoclip ya no se queda con la portada para
-  siempre.** El «esta canción no tiene videoclip» se cacheaba sin caducidad, así
-  que un no-resultado puntual —una búsqueda degradada o un candidato que no
-  llegó a medir el desfase— dejaba la canción sin vídeo aunque lo tuviera, y no
-  había forma de deshacerlo (vaciar la caché de vídeos tampoco: esos «no tiene»
-  no dejan fichero). Ahora los «no tiene» caducan al día y se vuelven a
-  comprobar; los aciertos, que no cambian, se siguen cacheando.
-- **Los títulos cortos ya encuentran su videoclip.** La comparación pedía cuatro
-  letras y que el título de la canción apareciera como trozo del de YouTube, así
-  que una canción de tres letras no podía casar con «Artista - Título (Video
-  Oficial)». Ahora se compara por palabras y, con títulos cortos, se exige que
-  lo que sobra en el título del vídeo sea el nombre del artista y no otra
-  versión de la canción.
-- **Vaciar la caché de vídeos olvida también los «no tiene videoclip».** Esos no
-  dejan fichero en disco, así que borrar los vídeos no los tocaba; ahora el
-  vaciado borra todas las resoluciones y la próxima apertura vuelve a
-  preguntarle a YouTube.
-- **Un fallo de red ya no deja la canción sin videoclip.** El reintento por
-  resolución borraba el clip en disco antes de volver a descargarlo; si la
-  descarga fallaba, el vídeo desaparecía y la pantalla caía a la portada («no
-  tiene vídeo» aunque sí lo tuviera). Ahora el fichero solo se reemplaza cuando
-  la descarga nueva lo mejora, así que el clip que ya funcionaba se conserva.
-- **Los botones se quedan con el cristal y sin contorno, de verdad.** Al
-  quitarle el borde a los tokens, los botones y campos que no declaraban uno
-  propio dejaron ver el borde nativo del navegador —un `2px outset` con el
-  canto claro arriba e izquierda y gris abajo y derecha—, que se veía como un
-  aro grueso alrededor del material. La hoja base anula ahora el borde de
-  `button`, `input`, `textarea` y `select`; los sitios que lo declaran a
-  propósito lo conservan, porque la regla no lleva `!important`.
-- **Un videoclip más corto que la canción ya no satura la GPU.** Cuando el
-  clip llegaba a su fin antes que la canción, el sincronizador seguía
-  pidiendo `play()` al vídeo terminado: cada frame lo reiniciaba y el seek
-  siguiente volvía a acabarlo, un bucle de reanudar y vaciar el decodificador
-  a cadencia de frame que disparaba el uso de GPU a los pocos minutos. El clip
-  final se queda en su último fotograma y solo se reanuda si el audio vuelve a
-  caer dentro del clip (seek atrás o «repetir canción»).
-- **Un vídeo de fondo recortado por YouTube ya no se queda bajo para siempre.**
-  Al preparar un clip se anotaba el tope de resolución que se había pedido, no
-  el que YouTube acabó sirviendo: sin una sesión válida YouTube recorta y puede
-  entregar 720p aunque se pidieran 1080p, y como el sidecar ya decía «1080» la
-  app daba el vídeo por bueno y no volvía a bajarlo nunca. Ahora, al preparar
-  un clip sin medida anotada, se lee la resolución real del fichero (con el
-  ffmpeg que ya viaja con la app) y es lo que queda anotado, así que un clip
-  recortado se corrige solo en la siguiente apertura. El sidecar sigue siendo
-  caché: si ya existe no se vuelve a medir, para no pagar una llamada a ffmpeg
-  en cada apertura de la pantalla de letras.
-- **La app instalada por fin encuentra su ffmpeg.** La búsqueda en
-  `video_fondo` miraba un nivel por encima de donde el MSI instala el binario
-  (`C:\Program Files\ffmpeg` en vez de `C:\Program Files\OpenWave\ffmpeg`), así
-  que en una instalación real no se medía la resolución de ningún vídeo (los
-  sidecars no se corrigen) ni se calculaba el desfase del videoclip (se
-  asumía «va a la par»). Ahora la búsqueda recorre las mismas rutas que la
-  descarga de música, que sí encuentra el ffmpeg empaquetado.
-- **Los sidecars escritos por las builds anteriores ya no se dan por buenos.**
-  Ahora el sidecar dice de qué habla: `medida=<ancho>x<alto>` es lo medido en
-  el fichero y `pedida=<alto>` el tope pedido cuando no hubo forma de medir la
-  descarga. Un valor sin prefijo (lo que escribían las builds anteriores) se
-  ignora y se vuelve a medir una sola vez, con lo que un clip mal anotado se
-  corrige. La promesa no tapa lo que llegue a medirse, y además evita que en
-  una pantalla 4K sin ffmpeg se repita la descarga en cada consulta.
-- **Un clip insuficiente ya no se borra y se redescarga en cada apertura.**
-  Con la resolución real midiendo, cualquier recorte podía provocar un bucle:
-  cada apertura borraba el vídeo y volvía a bajar unos 26 MB sin mejorar
-  (YouTube recorta sin sesión y hay clips panorámicos de contenido). Ahora la
-  comparación es por clase de resolución —un clip letterbox 1920x720 cuenta
-  como 1080p por su ancho—, sin `cookies.txt` no se vuelve a pedir más de
-  1080p (YouTube no sirve más y en pantalla 4K solo se repetiría la
-  descarga), y como último freno un fichero recién descargado no se vuelve a
-  bajar hasta pasadas 2 horas, tiempo de sobra para corregir la causa (un 429
-  puntual o cookies nuevas).
-
-## [1.1.1] - 2026-10-15
-
-- **Cookies de YouTube opcionales.** Si dejas un `cookies.txt` (formato
-  Netscape) en el directorio de datos, las descargas y el streaming lo usan
-  para las sesiones restringidas antes de probar las cookies del navegador
-  (Chrome, Firefox, Edge y Brave), que siguen siendo el respaldo.
-
-### Changed
-
-- **El vídeo de fondo se ve en alta definición (hasta 1080p).** Antes se quedaba
-  en 360p: YouTube firma los formatos buenos y, sin descifrar la firma, la única
-  variante que respondía era el 360p del cliente clásico. Ahora la descarga usa
-  el cliente «embed» (que no pide PO token) con el descifrado de retos de
-  yt-dlp, así que llega a 1080p; si el equipo no tiene un runtime de JavaScript
-  (Node, Deno, Bun o QuickJS), la cadena de intentos sigue degradando hasta el
-  vídeo de antes en vez de fallar.
-- **El vídeo de fondo se ve en la resolución que admite la pantalla (hasta 4K).**
-  Antes todo se pedía a 1080p: en una pantalla 4K el clip se veía reescalado y
-  poco nítido. Ahora la pantalla de letras informa de la altura física de su
-  display y el backend la usa como tope de la descarga (entre 720p y 4K). Ojo:
-  el tope real lo fija YouTube, no el equipo: por encima de 1080p la resolución
-  que llegue depende del cliente y de la sesión que acepte YouTube en cada
-  momento, así que un clip puede quedarse en 1080p aunque la pantalla pida 4K.
-  Para pedir lo máximo hacen falta un `cookies.txt` o las cookies del navegador;
-  sin ellos la cadena sigue degradando hasta el mejor disponible. El tope pedido
-  queda anotado por
-  vídeo, así que un clip descargado para una pantalla grande no se vuelve a
-  bajar en cada apertura (y si cambias de pantalla a una más grande, sube de
-  resolución una sola vez).
-- **El vídeo de fondo deja leer la letra.** El clip va un punto más atenuado y,
-  mientras es el fondo, la barra lateral (portada + cola) y los botones de
-  arriba (⋮ y cerrar) llevan su propio cristal: si no, el vídeo se movía por
-  detrás de la portada y de la cola y costaba leerlas. Sin vídeo no cambia nada:
-  esas piezas pierden el cristal y el fondo vuelve a cubrirlo todo como siempre.
-- **La pantalla de letras se limpia de líneas de contorno.** Desaparecen la
-  línea que separaba la cola de las letras y los bordes de 1px de cada fila de
-  la cola: ahora la jerarquía la da el material, como en el player bar (brillo
-  interior superior y sombra suave, con el glow del acento en la pista actual).
-  Con el vídeo de fondo esas piezas van sobre cristal; solo con la portada
-  llevan el mismo material sin desenfoque.
-
-### Fixed
-
-- **Icono del micrófono en la pantalla de letras.** Cuando la canción no tenía
-  letra, el icono se renderizaba sin llamarlo y no aparecía nada.
-- **Vídeo de fondo desincronizado con la música.** El videoclip sigue el reloj
-  del audio, así que si llevaba intro la línea de tiempo no cuadraba y se veía
-  desfasado. Ahora el backend mide el desfase entre el clip y la canción al
-  prepararlo y la pantalla de letras lo aplica: el vídeo va por delante el
-  tiempo exacto que midió (o espera en su primer fotograma si el clip arranca
-  dentro de la canción). Un clip más corto que la canción ya no se descarta:
-  se queda en su último fotograma al terminar.
-- **Muchas canciones se quedaban sin videoclip para el fondo.** El criterio
-  solo aceptaba clips con ±5 s de la duración de la canción y guardaba el
-  «sin videoclip» en caché, con lo que canciones con clip oficial válido (p. ej.
-  con intro) perdían el fondo para siempre. Ahora se puntúan los resultados de
-  YouTube Music (el videoclip oficial pesa más que los otros vídeos), se
-  admiten diferencias grandes de duración y una búsqueda sin resultados ya no
-  se cachea: se puede reintentar.
-- **El aviso de vídeo ya no desaparece en silencio.** Si la canción no tiene
-  videoclip se muestra «Esta canción no tiene videoclip» (se va solo a los
-  5 s); si la preparación falla o el vídeo no se puede decodificar aparece
-  «No se pudo preparar el vídeo» con un botón **Reintentar**, antes el error
-  dejaba la pantalla muda. Además, al reintentar (o al cambiar de canción) el
-  progreso «Preparando el vídeo…» vuelve a empezar de cero.
+- **El consumo de GPU de la pantalla de Letras baja notablemente.** Con
+  videoclip o con la portada difuminada, la pantalla compone menos capas y
+  texturas por fotograma y el karaoke hace menos trabajo por palabra; la
+  interfaz, además, deja de pedir fotogramas mientras no hay nada que cambiar.
+- **La jerarquía visual la da el material, no los contornos.** Tarjetas de
+  Inicio, biblioteca, hojas de opciones, Ajustes y la pantalla de letras
+  prescinden de los bordes de 1 px: separan superficies, sombras suaves y el
+  acento de la canción, igual que el player bar.
+- **La barra de título se integra con el estilo de la aplicación.** Botones
+  cuadrados con el radio de la interfaz y los tres controles de ventana
+  dibujados a trazo; nada de desenfoque en una zona donde no se mueve nada.
+- **Sesiones restringidas de YouTube mejor atendidas.** Las descargas y el
+  streaming admiten un `cookies.txt` opcional en el directorio de datos y
+  recurren a las cookies del navegador como respaldo, de modo que las peticiones
+  disponen de una sesión real y suelen conseguir más calidad.
 
 ## [1.0.1] - 2026-10-12
 
@@ -616,8 +280,7 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.2.0...HEAD
-[1.2.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.0
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.1...HEAD
 [1.1.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.1
 [1.1.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.0
 [1.0.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.0.1

@@ -1071,6 +1071,19 @@ manually»* (sparse package):
   manda el del paquete → **no hay separación de botones; se mantiene
   `set_appusermodel_id()`**.
 
+**Verificación 1.1.3 (2026-10-21, MSI 1.1.3 instalado de una sola vez).**
+
+- `openwave-identity.log`: `[Cert] import ok` (CA `ImportIdentityCert`) y,
+  justo después, `[Register] ... LocalMachine\TrustedPeople presente`,
+  `remove: ok`, `add: ok`, `verify: ok`. Sin auto-reparación extra: la
+  identidad queda registrada por el MSI solo.
+- `/settings/identity`: `soportado: true`, `registrada: true`,
+  `paquete: OpenWave_pr6hx30mntjwm`; `Get-StartApps` muestra el AUMID
+  `OpenWave_pr6hx30mntjwm!App`.
+- `scripts/verify-msi.ps1`: **78 comprobaciones en verde** (67 previas + 3
+  nuevas del CA `ImportIdentityCert`: fichero en el payload, CA
+  diferido/elevado y orden tras `InstallFiles`).
+
 **Límites conocidos.** Registro por usuario (el que instala): en máquinas
 multiusuario los demás usuarios ven la app sin identidad (mismo
 comportamiento que antes). Certificado autofirmado local: para distribución

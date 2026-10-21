@@ -6,6 +6,23 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **La identidad de Windows se registra sola al instalar el MSI.** El
+  certificado de la build se importa en `LocalMachine\TrustedPeople` desde una
+  acción diferida y elevada, antes de registrar el paquete como el usuario que
+  instala. Así el Administrador de tareas agrupa OpenWave y sus WebView2 sin el
+  paso extra de reparar la identidad después de instalar.
+- **Un fallo al medir el desfase ya no borra el videoclip.** Si la comparación
+  de pistas no encuentra un encaje claro, el vídeo se reproduce a la par en vez
+  de eliminarse y cachear «sin videoclip». Era lo que dejaba «Tu Recuerdo» de
+  C.R.O sin fondo: en la 1.1.2 falló la descarga sin sesión y el descarte
+  posterior bloqueó la canción durante 24 h. Al actualizar se olvidan los «sin
+  videoclip» que dejó ese fallo y la comprobación negativa caduca en una hora.
+- **Almacenamiento muestra la clase real del clip.** Un videoclip panorámico
+  (1920x1038, letterbox) se lista como «1080p» —que es lo que es por ancho— en
+  lugar del «1038p» que daba la altura fotograma a fotograma.
+
 ## [1.1.2] - 2026-10-21
 
 ### Added

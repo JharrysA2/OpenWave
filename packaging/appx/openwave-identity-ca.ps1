@@ -98,6 +98,45 @@ function EsElevado {
         [Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+function ConfianzaPresente([string]$store, [string]$thumb) {
+    if (-not $thumb) { return $false }
+    $presente = Get-ChildItem $store -ErrorAction SilentlyContinue |
+        Where-Object { $_.Thumbprint -eq $thumb }
+    return [bool]$presente
+}
+
+# La confianza que Add-AppxPackage valida de verdad es LocalMachine. El MSI
+# la importa con un CA diferido y elevado antes de llamar a este script; si
+# por lo que sea no llego (reparacion antigua, politica del equipo), aqui se
+# pide elevacion SOLO para el certificado. El alta del paquete sigue en el
+# usuario que instala: Add-AppxPackage registra por usuario.
+function AseguraConfianzaMaquina([string]$cerPath, [string]$thumb) {
+    if (ConfianzaPresente 'Cert:\LocalMachine\TrustedPeople' $thumb) {
+        Log 'cert: LocalMachine\TrustedPeople presente'
+        return $true
+    }
+    if (EsElevado) {
+        $ok = ImportaConfianza 'Cert:\LocalMachine\TrustedPeople' $cerPath $thumb
+        Log ('cert: LocalMachine\TrustedPeople ' + $(if ($ok) { 'presente' } else { 'NO quedo' }))
+        return $ok
+    }
+    Log 'cert: LocalMachine ausente; importando con elevacion'
+    try {
+        $arg = "Import-Certificate -FilePath '" + $cerPath +
+            "' -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null"
+        $p = Start-Process -FilePath 'powershell.exe' -Verb RunAs -PassThru -Wait `
+            -WindowStyle Hidden -ArgumentList @(
+                '-NoProfile', '-NonInteractive', '-Command', $arg)
+        $ok = ($p.ExitCode -eq 0) -and
+            (ConfianzaPresente 'Cert:\LocalMachine\TrustedPeople' $thumb)
+        Log ('cert: LocalMachine\TrustedPeople ' + $(if ($ok) { 'presente' } else { 'NO quedo' }))
+        return $ok
+    } catch {
+        Log ('cert: elevacion fallo: ' + $_.Exception.Message)
+        return $false
+    }
+}
+
 try {
     Log ('start dir=' + $scriptDir)
     if ($Mode -eq 'Register') {
@@ -115,13 +154,7 @@ try {
         $okUser = ImportaConfianza 'Cert:\CurrentUser\TrustedPeople' $cer $thumb
         Log ('cert: CurrentUser\TrustedPeople ' + $(if ($okUser) { 'presente' } else { 'NO quedo' }))
 
-        $okMachine = $false
-        if (EsElevado) {
-            $okMachine = ImportaConfianza 'Cert:\LocalMachine\TrustedPeople' $cer $thumb
-            Log ('cert: LocalMachine\TrustedPeople ' + $(if ($okMachine) { 'presente' } else { 'NO quedo' }))
-        } else {
-            Log 'cert: sin elevacion: LocalMachine\TrustedPeople no se toca'
-        }
+        $okMachine = AseguraConfianzaMaquina $cer $thumb
 
         try {
             Get-AppxPackage -Name OpenWave | Remove-AppxPackage -ErrorAction Stop
@@ -149,10 +182,7 @@ try {
                     # repetir el alta una sola vez.
                     $okUser = ImportaConfianza 'Cert:\CurrentUser\TrustedPeople' $cer $thumb
                     Log ('cert: reimport CurrentUser ' + $(if ($okUser) { 'presente' } else { 'NO quedo' }))
-                    if (EsElevado) {
-                        $okMachine = ImportaConfianza 'Cert:\LocalMachine\TrustedPeople' $cer $thumb
-                        Log ('cert: reimport LocalMachine ' + $(if ($okMachine) { 'presente' } else { 'NO quedo' }))
-                    }
+                    $okMachine = AseguraConfianzaMaquina $cer $thumb
                     continue
                 }
                 exit 1

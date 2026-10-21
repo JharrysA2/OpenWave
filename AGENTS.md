@@ -88,7 +88,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File \
 ```
 
 - **No uses `-SkipRuntime`** si cambió el backend: hay que reempaquetar el staging.
-- `package-windows.ps1` ya corre `verify-msi.ps1` (debe dar **75/75**).
+- `package-windows.ps1` ya corre `verify-msi.ps1` (debe dar **78/78**).
 - El instalador sale en `build\windows\OpenWave-<version>-x64-es-ES.msi`.
 
 ## Rutas y avisos

@@ -1058,9 +1058,13 @@ class TestDesfase:
             video_progress.pop("desf_err", None)
             _FakeYdl.instances.clear()
 
-    def test_desfase_no_medible_descarta_y_cachea(self, monkeypatch):
-        """La comparación se completó y el vídeo no cuadra: se descarta y no
-        se vuelve a descargar en cada apertura."""
+    def test_desfase_no_medible_conserva_el_video(self, monkeypatch):
+        """Sin encaje claro se reproduce a la par, no se borra el vídeo.
+
+        Regresión de «Tu Recuerdo» (C.R.O): el 21/10 la descarga no pudo medir
+        el desfase, se borró el clip y se cacheó «sin videoclip» durante 24 h.
+        Un fallo de medición no puede quitar un vídeo que ya está descargado.
+        """
         monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _FakeYdl)
         monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
         monkeypatch.setattr(
@@ -1068,9 +1072,10 @@ class TestDesfase:
         )
         try:
             prepare_video("desf_none")
-            assert video_progress["desf_none"]["status"] == "sin_video"
-            assert get_output_path("desf_none") is None
-            assert db_get_videoclip_oficial("desf_none") == (True, None)
+            assert video_progress["desf_none"]["status"] == "done"
+            assert video_progress["desf_none"]["desfase"] == 0.0
+            assert get_output_path("desf_none") is not None
+            assert not sin_videoclip("desf_none")
         finally:
             delete_video("desf_none")
             video_progress.pop("desf_none", None)

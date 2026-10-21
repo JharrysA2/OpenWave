@@ -368,6 +368,29 @@ class TestResolver:
         # Queda cacheado (incluido el caso positivo).
         assert db_get_videoclip_oficial("of_atv_ok") == (True, "clipe")
 
+    def test_tu_recuerdo_sin_duracion_en_la_busqueda(self, monkeypatch):
+        """Un OMV sin ``length`` no se descarta: decide el título y el canal.
+
+        Caso real: «Tu Recuerdo» de C.R.O devuelve 35wouAYd1MU como videoclip
+        oficial, pero YouTube Music no informa la duración en esa búsqueda.
+        """
+        monkeypatch.setattr(
+            "videoclip.get_ytm",
+            lambda: _YtmFalso(
+                watch=_watch("Tu Recuerdo", "C.R.O", "2:29", ATV),
+                search=[
+                    _video(
+                        "35wouAYd1MU",
+                        "C.R.O - Tu Recuerdo [ Shot by Ballve ]",
+                        "C.R.O",
+                        None,
+                    )
+                ],
+            ),
+        )
+        assert resolver_videoclip("tu_recuerdo") == "35wouAYd1MU"
+        assert db_get_videoclip_oficial("tu_recuerdo") == (True, "35wouAYd1MU")
+
     def test_art_track_sin_videoclip_devuelve_none(self, monkeypatch):
         monkeypatch.setattr(
             "videoclip.get_ytm",
@@ -382,7 +405,7 @@ class TestResolver:
         assert db_get_videoclip_oficial("of_atv_no") == (True, None)
 
     def test_el_no_tiene_reciente_no_repite_la_busqueda(self, monkeypatch):
-        """Un «no tiene» del día vale: no se vuelve a preguntar cada apertura."""
+        """Un «no tiene» reciente vale: no se vuelve a preguntar cada apertura."""
         monkeypatch.setattr("videoclip.get_ytm", lambda: _YtmFalso(fallar_todo=True))
         db_set_videoclip_oficial("of_negativa_nueva", None)
         assert resolver_videoclip("of_negativa_nueva") is None

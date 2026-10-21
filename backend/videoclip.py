@@ -40,9 +40,9 @@ _MAX_DESAJUSTE_ABSOLUTO = 120
 
 # Vigencia del «esta canción no tiene videoclip»: pasado este tiempo se vuelve
 # a preguntar. Un no-resultado puede ser la huella de un fallo puntual (una
-# búsqueda degradada, una descarga que no llegó a medir el desfase) y no puede
-# dejar la canción con la portada para siempre.
-VIGENCIA_SIN_CLIP = 24 * 3600
+# búsqueda degradada) y no puede dejar la canción con la portada durante un día
+# entero: se reconsulta en cada hora y los aciertos siguen sin caducar.
+VIGENCIA_SIN_CLIP = 60 * 60
 
 # Palabras que delatan una versión que NO es el videoclip oficial. Se buscan
 # como palabra completa sobre el título normalizado (con paréntesis incluidos:

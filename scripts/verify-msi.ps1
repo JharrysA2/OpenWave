@@ -485,6 +485,24 @@ $checks = [ordered]@{
         [bool]($files | Where-Object { ([string]$_[2]) -like '*openwave-identity.cer*' })
     'Identidad: script openwave-identity-ca.ps1 en el payload' =
         [bool]($files | Where-Object { ([string]$_[2]) -like '*openwave-identity-ca.ps1*' })
+    'Identidad: script openwave-identity-cert.ps1 en el payload' =
+        [bool]($files | Where-Object { ([string]$_[2]) -like '*openwave-identity-cert.ps1*' })
+    'Identidad: CA ImportIdentityCert = powershell -File del cert, diferido+elevado' =
+        [bool]($cas | Where-Object {
+            $_[0] -eq 'ImportIdentityCert' -and
+            ([string]$_[3]) -like '*powershell.exe*' -and
+            ([string]$_[3]) -like '*-File*' -and
+            ([string]$_[3]) -like '*openwave-identity-cert.ps1*' -and
+            (([int]$_[1]) -band 3072) -eq 3072
+        })
+    'Identidad: ImportIdentityCert tras InstallFiles, antes de InstallFinalize y NOT REMOVE' =
+        [bool]($iseq | Where-Object { $_[0] -eq 'ImportIdentityCert' -and ([string]$_[1]) -like '*NOT REMOVE*' }) -and
+        [bool]($iseqSeq | Where-Object {
+            $_[0] -eq 'ImportIdentityCert' -and
+            $_[1] -match '^\d+$' -and
+            [int]$_[1] -gt ([int](@($iseqSeq | Where-Object { $_[0] -eq 'InstallFiles' })[0][1])) -and
+            [int]$_[1] -lt ([int](@($iseqSeq | Where-Object { $_[0] -eq 'InstallFinalize' })[0][1]))
+        })
     'Identidad: SAC RegisterIdentity = powershell -File del script -Mode Register' =
         [bool]($cas | Where-Object {
             $_[0] -eq 'RegisterIdentity' -and

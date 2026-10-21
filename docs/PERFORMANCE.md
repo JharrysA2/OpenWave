@@ -1004,18 +1004,24 @@ manually»* (sparse package):
   en `CurrentUser\TrustedPeople` (sin confianza → `0x800B0109`), y
   `makeappx pack /nv` — **`/nv` obligatoria** (makeappx exige que el .exe
   esté dentro del paquete y aquí vive en `ExternalLocation`) + signtool.
-- **MSI**: `tauri.conf.json` (`bundle.resources`) embarca msix+cer+script
+- **MSI**: `tauri.conf.json` (`bundle.resources`) embarca msix+cer+scripts
   en el INSTALLDIR (**tauri conserva el nombre del fichero de ORIGEN en
-  resources: el destino del mapa se ignora para ficheros** — por eso el
-  script se llama `packaging/appx/openwave-identity-ca.ps1` y no otro);
-  la SAC `RegisterIdentity` (inmediata, tras `InstallFinalize`, `NOT REMOVE`,
-  `Return="ignore"`) invoca
+  resources: el destino del mapa se ignora para ficheros** — por eso los
+  scripts se llaman `packaging/appx/openwave-identity-*.ps1` y no otros);
+  el CA `ImportIdentityCert` (diferido, `Impersonate="no"`, tras
+  `InstallFiles`) ejecuta `openwave-identity-cert.ps1` e importa el
+  certificado de la build en `LocalMachine\TrustedPeople`, el único almacén
+  que `Add-AppxPackage` valida para la firma. La SAC `RegisterIdentity` (inmediata, tras
+  `InstallFinalize`, `NOT REMOVE`, `Return="ignore"`, impersonada por el
+  usuario) invoca
   `powershell -NoProfile -ExecutionPolicy Bypass -File
   "[INSTALLDIR]openwave-identity-ca.ps1" -Mode Register`, y
   `UnregisterIdentity` (en la desinstalación, `NOT UPGRADINGPRODUCTCODE`,
   **antes de `RemoveFiles`** porque el script tiene que seguir en disco)
-  invoca `-Mode Unregister`. El script importa la confianza y hace
-  `Remove-AppxPackage` + `Add-AppxPackage -ExternalLocation $scriptDir`
+  invoca `-Mode Unregister`. El script importa la confianza en
+  `CurrentUser\TrustedPeople`, comprueba la de `LocalMachine` y, si el CA
+  elevado no llegó a importarla, pide UAC solo para el certificado; después
+  hace `Remove-AppxPackage` + `Add-AppxPackage -ExternalLocation $scriptDir`
   **sin barra final** (ver §10: con la barra el botón del taskbar no
   pinta el icono del paquete) con trazas en
   `%PROGRAMDATA%\OpenWave\openwave-identity.log` (si no se puede crear —
@@ -1033,8 +1039,8 @@ manually»* (sparse package):
   la SAC corre verificada de punta a punta (log completo de la instalación).
 - **`AppModelUnlock` NO hace falta**: comprobado empíricamente registrando
   con la clave `HKLM\...\AppModelUnlock` ausente → OK. El MSI no toca HKLM.
-  Tampoco se necesita Developer Mode; solo el certificado de confianza
-  (por usuario).
+  Tampoco se necesita Developer Mode; solo el certificado de confianza (en
+  `LocalMachine`; el paquete se registra por usuario).
 
 **Verificación (2026-10-05, prueba de humo + build con identidad + MSI instalado).**
 
@@ -1274,14 +1280,20 @@ la firma contra `LocalMachine\TrustedPeople` → el alta falló con `0x800B0109`
 in place, sin identidad desde entonces (la app funciona igual; solo cambia el
 agrupado del Task Manager y el AUMID).
 
-Arreglo (2026-10-20):
+Arreglo (2026-10-20, completado en 1.1.3):
 
+- `packaging/appx/openwave-identity-cert.ps1` + CA `ImportIdentityCert`
+  (diferido, `Impersonate="no"`, tras `InstallFiles`): importa el cert de la
+  build en `LocalMachine\TrustedPeople` antes de registrar el paquete. Es el
+  almacén que `Add-AppxPackage` valida; un CA inmediato corre sin elevación y
+  no puede escribir ahí. Así el MSI se arregla solo, sin reparación posterior.
 - `packaging/appx/openwave-identity-ca.ps1`: confianza por **thumbprint** del
   cert de ESTA build (no por subject, que enmascara la rotación), importada en
-  `CurrentUser\TrustedPeople` y — si corre elevada, que es como corre dentro
-  del MSI — también en `LocalMachine\TrustedPeople`; si el alta vuelve a
-  fallar con `0x800B0109`, reimporta y reintenta el alta una vez. Sin acentos
-  en el fichero a propósito (PowerShell 5.1 lo lee como ANSI sin BOM).
+  `CurrentUser\TrustedPeople`; comprueba `LocalMachine\TrustedPeople` y, si el
+  CA elevado no llegó a importarla, pide UAC solo para el certificado. Si el
+  alta vuelve a fallar con `0x800B0109`, reimporta y reintenta el alta una vez.
+  Sin acentos en el fichero a propósito (PowerShell 5.1 lo lee como ANSI sin
+  BOM).
 - `scripts/install-msi.ps1`: auto-reparación tras instalar — si
   `Get-AppxPackage` no ve el paquete, importa la confianza (con un UAC
   dedicado para el almacén de equipo) y relanza `-Mode Register` de la SAC
@@ -1293,8 +1305,9 @@ Arreglo (2026-10-20):
   vez con el grupo único «OpenWave (7)»).
 - El MSI v1.1.1 publicado lleva la SAC antigua (import solo por usuario):
   reinstalado a mano puede volver a perder la identidad; vía `install-msi.ps1`
-  queda reparado por la auto-reparación. El arreglo viaja en la próxima build
-  (empaquetado: no sube versión).
+  queda reparado por la auto-reparación. El MSI v1.1.3 ya incluye el CA
+  elevado y registra la identidad sin pasos extra; `install-msi.ps1` conserva
+  la auto-reparación como red de seguridad para instalaciones antiguas.
 
 ## Regla de oro
 

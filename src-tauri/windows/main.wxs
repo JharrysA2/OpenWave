@@ -439,15 +439,14 @@
         </InstallExecuteSequence>
 
         <!-- ── Identidad de paquete sparse (plan C: agrupacion en TV) ──────
-             openwave-identity.msix/.cer y el script openwave-identity-ca.ps1
-             llegan al INSTALLDIR via bundle.resources (tauri.conf.json).
+             openwave-identity.msix/.cer y los scripts
+             openwave-identity-cert.ps1 / openwave-identity-ca.ps1 llegan al
+             INSTALLDIR via bundle.resources (tauri.conf.json).
              La SAC NO pega el comando en linea: llama al script -File (el
              inline -Command fallaba solo dentro de msiexec: exit 1 sin
              ejecutar Remove/Add; verificado 2026-10-05, y el detalle en
-             %PROGRAMDATA%\OpenWave\openwave-identity.log). El script importa
-             la confianza del
-             certificado al usuario que instala (sin ella Add-AppxPackage
-             da 0x800B0109) y registra el paquete con -ExternalLocation =
+             %PROGRAMDATA%\OpenWave\openwave-identity.log). El script
+             registra el paquete con -ExternalLocation =
              su propia carpeta: OpenWave.exe (con el elemento <msix> que
              embebe build.rs) y sus hijos WebView2 comparten identidad y
              el Administrador de Tareas los agrupa en UN solo grupo
@@ -458,14 +457,27 @@
              ExternalLocation en reparaciones y upgrades (con la misma
              version sin remover daria 0x80073CF9).
              Return=ignore: si AppX fallara (p.ej. policy de equipo que
-             bloqueie despliegues), la instalacion NO se rompe; la app
+             bloquee despliegues), la instalacion NO se rompe; la app
              quedaria sin identidad y verify-msi lo detecta en el chequeo
              en vivo. Register va inmediata tras InstallFinalize (ficheros
              ya en disco) y Unregister ANTES de RemoveFiles (el script
-             tiene que existir todavia); ambas imperadas por el usuario
-             que instala (los CAs inmediados corren en su contexto:
-             HKCU/Cert:\CurrentUser sin elevacion).
+             tiene que existir todavia); ambas corren impersonadas por el
+             usuario que instala. La confianza de LocalMachine la importa el
+             CA diferido y elevado de abajo.
              -ExecutionPolicy Bypass: por si el equipo restringe scripts. -->
+        <!-- La confianza en LocalMachine\TrustedPeople es la unica que
+             Add-AppxPackage valida para la firma del paquete sparse. Un CA
+             inmediato corre impersonado (sin elevacion) y no puede escribir
+             ahi: por eso el certificado lo importa este CA diferido y elevado
+             (Impersonate=no) tras InstallFiles. Despues, RegisterIdentity
+             sigue corriendo como el usuario que instala para que el paquete
+             quede registrado en SU perfil (Add-AppxPackage es por usuario).
+             Return=ignore: si la importacion fallara, la instalacion no se
+             rompe y el script de identidad tiene su propio respaldo. -->
+        <CustomAction Id="ImportIdentityCert"
+                      Directory="$(var.IcaclsFolderId)"
+                      ExeCommand="powershell.exe -NoProfile -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File &quot;[INSTALLDIR]openwave-identity-cert.ps1&quot;"
+                      Execute="deferred" Return="ignore" Impersonate="no" />
         <CustomAction Id="RegisterIdentity"
                       Directory="$(var.IcaclsFolderId)"
                       ExeCommand="powershell.exe -NoProfile -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File &quot;[INSTALLDIR]openwave-identity-ca.ps1&quot; -Mode Register"
@@ -475,6 +487,7 @@
                       ExeCommand="powershell.exe -NoProfile -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File &quot;[INSTALLDIR]openwave-identity-ca.ps1&quot; -Mode Unregister"
                       Return="ignore" />
         <InstallExecuteSequence>
+            <Custom Action="ImportIdentityCert" After="InstallFiles">NOT REMOVE</Custom>
             <Custom Action="RegisterIdentity" After="InstallFinalize">NOT REMOVE</Custom>
             <!-- Antes de RemoveFiles: el script -Mode Unregister tiene que
                  seguir en disco (RemoveFiles borra los ficheros ANTES de

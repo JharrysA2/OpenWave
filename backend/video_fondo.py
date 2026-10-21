@@ -29,7 +29,6 @@ from db import (
     db_get_desfase_videoclip,
     db_get_videoclip_oficial,
     db_set_desfase_videoclip,
-    db_set_videoclip_oficial,
 )
 from logging_config import get_logger
 from videoclip import DESAJUSTE_SIN_MEDIDA, VIGENCIA_SIN_CLIP, resolver_videoclip
@@ -246,6 +245,22 @@ def calidad_guardada(video_id: str) -> int | None:
     """
     dims = _medida_dims(video_id)
     return None if dims is None else dims[1]
+
+
+def _clase_guardada(video_id: str) -> int | None:
+    """Clase de resolución medida, en altura 16:9 (o ``None`` si no hay).
+
+    Es la que muestra Almacenamiento: un clip panorámico 1920x1038 es «1080p»,
+    no «1038p», porque el ancho ya es el de 1080p y es lo que cuelga del tope
+    pedido. Sin medida, ``None`` (lo mismo que ``calidad_guardada``).
+    """
+    dims = _medida_dims(video_id)
+    if dims is None:
+        return None
+    ancho, alto = dims
+    if ancho is None:
+        return alto
+    return _clase_alto(ancho, alto)
 
 
 def _calidad_prometida(video_id: str) -> int | None:
@@ -611,27 +626,6 @@ def _descargar(video_id: str, fuente_id: str, max_alto: int | None = None) -> No
         _limpiar_temporales(video_id)
 
 
-def _descartar_por_desfase(video_id: str) -> None:
-    """El videoclip no encaja con la canción: se borra y se cachea «sin clip».
-
-    Solo llega aquí cuando la comparación de pistas se completó y el vídeo no
-    cuadra (no por un fallo transitorio, que se propaga como excepción).
-    """
-    with suppress(Exception):
-        db_set_videoclip_oficial(video_id, None)
-    for ext in ("mp4", "webm"):
-        p = VIDEO_DIR / f"{video_id}.{ext}"
-        with suppress(OSError):
-            if p.is_file():
-                p.unlink()
-    video_progress[video_id] = {
-        "status": "sin_video",
-        "progress": 100,
-        "error": None,
-    }
-    logger.info("vídeo %s: desfase no medible → se usa la portada", video_id)
-
-
 def prepare_video(
     video_id: str, usar_oficial: bool = True, max_alto: int | None = None
 ) -> None:
@@ -713,10 +707,16 @@ def prepare_video(
 
         desfase = _resolver_desfase(video_id, fuente_id, usar_oficial)
         if desfase is None:
-            # El vídeo no cuadra con la canción: se descarta (queda la portada)
-            # y se cachea para no repetir la descarga entera en cada apertura.
-            _descartar_por_desfase(video_id)
-            return
+            # La comparación de pistas no encontró un encaje claro, pero el
+            # vídeo YA está descargado y el resolver lo identificó como el
+            # clip oficial. Un fallo de medición no puede borrarlo ni marcar
+            # la canción como «sin videoclip»: se reproduce a la par.
+            logger.warning(
+                "vídeo %s: desfase no medible; se reproduce a la par", video_id
+            )
+            desfase = 0.0
+            with suppress(Exception):
+                db_set_desfase_videoclip(video_id, desfase)
         video_progress[video_id] = {
             "status": "done",
             "progress": 100,
@@ -941,9 +941,9 @@ def listar_videos_cacheados() -> list[dict]:
     """Vídeos de fondo en disco, del más reciente al más antiguo.
 
     Cada entrada anota id, tamaño, fecha (mtime de la última descarga) y la
-    resolución medida (``None`` si aún no se midió), para que Almacenamiento
-    pueda mostrarlos y borrarlos uno a uno. Los intermedios de yt-dlp
-    (``id.f137.mp4``) no son vídeos finales: se saltan.
+    clase de resolución medida (``None`` si aún no se midió), para que
+    Almacenamiento pueda mostrarlos y borrarlos uno a uno. Los intermedios de
+    yt-dlp (``id.f137.mp4``) no son vídeos finales: se saltan.
     """
     entradas: list[dict] = []
     for p in VIDEO_DIR.glob("*"):
@@ -960,7 +960,7 @@ def listar_videos_cacheados() -> list[dict]:
                 "videoId": p.stem,
                 "size": st.st_size,
                 "date": int(st.st_mtime),
-                "quality": calidad_guardada(p.stem),
+                "quality": _clase_guardada(p.stem),
             }
         )
     entradas.sort(key=lambda e: e["date"], reverse=True)

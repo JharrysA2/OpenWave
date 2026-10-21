@@ -65,7 +65,7 @@ Se ejecuta desde WSL; la app empaquetada vive en
 
 - [ ] `scripts/sync-windows` (Windows en el mismo commit).
 - [ ] Rebuild SIN `-SkipRuntime` si cambió el backend: cerrar la app y
-      relanzar `package-windows.ps1` + `verify-msi.ps1` (75/75).
+      relanzar `package-windows.ps1` + `verify-msi.ps1` (78/78).
 - [ ] Instalar con UAC (`scripts/install-msi.ps1 -MsiPath ... -Launch`), o
       `Start-Process msiexec -Verb RunAs -Wait -PassThru`), verificar el hash
       del `songs.py`/`main.py` instalado contra el repo y `GET /health` → 200.

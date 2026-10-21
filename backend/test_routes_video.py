@@ -371,6 +371,21 @@ class TestVideoCache:
             with get_db() as conn:
                 conn.execute("DELETE FROM history WHERE video_id=?", (vid,))
 
+    def test_list_videos_muestra_la_clase_de_un_panoramico(self, client):
+        """Un clip letterbox 1920x1038 se lista como 1080p, no «1038p»."""
+        vid = "list_pan"
+        p = VIDEO_DIR / f"{vid}.mp4"
+        p.write_bytes(b"x")
+        (VIDEO_DIR / f"{vid}.calidad").write_text("medida=1920x1038", encoding="utf-8")
+        try:
+            resp = client.get("/videos")
+            assert resp.status_code == 200
+            entrada = next(v for v in resp.json()["videos"] if v["videoId"] == vid)
+            assert entrada["quality"] == 1080
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / f"{vid}.calidad").unlink(missing_ok=True)
+
     def test_clear_videos_vacia_la_caché(self, client):
         a = VIDEO_DIR / "vac_a.mp4"
         b = VIDEO_DIR / "vac_b.webm"

@@ -1416,6 +1416,25 @@ yt_dlp --simulate`):
 - La fila «SIN `QNTFb4bKff4`» (resuelta por el usuario durante la prueba con
   la 1.1.5) caduca en 1 h y se re-resuelve con el criterio nuevo.
 
+**Verificación 1.1.7 (2026-10-21, segunda búsqueda antes de cachear «sin
+videoclip»).** El usuario reportó canciones que «a veces no encuentran el
+vídeo hasta darle Reintentar». Medida con el catálogo real: la respuesta de
+la búsqueda de YouTube Music **varía entre llamadas** — en la 1.ª pasada para
+«Surfeando la Ola» MDBCrew no se llegó a repetir (ningún candidato pasaba) y
+el no-resultado se cacheaba «sin videoclip» una hora con la portada; en las
+4 pasadas siguientes la crew se repetía y el clip quedaba.
+
+- Ahora `_buscar_candidato` repite la pasada (misma query, ~1.5 s de pausa)
+  cuando la primera no encuentra nada —candidato vacío o búsqueda vacía— y
+  solo cachea el negativo si las dos quedan sin resultado. Equivalentemente:
+  la segunda oportunidad que antes dependía del botón «Reintentar» (o de la
+  caducidad de 1 h) corre sola dentro del resolver. Un acierto en la 1.ª
+  pasada no hace la segunda llamada (las pruebas lo verifican con el
+  registro de queries).
+- Tests: `test_la_segunda_busqueda_recupera_el_clip`,
+  `test_la_busqueda_vacia_tiene_segunda_oportunidad` y
+  `test_sin_candidato_en_dos_pasadas_se_cachea` (clase `TestResolver`).
+
 ## Regla de oro
 
 Todo estilo con impacto potencial en GPU/CPU (backdrop-filter nuevo,

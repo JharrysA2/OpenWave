@@ -25,11 +25,16 @@ OMV = "MUSIC_VIDEO_TYPE_OMV"
 class _YtmFalso:
     """YTMusic de mentira: solo los tres endpoints que usa el módulo."""
 
-    def __init__(self, watch=None, search=None, song=None, fallar_todo=False):
+    def __init__(
+        self, watch=None, search=None, song=None, fallar_todo=False, searches=None
+    ):
         self._watch = watch
         self._search = search
         self._song = song
         self._fallar_todo = fallar_todo
+        # Respuestas distintas por llamada (la búsqueda varía entre pasadas);
+        # la última se repite mientras se siga llamando.
+        self._searches = searches
         # Registro de búsquedas: para comprobar la query que se lanza.
         self.queries: list[str] = []
 
@@ -45,6 +50,9 @@ class _YtmFalso:
 
     def search(self, query, filter=None, limit=20):
         self.queries.append(query)
+        if self._searches is not None:
+            pasada = min(len(self.queries) - 1, len(self._searches) - 1)
+            return self._searches[pasada]
         if isinstance(self._search, Exception):
             raise self._search
         return self._search or []
@@ -680,6 +688,101 @@ class TestResolver:
         monkeypatch.setattr("videoclip.get_ytm", lambda: ytm)
         assert resolver_videoclip("of_crew") == "crew"
 
+    def test_la_segunda_busqueda_recupera_el_clip(self, monkeypatch):
+        """La respuesta de la búsqueda varía: se repite la pasada sin candidato.
+
+        Caso real medido con «Surfeando la Ola»: en una respuesta el canal del
+        catálogo (MDBCrew) no se llega a repetir y ninguna subida pasa; en la
+        siguiente se repite y ahí está el clip. Como el no-resultado se
+        cachea («sin videoclip») una hora, la segunda oportunidad va dentro
+        del resolver — es lo que antes solo conseguía el «Reintentar» del
+        usuario, y solo a partir de la caducidad.
+        """
+        ytm = _YtmFalso(
+            watch=_watch("Surfeando la Ola", "Bardero$, Frane", "3:38", ATV),
+            searches=[
+                # 1.ª pasada: letra ajena suelta, nobody repite.
+                [
+                    dict(
+                        _video(
+                            "letra",
+                            "Bardero$ - Surfeando La Ola (Letra)",
+                            "Gaan.",
+                            "2:41",
+                            tipo="MUSIC_VIDEO_TYPE_UGC",
+                        ),
+                        views="136K",
+                    )
+                ],
+                # 2.ª pasada: la crew se repite y el clip pasa.
+                [
+                    _video("otra", "Bardero$ - Blow (Prod. XRIZ)", "MDBCrew", "2:48"),
+                    dict(
+                        _video(
+                            "crew",
+                            "Bardero$ - Feat Frane  - Surfeando la Ola",
+                            "MDBCrew",
+                            "3:38",
+                            tipo="MUSIC_VIDEO_TYPE_UGC",
+                        ),
+                        views="2.2M",
+                    ),
+                ],
+            ],
+        )
+        monkeypatch.setattr("videoclip.get_ytm", lambda: ytm)
+        monkeypatch.setattr("videoclip._PAUSA_REBUSCA", 0)
+        assert resolver_videoclip("of_rebusca") == "crew"
+        assert ytm.queries == ["Surfeando la Ola Bardero$"] * 2
+
+    def test_la_busqueda_vacia_tiene_segunda_oportunidad(self, monkeypatch):
+        """0 resultados por un fallo puntual: otra pasada antes de rendirse.
+
+        La búsqueda vacía no se cachea («no tiene videoclip»), pero sí deja
+        la canción con portada por esta apertura: una segunda llamada la
+        recupera hachazo.
+        """
+        ytm = _YtmFalso(
+            watch=_watch("Mi Alma", "C.R.O", "3:16", ATV),
+            searches=[
+                [],
+                [_video("clipe", "C.R.O - Mi Alma", "C.R.O", "3:16")],
+            ],
+        )
+        monkeypatch.setattr("videoclip.get_ytm", lambda: ytm)
+        monkeypatch.setattr("videoclip._PAUSA_REBUSCA", 0)
+        assert resolver_videoclip("of_rebusca_vacia") == "clipe"
+        assert len(ytm.queries) == 2
+
+    def test_sin_candidato_en_dos_pasadas_se_cachea(self, monkeypatch):
+        """Solo se cachea «sin videoclip» cuando las DOS búsquedas fallan.
+
+        Y una búsqueda con acierto directo NO se repite (una sola llamada).
+        """
+        letra = dict(
+            _video(
+                "letra",
+                "C.R.O - Mi Alma (Letra)",
+                "LetrasRandom",
+                "3:16",
+                tipo="MUSIC_VIDEO_TYPE_UGC",
+            ),
+            views="18M",
+        )
+        ytm = _YtmFalso(
+            watch=_watch("Mi Alma", "C.R.O", "3:16", ATV),
+            searches=[
+                [dict(letra)],
+                [dict(letra)],
+            ],
+        )
+        monkeypatch.setattr("videoclip.get_ytm", lambda: ytm)
+        monkeypatch.setattr("videoclip._PAUSA_REBUSCA", 0)
+        assert resolver_videoclip("of_dos_vacias") is None
+        assert len(ytm.queries) == 2
+        # Cacheado como «no tiene» (vigencia, no para siempre).
+        assert db_get_videoclip_oficial("of_dos_vacias", 3600.0) == (True, None)
+
     def test_tu_recuerdo_sin_duracion_en_la_busqueda(self, monkeypatch):
         """Un OMV sin ``length`` no se descarta: decide el título y el canal.
 
@@ -758,11 +861,13 @@ class TestResolver:
 
         ytm.search = _buscar
         monkeypatch.setattr("videoclip.get_ytm", lambda: ytm)
+        monkeypatch.setattr("videoclip._PAUSA_REBUSCA", 0)
 
         assert resolver_videoclip("of_vacia") is None
         assert resolver_videoclip("of_vacia") is None
-        # Cada apertura consulta de nuevo: nada quedó en la caché.
-        assert len(busquedas) == 2
+        # Cada apertura consulta de nuevo (con su segunda oportunidad): nada
+        # quedó en la caché.
+        assert len(busquedas) == 4
         assert db_get_videoclip_oficial("of_vacia") == (False, None)
 
     def test_omv_usa_el_propio_video(self, monkeypatch):

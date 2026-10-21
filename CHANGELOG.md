@@ -6,6 +6,17 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Segunda pasada de búsqueda antes de cachear «sin videoclip».** La
+  respuesta de la búsqueda de YouTube Music varía entre llamadas: el canal
+  del catálogo puede no llegar a repetirse en una respuesta y la canción
+  quedaba cacheada como «sin videoclip» una hora (portada) aunque una
+  búsqueda posterior lo encontrara — el caso que solo arreglaba el botón
+  «Reintentar». Si la primera pasada no encuentra nada se vuelve a buscar
+  (~1.5 s después) y el negativo solo se cachea cuando las dos quedan
+  vacías; un acierto directo no hace la segunda llamada.
+
 ## [1.1.6] - 2026-10-21
 
 ### Fixed

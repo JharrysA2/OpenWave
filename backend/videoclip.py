@@ -24,6 +24,7 @@ letras se queda con la portada, sin descargar nada más.
 """
 
 import re
+import time
 import unicodedata
 from contextlib import suppress
 from typing import NamedTuple
@@ -72,6 +73,15 @@ _SE_REPITE_CANAL = 2
 # búsqueda degradada) y no puede dejar la canción con la portada durante un día
 # entero: se reconsulta en cada hora y los aciertos siguen sin caducar.
 VIGENCIA_SIN_CLIP = 60 * 60
+
+# La respuesta de la búsqueda VARÍA entre llamadas: el canal del catálogo
+# (MDBCrew) se puede caer de los 20 resultados y pasar de repetirse (visto con
+# «Aquella Noche»: en una respuesta no se repetía y no había candidato; en las
+# cuatro siguientes, sí). Como el no-resultado se cachea («sin videoclip») una
+# hora, la segunda oportunidad va DENTRO del resolver: antes de darse por
+# vencida y cachear el negativo, se vuelve a buscar.
+_BUSQUEDAS_POR_RESOLUCION = 2
+_PAUSA_REBUSCA = 1.5
 
 # Palabras que delatan una versión que NO es el videoclip oficial. Se buscan
 # como palabra completa sobre el título normalizado (con paréntesis incluidos:
@@ -460,6 +470,22 @@ class _BusquedaVaciaError(Exception):
     llamada, no «esta canción no tiene videoclip»."""
 
 
+def _mejor_de_busqueda(cancion: _Cancion) -> dict | None:
+    """Una pasada de búsqueda: el mejor candidato o ``None``.
+
+    Lanza ``_BusquedaVaciaError`` si la búsqueda no devuelve NADA: un vacío
+    es un fallo de red o de la llamada, no «esta canción no tiene videoclip»,
+    y no debe quedarse cacheado como tal.
+    """
+    query = f"{cancion.titulo} {_artista_principal(cancion.artista)}".strip()
+    resultados = get_ytm().search(query, filter="videos", limit=20)
+    if not resultados:
+        raise _BusquedaVaciaError(f"0 resultados para {cancion.titulo!r}")
+    return _mejor_candidato(
+        cancion.titulo, cancion.artista, cancion.duracion, resultados
+    )
+
+
 def _buscar_candidato(cancion: _Cancion) -> tuple[str, int | None] | None:
     """Mejor videoclip que cuadre en la búsqueda: ``(vídeo, desajuste)``.
 
@@ -471,27 +497,30 @@ def _buscar_candidato(cancion: _Cancion) -> tuple[str, int | None] | None:
     vídeo, o ``None`` si alguna de las dos no la sabe. No se usa para
     rechazar, sino para saber si luego hay que medir el desfase.
 
-    Lanza ``_BusquedaVaciaError`` si la búsqueda no devuelve nada: un vacío
-    no es una respuesta válida y no debe quedarse cacheado como «no tiene
-    videoclip».
+    Si una pasada no encuentra candidato se hace una segunda (ver
+    ``_BUSQUEDAS_POR_RESOLUCION``): la respuesta de la búsqueda varía entre
+    llamadas y el no-resultado se cachearía («sin videoclip») una hora entera
+    con una sola pasada. Solo se devuelve sin candidato si las dos pasadas
+    quedan sin él; con las DOS vacías el ``_BusquedaVaciaError`` sube.
     """
-    resultados = get_ytm().search(
-        f"{cancion.titulo} {_artista_principal(cancion.artista)}".strip(),
-        filter="videos",
-        limit=20,
-    )
-    if not resultados:
-        raise _BusquedaVaciaError(f"0 resultados para {cancion.titulo!r}")
-    mejor = _mejor_candidato(
-        cancion.titulo, cancion.artista, cancion.duracion, resultados
-    )
-    if not mejor:
+    intento = None
+    for pasada in range(_BUSQUEDAS_POR_RESOLUCION):
+        try:
+            intento = _mejor_de_busqueda(cancion)
+        except _BusquedaVaciaError:
+            if pasada + 1 >= _BUSQUEDAS_POR_RESOLUCION:
+                raise
+        else:
+            if intento:
+                break
+        time.sleep(_PAUSA_REBUSCA)
+    if not intento:
         return None
-    segundos = _segundos(mejor.get("duration"))
+    segundos = _segundos(intento.get("duration"))
     desajuste = None
     if cancion.duracion and segundos:
         desajuste = abs(cancion.duracion - segundos)
-    return mejor["videoId"], desajuste
+    return intento["videoId"], desajuste
 
 
 def _resolver(video_id: str) -> tuple[str | None, int | None, bool]:

@@ -7,6 +7,12 @@ audio, no un videoclip. Este módulo busca el videoclip oficial de verdad
 descarga— y guarda el resultado en la base de datos para no repetir la
 búsqueda al volver a abrir la canción.
 
+Solo valen dos señales: que YouTube Music declare el vídeo como videoclip
+oficial (``OMV``) o que lo haya subido el canal del propio artista. Una
+re-subida de un tercero no cuenta aunque copie el título exacto —así se colaban
+los «vídeos letra» de otras personas—: si no hay nada seguro, la canción no
+descarga nada.
+
 Si la canción no tiene videoclip oficial se devuelve ``None``: la pantalla de
 letras se queda con la portada, sin descargar nada más.
 """
@@ -216,13 +222,17 @@ def puntuar_candidato(
 ) -> float:
     """Puntos de un resultado de búsqueda como videoclip oficial de la canción.
 
-    Tiene que ser la misma canción (título), subirla el propio artista y no ser
-    una portada fija ni una versión anunciada como no oficial (letra, cover,
-    directo, remix…). Cualquiera de esos casos devuelve ``_RECHAZO``, igual que
-    un vídeo que dure bastante más o menos que la canción: con dos líneas de
-    tiempo distintas el fondo iría desfasado respecto a lo que suena. Entre los
-    candidatos válidos, el resto de la puntuación solo sirve para ordenarlos:
-    un vídeo declarado como videoclip oficial (``OMV``) gana al resto.
+    Tiene que ser la misma canción (título) y colgarla el propio artista o
+    estar declarada como videoclip oficial (``OMV``; si la sube un canal
+    ajeno —un sello, por ejemplo— el artista tiene que aparecer en el
+    título). No valen las portadas fijas ni las versiones anunciadas como no
+    oficiales (letra, cover, directo, remix…), ni las re-subidas de terceros:
+    sin OMV ni canal del artista no se puede distinguir el clip original de un
+    «vídeo letra» (``_RECHAZO``), igual que un vídeo que dure bastante más o
+    menos que la canción: con dos líneas de tiempo distintas el fondo iría
+    desfasado respecto a lo que suena. Entre los válidos, el resto de la
+    puntuación solo sirve para ordenarlos: el del canal del artista gana a un
+    OMV de un canal ajeno.
     """
     titulo_video = candidato.get("title") or ""
     puntos = _puntos_titulo(titulo, titulo_video, artista)
@@ -235,16 +245,23 @@ def puntuar_candidato(
 
     oficial = (candidato.get("videoType") or "") == _OMV
     if not _limpiar(artista):
-        artista_puntos = 0.0  # canción sin artista: decide el título
+        if not oficial:
+            # Sin artista no hay canal que comprobar: solo se confía en la
+            # marca OMV, que solo trae la música del catálogo oficial.
+            return _RECHAZO
+        artista_puntos = 0.0
     elif _canal_es_del_artista(artista, candidato):
         artista_puntos = 2.0
-    elif _artista_en_titulo(artista, titulo_video):
-        # Canal de sello, re-subida o similar: se acepta si el artista aparece
-        # en el título, aunque YouTube no lo marque como OMV (los sellos suben
-        # el clip con su propio canal). No suma puntos de artista: un OMV del
-        # propio artista gana si compite con él.
+    elif oficial and _artista_en_titulo(artista, titulo_video):
+        # OMV de un canal ajeno (sello, crew…): vale si el artista aparece en
+        # el título. No suma puntos de artista: un OMV del propio artista
+        # gana si compite con él.
         artista_puntos = 0.0
     else:
+        # Re-subida de un tercero: no basta con el artista en el título,
+        # porque los «vídeos letra» copian el título exacto. Se descarta y la
+        # canción se queda con la portada: mejor nada que un vídeo que no es
+        # el original del artista.
         return _RECHAZO
 
     puntos += artista_puntos

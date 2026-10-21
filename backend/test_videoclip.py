@@ -201,22 +201,72 @@ class TestPuntuacion:
             < 0
         )
 
-    def test_canal_ajeno_con_el_artista_en_el_titulo_se_acepta(self):
-        """Caso real: el clip de «Behind Me» está en el canal del sello y
-        YouTube no lo marca como OMV; con el artista en el título basta."""
-        puntos = puntuar_candidato(
-            "Behind Me",
-            "C.R.O & Fazzini",
-            299,
-            _video(
-                "sello",
-                "C.R.O & Fazzini - Behind Me (OfficialVideo)",
-                "mdbcrew",
-                "5:00",
-                tipo="MUSIC_VIDEO_TYPE_UGC",
-            ),
+    def test_canal_ajeno_con_el_artista_en_el_titulo_se_rechaza(self):
+        """Sin OMV ni canal del artista, el título no basta.
+
+        «Behind Me» está subido por la crew que lo grabó (MDBCrew) y YouTube
+        no lo marca como OMV… pero también los «vídeos letra» copian el título
+        exacto («behind me [letra]»). Por metadatos no se distinguen: se
+        descarta y la canción se queda con la portada.
+        """
+        assert (
+            puntuar_candidato(
+                "Behind Me",
+                "C.R.O & Fazzini",
+                299,
+                _video(
+                    "sello",
+                    "C.R.O & Fazzini - Behind Me (OfficialVideo)",
+                    "mdbcrew",
+                    "5:00",
+                    tipo="MUSIC_VIDEO_TYPE_UGC",
+                ),
+            )
+            < 0
         )
-        assert puntos > 0
+
+    def test_video_letra_sin_marcar_con_titulo_exacto_se_rechaza(self):
+        """Caso real: «TU RECUERDO - C.R.O» (canal Trap SAD) es un vídeo letra.
+
+        Puntúa alto con el criterio viejo (título exacto, duración cuadrada y
+        el artista en el título) y se colaba si el OMV no salía en la
+        búsqueda: ahora, sin OMV ni canal del artista, no vale.
+        """
+        assert (
+            puntuar_candidato(
+                "Tu Recuerdo",
+                "C.R.O",
+                149,
+                _video(
+                    "letra_trampa",
+                    "TU RECUERDO - C.R.O",
+                    "Trap SAD",
+                    "2:28",
+                    tipo="MUSIC_VIDEO_TYPE_UGC",
+                ),
+            )
+            < 0
+        )
+
+    def test_sin_artista_solo_se_confia_en_omv(self):
+        """Sin artista no hay canal que comprobar: solo la marca OMV vale."""
+        assert (
+            puntuar_candidato(
+                "Mi Alma", "", 196, _video("omv", "Mi Alma", "Canal X", "3:16")
+            )
+            > 0
+        )
+        assert (
+            puntuar_candidato(
+                "Mi Alma",
+                "",
+                196,
+                _video(
+                    "ugc", "Mi Alma", "Canal X", "3:16", tipo="MUSIC_VIDEO_TYPE_UGC"
+                ),
+            )
+            < 0
+        )
 
     def test_duracion_muy_distinta_se_rechaza(self):
         """Con dos líneas de tiempo distintas el fondo iría desfasado."""

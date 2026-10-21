@@ -133,7 +133,8 @@ describe("SettingsPanel", () => {
     renderPanel();
     fireEvent.click(screen.getByText("Acerca de"));
     expect(screen.getByText("Versión")).toBeInTheDocument();
-    expect(screen.getByText("1.1.2")).toBeInTheDocument();
+    // La versión la inyecta vite (define __APP_VERSION__): sin número en duro.
+    expect(screen.getByText(__APP_VERSION__)).toBeInTheDocument();
   });
 
   it("should navigate to translation page when clicked", () => {

@@ -40,7 +40,9 @@ import { api } from "../utils/api";
 describe("PageAcercaDe", () => {
   it("should render version number", () => {
     renderWithSettings(<PageAcercaDe />);
-    expect(screen.getByText("1.1.2")).toBeInTheDocument();
+    // La versión la inyecta vite (define __APP_VERSION__ desde package.json):
+    // no se pega en duro para que el bump de release no rompa este test.
+    expect(screen.getByText(__APP_VERSION__)).toBeInTheDocument();
   });
 
   it("should render version label", () => {

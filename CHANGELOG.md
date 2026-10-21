@@ -6,6 +6,17 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **El videoclip de fondo solo se busca entre vídeos del propio artista.** La
+  búsqueda ya no acepta re-subidas de canales ajenos aunque copien el título
+  exacto: así se colaban «vídeos letra» de otras personas («TU RECUERDO -
+  C.R.O», «C.R.O - Tu Recuerdo» subidos a canales de letras) cuando el clip
+  oficial no aparecía en la búsqueda. Ahora hace falta que YouTube Music
+  marque el vídeo como clip oficial (OMV) o que lo cuelgue el canal del
+  artista; un OMV de un canal ajeno —un sello— vale si el artista aparece en
+  el título. Si no hay nada seguro, la pantalla se queda con la portada.
+
 ## [1.1.3] - 2026-10-21
 
 ### Fixed
@@ -344,6 +355,9 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 
 ### Fixed
 
+- **Los tests de versión no van más con el número pegado en duro.** «Acerca
+  de» y «Ajustes → Acerca de» leen el `__APP_VERSION__` que inyecta vite desde
+  `package.json`; al subir versión el workflow no rompía la suite.
 - **La identidad del paquete (Task Manager en un grupo) ya no se pierde al
   instalar un MSI construido en CI.** El certificado de una build de CI es
   nuevo en cada build y la SAC solo lo importaba como de confianza en el

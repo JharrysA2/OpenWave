@@ -1349,6 +1349,73 @@ Arreglo (2026-10-20, completado en 1.1.3):
   elevado y registra la identidad sin pasos extra; `install-msi.ps1` conserva
   la auto-reparación como red de seguridad para instalaciones antiguas.
 
+## 11. Videoclip de fondo: catálogos de crews y bloqueo de bots (1.1.5 + 1.1.6)
+
+**Verificación 1.1.5 (2026-10-21, resolver por canal del catálogo).** El
+usuario reportó que «la mayoría de vídeos no los encuentra o no son el vídeo
+oficial»: los clips de Bardero$/C.R.O los sube **MDBCrew** (la crew) sin la
+marca OMV que exigía la regla de la 1.1.4, y la búsqueda con la lista entera
+de artistas llenaba la query de ruido.
+
+- Búsqueda por **primer artista** (`_artista_principal`): con «Bardero$, C.R.O,
+  Homer el Mero Mero» la query larga enterraba el clip fuera de los 20
+  resultados; la query es ahora `{título} {primer_artista}` («Aquella Noche
+  Bardero$»).
+- Tercera señal de aceptación: el canal que **se repite** en la MISMA búsqueda
+  (`_canales_repetidos`, ≥2 con vistas ≥ 100 mil; del millón si el título
+  anuncia «(Video Lyric)») es el canal del catálogo. El rótulo «(Video
+  Lyric)» de la propia crew pasa (el clip real), las letras ajenas no
+  («bardero$ - bandida [letra]» del canal «爱 offering», 18M vistas, canal
+  que aparece una sola vez) ni las trampas de pocos vistas («Daniela Lipa» 5,
+  «Real Musix BassBoosted» 495, Trap SAD 89, M Music 34, YFP 55).
+- Resolver verificado con la búsqueda real de YouTube Music:
+
+  | canción | fuente nueva | canal | vistas | antes (1.1.4) |
+  | --- | --- | --- | --- | --- |
+  | Surfeando la Ola | `Ih_SfavGO_I` | MDBCrew | 2.2M | portada |
+  | Aquella Noche | `IJbjCmXQCIU` «(Video Lyric)» | MDBCrew | 47M | portada |
+  | Don Perignon | `Zdfvlqo1Hmk` «(Video Lyric)» | MDBCrew | 2.5M | portada |
+  | Behind Me | `U0ZVo4kK3VM` | MDBCrew | 60M | portada |
+
+  Los OMV de siempre no se tocan: Tu Recuerdo `35wouAYd1MU`, Historia sin Fin
+  `wglSoMsXzP8`, Mala Vida `BYmLUxn4vHM`, After House `1-gR6F8cwI0`.
+- Migración de la caché (`_ESQUEMA_VERSION` 2 → 3): al abrir la app
+  actualizada se olvidan las filas «sin videoclip» de la era 1.1.4 y se
+  vuelven a resolver con la regla nueva sin esperar la caducidad de 1 h; los
+  aciertos no se tocan. Verificado en la BD real tras instalar: `user_version
+  = 3`, las 3 filas sin videoclip borradas, los 3 aciertos quedan.
+- Test del descubrimiento del canal en `test_videoclip.py`
+  (`TestAyudas`, `test_el_canal_del_catalogo_se_descubre_en_la_busqueda` y
+  los de puntuación con `catalogo=`).
+
+**Verificación 1.1.6 (2026-10-21, reintento IPv4 tras el bot-check).** Con el
+resolver arreglado, la descarga del clip de MDBCrew fallaba SIEMPRE:
+`ERROR: Sign in to confirm you're not a bot` en todos los intentos anónimos
+de la escalera. Localización con el runtime real de Windows (`python.exe -m
+yt_dlp --simulate`):
+
+- La máquina sale por **IPv6** (misma IP externa 190.56.143.102 por v4 y v6)
+  y YouTube aplica el bot-check a la v6; con `--force-ipv4` la misma descarga
+  pasa. WSL sale por IPv4 y por eso en desarrollo nunca se vio: yt-dlp
+  2026.07.04 en los dos lados, nada de cookies disponibles (sin navegadores
+  con BD exportable; fallos DPAPI/7271/10927 en la escalera).
+- Arreglo en `_descargar` (video_fondo.py): si un intento choca con el
+  bloqueo (`_bloqueo_bots`: /"Sign in to confirm"/, /"not a bot"/) se
+  encolan al final de la escalera los **dos intentos capaces de 1080p**
+  (embed + mp4) con `source_address = 0.0.0.0` (IPv4 forzada), una sola vez
+  (`ipv4_encolada`). Un v6 sano no lo nota (no se encarga nada extra).
+- `POST /video/prepare` end-to-end en la app 1.1.6 instalada (identidad
+  `OpenWave_pr6hx30mntjwm` re-registrada por el CA del MSI): los 3 clips de
+  MDBCrew quedan preparados — Aquella Noche 68.5 MB, Surfeando la Ola
+  14.8 MB, Don Perignon 69.6 MB — con desfase 0.0 (desajuste ≤1 s, sin
+  medición). El log muestra la secuencia nueva: «bloqueo de bots de YouTube;
+  reintento forzado a IPv4» y después «vídeo listo … fuente Ih_SfavGO_I».
+- `/videos` lista los 3 (total 152.9 MB) y las filas quedan `OK` con la
+  fuente de la crew: `GlTyH842Zf8 → IJbjCmXQCIU (desa=1)`,
+  `sSJ2jxaqEYQ → Ih_SfavGO_I`, `V4w732FIf4E → Zdfvlqo1Hmk`.
+- La fila «SIN `QNTFb4bKff4`» (resuelta por el usuario durante la prueba con
+  la 1.1.5) caduca en 1 h y se re-resuelve con el criterio nuevo.
+
 ## Regla de oro
 
 Todo estilo con impacto potencial en GPU/CPU (backdrop-filter nuevo,

@@ -396,6 +396,11 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 
 ### Fixed
 
+- **Verificación de la regla de videoclips de la 1.1.5 y del reintento IPv4 de
+  la 1.1.6** en `docs/PERFORMANCE.md`: resolver por canal del catálogo con el
+  catálogo real (3/3 clips de MDBCrew), migración de la caché («sin videoclip»
+  olvidadas al actualizar) y `POST /video/prepare` end-to-end con el
+  bot-check de IPv6 visible en el log y la bajada final por IPv4.
 - **Verificación de la regla de videoclips en la 1.1.4** en `docs/PERFORMANCE.md`:
   resolver con la regla nueva (solo el OMV sobrevive de 20 candidatos reales),
   `POST /video/prepare` end-to-end (30 s, 1080p, desfase medido) y la nota de

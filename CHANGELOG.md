@@ -6,6 +6,24 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **El videoclip vuelve a encontrarse en catálogos de crews sin marca OMV.** La
+  regla de solo-OMV/canal-del-artista de la 1.1.4 dejaba en portada canciones
+  cuyo clip lo sube el canal de la crew o del sello (Bardero$ → MDBCrew)
+  porque YouTube Music no lo declara oficial. Ahora una subida de un canal
+  que se repite dentro de la misma búsqueda —señal de que es el canal del
+  catálogo— vale si sus vistas delatan el clip de verdad (a partir de 100 mil;
+  del millón si el título anuncia «(Video Lyric)», porque la propia banda
+  cuelga sus videoclips con ese rótulo), y el artista encabezado tiene que
+  salir en el título. Las re-subidas ajenas —cinco, cientos de vistas, o
+  canales de letra que aparecen una sola vez aunque pasen del millón— siguen
+  fuera.
+- **La búsqueda del videoclip va con el título y el PRIMER artista.** Con la
+  lista entera de colaboraciones («Bardero$, C.R.O, Homer el Mero Mero») la
+  query se llena de ruido y el clip quedaba fuera de los 20 resultados; solo
+  se busca con el que encabeza la canción.
+
 ## [1.1.4] - 2026-10-21
 
 ### Changed

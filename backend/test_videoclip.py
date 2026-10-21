@@ -3,7 +3,10 @@
 from db import db_get_videoclip_oficial, db_set_videoclip_oficial, get_db
 from videoclip import (
     VIGENCIA_SIN_CLIP,
+    _artista_principal,
+    _canales_repetidos,
     _segundos,
+    _vistas,
     elegir_candidato,
     normalizar_titulo,
     puntuar_candidato,
@@ -22,6 +25,8 @@ class _YtmFalso:
         self._search = search
         self._song = song
         self._fallar_todo = fallar_todo
+        # Registro de búsquedas: para comprobar la query que se lanza.
+        self.queries: list[str] = []
 
     def get_watch_playlist(self, video_id, limit=1):
         if self._fallar_todo or self._watch is None:
@@ -34,6 +39,7 @@ class _YtmFalso:
         return self._song
 
     def search(self, query, filter=None, limit=20):
+        self.queries.append(query)
         if isinstance(self._search, Exception):
             raise self._search
         return self._search or []
@@ -91,6 +97,61 @@ class TestNormalizar:
         assert _segundos(196) == 196
         assert _segundos("") is None
         assert _segundos(0) is None
+
+
+class TestAyudas:
+    """Helpers de la puntuación: artista principal, vistas y canales."""
+
+    def test_artista_principal_es_el_primero(self):
+        """De la lista unida con comas, el que encabeza la canción."""
+        assert _artista_principal("Bardero$, C.R.O, Homer el Mero Mero") == "Bardero$"
+        assert _artista_principal("  C.R.O  ") == "C.R.O"
+        assert _artista_principal("Bardero$") == "Bardero$"
+        assert _artista_principal("") == ""
+
+    def test_vistas_lee_los_formatos_de_youtube(self):
+        """«60M», «2.2M», «381.809» o el número pelado."""
+        assert _vistas({"views": "60M"}) == 60_000_000
+        assert _vistas({"views": "2.2M"}) == 2_200_000
+        assert _vistas({"views": "136K"}) == 136_000
+        assert _vistas({"views": "381.809"}) == 381_809
+        assert _vistas({"views": "37"}) == 37
+        assert _vistas({"views": ""}) is None
+        assert _vistas({}) is None
+        assert _vistas({"views": "sin vistas"}) is None
+
+    def test_canales_repetidos_marca_el_canal_del_catalogo(self):
+        """El canal que aparece dos veces queda marcado; el suelto, no.
+
+        La crew sube todo el catálogo (aparece varias veces en la búsqueda);
+        los canales de letras o re-subidas aparecen una sola vez.
+        """
+        catalogo = _canales_repetidos(
+            [
+                _video("a", "Surfeando la Ola", "MDBCrew", "3:38", tipo=""),
+                _video("b", "Otra de Bardero$", "MDBCrew", "3:00", tipo=""),
+                _video("c", "Otra más", "Gaan.", "3:00", tipo=""),
+                "no es un dict",
+                {"videoId": "sin_canal"},
+            ]
+        )
+        assert catalogo == frozenset({"mdbcrew"})
+        assert _canales_repetidos([]) == frozenset()
+        assert _canales_repetidos(None) == frozenset()
+
+    def test_canales_repetidos_con_dos_apariciones(self):
+        """Una sola aparición no marca el canal; con dos, sí."""
+        assert (
+            _canales_repetidos([_video("a", "T1", "MDBCrew", "3:00", tipo="")])
+            == frozenset()
+        )
+        dos = _canales_repetidos(
+            [
+                _video("a", "T1", "MDBCrew", "3:00", tipo=""),
+                _video("b", "T2", "MDBCrew", "3:00", tipo=""),
+            ]
+        )
+        assert dos == frozenset({"mdbcrew"})
 
 
 class TestPuntuacion:
@@ -202,11 +263,11 @@ class TestPuntuacion:
         )
 
     def test_canal_ajeno_con_el_artista_en_el_titulo_se_rechaza(self):
-        """Sin OMV ni canal del artista, el título no basta.
+        """Sin OMV, canal del artista o canal del catálogo, el título no basta.
 
-        «Behind Me» está subido por la crew que lo grabó (MDBCrew) y YouTube
-        no lo marca como OMV… pero también los «vídeos letra» copian el título
-        exacto («behind me [letra]»). Por metadatos no se distinguen: se
+        «Behind Me» lo sube la crew (MDBCrew) sin marca OMV, pero también los
+        «vídeos letra» copian el título exacto («behind me [letra]»). Sin la
+        señal del catálogo (canal repetido + vistas) no se distinguen: se
         descarta y la canción se queda con la portada.
         """
         assert (
@@ -221,6 +282,147 @@ class TestPuntuacion:
                     "5:00",
                     tipo="MUSIC_VIDEO_TYPE_UGC",
                 ),
+            )
+            < 0
+        )
+
+    def test_canal_del_catalogo_con_vistas_se_acepta(self):
+        """«Behind Me» de MDBCrew: sin OMV, pero canal del catálogo y 60M vistas.
+
+        MDBCrew repite en la búsqueda —es el canal de la crew, sube todo el
+        catálogo— y el vídeo real pasa de los 60M vistas: vistas + canal
+        repetido recupera el clip que la regla de solo-OMV dejaba en portada.
+        """
+        puntos = puntuar_candidato(
+            "Behind Me",
+            "C.R.O & Fazzini",
+            299,
+            dict(
+                _video(
+                    "crew",
+                    "C.R.O & Fazzini - Behind Me (OfficialVideo)",
+                    "MDBCrew",
+                    "5:00",
+                    tipo="MUSIC_VIDEO_TYPE_UGC",
+                ),
+                views="60M",
+            ),
+            catalogo=frozenset({"mdbcrew"}),
+        )
+        assert puntos > 0
+
+    def test_canal_del_catalogo_sin_vistas_se_rechaza(self):
+        """El canal del catálogo sin vistas (o sin saberlas) no vale."""
+        assert (
+            puntuar_candidato(
+                "Behind Me",
+                "C.R.O & Fazzini",
+                299,
+                _video(
+                    "crew",
+                    "C.R.O & Fazzini - Behind Me (OfficialVideo)",
+                    "MDBCrew",
+                    "5:00",
+                    tipo="MUSIC_VIDEO_TYPE_UGC",
+                ),
+                catalogo=frozenset({"mdbcrew"}),
+            )
+            < 0
+        )
+
+    def test_video_lyric_del_canal_del_catalogo_se_acepta(self):
+        """Caso real: «2. AQUELLA NOCHE - BARDERO$ (Video Lyric)» de MDBCrew.
+
+        La banda cuelga su videoclip con el rótulo «(Video Lyric)» en su
+        canal de catálogo y 47M vistas: es el clip de verdad. El ruido del
+        título solo pasa con canal repetido y vistas del millón.
+        """
+        puntos = puntuar_candidato(
+            "Aquella Noche",
+            "Bardero$",
+            191,
+            dict(
+                _video(
+                    "crew",
+                    "2. AQUELLA NOCHE - BARDERO$ (Video Lyric)",
+                    "MDBCrew",
+                    "3:10",
+                    tipo="MUSIC_VIDEO_TYPE_UGC",
+                ),
+                views="47M",
+            ),
+            catalogo=frozenset({"mdbcrew"}),
+        )
+        assert puntos > 0
+
+    def test_video_letra_ajeno_con_millones_de_vistas_se_rechaza(self):
+        """Caso real: «bardero$ - bandida [letra]» de un canal ajeno, 18M vistas.
+
+        Los canales de letra ajenos también llegan a millones de vistas; lo
+        que los separa del «(Video Lyric)» del catálogo es que su canal no
+        repite en la búsqueda: sin esa señal, fuera.
+        """
+        assert (
+            puntuar_candidato(
+                "Bandida",
+                "Bardero$",
+                224,
+                dict(
+                    _video(
+                        "letra",
+                        "bardero$ - bandida [letra]",
+                        "爱 offering",
+                        "3:44",
+                        tipo="MUSIC_VIDEO_TYPE_UGC",
+                    ),
+                    views="18M",
+                ),
+                catalogo=frozenset({"mdbcrew"}),
+            )
+            < 0
+        )
+
+    def test_video_lyric_del_catalogo_con_vistas_bajas_se_rechaza(self):
+        """El rótulo «(Video Lyric)» sin las vistas del millón no vale."""
+        assert (
+            puntuar_candidato(
+                "Aquella Noche",
+                "Bardero$",
+                191,
+                dict(
+                    _video(
+                        "lyric",
+                        "2. AQUELLA NOCHE - BARDERO$ (Video Lyric)",
+                        "MDBCrew",
+                        "3:10",
+                        tipo="MUSIC_VIDEO_TYPE_UGC",
+                    ),
+                    views="136K",
+                ),
+                catalogo=frozenset({"mdbcrew"}),
+            )
+            < 0
+        )
+
+    def test_canal_del_catalogo_con_otro_artista_en_el_titulo_se_rechaza(self):
+        """El canal del catálogo solo vale para ESTA canción: el artista que
+        encabeza tiene que salir en el título."""
+        assert (
+            puntuar_candidato(
+                "Aquella Noche",
+                "Bardero$",
+                191,
+                dict(
+                    _video(
+                        "otros",
+                        "AQUELLA NOCHE - LOS LOBOS (Video Lyric)",
+                        "MDBCrew",
+                        "3:10",
+                        tipo="MUSIC_VIDEO_TYPE_UGC",
+                    ),
+                    views="47M",
+                ),
+                catalogo=frozenset({"mdbcrew"}),
             )
             < 0
         )
@@ -417,6 +619,61 @@ class TestResolver:
         assert resolver_videoclip("of_atv_ok") == "clipe"
         # Queda cacheado (incluido el caso positivo).
         assert db_get_videoclip_oficial("of_atv_ok") == (True, "clipe")
+
+    def test_la_busqueda_va_con_el_primer_artista(self, monkeypatch):
+        """La query es «título + primer artista», no la lista entera.
+
+        Con «Bardero$, C.R.O, Homer el Mero Mero» la query larga mete ruido
+        en YouTube y el videoclip queda fuera de los 20 resultados.
+        """
+        ytm = _YtmFalso(
+            watch=_watch(
+                "Historia sin Fin",
+                "Bardero$, C.R.O, Homer el Mero Mero",
+                "3:29",
+                ATV,
+            ),
+            search=[_video("clipe", "C.R.O - Historia sin Fin", "C.R.O", "3:16")],
+        )
+        monkeypatch.setattr("videoclip.get_ytm", lambda: ytm)
+        assert resolver_videoclip("of_query_primer") == "clipe"
+        assert ytm.queries == ["Historia sin Fin Bardero$"]
+
+    def test_el_canal_del_catalogo_se_descubre_en_la_busqueda(self, monkeypatch):
+        """Vía completa: MDBCrew repite en la búsqueda y el clip de la crew pasa.
+
+        Caso real: «Surfeando la Ola» de Bardero$, Frane. El clip lo sube
+        MDBCrew sin marca OMV («Bardero$ - Feat Frane - Surfeando la Ola»,
+        2.2M vistas); la letra de otro canal aparece una sola vez.
+        """
+        ytm = _YtmFalso(
+            watch=_watch("Surfeando la Ola", "Bardero$, Frane", "3:38", ATV),
+            search=[
+                dict(
+                    _video(
+                        "letra",
+                        "Bardero$ - Surfeando La Ola (Letra)",
+                        "Gaan.",
+                        "2:41",
+                        tipo="MUSIC_VIDEO_TYPE_UGC",
+                    ),
+                    views="136K",
+                ),
+                _video("otra", "Bardero$ - Blow (Prod. XRIZ)", "MDBCrew", "2:48"),
+                dict(
+                    _video(
+                        "crew",
+                        "Bardero$ - Feat Frane  - Surfeando la Ola",
+                        "MDBCrew",
+                        "3:38",
+                        tipo="MUSIC_VIDEO_TYPE_UGC",
+                    ),
+                    views="2.2M",
+                ),
+            ],
+        )
+        monkeypatch.setattr("videoclip.get_ytm", lambda: ytm)
+        assert resolver_videoclip("of_crew") == "crew"
 
     def test_tu_recuerdo_sin_duracion_en_la_busqueda(self, monkeypatch):
         """Un OMV sin ``length`` no se descarta: decide el título y el canal.

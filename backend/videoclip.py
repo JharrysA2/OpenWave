@@ -7,8 +7,14 @@ audio, no un videoclip. Este módulo busca el videoclip oficial de verdad
 descarga— y guarda el resultado en la base de datos para no repetir la
 búsqueda al volver a abrir la canción.
 
-Solo valen dos señales: que YouTube Music declare el vídeo como videoclip
-oficial (``OMV``) o que lo haya subido el canal del propio artista. Una
+La búsqueda se hace con el título y el PRIMER artista de la canción: con la
+lista entera de colaboraciones la query se llena de ruido y el videoclip
+queda fuera de los primeros resultados.
+
+Solo valen tres señales: que YouTube Music declare el vídeo como videoclip
+oficial (``OMV``), que lo haya subido el canal del propio artista o que
+lo haya subido el canal del catálogo: el canal de la crew o del sello que
+aparece varias veces en la misma búsqueda y delata sus vistas. Una
 re-subida de un tercero no cuenta aunque copie el título exacto —así se colaban
 los «vídeos letra» de otras personas—: si no hay nada seguro, la canción no
 descarga nada.
@@ -43,6 +49,23 @@ DESAJUSTE_SIN_MEDIDA = 5
 # Tope absoluto: si las duraciones se separan muchísimo, lo más probable es
 # que sea otro vídeo (o una mezcla). Más allá no se acepta ni midiendo.
 _MAX_DESAJUSTE_ABSOLUTO = 120
+
+# Un canal ajeno sin OMV solo vale con vistas que delaten el clip de verdad:
+# la crew/sello que sube el catálogo (Behind Me de MDBCrew: 60M) vs las copias
+# de otros (una letra ajena suele rondar las 5–500 vistas).
+_VISTAS_MINIMAS = 100_000
+
+# Con ruido en el título (los «(Video Lyric)» que la propia banda sube a su
+# canal de catálogo) el tope sube: el Video Lyric de MDBCrew pasa del millón,
+# las re-subidas de letra ajenas (también con millones) no repiten canal en
+# la búsqueda, y esa doble señal es la que separa las dos.
+_VISTAS_MINIMAS_CON_RUIDO = 1_000_000
+
+# Cuántas veces tiene que aparecer un canal dentro de la MISMA búsqueda para
+# contar como canal del catálogo: los clips de todo el artista salen de su
+# crew/sello, y en la búsqueda ese canal se repite (Bardero$ → MDBCrew 10
+# veces en «Surfeando la Ola»); los canales de letra aparecen una sola vez.
+_SE_REPITE_CANAL = 2
 
 # Vigencia del «esta canción no tiene videoclip»: pasado este tiempo se vuelve
 # a preguntar. Un no-resultado puede ser la huella de un fallo puntual (una
@@ -119,6 +142,38 @@ def _segundos(duracion) -> int | None:
     for p in partes:
         segundos = segundos * 60 + p
     return segundos or None
+
+
+def _artista_principal(artista: str) -> str:
+    """Primer artista de la ficha («Bardero$, C.R.O» → «Bardero$»).
+
+    La metadata une los artistas con comas; para la búsqueda basta el
+    primero, que es quien encabeza la canción.
+    """
+    return (artista or "").split(",")[0].strip()
+
+
+def _vistas(candidato: dict) -> int | None:
+    """Vistas del candidato («60M», «2.2M», «381.809») como número.
+
+    YouTube Music formatea las vistas de la búsqueda con sufijos K/M/B y
+    separadores; sin campo, ilegible o vacío devuelve ``None``.
+    """
+    texto = str(candidato.get("views") or "").strip()
+    if not texto:
+        return None
+    t = texto.lower().replace(" ", "")
+    sufijo = t[-1:]
+    if sufijo in ("k", "m", "b"):
+        multiplicador = {"k": 1_000, "m": 1_000_000, "b": 1_000_000_000}[sufijo]
+        try:
+            return int(float(t[:-1].replace(",", ".")) * multiplicador)
+        except ValueError:
+            return None
+    try:
+        return int(re.sub(r"[.,]", "", t))
+    except ValueError:
+        return None
 
 
 def _puntos_titulo(titulo: str, candidato: str, artista: str = "") -> float:
@@ -218,21 +273,29 @@ def _tiene_ruido(titulo_video, titulo_cancion) -> bool:
 
 
 def puntuar_candidato(
-    titulo: str, artista: str, duracion: int | None, candidato: dict
+    titulo: str,
+    artista: str,
+    duracion: int | None,
+    candidato: dict,
+    catalogo: frozenset[str] = frozenset(),
 ) -> float:
     """Puntos de un resultado de búsqueda como videoclip oficial de la canción.
 
     Tiene que ser la misma canción (título) y colgarla el propio artista o
     estar declarada como videoclip oficial (``OMV``; si la sube un canal
     ajeno —un sello, por ejemplo— el artista tiene que aparecer en el
-    título). No valen las portadas fijas ni las versiones anunciadas como no
-    oficiales (letra, cover, directo, remix…), ni las re-subidas de terceros:
-    sin OMV ni canal del artista no se puede distinguir el clip original de un
-    «vídeo letra» (``_RECHAZO``), igual que un vídeo que dure bastante más o
-    menos que la canción: con dos líneas de tiempo distintas el fondo iría
-    desfasado respecto a lo que suena. Entre los válidos, el resto de la
-    puntuación solo sirve para ordenarlos: el del canal del artista gana a un
-    OMV de un canal ajeno.
+    título). ``catalogo`` trae los canales que se repiten en la misma
+    búsqueda (``_canales_repetidos``): la crew o el sello que sube el
+    catálogo entero vale aunque no traiga la marca OMV, si sus vistas
+    delatan el clip de verdad; con esa señal pasan también los «(Video
+    Lyric)» que la propia banda cuelga. No valen las portadas fijas ni las
+    re-subidas de terceros: sin OMV, canal del artista o canal del catálogo
+    no se puede distinguir el clip original de un «vídeo letra»
+    (``_RECHAZO``), igual que un vídeo que dure bastante más o menos que la
+    canción: con dos líneas de tiempo distintas el fondo iría desfasado
+    respecto a lo que suena. Entre los válidos, el resto de la puntuación
+    solo sirve para ordenarlos: el del canal del artista gana a un OMV de un
+    canal ajeno, y este a una subida del canal del catálogo.
     """
     titulo_video = candidato.get("title") or ""
     puntos = _puntos_titulo(titulo, titulo_video, artista)
@@ -240,7 +303,15 @@ def puntuar_candidato(
         return _RECHAZO
     if (candidato.get("videoType") or "") == _ATV or _canal_topic(candidato):
         return _RECHAZO
-    if _tiene_ruido(titulo_video, titulo):
+
+    ruido = _tiene_ruido(titulo_video, titulo)
+    canal_en_catalogo = any(n in catalogo for n in _nombres_canal(candidato))
+    vistas = _vistas(candidato)
+    if ruido and not canal_en_catalogo:
+        # Los «vídeos letra» de otros canales se quedan fuera aunque tengan
+        # millones de vistas. Del canal del catálogo puede venir el clip
+        # propio: la crew cuelga sus videoclips con el rótulo «(Video
+        # Lyric)» (Aquella Noche de Bardero$, MDBCrew: 47M vistas).
         return _RECHAZO
 
     oficial = (candidato.get("videoType") or "") == _OMV
@@ -251,12 +322,30 @@ def puntuar_candidato(
             return _RECHAZO
         artista_puntos = 0.0
     elif _canal_es_del_artista(artista, candidato):
+        if ruido:
+            # «C.R.O - Mi Alma (Letra)» en el canal del artista: letra
+            # anunciada, no videoclip.
+            return _RECHAZO
         artista_puntos = 2.0
     elif oficial and _artista_en_titulo(artista, titulo_video):
         # OMV de un canal ajeno (sello, crew…): vale si el artista aparece en
         # el título. No suma puntos de artista: un OMV del propio artista
         # gana si compite con él.
         artista_puntos = 0.0
+    elif canal_en_catalogo:
+        # Subida del canal del catálogo (la crew/sello que repite en la
+        # búsqueda y va sin marca OMV): las vistas tienen que delatar el clip
+        # de verdad y el PRIMER artista tiene que salir en el título. Con
+        # ruido el tope sube un orden de magnitud: el «Video Lyric» propio
+        # pasa del millón, y las copias de letra ajenas —también con
+        # millones— no repiten canal, así que ya cayeron en el corte de
+        # arriba.
+        minimo = _VISTAS_MINIMAS_CON_RUIDO if ruido else _VISTAS_MINIMAS
+        if vistas is None or vistas < minimo:
+            return _RECHAZO
+        if not _artista_en_titulo(_artista_principal(artista), titulo_video):
+            return _RECHAZO
+        artista_puntos = 1.0
     else:
         # Re-subida de un tercero: no basta con el artista en el título,
         # porque los «vídeos letra» copian el título exacto. Se descarta y la
@@ -277,6 +366,24 @@ def puntuar_candidato(
     return puntos
 
 
+def _canales_repetidos(candidatos: list) -> frozenset[str]:
+    """Canales que aparecen varias veces en la MISMA búsqueda.
+
+    Los videoclips de todo el catálogo de un artista salen del canal de la
+    crew o del sello que los sube: en la búsqueda ese canal se repite
+    (Bardero$ → MDBCrew, diez de los veinte resultados de «Surfeando la
+    Ola»). Las re-subidas ajenas (letras, boosted…) aparecen una sola vez:
+    esa diferencia señala cuál es el canal del catálogo.
+    """
+    conteo: dict[str, int] = {}
+    for candidato in candidatos or []:
+        if not isinstance(candidato, dict):
+            continue
+        for nombre in set(_nombres_canal(candidato)):
+            conteo[nombre] = conteo.get(nombre, 0) + 1
+    return frozenset(n for n, k in conteo.items() if k >= _SE_REPITE_CANAL)
+
+
 def _mejor_candidato(
     titulo: str, artista: str, duracion: int | None, candidatos: list
 ) -> dict | None:
@@ -285,12 +392,15 @@ def _mejor_candidato(
     En empate gana el primero de la búsqueda: es la señal de relevancia que da
     YouTube.
     """
+    catalogo = _canales_repetidos(candidatos)
     mejor: dict | None = None
     mejores_puntos = _RECHAZO
     for candidato in candidatos or []:
         if not isinstance(candidato, dict) or not candidato.get("videoId"):
             continue
-        puntos = puntuar_candidato(titulo, artista, duracion, candidato)
+        puntos = puntuar_candidato(
+            titulo, artista, duracion, candidato, catalogo=catalogo
+        )
         if puntos > _RECHAZO and (mejor is None or puntos > mejores_puntos):
             mejor = candidato
             mejores_puntos = puntos
@@ -353,6 +463,10 @@ class _BusquedaVaciaError(Exception):
 def _buscar_candidato(cancion: _Cancion) -> tuple[str, int | None] | None:
     """Mejor videoclip que cuadre en la búsqueda: ``(vídeo, desajuste)``.
 
+    La búsqueda va con el título y el PRIMER artista
+    (``_artista_principal``): con la lista entera de colaboraciones la query
+    mete ruido y el videoclip queda fuera de los primeros resultados.
+
     ``desajuste`` es la diferencia de duración (s) entre la canción y el
     vídeo, o ``None`` si alguna de las dos no la sabe. No se usa para
     rechazar, sino para saber si luego hay que medir el desfase.
@@ -362,7 +476,9 @@ def _buscar_candidato(cancion: _Cancion) -> tuple[str, int | None] | None:
     videoclip».
     """
     resultados = get_ytm().search(
-        f"{cancion.titulo} {cancion.artista}".strip(), filter="videos", limit=20
+        f"{cancion.titulo} {_artista_principal(cancion.artista)}".strip(),
+        filter="videos",
+        limit=20,
     )
     if not resultados:
         raise _BusquedaVaciaError(f"0 resultados para {cancion.titulo!r}")

@@ -6,6 +6,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.1.6] - 2026-10-21
+
 ### Fixed
 
 - **La escalera de descargas salta a IPv4 cuando YouTube bloquea los bots.**
@@ -375,7 +377,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.5...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.6...HEAD
+[1.1.6]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.6
 [1.1.5]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.5
 [1.1.4]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.4
 [1.1.3]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.3

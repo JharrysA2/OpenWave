@@ -6,6 +6,19 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **El streaming de audio también salta a IPv4 contra el bloqueo de bots.**
+  El mismo bot-check («Sign in to confirm you're not a bot») que dejaba el
+  videoclip sin descargarse con la IPv6 del equipo tumbaba la reproducción
+  de canciones: el intento principal del stream (yt-dlp pipeado), los
+  clients de la extracción de URL (default/tv_embedded) y la construcción
+  del audio bajo contestaban con el bloqueo y la escalera quedaba sin
+  oído. Cada intento que choca con él se repite ahora una vez forzado a
+  IPv4 — el mismo salto que la 1.1.6 aplicó a la descarga del videoclip —
+  y la escalera sigue al siguiente método si la IPv4 también viene
+  bloqueada.
+
 ## [1.1.7] - 2026-10-21
 
 ### Fixed

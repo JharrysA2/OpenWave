@@ -1435,6 +1435,48 @@ el no-resultado se cacheaba «sin videoclip» una hora con la portada; en las
   `test_la_busqueda_vacia_tiene_segunda_oportunidad` y
   `test_sin_candidato_en_dos_pasadas_se_cachea` (clase `TestResolver`).
 
+**«SIN» verificados como ausencias reales (2026-10-21, tras la 1.1.7).** Dos
+canciones del historial del usuario (`Ie0nCHR2AME` «CONTINUE», 214 s;
+`at0SrYHjXhQ` «Droga», 157 s) quedan «sin videoclip» DESPUÉS de las dos
+pasadas, y es lo correcto: en ambas MDBCrew **sí** se repite en el top-20
+(el canal del catálogo se reconoce), pero sus subidas repetidas son clips de
+OTRAS canciones («OLVIDO» 16M, «$$$» 10M, «A Fuego Lento» 5.2M, «Tanto»
+7.8M…) y ningún resultado con el título propio pasa:
+
+- «CONTINUE»: el único con el título justo (`N4w_JBURGek`,
+  «BARDERO$-CONTINUE» de BardosClick, 28 mil vistas) y la re-subida ajena
+  (`DQ3GbLhmr6Y`, 2M, canal suelto «s ») quedan bajo el criterio — sin canal
+  del catálogo ni canal del artista ni OMV, exactamente el caso que las
+  reglas rechazan (una letra ajena con 18M de vistas caería igual).
+- «Droga»: solo letras ajenas con el título («Bardero$ • Droga [Letra]» de
+  Pure Drug Lyrics, 26K) y una mezcla de 27 minutos con las vistas altas.
+- Conclusión: no hay hueco de regla; son canciones sin clip del sello en la
+  búsqueda. El «sin videoclip» cacheado tras DOS pasadas vacías es un
+  negativo de fiar.
+
+**1.1.8 (2026-10-21, streaming de audio contra el bloqueo de bots).** El
+mismo bot-check de IPv6 que tumbaba la descarga del clip saltó en el
+STREAMING del audio de la app (log 15:27: `stream -HyZhzdjz6Q: todos los
+métodos fallaron` — default/tv_embedded/cookies contestaron «Sign in to
+confirm you're not a bot»). El espejo de la 1.1.6 llega a TODO el
+subsistema:
+
+- `_extract_audio_url_sync`: cada client (default «android» y
+  «tv_embedded») que choca con el bloqueo se repite una vez forzado a IPv4
+  (`source_address 0.0.0.0`); la escalera sigue al siguiente client si la
+  IPv4 también viene marcada.
+- `stream_audio_generator` (el intento principal pipeado a stdout, `-o -`):
+  si el stderr trae el bot-check se repite la orden con `--force-ipv4` antes
+  de caer al httpx.
+- `_build_low_quality` (audio bajo ~64 kb/s via CLI): `CalledProcessError`
+  con bot-check en el stderr vuelve a ejecutar con `--force-ipv4`.
+- La detección es la misma tupla de mensajes que en la descarga del vídeo
+  (`video_fondo._bloqueo_bots`), definida localmente en `streaming.py`.
+- Tests: `TestBloqueoBots` (opts de IPv4, detector, lowq con y sin
+  bot-check) y `TestStreamGenerador` (reintento IPv4 del pipeado; bots
+  persistentes caen al httpx; fakes con `kill()` síncrono como en
+  `asyncio.Process`).
+
 ## Regla de oro
 
 Todo estilo con impacto potencial en GPU/CPU (backdrop-filter nuevo,

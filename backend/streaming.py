@@ -177,31 +177,40 @@ def _build_low_quality(video_id: str) -> None:
         return
 
     src_template = STREAM_CACHE_DIR / f".{video_id}.src.%(ext)s"
-    subprocess.run(
-        _yt_dlp_cmd()
-        + [
-            "-f",
-            "18/bestaudio",
-            "--extractor-args",
-            "youtube:player_client=android",
-            # Caché de yt-dlp dentro del directorio de datos de la app (si
-            # no, cae en %USERPROFILE%\.cache\yt-dlp).
-            "--cache-dir",
-            str(YT_DLP_CACHE_DIR),
-            "-o",
-            str(src_template),
-            "--quiet",
-            "--no-warnings",
-            "--js-runtimes",
-            "deno",
-            "--impersonate",
-            "chrome",
-            f"https://www.youtube.com/watch?v={video_id}",
-        ],
-        check=True,
-        capture_output=True,
-        timeout=180,
-    )
+    comando = _yt_dlp_cmd() + [
+        "-f",
+        "18/bestaudio",
+        "--extractor-args",
+        "youtube:player_client=android",
+        # Caché de yt-dlp dentro del directorio de datos de la app (si
+        # no, cae en %USERPROFILE%\.cache\yt-dlp).
+        "--cache-dir",
+        str(YT_DLP_CACHE_DIR),
+        "-o",
+        str(src_template),
+        "--quiet",
+        "--no-warnings",
+        "--js-runtimes",
+        "deno",
+        "--impersonate",
+        "chrome",
+        f"https://www.youtube.com/watch?v={video_id}",
+    ]
+    try:
+        subprocess.run(comando, check=True, capture_output=True, timeout=180)
+    except subprocess.CalledProcessError as e:
+        stderr = (e.stderr or b"").decode("utf-8", errors="replace")
+        if not _bots_en_texto(stderr):
+            raise
+        logger.info(
+            "audio bajo %s: bloqueo de bots; reintento forzado a IPv4", video_id
+        )
+        subprocess.run(
+            [*comando, "--force-ipv4"],
+            check=True,
+            capture_output=True,
+            timeout=180,
+        )
     src_files = list(STREAM_CACHE_DIR.glob(f".{video_id}.src.*"))
     src_files = [f for f in src_files if not f.name.endswith(".part")]
     if not src_files:
@@ -293,7 +302,23 @@ def warm_low_quality(video_id: str) -> None:
     threading.Thread(target=_run, daemon=True).start()
 
 
-def _ydl_get_url(video_id: str, client: str = "", quality: str = "standard") -> tuple:
+# Bloqueo de bots de YouTube: el mismo diagnóstico que arrastra la descarga
+# del vídeo de fondo (video_fondo.py). Con una IPv6 del equipo marcada como
+# sospechosa, YouTube contesta «Sign in to confirm you're not a bot» a la
+# petición anónima y la URL no sale; la misma extracción forzada a IPv4
+# pasa. Cada intento que choca con el bloqueo se repite una vez con IPv4.
+_IPV4_FORZADA = "0.0.0.0"
+_BOT = ("Sign in to confirm", "not a bot")
+
+
+def _bots_en_texto(texto: str) -> bool:
+    """¿El mensaje (de una excepción o de un stderr) es el bloqueo de bots?"""
+    return any(mensaje in texto for mensaje in _BOT)
+
+
+def _ydl_get_url(
+    video_id: str, client: str = "", quality: str = "standard", ipv4: bool = False
+) -> tuple:
     """Extraer URL de audio usando yt-dlp.
 
     Args:
@@ -302,6 +327,7 @@ def _ydl_get_url(video_id: str, client: str = "", quality: str = "standard") -> 
                 o "" para usar el default (client "android", funciona sin
                 cookies y sin PO token; sus URLs aceptan rangos completos).
         quality: "low" | "standard" | "high" (ver QUALITY_FORMATS).
+        ipv4: Forzar la petición por IPv4 (bloqueo de bots; ver arriba).
 
     Nota: el client "android" con itag 18 (mp4 progresivo) es el único que
     sirve el archivo completo; los clients default/web restringen los rangos
@@ -318,6 +344,8 @@ def _ydl_get_url(video_id: str, client: str = "", quality: str = "standard") -> 
         # Caché de yt-dlp dentro del directorio de datos de la app
         "cachedir": str(YT_DLP_CACHE_DIR),
     }
+    if ipv4:
+        opts["source_address"] = _IPV4_FORZADA
 
     with (
         contextlib.redirect_stderr(io.StringIO()),
@@ -347,6 +375,26 @@ def _ydl_get_url(video_id: str, client: str = "", quality: str = "standard") -> 
 
     logger.info("✓ %s: %s", label, video_id)
     return url, info.get("http_headers", {})
+
+
+def _intento_url(video_id: str, client: str, quality: str) -> tuple:
+    """URL de un client con su segunda oportunidad ante el bloqueo de bots.
+
+    El intento que sale por una IPv6 sospechosa choca con el bot-check y no
+    tiene URL; la misma llamada forzada a IPv4 pasa. Cualquier otro error
+    sube tal cual (la escalera sigue con el siguiente client).
+    """
+    try:
+        return _ydl_get_url(video_id, client, quality=quality)
+    except Exception as e:  # noqa: BLE001
+        if not _bots_en_texto(str(e)):
+            raise
+        logger.warning(
+            "streaming %s (%s): bloqueo de bots; reintento forzado a IPv4",
+            video_id,
+            client or "default",
+        )
+        return _ydl_get_url(video_id, client, quality=quality, ipv4=True)
 
 
 def _ydl_get_url_with_cookies(video_id: str) -> tuple:
@@ -470,9 +518,7 @@ def _extract_audio_url_sync(video_id: str, quality: str = "standard") -> tuple:
         #    Funciona anónimamente, no requiere cookies ni JS runtime, y sus
         #    URLs aceptan rangos completos (los demás clients dan 403).
         try:
-            url, headers = _ydl_get_url(
-                video_id, quality=quality
-            )  # client="" → default
+            url, headers = _intento_url(video_id, "", quality)
             cache_url(key, url, headers)
             box[0], box[1] = url, headers
             return url, headers
@@ -482,7 +528,7 @@ def _extract_audio_url_sync(video_id: str, quality: str = "standard") -> tuple:
 
         # ═══ 2. tv_embedded (rápido, fallback) ═══
         try:
-            url, headers = _ydl_get_url(video_id, "tv_embedded", quality=quality)
+            url, headers = _intento_url(video_id, "tv_embedded", quality)
             cache_url(key, url, headers)
             box[0], box[1] = url, headers
             return url, headers
@@ -592,6 +638,11 @@ async def upstream_range_stream(
     return resp.status_code, out, body()
 
 
+async def _stderr_de(proc) -> bytes:
+    """Como asyncio gestiona stderr en paralelo: una tarea aparte."""
+    return await proc.stderr.read()
+
+
 async def stream_audio_generator(video_id: str, quality: str = "standard"):
     """Descargar audio con yt-dlp y streamearlo por chunks (async generator).
 
@@ -624,8 +675,13 @@ async def stream_audio_generator(video_id: str, quality: str = "standard"):
             )
 
     fmt = QUALITY_FORMATS[quality]
-    try:
-        proc = await asyncio.create_subprocess_exec(
+    # El intento anónimo que sale por una IPv6 sospechosa choca con el
+    # bloqueo de bots de YouTube («Sign in to confirm you're not a bot»);
+    # la misma orden forzada a IPv4 pasa. El proceso se repite una vez con
+    # --force-ipv4 antes de caer al httpx (misma señal que en
+    # _extract_audio_url_sync).
+    for con_ipv4 in (False, True):
+        args = [
             "yt-dlp",
             "-f",
             fmt,
@@ -639,43 +695,52 @@ async def stream_audio_generator(video_id: str, quality: str = "standard"):
             "deno",
             "--impersonate",
             "chrome",
-            f"https://www.youtube.com/watch?v={video_id}",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        ]
+        if con_ipv4:
+            args.append("--force-ipv4")
+            logger.info(
+                "stream %s: bloqueo de bots; reintento forzado a IPv4", video_id
+            )
+        args.append(f"https://www.youtube.com/watch?v={video_id}")
 
-        stderr_data = b""
-
-        async def _read_stderr():
-            nonlocal stderr_data
-            stderr_data = await proc.stderr.read()
-
-        stderr_task = asyncio.create_task(_read_stderr())
-
-        has_data = False
         try:
-            while True:
-                chunk = await asyncio.wait_for(proc.stdout.read(65536), timeout=5)
-                if not chunk:
-                    break
-                has_data = True
-                yield chunk
-        except TimeoutError:
-            pass
-        finally:
-            if proc.returncode is None:
-                proc.kill()
-                await proc.wait()
-            await stderr_task
+            proc = await asyncio.create_subprocess_exec(
+                *args,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
 
-        if has_data:
-            logger.info("stream %s: ✓ OK", video_id)
-            return
-        else:
+            stderr_task = asyncio.create_task(_stderr_de(proc))
+            has_data = False
+            try:
+                while True:
+                    chunk = await asyncio.wait_for(proc.stdout.read(65536), timeout=5)
+                    if not chunk:
+                        break
+                    has_data = True
+                    yield chunk
+            except TimeoutError:
+                pass
+            finally:
+                if proc.returncode is None:
+                    proc.kill()
+                    await proc.wait()
+                stderr_data = await stderr_task
+
+            if has_data:
+                logger.info("stream %s: ✓ OK", video_id)
+                return
             err_msg = stderr_data.decode("utf-8", errors="replace").strip()[:200]
+            if not con_ipv4 and _bots_en_texto(err_msg):
+                # Bot-check anónimo: se repite la orden forzada a IPv4.
+                continue
             logger.warning("stream %s: sin datos: %s", video_id, err_msg)
-    except Exception as e:
-        logger.warning("stream %s: subprocess falló: %s", video_id, e)
+            break
+        except Exception as e:  # noqa: BLE001
+            logger.warning("stream %s: subprocess falló: %s", video_id, e)
+            if not con_ipv4 and _bots_en_texto(str(e)):
+                continue
+            break
 
     # ═══ Fallback: httpx con URL extraída ═══
     try:

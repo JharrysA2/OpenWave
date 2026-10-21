@@ -1,6 +1,11 @@
 """Tests para backend/videoclip.py — Videoclip oficial de una canción."""
 
-from db import db_get_videoclip_oficial, db_set_videoclip_oficial, get_db
+from db import (
+    db_get_videoclip_oficial,
+    db_set_videoclip_oficial,
+    get_db,
+    init_db,
+)
 from videoclip import (
     VIGENCIA_SIN_CLIP,
     _artista_principal,
@@ -855,3 +860,24 @@ class TestResolver:
             ),
         )
         assert resolver_videoclip("of_plan_b_ok") == "clipe3"
+
+
+class TestMigracion:
+    """Al subir el criterio de resolución, la caché de «sin videoclip» se descarta."""
+
+    def test_la_actualizacion_olvida_los_sin_videoclip(self):
+        """Esquema viejo: los «no tiene» se borran y los aciertos se quedan.
+
+        La 1.1.4 cacheó «sin videoclip» con su regla más estricta (Bardero$ se
+        quedó con la portada donde la crew sí tiene el clip); al instalar la
+        1.1.5 (esquema 3) esas filas se olvidan para que el criterio nuevo las
+        vuelva a resolver en cuanto se vuelvan a abrir.
+        """
+        db_set_videoclip_oficial("mig_sin", None)
+        db_set_videoclip_oficial("mig_ok", "clip_mig")
+        with get_db() as conn:
+            conn.execute("PRAGMA user_version = 2")
+        # Reabrir la base (init_db) vuelve a pasar la migración de esquema.
+        init_db()
+        assert db_get_videoclip_oficial("mig_sin") == (False, None)
+        assert db_get_videoclip_oficial("mig_ok") == (True, "clip_mig")

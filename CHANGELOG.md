@@ -25,6 +25,11 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   lista entera de colaboraciones («Bardero$, C.R.O, Homer el Mero Mero») la
   query se llena de ruido y el clip quedaba fuera de los 20 resultados; solo
   se busca con el que encabeza la canción.
+- **Al actualizar se olvidan los «sin videoclip» de la regla anterior.** El
+  esquema de la caché sube de versión y las filas «no tiene videoclip»
+  guardadas por la 1.1.4 se descartan una vez: con el criterio nuevo se
+  vuelven a resolver en cuanto se abre la canción, sin esperar a que la
+  comprobación negativa caduque. Los aciertos no se tocan.
 
 ## [1.1.4] - 2026-10-21
 

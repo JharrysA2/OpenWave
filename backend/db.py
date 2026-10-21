@@ -19,7 +19,7 @@ _db_lock = threading.Lock()
 # Versión del esquema/criterios de la caché de videoclips. Ver init_db().
 # 2: los «sin videoclip» que dejó un fallo de descarga/medición se olvidan una
 #    vez al actualizar; el resolver ya no los crea en ese caso.
-_ESQUEMA_VERSION = 2
+_ESQUEMA_VERSION = 3
 
 # ── Pool de conexiones SQLite ──────────────────────────────────────────────
 # Antes se abría/cerraba UNA conexión por operación (más las PRAGMA de

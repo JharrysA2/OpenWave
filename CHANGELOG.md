@@ -6,6 +6,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-10-21
+
 ### Fixed
 
 - **El streaming de audio también salta a IPv4 contra el bloqueo de bots.**
@@ -403,7 +405,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.7...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.8...HEAD
+[1.1.8]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.8
 [1.1.7]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.7
 [1.1.6]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.6
 [1.1.5]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.5

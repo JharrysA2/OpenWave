@@ -1084,6 +1084,33 @@ manually»* (sparse package):
   nuevas del CA `ImportIdentityCert`: fichero en el payload, CA
   diferido/elevado y orden tras `InstallFiles`).
 
+**Verificación 1.1.4 (2026-10-21, regla de videoclips endurecida).**
+
+- La regla nueva deja solo candidatos con marca oficial: el OMV declarado
+  (de sello/sistema con el artista en el título) o el que cuelga del canal
+  del artista. Una re-subida de un tercero no vale aunque copie el título
+  exacto: es el hueco por donde colaban los «vídeos letra» («TU RECUERDO -
+  C.R.O» de Trap SAD o «C.R.O - Tu Recuerdo» de [ M Music ]).
+- Con la búsqueda real de «Tu Recuerdo» (20 resultados), la regla deja
+  **solo** el OMV oficial `35wouAYd1MU` (7.0 puntos): todas las re-subidas
+  de terceros fueran de letras o no, quedan fuera (3.0–4.0 en el criterio
+  viejo, 0 ahora).
+- El resolver completo de la 1.1.4 corre sobre el entorno Windows real del
+  usuario («runtime\python.exe» + backend instalado, BD copiada): matriz
+  `VjJqaSzZmUI` → ``35wouAYd1MU``, 2.6 s.
+- `POST /video/prepare/VjJqaSzZmUI?oficial=1&max_alto=1080` end-to-end:
+  descarga el OMV de 45.3 MB en ~30 s, aprueba un 403 tolerado (reintento)
+  y deja `{"prepared":true,"desfase":4.3}` en BD. La fila del resolver se
+  reescribe (`19:57:44`), `/videos` muestra «Tu Recuerdo | C.R.O | 1080p» y
+  el streaming por rangos (`/video/file/VjJqaSzZmUI` con `Range`) responde
+  206 por el primer trozo. La identidad (`OpenWave_pr6hx30mntjwm`) sigue
+  registrada tras la actualización (CA del MSI importa el cert nuevo).
+- Nota de diagnóstico: `/video/status` NO lanza el prepare — solo
+  información; `POST /video/prepare` es lo que arranca la descarga. Y el
+  `SSE /video/progress` responde «downloading 0» como estado por defecto
+  sin entrada (línea `cache.video_progress.get(video_id, default)`), lo que
+  puede confundir al diagnosticar si nunca se lanzó el prepare.
+
 **Límites conocidos.** Registro por usuario (el que instala): en máquinas
 multiusuario los demás usuarios ven la app sin identidad (mismo
 comportamiento que antes). Certificado autofirmado local: para distribución

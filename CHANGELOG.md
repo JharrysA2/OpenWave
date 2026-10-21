@@ -358,6 +358,10 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 
 ### Fixed
 
+- **Verificación de la regla de videoclips en la 1.1.4** en `docs/PERFORMANCE.md`:
+  resolver con la regla nueva (solo el OMV sobrevive de 20 candidatos reales),
+  `POST /video/prepare` end-to-end (30 s, 1080p, desfase medido) y la nota de
+  diagnóstico de `video/status` / el SSE `video/progress`.
 - **Los tests de versión no van más con el número pegado en duro.** «Acerca
   de» y «Ajustes → Acerca de» leen el `__APP_VERSION__` que inyecta vite desde
   `package.json`; al subir versión el workflow no rompía la suite.

@@ -84,7 +84,7 @@ export default function SettingsPanel({
     content: {
       label: t.content,
       icon: <BookOpen style={iconStyle} />,
-      comp: <PageContenido neonColor={neonColor} />,
+      comp: <PageContenido neonColor={neonColor} toast={toast} />,
     },
     privacy: {
       label: t.privacy,
@@ -122,7 +122,7 @@ export default function SettingsPanel({
     about: {
       label: t.about,
       icon: <Info style={iconStyle} weight="fill" />,
-      comp: <PageAcercaDe />,
+      comp: <PageAcercaDe toast={toast} />,
     },
     translation: {
       label: t.translation,

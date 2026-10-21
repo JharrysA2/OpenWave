@@ -444,7 +444,8 @@
              La SAC NO pega el comando en linea: llama al script -File (el
              inline -Command fallaba solo dentro de msiexec: exit 1 sin
              ejecutar Remove/Add; verificado 2026-10-05, y el detalle en
-             openwave-identity.log). El script importa la confianza del
+             %PROGRAMDATA%\OpenWave\openwave-identity.log). El script importa
+             la confianza del
              certificado al usuario que instala (sin ella Add-AppxPackage
              da 0x800B0109) y registra el paquete con -ExternalLocation =
              su propia carpeta: OpenWave.exe (con el elemento <msix> que

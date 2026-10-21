@@ -6,6 +6,35 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-21
+
+### Added
+
+- **Sesión de YouTube desde Ajustes → Contenido.** Se puede cargar o pegar un
+  `cookies.txt` en formato Netscape. Antes de guardarlo, la app comprueba con
+  yt-dlp que la sesión abre «Ver más tarde» en YouTube: si no la reconoce, no
+  se guarda nada y se explica el motivo. Con una sesión válida las descargas de
+  vídeo pueden llegar a 1080p (y más en pantallas 4K) en vez de quedarse en la
+  calidad limitada de las peticiones anónimas. El fichero se guarda con
+  permisos de propietario en el directorio de datos y no se sube a ningún
+  sitio.
+- **Los vídeos ya cacheados se reintentan al añadir cookies.** Si un clip se
+  descargó antes de configurar la sesión, al abrirlo se vuelve a descargar una
+  vez para aprovechar la resolución extra, sin esperar las 2 h del reintento
+  normal.
+
+### Fixed
+
+- **El Administrador de tareas vuelve a agrupar OpenWave y sus WebView2.** El
+  diagnóstico del registro del paquete sparse se escribe ahora en
+  `%PROGRAMDATA%\OpenWave\openwave-identity.log`, se comprueba al arrancar y
+  Ajustes → Acerca de avisa si falta, con un botón «Reparar» que vuelve a
+  registrar la identidad con UAC sin reinstalar la app (hay que reiniciar
+  OpenWave para que el proceso actual la tome). El script del MSI verifica
+  además que el paquete quedó registrado antes de dar el alta por buena.
+- **La versión de «Acerca de» sale del `package.json`** en vez de un valor
+  fijo que se había quedado en 1.0.0.
+
 ## [1.1.1] - 2026-10-20
 
 ### Added
@@ -280,7 +309,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.2
 [1.1.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.1
 [1.1.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.0
 [1.0.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.0.1

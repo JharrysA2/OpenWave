@@ -23,6 +23,7 @@ vi.mock("../utils/api", () => ({
     // loadVideos cae a la lista vacía.
     get: vi.fn(() => Promise.reject(new Error("backend no disponible"))),
     post: vi.fn(() => Promise.resolve({})),
+    put: vi.fn(() => Promise.resolve({ ok: true })),
     del: vi.fn(() => Promise.resolve({ ok: true })),
     fetchPlaylistSongs: vi.fn(() => Promise.resolve([])),
     importHistory: vi.fn(() => Promise.resolve({ ok: true, imported: 0 })),
@@ -39,7 +40,7 @@ import { api } from "../utils/api";
 describe("PageAcercaDe", () => {
   it("should render version number", () => {
     renderWithSettings(<PageAcercaDe />);
-    expect(screen.getByText("1.0.0")).toBeInTheDocument();
+    expect(screen.getByText("1.1.2")).toBeInTheDocument();
   });
 
   it("should render version label", () => {
@@ -50,6 +51,41 @@ describe("PageAcercaDe", () => {
   it("should render source code label", () => {
     renderWithSettings(<PageAcercaDe />);
     expect(screen.getByText("Código fuente")).toBeInTheDocument();
+  });
+
+  it("avisa y permite reparar si la identidad no está registrada", async () => {
+    api.get.mockResolvedValueOnce({
+      soportado: true,
+      registrada: false,
+      paquete: null,
+    });
+    api.post.mockResolvedValueOnce({
+      ok: true,
+      estado: { soportado: true, registrada: true, paquete: "OpenWave_pkg" },
+    });
+    const toast = vi.fn();
+    renderWithSettings(<PageAcercaDe toast={toast} />);
+
+    expect(
+      await screen.findByText(/Sin registrar: el Administrador de tareas/),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Reparar"));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/settings/identity/repair", {}));
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(
+        "Identidad reparada. Reinicia OpenWave para aplicarla.",
+        "success",
+      ),
+    );
+    expect(await screen.findByText(/Registrada · OpenWave_pkg/)).toBeInTheDocument();
+  });
+
+  it("no muestra la identidad en sistemas sin soporte", async () => {
+    api.get.mockResolvedValueOnce({ soportado: false, registrada: null });
+    renderWithSettings(<PageAcercaDe />);
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    expect(screen.queryByText("Integración con Windows")).not.toBeInTheDocument();
   });
 });
 
@@ -422,6 +458,158 @@ describe("PageContenido", () => {
     expect(screen.queryByText("LrcLib")).not.toBeInTheDocument();
     expect(screen.queryByText("KuGou")).not.toBeInTheDocument();
     expect(screen.queryByText("Proveedor de letras")).not.toBeInTheDocument();
+  });
+});
+
+// ── PageContenido: cookies de YouTube ──────────────────────────────────────
+
+describe("PageContenido — cookies de YouTube", () => {
+  const COOKIES =
+    "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t4102444800\tSID\tabc\n";
+
+  beforeEach(() => {
+    api.get.mockResolvedValue({ configurado: false });
+    api.put.mockResolvedValue({ ok: true });
+    api.post.mockResolvedValue({ ok: true });
+    api.del.mockResolvedValue({ ok: true });
+  });
+
+  afterEach(() => {
+    api.get.mockReset();
+    api.get.mockRejectedValue(new Error("backend no disponible"));
+    api.put.mockReset();
+    api.put.mockResolvedValue({ ok: true });
+    api.post.mockReset();
+    api.post.mockResolvedValue({});
+    api.del.mockReset();
+    api.del.mockResolvedValue({ ok: true });
+    openDialog.mockReset();
+    readTextFile.mockReset();
+    vi.clearAllMocks();
+  });
+
+  it("muestra la sección y el estado sin cookies", async () => {
+    renderWithSettings(<PageContenido neonColor="#a78bfa" />);
+    expect(screen.getByText("Sesión de YouTube")).toBeInTheDocument();
+    expect(await screen.findByText("Sin cookies")).toBeInTheDocument();
+  });
+
+  it("no deja guardar sin contenido", async () => {
+    renderWithSettings(<PageContenido neonColor="#a78bfa" />);
+    await screen.findByText("Sin cookies");
+    expect(screen.getByRole("button", { name: "Verificar y guardar" })).toBeDisabled();
+  });
+
+  it("solo confirma y limpia cuando el backend verifica las cookies", async () => {
+    const toast = vi.fn();
+    api.put.mockResolvedValueOnce({ ok: true, metodo: "Watch Later" });
+    renderWithSettings(<PageContenido neonColor="#a78bfa" toast={toast} />);
+    await screen.findByText("Sin cookies");
+
+    const area = screen.getByLabelText(
+      "…o pega aquí el contenido de cookies.txt (formato Netscape).",
+    );
+    fireEvent.change(area, { target: { value: COOKIES } });
+    fireEvent.click(screen.getByRole("button", { name: "Verificar y guardar" }));
+
+    await waitFor(() =>
+      expect(api.put).toHaveBeenCalledWith(
+        "/settings/cookies",
+        { content: COOKIES },
+        { timeout: 90000 },
+      ),
+    );
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(
+        "Cookies verificadas y guardadas. Las descargas usarán tu sesión.",
+        "success",
+      ),
+    );
+    expect(area).toHaveValue("");
+  });
+
+  it("si la verificación falla conserva lo pegado y avisa", async () => {
+    const toast = vi.fn();
+    api.put.mockResolvedValueOnce({ ok: false, error: "YouTube no reconoce la sesión" });
+    renderWithSettings(<PageContenido neonColor="#a78bfa" toast={toast} />);
+    await screen.findByText("Sin cookies");
+
+    const area = screen.getByLabelText(
+      "…o pega aquí el contenido de cookies.txt (formato Netscape).",
+    );
+    fireEvent.change(area, { target: { value: COOKIES } });
+    fireEvent.click(screen.getByRole("button", { name: "Verificar y guardar" }));
+
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith("YouTube no reconoce la sesión", "error"),
+    );
+    expect(area).toHaveValue(COOKIES);
+  });
+
+  it("carga el fichero elegido en el área de texto", async () => {
+    openDialog.mockResolvedValueOnce("C:\\Users\\jharrys\\cookies.txt");
+    readTextFile.mockResolvedValueOnce(COOKIES);
+    const toast = vi.fn();
+    renderWithSettings(<PageContenido neonColor="#a78bfa" toast={toast} />);
+    await screen.findByText("Sin cookies");
+
+    fireEvent.click(screen.getByText("Elegir cookies.txt"));
+
+    const area = screen.getByLabelText(
+      "…o pega aquí el contenido de cookies.txt (formato Netscape).",
+    );
+    await waitFor(() => expect(area).toHaveValue(COOKIES));
+    expect(readTextFile).toHaveBeenCalledWith("C:\\Users\\jharrys\\cookies.txt");
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it("rechaza un archivo demasiado grande antes de enviarlo", async () => {
+    openDialog.mockResolvedValueOnce("C:\\cookies-gigante.txt");
+    readTextFile.mockResolvedValueOnce("x".repeat(512 * 1024 + 1));
+    const toast = vi.fn();
+    renderWithSettings(<PageContenido neonColor="#a78bfa" toast={toast} />);
+    await screen.findByText("Sin cookies");
+
+    fireEvent.click(screen.getByText("Elegir cookies.txt"));
+
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith("El archivo es demasiado grande (máximo 512 KB)", "error"),
+    );
+    expect(
+      screen.getByLabelText("…o pega aquí el contenido de cookies.txt (formato Netscape)."),
+    ).toHaveValue("");
+  });
+
+  it("vuelve a comprobar las cookies guardadas", async () => {
+    api.get.mockResolvedValue({
+      configurado: true,
+      bytes: 2048,
+      verificacion: { ok: true, validado_en: "2026-10-21T10:00:00+00:00" },
+    });
+    api.post.mockResolvedValueOnce({ ok: true });
+    const toast = vi.fn();
+    renderWithSettings(<PageContenido neonColor="#a78bfa" toast={toast} />);
+    await screen.findByText(/Cookies cargadas/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Comprobar de nuevo" }));
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith("Las cookies siguen siendo válidas", "success"),
+    );
+    expect(api.post).toHaveBeenCalledWith("/settings/cookies/check", {}, { timeout: 90000 });
+  });
+
+  it("quita las cookies con confirmación", async () => {
+    api.get.mockResolvedValue({ configurado: true, bytes: 512, verificacion: null });
+    const toast = vi.fn();
+    renderWithSettings(<PageContenido neonColor="#a78bfa" toast={toast} />);
+    await screen.findByText(/Cookies cargadas/);
+
+    fireEvent.click(screen.getByText("Quitar"));
+    expect(screen.getByText("¿Quitar las cookies guardadas?")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Borrar"));
+
+    await waitFor(() => expect(api.del).toHaveBeenCalledWith("/settings/cookies"));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith("Cookies eliminadas", "info"));
   });
 });
 

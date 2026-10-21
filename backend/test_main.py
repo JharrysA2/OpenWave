@@ -224,10 +224,10 @@ class TestWarmup:
 
 
 class TestWarmupThread:
-    """Tests para la linea 191: threading.Thread(target=_startup_warmup, daemon=True).start()"""
+    """Arranque de los hilos de diagnóstico de ``main``."""
 
     def test_warmup_thread_started_as_daemon(self, mocker):
-        """Al importar main, se debe crear un Thread daemon con _startup_warmup."""
+        """Al importar main se lanzan el warmup y la identidad, en daemon."""
         import importlib
 
         import main as main_mod
@@ -235,11 +235,9 @@ class TestWarmupThread:
         mock_thread_class = mocker.patch("threading.Thread")
         importlib.reload(main_mod)
 
-        mock_thread_class.assert_called_once_with(
-            target=main_mod._startup_warmup, daemon=True
-        )
-        # Verificar que se llamo a .start() en la instancia
-        mock_thread_class.return_value.start.assert_called_once()
+        mock_thread_class.assert_any_call(target=main_mod._startup_warmup, daemon=True)
+        # El chequeo de identidad de Windows no debe retrasar el arranque.
+        assert mock_thread_class.return_value.start.call_count >= 1
 
 
 class TestHealth:

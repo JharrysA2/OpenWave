@@ -239,11 +239,12 @@ export const api = {
 
   // ── POST ───────────────────────────────────────────────────────────────────
 
-  async post(path, body = {}) {
+  async post(path, body = {}, options = {}) {
     const result = await _fetch(path, {
       method: "POST",
       headers: JSON_HEADERS,
       body: JSON.stringify(body),
+      ...options,
     });
     // Invalidar caché después de exito
     apiCache.delete(path);
@@ -252,11 +253,12 @@ export const api = {
 
   // ── PUT ─────────────────────────────────────────────────────────────────────
 
-  async put(path, body = {}) {
+  async put(path, body = {}, options = {}) {
     const result = await _fetch(path, {
       method: "PUT",
       headers: JSON_HEADERS,
       body: JSON.stringify(body),
+      ...options,
     });
     apiCache.delete(path);
     return result;

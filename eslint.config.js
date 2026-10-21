@@ -21,6 +21,7 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.es2022,
+        __APP_VERSION__: "readonly",
       },
 
       parserOptions: {

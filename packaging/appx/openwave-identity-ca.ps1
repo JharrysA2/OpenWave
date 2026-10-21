@@ -14,8 +14,8 @@
   al correr dentro de msiexec (exit 1 sin llegar a ejecutar ni Remove ni Add;
   verificado: el mismo string ejecutado fuera daba exit 0). Con -File el
   comando es corto, con ruta entre comillas dobles de CreateProcess, y todo
-  el detalle queda en openwave-identity.log (y en TEMP si el INSTALLDIR ya
-  no existe, como al desinstalar).
+  el detalle queda en %PROGRAMDATA%\OpenWave\openwave-identity.log (y en
+  INSTALLDIR/TEMP si aun no se puede escribir ahi, como al desinstalar).
 
   -Mode Register   : importa la confianza del certificado y registra el
                      paquete con Remove-Add (idempotente y actualiza la
@@ -55,9 +55,23 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # $PSScriptRoot = INSTALLDIR (en Register). En Unregister el INSTALLDIR puede
-# ya no existir: Log cae a TEMP para no romper la desinstalacion.
+# ya no existir; por eso el log intenta primero ProgramData y luego TEMP.
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { $env:TEMP }
-$log = Join-Path $scriptDir 'openwave-identity.log'
+# El log va a %PROGRAMDATA%\OpenWave (la misma carpeta que openwave.log) para
+# que sobreviva a una instalacion fallida y sea facil de localizar. Si aun no
+# se puede crear/escribir ahi, cae al INSTALLDIR y luego a TEMP.
+$dataDir = if ($env:ProgramData) { Join-Path $env:ProgramData 'OpenWave' } else { '' }
+$log = $null
+if ($dataDir) {
+    try {
+        New-Item -ItemType Directory -Force -Path $dataDir -ErrorAction Stop | Out-Null
+        $prueba = Join-Path $dataDir ('.identity-write-test-' + $PID)
+        Set-Content -LiteralPath $prueba -Value '' -ErrorAction Stop
+        Remove-Item -LiteralPath $prueba -Force -ErrorAction SilentlyContinue
+        $log = Join-Path $dataDir 'openwave-identity.log'
+    } catch { $log = $null }
+}
+if (-not $log) { $log = Join-Path $scriptDir 'openwave-identity.log' }
 
 function Log([string]$msg) {
     $line = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss') + ' [' + $Mode + '] ' + $msg
@@ -146,6 +160,22 @@ try {
         }
 
         Log 'done'
+        # Comprobar el resultado real: Add-AppxPackage puede devolver ok y el
+        # paquete no quedar visible para el usuario. El MSI corre esta SAC con
+        # Return=ignore, asi que el exit code solo queda en su log; el detalle
+        # util esta en openwave-identity.log.
+        $final = $null
+        for ($i = 0; $i -lt 3 -and -not $final; $i++) {
+            Start-Sleep -Milliseconds 300
+            $final = Get-AppxPackage -Name OpenWave -ErrorAction SilentlyContinue |
+                Select-Object -First 1
+        }
+        if ($final) {
+            Log ('verify: ok ' + $final.PackageFamilyName)
+        } else {
+            Log 'verify: NO registrado'
+            exit 1
+        }
         exit 0
     }
 

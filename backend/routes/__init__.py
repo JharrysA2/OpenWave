@@ -3,8 +3,10 @@
 from fastapi import APIRouter
 
 from routes.cache_routes import router as cache_router
+from routes.cookies_routes import router as cookies_router
 from routes.downloads_routes import router as downloads_router
 from routes.history import router as history_router
+from routes.identity_routes import router as identity_router
 from routes.lyrics_routes import router as lyrics_router
 from routes.playlists import router as playlists_router
 from routes.search import router as search_router
@@ -21,4 +23,6 @@ api_router.include_router(playlists_router)
 api_router.include_router(history_router)
 api_router.include_router(lyrics_router)
 api_router.include_router(cache_router)
+api_router.include_router(cookies_router)
+api_router.include_router(identity_router)
 api_router.include_router(video_router)

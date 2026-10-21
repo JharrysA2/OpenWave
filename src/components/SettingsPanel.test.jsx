@@ -133,7 +133,7 @@ describe("SettingsPanel", () => {
     renderPanel();
     fireEvent.click(screen.getByText("Acerca de"));
     expect(screen.getByText("Versión")).toBeInTheDocument();
-    expect(screen.getByText("1.0.0")).toBeInTheDocument();
+    expect(screen.getByText("1.1.2")).toBeInTheDocument();
   });
 
   it("should navigate to translation page when clicked", () => {

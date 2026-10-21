@@ -1018,8 +1018,9 @@ manually»* (sparse package):
   `Remove-AppxPackage` + `Add-AppxPackage -ExternalLocation $scriptDir`
   **sin barra final** (ver §10: con la barra el botón del taskbar no
   pinta el icono del paquete) con trazas en
-  `openwave-identity.log` del INSTALLDIR (si no puede escribir —
-  ejecución media sobre Program Files — cae a `%TEMP%`). El Remove-Add hace
+  `%PROGRAMDATA%\OpenWave\openwave-identity.log` (si no se puede crear —
+  instalación sin permisos — cae al INSTALLDIR y luego a `%TEMP%`). El
+  Remove-Add hace
   idempotente la reparación y actualiza la ExternalLocation (con la misma
   versión sin remover → `0x80073CF9`). `LaunchApplication` se encadenó
   tras `RegisterIdentity` para que la app arranque ya con identidad.

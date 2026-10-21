@@ -332,6 +332,25 @@ def _alcanza(ancho: int | None, alto: int | None, tope: int) -> bool:
     return ancho is not None and ancho >= tope * 16 // 9
 
 
+def _cookies_nuevas_tras(ruta: Path) -> bool:
+    """¿Se guardó ``cookies.txt`` después de descargar este vídeo?
+
+    Al añadir una sesión válida YouTube puede ofrecer más resolución. Si el
+    vídeo es bajo y las cookies son posteriores, hay que reintentar aunque el
+    fichero sea reciente; tras la descarga el vídeo vuelve a ser más nuevo y
+    el reloj anti-bucle recupera el mando.
+    """
+    opt = cookies_file_opt()
+    if not opt:
+        return False
+    try:
+        cookies = Path(opt["cookiefile"]).stat()
+        video = ruta.stat()
+    except (OSError, KeyError, TypeError):
+        return False
+    return cookies.st_mtime > video.st_mtime + 1.0
+
+
 def calidad_suficiente(video_id: str, max_alto: int | None = None) -> bool:
     """¿Alcanza el fichero en disco el tope que pide la pantalla?
 
@@ -380,7 +399,9 @@ def calidad_suficiente(video_id: str, max_alto: int | None = None) -> bool:
     # Reloj anti-bucle: un fichero recién descargado no se vuelve a bajar
     # aunque no llegue al tope (evita redescargar 26 MB en cada apertura);
     # el reintento llega cuando ya cumple 2 h, tiempo de sobra para
-    # corregir la causa (429 puntual, cookies nuevas).
+    # corregir la causa (429 puntual, cookies nuevas). Excepción: si las
+    # cookies se guardaron DESPUÉS de este vídeo, se reintenta ya para que
+    # añadir la sesión mejore la resolución sin esperar dos horas.
     try:
         ruta = get_output_path(video_id)
         if ruta is None:
@@ -388,7 +409,7 @@ def calidad_suficiente(video_id: str, max_alto: int | None = None) -> bool:
         edad = time.time() - ruta.stat().st_mtime
     except OSError:
         return True
-    return edad < _REINTENTO_SEG
+    return edad < _REINTENTO_SEG and not _cookies_nuevas_tras(ruta)
 
 
 def _progress(video_id: str) -> dict:

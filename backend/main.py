@@ -51,6 +51,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.utils import is_body_allowed_for_status_code
+from identity import avisar_si_falta_identidad
 from logging_config import get_logger
 from rate_limit import limiter
 from routes import api_router
@@ -427,6 +428,11 @@ def _startup_warmup():
 
 
 threading.Thread(target=_startup_warmup, daemon=True).start()
+
+# Diagnóstico de la identidad de Windows: si el paquete sparse no está
+# registrado, Task Manager separa los WebView2. Se comprueba en un hilo para
+# no retrasar el arranque (en Linux/macOS no hace nada).
+threading.Thread(target=avisar_si_falta_identidad, daemon=True).start()
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

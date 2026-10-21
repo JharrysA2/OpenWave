@@ -965,6 +965,30 @@ class TestTopeCalidad:
             p.unlink(missing_ok=True)
             (VIDEO_DIR / "cal_pan.calidad").unlink(missing_ok=True)
 
+    def test_cookies_nuevas_redescarga_un_video_reciente(self, tmp_path, monkeypatch):
+        """Añadir cookies mejora ya el vídeo, sin esperar las 2 h del reloj."""
+        p = VIDEO_DIR / "cal_ck.mp4"
+        p.write_bytes(b"x")
+        (VIDEO_DIR / "cal_ck.calidad").write_text("medida=1280x720", encoding="utf-8")
+        ck = tmp_path / "cookies.txt"
+        ck.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+        ahora = time.time()
+        try:
+            os.utime(p, (ahora - 60, ahora - 60))
+            monkeypatch.setattr(
+                "video_fondo.cookies_file_opt", lambda: {"cookiefile": str(ck)}
+            )
+            # Cookies guardadas DESPUÉS del vídeo: toca reintentar aunque sea
+            # reciente (el usuario acaba de añadir la sesión).
+            os.utime(ck, (ahora, ahora))
+            assert calidad_suficiente("cal_ck", 1080) is False
+            # Si las cookies son anteriores, manda el reloj anti-bucle.
+            os.utime(ck, (ahora - 120, ahora - 120))
+            assert calidad_suficiente("cal_ck", 1080) is True
+        finally:
+            p.unlink(missing_ok=True)
+            (VIDEO_DIR / "cal_ck.calidad").unlink(missing_ok=True)
+
 
 class TestDesfase:
     """La medición del desfase con la canción dentro de prepare_video."""

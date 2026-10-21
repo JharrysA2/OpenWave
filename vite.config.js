@@ -1,8 +1,16 @@
 /// <reference types="vitest" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { readFileSync } from "node:fs";
+
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
 export default defineConfig({
+  define: {
+    // La versión de «Acerca de» sale del package.json (una sola fuente de
+    // verdad, sin volver a olvidarla en cada release).
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   // Sin vite-plugin-compression: los .gz no los sirve nadie (Tauri embebe y
   // sirve dist por su propio protocolo, sin negociación Content-Encoding),
   // así que solo añadían peso muerto al binario.

@@ -6,6 +6,15 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **La escalera de descargas salta a IPv4 cuando YouTube bloquea los bots.**
+  Con la IPv6 del equipo marcada como sospechosa, YouTube contesta «Sign in
+  to confirm you're not a bot» a todos los intentos anónimos y el clip (el
+  de MDBCrew de «Aquella Noche», por ejemplo) nunca bajaba. Cuando un
+  intento choca con ese bloqueo se repiten ahora —forzados a IPv4— los dos
+  que pueden dar 1080p; la misma descarga por IPv4 pasa.
+
 ## [1.1.5] - 2026-10-21
 
 ### Fixed

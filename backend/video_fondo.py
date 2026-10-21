@@ -149,6 +149,22 @@ def _escaleras(alto: int) -> list[dict]:
 # soporta y usa el de más prioridad que exista (en Windows suele estar Node).
 _JS_RUNTIMES = {"deno": {}, "node": {}, "bun": {}, "quickjs": {}}
 
+# Bloqueo de bots de YouTube: la petición anónima contesta «Sign in to
+# confirm you're not a bot» cuando sale por una IPv6 que YouTube marca como
+# sospechosa (IPv4 pasa con la misma descarga: constatado en la misma
+# máquina, donde la v6 se bloquea y la v4 baja el clip). Si algún intento
+# de la escalera choca con ese bloqueo, se encola una repetición más con
+# IPv4 forzada.
+_IPV4_FORZADA = "0.0.0.0"
+_BOT = ("Sign in to confirm", "not a bot")
+
+
+def _bloqueo_bots(error: Exception) -> bool:
+    """¿El intento chocó con el bloqueo de bots de YouTube?"""
+    texto = str(error)
+    return any(mensaje in texto for mensaje in _BOT)
+
+
 # Escaleras por defecto (1080p) para los consumidores directos. La primera es
 # el cliente «embedded» de YouTube: el único que sirve hasta 1080p sin PO token
 # (el resto pide un token o cae a 360p). Necesita un runtime de JS para los
@@ -547,6 +563,10 @@ def _descargar(video_id: str, fuente_id: str, max_alto: int | None = None) -> No
 
     Los intentos que pueden dar 1080p se repiten al final de la escalera: un
     403 de YouTube es pasajero y sin repetir se publicaba el 360p de respaldo.
+    Y si un intento chocó con el bloqueo de bots («Sign in to confirm you're
+    not a bot», que YouTube le aplica a una IPv6 marcada como sospechosa y
+    no a la IPv4 de la misma máquina), esas repeticiones van forzadas a
+    IPv4.
     """
     tope = _cap_alto(max_alto)
     embedded, mp4, mp4_android, webm_android = _escaleras(tope)
@@ -582,6 +602,7 @@ def _descargar(video_id: str, fuente_id: str, max_alto: int | None = None) -> No
 
     mejor: tuple[int, Path] | None = None
     last_error: Exception | None = None
+    ipv4_encolada = False
     _limpiar_temporales(video_id)
     try:
         for n, opts in enumerate(attempts):
@@ -597,6 +618,19 @@ def _descargar(video_id: str, fuente_id: str, max_alto: int | None = None) -> No
             except yt_dlp.utils.DownloadError as e:
                 last_error = e
                 logger.warning("vídeo %s intento fallido: %s", video_id, e)
+                if not ipv4_encolada and _bloqueo_bots(e):
+                    # YouTube bloquea por IP (bot-check) — pasa por IPv4: se
+                    # encolan los intentos que pueden dar 1080p con v4
+                    # forzada y el bucle los alcanza al continuar.
+                    ipv4_encolada = True
+                    logger.info(
+                        "vídeo %s: bloqueo de bots de YouTube; reintento forzado a IPv4",
+                        video_id,
+                    )
+                    attempts += [
+                        {**embedded, "source_address": _IPV4_FORZADA},
+                        {**mp4, "source_address": _IPV4_FORZADA},
+                    ]
                 continue
             nuevo = _temporal(video_id, n)
             if nuevo is None:

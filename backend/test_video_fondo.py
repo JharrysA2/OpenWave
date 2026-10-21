@@ -406,6 +406,47 @@ class TestPrepareVideo:
             delete_video("repi_id")
             video_progress.pop("repi_id", None)
 
+    def test_repite_ipv4_cuando_youtube_bloquea_los_bots(self, monkeypatch):
+        """El bloqueo «Sign in to confirm you're not a bot» lanza la escala IPv4.
+
+        Caso real (misma máquina): por IPv6 YouTube contesta el bot-check a
+        TODOS los clientes anónimos y por IPv4 la misma descarga pasa. La
+        escalera, en vez de rendirse, repite los intentos que pueden dar
+        1080p con IPv4 forzada y publica el clip.
+        """
+
+        class _SoloIpv4(_FakeYdl):
+            def download(self, urls):
+                if self.opts.get("source_address") != "0.0.0.0":
+                    raise yt_dlp.utils.DownloadError(
+                        "[youtube] bot_id: Sign in to confirm you're not a bot. "
+                        "Use --cookies-from-browser or --cookies"
+                    )
+                m = re.search(r"v=([\w-]+)$", urls[0])
+                self.video_id = m.group(1)
+                out = Path(str(self.opts["outtmpl"]).replace("%(ext)s", "mp4"))
+                out.write_bytes(b"1080")
+
+        monkeypatch.setattr("video_fondo.cookies_file_opt", lambda: None)
+        monkeypatch.setattr("video_fondo.browser_cookie_opts", lambda: [])
+        monkeypatch.setattr("video_fondo.yt_dlp.YoutubeDL", _SoloIpv4)
+        monkeypatch.setattr("video_fondo._ffmpeg_bin", lambda: "ffmpeg-falso")
+        monkeypatch.setattr("video_fondo.subprocess.run", _run_clase_del_fichero)
+        monkeypatch.setattr("video_fondo._evict_if_needed", lambda: 0)
+        try:
+            prepare_video("bot_id")
+            assert video_progress["bot_id"]["status"] == "done"
+            assert calidad_guardada("bot_id") == 1080
+            por_ipv4 = [
+                i
+                for i in _SoloIpv4.instances
+                if i.opts.get("source_address") == "0.0.0.0"
+            ]
+            assert len(por_ipv4) == 1
+        finally:
+            delete_video("bot_id")
+            video_progress.pop("bot_id", None)
+
 
 class TestCalidad:
     """El vídeo de fondo se pide con lo necesario para llegar a 1080p."""

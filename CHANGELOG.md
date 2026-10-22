@@ -6,6 +6,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.1.9] - 2026-10-22
+
 ### Changed
 
 - **Mega auditoría de los mensajes temporales: liquid glass en blanco y
@@ -435,7 +437,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.8...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.9...HEAD
+[1.1.9]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.9
 [1.1.8]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.8
 [1.1.7]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.7
 [1.1.6]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.6

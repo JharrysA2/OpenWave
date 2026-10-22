@@ -842,10 +842,10 @@ export function usePlayer(
             }, 2000);
           } else {
             // Segundo intento también falló → aviso al usuario (petición):
-            // mensaje flotante liquid glass en blanco y negro (el Toast es
-            // B/N y sin borde para todos los tipos). useToast deduplica si
-            // handleAudioError emitió ya el mismo mensaje por el evento
-            // error del <audio>.
+            // mensaje flotante con EL MISMO material liquid glass del player
+            // (el Toast lleva letras blancas y sin borde para todos los
+            // tipos). useToast deduplica si handleAudioError emitió ya el
+            // mismo mensaje por el evento error del <audio>.
             console.error("Play error (both attempts):", e);
             setIsPlaying(false);
             toast?.("No se pudo reproducir la canción", "error");

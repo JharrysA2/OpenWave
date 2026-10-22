@@ -1,6 +1,6 @@
 import React from "react";
 import { FONT } from "../constants";
-import { RADIUS, TYPOGRAPHY } from "../utils/theme";
+import { GLASS, RADIUS, TYPOGRAPHY } from "../utils/theme";
 import { useSettings } from "../contexts/useSettings";
 import { useBackendStatus } from "../hooks/useBackendStatus";
 
@@ -14,13 +14,12 @@ import { useBackendStatus } from "../hooks/useBackendStatus";
  *   traía un `fontSize`/`fontWeight` suelto que no coincidía con el resto.
  * - Muestra el CÓDIGO reportable (utils/errorCodes) para que el usuario
  *   pueda indicarlo al reportar el fallo.
- * - Blanco y negro SIN contorno (petición): vidrio negro con texto blanco,
- *   punto blanco y badge neutro — el color NO comunica el estado, los avisos
- *   nunca van en ámbar/rojo/verde.
- * - Sin `backdrop-filter`: es un chip opaco (.86) y transitorio, y detrás no
- *   hay animación que difuminar (presupuesto: blur solo con movimiento detrás
- *   o en superficies de modal, ver docs/PERFORMANCE.md §1/§7). La sombra es
- *   de separación, no un borde.
+ * - EL MISMO material Liquid Glass del player bar (petición): vidrio
+ *   translúcido con blur(10px), letras blancas y SIN contorno — el color NO
+ *   comunica el estado, los avisos nunca van en ámbar/rojo/verde.
+ * - El blur cuesta poco: chip pequeño y aparecido solo al perder conexión
+ *   (presupuesto: blur con movimiento detrás, docs/PERFORMANCE.md §1/§7) —
+ *   detrás suyo pasan las vistas al hacer scroll.
  * - Se oculta automáticamente al reconectar (el estado vive en backendHealth).
  */
 export function ConnectionBanner() {
@@ -50,8 +49,7 @@ export function ConnectionBanner() {
         borderRadius: RADIUS.card,
         fontFamily: FONT,
         color: "#ffffff",
-        background: "rgba(12,12,16,.86)",
-        boxShadow: "0 12px 40px rgba(0,0,0,.5)",
+        ...GLASS.mensaje,
         pointerEvents: "none",
         animation: "sw-fade-slide-up .25s cubic-bezier(.16,1,.3,1)",
       }}

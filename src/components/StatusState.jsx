@@ -68,16 +68,16 @@ export function StatusState({
         ...ANIMATIONS.fadeIn(0),
       }}
     >
-      {/* Icono — círculo de vidrio blanco (misma forma que el estado vacío,
-          pero en B/N sin contorno: los avisos nunca llevan color de acento) */}
+      {/* Icono — círculo con EL MISMO material Liquid Glass del player
+          (petición): translúcido y sin contorno, los avisos nunca llevan
+          color de acento */}
       <div
         aria-hidden="true"
         style={{
           width: compact ? "56px" : "72px",
           height: compact ? "56px" : "72px",
           borderRadius: "50%",
-          background:
-            "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
+          ...GLASS.mensaje,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -119,12 +119,12 @@ export function StatusState({
       {/* Badge del código — tabular-nums para que el número no "baile" */}
       <div
         style={{
+          ...GLASS.mensaje,
           display: "flex",
           alignItems: "center",
           gap: SPACING.gap.normal,
           padding: "6px 14px",
           borderRadius: RADIUS.pill,
-          background: "rgba(255,255,255,.08)",
         }}
       >
         <span style={{ ...TYPOGRAPHY.caption, color: COLORS.textTertiary }}>
@@ -158,8 +158,8 @@ export function StatusState({
                 padding: "9px 22px",
                 borderRadius: RADIUS.pill,
                 border: "none",
-                background: "rgba(255,255,255,.16)",
-                // Vidrio blanco en B/N (petición): nunca el color de acento
+                ...GLASS.mensaje,
+                // Letras blancas (petición): nunca el color de acento
                 color: "#ffffff",
                 fontWeight: "700",
                 fontSize: "13px",

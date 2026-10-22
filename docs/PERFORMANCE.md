@@ -13,10 +13,10 @@ El blur en vivo solo cuesta cuando hay **repintado detrás** (medido: ≈0 % en
 superficies estáticas por caché de compositing; ~1,8 % GPU en capa full-screen
 que se repinta con letras/scroll). Por tanto:
 
-- **Superficies de la shell SIN blur**: sidebar, titleBar, searchbar y el
-  banner de conexión **no** llevan `backdrop-filter` — detrás no pasa ni se
-  anima nada (y la gradiente opaca del sidebar lo tapaba igualmente): el
-  blur era puro coste invisible. Regresión = reintroducirlo.
+- **Superficies de la shell SIN blur**: sidebar, titleBar y searchbar no
+  llevan `backdrop-filter` — detrás no pasa ni se anima nada (y la gradiente
+  opaca del sidebar lo tapaba igualmente): el blur era puro coste invisible.
+  Regresión = reintroducirlo.
 - `backdrop-filter` permitido únicamente donde **hay movimiento real
   detrás** o es una **superficie de modal**:
   - **player bar** (`blur(10px)`): el scroll de las vistas y el karaoke
@@ -31,10 +31,12 @@ que se repinta con letras/scroll). Por tanto:
   - **transitorias no modales**: `GLASS.popup` (toast/volumen/crossfade) se
     queda en `blur(6px)` — pueden flotar sobre contenido que se mueve.
   - **avisos temporales** (`GLASS.mensaje`, auditoría de mensajes): toasts,
-    banner de conexión y píldoras del vídeo comparten vidrio negro B/N sin
-    contorno en `blur(6px)`, como el popup. El banner de conexión sigue SIN
-    blur (chip opaco .86 con el detrás parado) y el ErrorBoundary lo apaga
-    igual — los estados de error (`StatusState`) nunca lo llevaron.
+    banner de conexión y píldoras del vídeo usan EL MISMO material del
+    player — translúcido `rgba(10,10,18,.18)` con `blur(10px)`, letras
+    blancas y sin contorno. Se ve a través por petición del usuario; son
+    superficies pequeñísimas que solo aparecen con el aviso. Las píldoras
+    del vídeo mantienen su `blur(12px)` propio (detrás pasa el videoclip)
+    y el ErrorBoundary apaga el blur (nada detrás que difuminar).
   - **cristal local con vídeo de fondo** (`LyricsView`): mientras el fondo es
     el videoclip, la barra lateral (portada + cola) difumina con `blur(12px)`
     y los botones de arriba (⋮ y cerrar) con `blur(6px)` — detrás hay vídeo en

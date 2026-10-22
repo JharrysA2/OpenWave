@@ -743,18 +743,18 @@ export const GLASS = {
   },
 
   /** Avisos temporales (toasts, banner de conexión, píldoras del vídeo) —
-   *  Liquid Glass en blanco y negro, SIN contorno (petición explícita):
-   *  vidrio negro translúcido, texto blanco y sombra de separación (la
-   *  sombra no es un borde). Colores de estado PROHIBIDOS en estos avisos:
-   *  ni verdes, ni rojos, ni ámbar — el tipo solo da semántica, nunca color.
-   *  Las superficies que lo usan sobre fondo parado (banner opaco, estados
-   *  de error) apagan el blur con coste cero (docs/PERFORMANCE.md §1/§7). */
+   *  EL MISMO material Liquid Glass del player bar (petición explícita):
+   *  translúcido y con blur(10px) para ver a través de él, sin contorno y
+   *  con letras blancas. Colores de estado PROHIBIDOS en estos avisos: ni
+   *  verdes, ni rojos, ni ámbar — el tipo solo da semántica, nunca color.
+   *  Las letras SIEMPRE blancas: sobre vidrio translúcido el negro no se
+   *  lee. El ErrorBoundary apaga el blur (nada detrás que difuminar). */
   mensaje: {
-    background: "linear-gradient(135deg, rgba(16,16,20,.80) 0%, rgba(0,0,0,.72) 100%)",
+    background: "rgba(10,10,18,.18)",
     border: "none",
-    boxShadow: "0 12px 40px rgba(0,0,0,.5)",
-    backdropFilter: "blur(6px)",
-    WebkitBackdropFilter: "blur(6px)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), 0 4px 20px rgba(0,0,0,.25)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
   },
 
   /** Settings panel — Liquid Glass SIN backdrop-filter.

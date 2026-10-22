@@ -43,8 +43,9 @@ describe("Toasts", () => {
       (msg) => screen.getByText(msg).closest("div").style.background,
     );
     for (const bg of backgrounds) {
-      expect(bg).toContain("linear-gradient");
-      expect(bg).toContain("rgba(0,0,0,.72)");
+      // Material del player: color plano translúcido, sin gradiente
+      // (jsdom normaliza el color: espacios y "0.18")
+      expect(bg.replace(/\s/g, "")).toContain("rgba(10,10,18,0.18)");
     }
     // Los tres tipos comparten EXACTAMENTE el mismo estilo
     expect(backgrounds[0]).toBe(backgrounds[1]);

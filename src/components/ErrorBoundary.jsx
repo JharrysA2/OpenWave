@@ -56,12 +56,11 @@ export class ErrorBoundary extends React.Component {
         >
           <div
             style={{
-              // Liquid Glass en blanco y negro, sin contorno (petición)
+              // EL MISMO material Liquid Glass del player (petición):
+              // translúcido, letras blancas, sin contorno
               ...GLASS.mensaje,
               backdropFilter: "none",
               WebkitBackdropFilter: "none",
-              // B/N más sólido que un toast: reemplaza TODA la app
-              background: "linear-gradient(135deg, rgba(18,18,20,.96), rgba(0,0,0,.92))",
               borderRadius: RADIUS.card,
               padding: "36px 32px",
               maxWidth: "420px",

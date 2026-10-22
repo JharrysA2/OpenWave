@@ -27,10 +27,11 @@ export function Toasts({ toasts }) {
             fontSize: "13.5px",
             fontWeight: "700",
             fontFamily: FONT,
-            // Liquid Glass en blanco y negro (petición): UN estilo para todos
-            // los avisos, sea info, éxito o error — vidrio negro, texto blanco
-            // y sin contorno. Ni verdes ni rojos: el `type` solo alimenta la
-            // semántica (dedup/registro), nunca el color del mensaje.
+            // Liquid Glass (petición): UN estilo para todos los avisos, sea
+            // info, éxito o error — EL MISMO material translúcido del player
+            // bar (se ve a través, blur 10px), letras blancas y sin contorno.
+            // Ni verdes ni rojos: el `type` solo alimenta la semántica
+            // (dedup/registro), nunca el color del mensaje.
             ...GLASS.mensaje,
             color: "#ffffff",
             animation: `toastIn .18s ${TRANSITIONS.spring}`,

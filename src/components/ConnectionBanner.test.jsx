@@ -29,9 +29,12 @@ describe("ConnectionBanner", () => {
     expect(banner).toHaveTextContent("Sin conexión con el servidor");
     expect(banner).toHaveAttribute("role", "status");
     expect(banner).toHaveAttribute("aria-live", "polite");
-    // Presupuesto §1: sin backdrop-filter — chip opaco transitorio y detrás
-    // no hay animación que difuminar (regresión de GPU por frame al repintar)
-    expect(banner.style.backdropFilter ?? "").toBe("");
+    // Liquid Glass del player (petición): vidrio translúcido con blur(10px)
+    // (detrás pasan las vistas al hacer scroll), letras blancas y sin
+    // contorno de ningún color.
+    expect(banner.style.backdropFilter).toBe("blur(10px)");
+    expect(banner.style.background.replace(/\s/g, "")).toContain("rgba(10,10,18,0.18)");
+    expect(getComputedStyle(banner).color).toBe("rgb(255, 255, 255)");
   });
 
   it("expone el motivo del fallo en el tooltip", () => {

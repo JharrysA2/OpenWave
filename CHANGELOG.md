@@ -6,6 +6,28 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **Los mensajes temporales adoptan de verdad el Liquid Glass del player
+  bar.** La pasada anterior los había dejado en un vidrio oscuro casi
+  opaco: la petición pedía vidrio TRANSLÚCIDO que se vea a través, como el
+  de la barra de reproducción, y «blanco o negro» era para las LETRAS (que,
+  sobre vidrio translúcido, van siempre en blanco — el negro no se leería).
+  El token `GLASS.mensaje` pasa a ser el material exacto del player
+  (`rgba(10,10,18,.18)` + `blur(10px)` + su brillo interior superior), sin
+  borde, y lo heredan **todos** los avisos:
+  - **Toasts** (info/éxito/error): del vidrio casi opaco al vidrio
+    translúcido del player con letras blancas.
+  - **Banner «Servidor sin conexión»**: del chip opaco .86 al vidrio del
+    player con blur(10px) — detrás suyo pasan las vistas al hacer scroll.
+  - **Píldoras del videoclip** (progreso, «sin videoclip», error): base
+    translúcida (a .24: detrás hay vídeo brillante y la letra debe leerse
+    siempre) sobre su difuminado de 12px.
+  - **Estados de error** (`StatusState`): círculo del icono, badge del
+    código y «Reintentar» con el material del player.
+  - **ErrorBoundary**: fuera el fondo casi opaco — material del player (el
+    blur se queda apagado: no hay nada detrás que difuminar).
+
 ## [1.1.9] - 2026-10-22
 
 ### Changed

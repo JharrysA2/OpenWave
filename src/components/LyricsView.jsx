@@ -1613,7 +1613,11 @@ export function LyricsView({
   const [avisoSinVideo, setAvisoSinVideo] = useState(false);
 
   // Píldora compartida de los avisos del vídeo (progreso, sin clip y error)
-  // — Liquid Glass en B/N y SIN contorno (petición): nada de líneas de borde.
+  // — EL MISMO Liquid Glass del player bar (petición): translúcido y sin
+  // contorno, con blur(12px) porque detrás pasa el videoclip en movimiento
+  // (regla del cristal local con vídeo, docs/PERFORMANCE.md §1) y letras
+  // blancas. Un velo algo mayor (.24) que el player: detrás hay vídeo
+  // brillante y la píldora debe leerse siempre.
   const avisoVideoStyle = {
     position: "absolute",
     top: "20px",
@@ -1625,9 +1629,11 @@ export function LyricsView({
     gap: "8px",
     padding: "7px 14px",
     borderRadius: RADIUS.pill,
-    background: "rgba(10,10,16,.62)",
+    background: "rgba(10,10,18,.24)",
+    border: "none",
     backdropFilter: "blur(12px)",
-    color: COLORS.textPrimary,
+    WebkitBackdropFilter: "blur(12px)",
+    color: "#ffffff",
     ...TYPOGRAPHY.caption,
     fontWeight: 700,
   };

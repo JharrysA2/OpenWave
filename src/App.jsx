@@ -292,8 +292,9 @@ function AppInner() {
         if (!e.target.paused && e.target.currentTime > 0) return;
       } catch {}
       // Errores de reproducción visibles (petición): mensaje flotante con
-      // estilo liquid glass en blanco y negro (Toast pinta el variant "error").
-      // useToast deduplica si el mismo fallo llega también de playSong.
+      // estilo liquid glass en blanco y negro (el Toast es B/N y sin borde
+      // para TODOS los tipos). useToast deduplica si el mismo fallo llega
+      // también de playSong.
       console.warn(`[audio] playback error (code=${code})`);
       toast("No se pudo reproducir la canción", "error");
     },

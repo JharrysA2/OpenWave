@@ -8,8 +8,8 @@ import { GLASS, RADIUS, TYPOGRAPHY } from "../utils/theme";
  *
  * El detalle técnico (mensaje + componentStack) va SOLO a consola: al usuario
  * se le muestra una tarjeta de vidrio oscura con título, explicación y botón
- * «Recargar app» — sin stacks rojos ni fondos de pánico (petición: errores
- * con estilo liquid glass, solo negro o blanco).
+ * «Recargar app» — liquid glass en blanco y negro y SIN contorno (petición:
+ * errores en neutro, sin stacks rojos ni colores de pánico).
  *
  * `static contextType` (clase → no hooks): fuera de `<SettingsProvider>`
  * `this.context` es null y se cae a los textos en español.
@@ -56,11 +56,12 @@ export class ErrorBoundary extends React.Component {
         >
           <div
             style={{
-              ...GLASS.popup,
+              // Liquid Glass en blanco y negro, sin contorno (petición)
+              ...GLASS.mensaje,
               backdropFilter: "none",
               WebkitBackdropFilter: "none",
+              // B/N más sólido que un toast: reemplaza TODA la app
               background: "linear-gradient(135deg, rgba(18,18,20,.96), rgba(0,0,0,.92))",
-              border: "1px solid rgba(255,255,255,.28)",
               borderRadius: RADIUS.card,
               padding: "36px 32px",
               maxWidth: "420px",
@@ -78,7 +79,7 @@ export class ErrorBoundary extends React.Component {
                 width: "56px",
                 height: "56px",
                 borderRadius: "50%",
-                border: "1px solid rgba(255,255,255,.35)",
+                background: "rgba(255,255,255,.12)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

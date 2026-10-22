@@ -6,6 +6,36 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **Mega auditoría de los mensajes temporales: liquid glass en blanco y
+  negro y SIN contorno.** Todos los avisos que aparecen en pantalla van
+  ahora con el mismo vidrio negro translúcido y texto blanco (nuevo token
+  `GLASS.mensaje`), sin borde ni contorno de ningún color. La regla era ya
+  la convención en errores (toasts de reproducción y ErrorBoundary) y se
+  extiende y formaliza a todas las superficies de mensaje:
+  - **Toasts**: el éxito pintaba el vidrio de **verde** (fondo
+    `rgba(5,46,22,.88)` + texto `#86efac`) y cada tipo llevaba su borde;
+    info, éxito y error son hoy idénticos en negro con texto blanco. El
+    `type` solo conserva su papel semántico (dedup/registro).
+  - **Banner «Servidor sin conexión»**: iba en **ámbar** total (fondo,
+    texto, punto y dos bordes); ahora vidrio negro opaco, texto y punto
+    blancos y badge del código sin borde y en blanco.
+  - **Píldoras del videoclip de fondo** (progreso, «sin videoclip», error):
+    fuera la línea de contorno y el teñido del punto y del botón
+    «Reintentar» con el acento de la vista; todo en blanco sobre vidrio
+    negro.
+  - **Estados de error** (`StatusState`): el círculo del icono, el badge
+    del código y el botón «Reintentar» usaban el acento con bordes; van en
+    vidrio blanco sin contorno con icono y texto blancos. `accentColor` se
+    acepta por compatibilidad pero ya no pinta nada.
+  - **ErrorBoundary**: ya era blanco y negro, pero conservaba un borde
+    blanco fino en la tarjeta y en el círculo del icono — fuera.
+  Quedan fuera de la regla por no ser mensajes: badges persistentes
+  («Sincronizado», «Pre-cargada», «OFFLINE», héroe de Descargas),
+  affordances interactivas (corazón, hover de borrar, botón de peligro) y
+  la paleta de acento del usuario.
+
 ## [1.1.8] - 2026-10-21
 
 ### Fixed

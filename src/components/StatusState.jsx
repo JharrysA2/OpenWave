@@ -2,16 +2,7 @@ import React, { useContext } from "react";
 import { FONT } from "../constants";
 import { SettingsContext } from "../contexts/SettingsContext";
 import { describeError, DEFAULT_ERROR_CODE } from "../utils/errorCodes";
-import {
-  ANIMATIONS,
-  COLORS,
-  GLASS,
-  RADIUS,
-  SPACING,
-  TYPOGRAPHY,
-  safeAccentText,
-  withAlpha,
-} from "../utils/theme";
+import { ANIMATIONS, COLORS, GLASS, RADIUS, SPACING, TYPOGRAPHY } from "../utils/theme";
 
 /**
  * Estado genérico de error / vacío-con-error.
@@ -34,7 +25,9 @@ import {
  * @param {string} [props.retryLabel] - etiqueta del botón (por defecto t.retry)
  * @param {string} [props.actionLabel] - etiqueta de una acción secundaria
  * @param {() => void} [props.onAction] - acción secundaria (p.ej. "Volver")
- * @param {string} [props.accentColor] - color de acento de la vista
+ * @param {string} [props.accentColor] - IGNORADO: los mensajes de error van
+ *   en blanco y negro sin contorno (petición); se acepta por compatibilidad
+ *   con las vistas que lo pasan, pero no pinta nada.
  * @param {boolean} [props.compact] - versión reducida (dentro de un overlay)
  */
 export function StatusState({
@@ -45,7 +38,6 @@ export function StatusState({
   retryLabel,
   actionLabel,
   onAction,
-  accentColor = "#a78bfa",
   compact = false,
 }) {
   const ctx = useContext(SettingsContext);
@@ -55,7 +47,6 @@ export function StatusState({
   const info = describeError(code || DEFAULT_ERROR_CODE, lang);
   const titleText = title || info.title;
   const messageText = message || info.message;
-  const accent = safeAccentText(accentColor);
 
   return (
     <div
@@ -77,15 +68,16 @@ export function StatusState({
         ...ANIMATIONS.fadeIn(0),
       }}
     >
-      {/* Icono — círculo con glow del acento (mismo lenguaje que el estado vacío) */}
+      {/* Icono — círculo de vidrio blanco (misma forma que el estado vacío,
+          pero en B/N sin contorno: los avisos nunca llevan color de acento) */}
       <div
         aria-hidden="true"
         style={{
           width: compact ? "56px" : "72px",
           height: compact ? "56px" : "72px",
           borderRadius: "50%",
-          background: `linear-gradient(135deg, ${withAlpha(accentColor, "15")}, ${withAlpha(accentColor, "05")})`,
-          border: `1px solid ${withAlpha(accentColor, "22")}`,
+          background:
+            "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -96,7 +88,7 @@ export function StatusState({
           height={compact ? "26" : "32"}
           viewBox="0 0 24 24"
           fill="none"
-          stroke={accent}
+          stroke="rgba(255,255,255,.85)"
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -132,8 +124,7 @@ export function StatusState({
           gap: SPACING.gap.normal,
           padding: "6px 14px",
           borderRadius: RADIUS.pill,
-          background: withAlpha(accentColor, "12"),
-          border: `1px solid ${withAlpha(accentColor, "33")}`,
+          background: "rgba(255,255,255,.08)",
         }}
       >
         <span style={{ ...TYPOGRAPHY.caption, color: COLORS.textTertiary }}>
@@ -143,7 +134,7 @@ export function StatusState({
           data-testid="error-code"
           style={{
             ...TYPOGRAPHY.metadata,
-            color: accent,
+            color: "rgba(255,255,255,.92)",
             letterSpacing: "0.06em",
             fontVariantNumeric: "tabular-nums",
             fontFeatureSettings: '"tnum"',
@@ -167,9 +158,9 @@ export function StatusState({
                 padding: "9px 22px",
                 borderRadius: RADIUS.pill,
                 border: "none",
-                background: accentColor,
-                // Acento de fondo → primer plano dinámico (nunca negro fijo)
-                color: "var(--neon-fg)",
+                background: "rgba(255,255,255,.16)",
+                // Vidrio blanco en B/N (petición): nunca el color de acento
+                color: "#ffffff",
                 fontWeight: "700",
                 fontSize: "13px",
                 cursor: "pointer",

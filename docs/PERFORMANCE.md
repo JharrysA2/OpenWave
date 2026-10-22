@@ -30,6 +30,11 @@ que se repinta con letras/scroll). Por tanto:
     opaca (decisión de producto para esa pantalla);
   - **transitorias no modales**: `GLASS.popup` (toast/volumen/crossfade) se
     queda en `blur(6px)` — pueden flotar sobre contenido que se mueve.
+  - **avisos temporales** (`GLASS.mensaje`, auditoría de mensajes): toasts,
+    banner de conexión y píldoras del vídeo comparten vidrio negro B/N sin
+    contorno en `blur(6px)`, como el popup. El banner de conexión sigue SIN
+    blur (chip opaco .86 con el detrás parado) y el ErrorBoundary lo apaga
+    igual — los estados de error (`StatusState`) nunca lo llevaron.
   - **cristal local con vídeo de fondo** (`LyricsView`): mientras el fondo es
     el videoclip, la barra lateral (portada + cola) difumina con `blur(12px)`
     y los botones de arriba (⋮ y cerrar) con `blur(6px)` — detrás hay vídeo en

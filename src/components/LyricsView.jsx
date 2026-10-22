@@ -1612,7 +1612,8 @@ export function LyricsView({
   // segundos y el aviso se retira solo (no hay nada que reintentar).
   const [avisoSinVideo, setAvisoSinVideo] = useState(false);
 
-  // Píldora compartida de los avisos del vídeo (progreso, sin clip y error).
+  // Píldora compartida de los avisos del vídeo (progreso, sin clip y error)
+  // — Liquid Glass en B/N y SIN contorno (petición): nada de líneas de borde.
   const avisoVideoStyle = {
     position: "absolute",
     top: "20px",
@@ -1624,7 +1625,6 @@ export function LyricsView({
     gap: "8px",
     padding: "7px 14px",
     borderRadius: RADIUS.pill,
-    border: `1px solid ${COLORS.borderActive}`,
     background: "rgba(10,10,16,.62)",
     backdropFilter: "blur(12px)",
     color: COLORS.textPrimary,
@@ -2803,7 +2803,7 @@ export function LyricsView({
               width: "7px",
               height: "7px",
               borderRadius: "50%",
-              background: accentColor,
+              background: "rgba(255,255,255,.9)",
             }}
           />
           Preparando el vídeo… {Math.round(videoState.progress)}%
@@ -2817,7 +2817,7 @@ export function LyricsView({
               width: "7px",
               height: "7px",
               borderRadius: "50%",
-              background: accentColor,
+              background: "rgba(255,255,255,.9)",
             }}
           />
           Esta canción no tiene videoclip
@@ -2831,7 +2831,7 @@ export function LyricsView({
               width: "7px",
               height: "7px",
               borderRadius: "50%",
-              background: accentColor,
+              background: "rgba(255,255,255,.9)",
             }}
           />
           No se pudo preparar el vídeo
@@ -2842,9 +2842,9 @@ export function LyricsView({
             style={{
               ...TYPOGRAPHY.caption,
               fontWeight: 700,
-              color: accentColor,
-              background: "transparent",
-              border: `1px solid ${COLORS.borderActive}`,
+              color: "#ffffff",
+              background: "rgba(255,255,255,.12)",
+              border: "none",
               borderRadius: RADIUS.pill,
               padding: "2px 10px",
               cursor: "pointer",

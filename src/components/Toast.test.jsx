@@ -35,46 +35,47 @@ describe("Toasts", () => {
     expect(screen.getByText("Operación exitosa")).toBeInTheDocument();
   });
 
-  // ── Estilos por tipo ────────────────────────────────────────────────────────
+  // ── Estilos (blanco y negro, sin contorno) ────────────────────────────────
 
-  it("should apply error background as liquid-glass black gradient for error toasts", () => {
-    render(<Toasts toasts={[errorToast]} />);
-    const toastDiv = screen.getByText("Error crítico").closest("div");
-    // Liquid Glass B/N (petición): vidrio oscuro, nunca rojos
-    expect(toastDiv.style.background).toContain("linear-gradient");
-    expect(toastDiv.style.background).toContain("rgba(0,0,0,.88)");
-    expect(toastDiv.style.background).not.toContain("69,10,10");
+  it("should use the same neutral liquid-glass background for every toast type", () => {
+    render(<Toasts toasts={[infoToast, errorToast, successToast]} />);
+    const backgrounds = ["Información", "Error crítico", "Operación exitosa"].map(
+      (msg) => screen.getByText(msg).closest("div").style.background,
+    );
+    for (const bg of backgrounds) {
+      expect(bg).toContain("linear-gradient");
+      expect(bg).toContain("rgba(0,0,0,.72)");
+    }
+    // Los tres tipos comparten EXACTAMENTE el mismo estilo
+    expect(backgrounds[0]).toBe(backgrounds[1]);
+    expect(backgrounds[1]).toBe(backgrounds[2]);
   });
 
-  it("should apply success background color for success type toasts", () => {
+  it("should never tint a success toast green (todo en blanco y negro)", () => {
     render(<Toasts toasts={[successToast]} />);
     const toastDiv = screen.getByText("Operación exitosa").closest("div");
-    expect(toastDiv).toHaveStyle({ background: "rgba(5,46,22,.88)" });
-  });
-
-  it("should apply info background color for info type toasts", () => {
-    render(<Toasts toasts={[infoToast]} />);
-    const toastDiv = screen.getByText("Información").closest("div");
-    // Info toasts use GLASS.popup gradient background
-    expect(toastDiv.style.background).toContain("linear-gradient");
-  });
-
-  it("should apply white text color for error type toasts (blanco y negro)", () => {
-    render(<Toasts toasts={[errorToast]} />);
-    const toastDiv = screen.getByText("Error crítico").closest("div");
+    expect(toastDiv.style.background).not.toContain("5,46,22");
+    expect(toastDiv.style.background).not.toContain("74,222,128");
     expect(toastDiv).toHaveStyle({ color: "#ffffff" });
   });
 
-  it("should apply success text color for success type toasts", () => {
-    render(<Toasts toasts={[successToast]} />);
-    const toastDiv = screen.getByText("Operación exitosa").closest("div");
-    expect(toastDiv).toHaveStyle({ color: "#86efac" });
+  it("should render error toasts with white text and without any border", () => {
+    render(<Toasts toasts={[errorToast]} />);
+    const toastDiv = screen.getByText("Error crítico").closest("div");
+    expect(toastDiv).toHaveStyle({ color: "#ffffff" });
+    // jsdom vacía la declaración cuando el borde vale "none": cssText sin
+    // "border:" equivale a sin contorno (un borde real, "1px solid …",
+    // SÍ quedaría registrado).
+    expect(toastDiv.style.border).toBe("");
+    expect(toastDiv.style.cssText).not.toContain("border:");
+    // Ni rastro de rojos antiguos
+    expect(toastDiv.style.background).not.toContain("69,10,10");
   });
 
-  it("should apply default text color for info type toasts", () => {
+  it("should render info toasts with white text like every other type", () => {
     render(<Toasts toasts={[infoToast]} />);
     const toastDiv = screen.getByText("Información").closest("div");
-    expect(toastDiv).toHaveStyle({ color: "rgba(255,255,255,.92)" });
+    expect(toastDiv).toHaveStyle({ color: "#ffffff" });
   });
 
   // ── Orden de render ────────────────────────────────────────────────────────

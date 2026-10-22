@@ -1,6 +1,6 @@
 import React from "react";
 import { FONT } from "../constants";
-import { COLORS, RADIUS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
+import { RADIUS, TRANSITIONS, GLASS } from "../utils/theme";
 
 export function Toasts({ toasts }) {
   return (
@@ -27,34 +27,12 @@ export function Toasts({ toasts }) {
             fontSize: "13.5px",
             fontWeight: "700",
             fontFamily: FONT,
-            ...GLASS.popup,
-            // Errores: Liquid Glass en blanco y negro (petición) — vidrio
-            // oscuro puro, texto blanco, borde blanco sutil. Sin rojos ni
-            // colores "raros".
-            background:
-              t.type === "error"
-                ? "linear-gradient(135deg, rgba(18,18,20,.94), rgba(0,0,0,.88))"
-                : t.type === "success"
-                  ? "rgba(5,46,22,.88)"
-                  : GLASS.popup.background,
-            // Variantes sólidas (error/éxito): a ~88 % de opacidad el blur
-            // no se ve — opt-out de coste cero (docs/PERFORMANCE.md §7)
-            ...(t.type === "error" || t.type === "success"
-              ? { backdropFilter: "none", WebkitBackdropFilter: "none" }
-              : {}),
-            color:
-              t.type === "error"
-                ? "#ffffff"
-                : t.type === "success"
-                  ? "#86efac"
-                  : COLORS.textPlayerTitle,
-            border: `1px solid ${
-              t.type === "error"
-                ? "rgba(255,255,255,.45)"
-                : t.type === "success"
-                  ? withAlpha(COLORS.successColor, "4d")
-                  : GLASS.popup.borderColor
-            }`,
+            // Liquid Glass en blanco y negro (petición): UN estilo para todos
+            // los avisos, sea info, éxito o error — vidrio negro, texto blanco
+            // y sin contorno. Ni verdes ni rojos: el `type` solo alimenta la
+            // semántica (dedup/registro), nunca el color del mensaje.
+            ...GLASS.mensaje,
+            color: "#ffffff",
             animation: `toastIn .18s ${TRANSITIONS.spring}`,
           }}
         >

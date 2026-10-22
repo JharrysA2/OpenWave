@@ -4,8 +4,6 @@ import { RADIUS, TYPOGRAPHY } from "../utils/theme";
 import { useSettings } from "../contexts/useSettings";
 import { useBackendStatus } from "../hooks/useBackendStatus";
 
-const AMBER = "#f59e0b";
-
 /**
  * Banner flotante que aparece SOLO cuando se pierde la conexión con el
  * backend (heartbeat o cualquier petición fallida por red).
@@ -16,9 +14,13 @@ const AMBER = "#f59e0b";
  *   traía un `fontSize`/`fontWeight` suelto que no coincidía con el resto.
  * - Muestra el CÓDIGO reportable (utils/errorCodes) para que el usuario
  *   pueda indicarlo al reportar el fallo.
+ * - Blanco y negro SIN contorno (petición): vidrio negro con texto blanco,
+ *   punto blanco y badge neutro — el color NO comunica el estado, los avisos
+ *   nunca van en ámbar/rojo/verde.
  * - Sin `backdrop-filter`: es un chip opaco (.86) y transitorio, y detrás no
  *   hay animación que difuminar (presupuesto: blur solo con movimiento detrás
- *   o en superficies de modal, ver docs/PERFORMANCE.md §1/§7).
+ *   o en superficies de modal, ver docs/PERFORMANCE.md §1/§7). La sombra es
+ *   de separación, no un borde.
  * - Se oculta automáticamente al reconectar (el estado vive en backendHealth).
  */
 export function ConnectionBanner() {
@@ -47,10 +49,9 @@ export function ConnectionBanner() {
         padding: "7px 14px",
         borderRadius: RADIUS.card,
         fontFamily: FONT,
-        color: "#fcd34d",
-        background: "rgba(45,28,4,.86)",
-        border: `1px solid ${AMBER}66`,
-        boxShadow: "0 4px 20px rgba(0,0,0,.35)",
+        color: "#ffffff",
+        background: "rgba(12,12,16,.86)",
+        boxShadow: "0 12px 40px rgba(0,0,0,.5)",
         pointerEvents: "none",
         animation: "sw-fade-slide-up .25s cubic-bezier(.16,1,.3,1)",
       }}
@@ -62,7 +63,7 @@ export function ConnectionBanner() {
           width: "8px",
           height: "8px",
           borderRadius: "50%",
-          background: AMBER,
+          background: "rgba(255,255,255,.9)",
           flexShrink: 0,
         }}
       />
@@ -77,9 +78,8 @@ export function ConnectionBanner() {
             fontFeatureSettings: '"tnum"',
             padding: "2px 7px",
             borderRadius: RADIUS.pill,
-            background: "rgba(245,158,11,.16)",
-            border: "1px solid rgba(245,158,11,.45)",
-            color: "#fcd34d",
+            background: "rgba(255,255,255,.10)",
+            color: "rgba(255,255,255,.92)",
           }}
         >
           {code}

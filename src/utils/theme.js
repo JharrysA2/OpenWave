@@ -742,6 +742,21 @@ export const GLASS = {
     WebkitBackdropFilter: "blur(6px)",
   },
 
+  /** Avisos temporales (toasts, banner de conexión, píldoras del vídeo) —
+   *  Liquid Glass en blanco y negro, SIN contorno (petición explícita):
+   *  vidrio negro translúcido, texto blanco y sombra de separación (la
+   *  sombra no es un borde). Colores de estado PROHIBIDOS en estos avisos:
+   *  ni verdes, ni rojos, ni ámbar — el tipo solo da semántica, nunca color.
+   *  Las superficies que lo usan sobre fondo parado (banner opaco, estados
+   *  de error) apagan el blur con coste cero (docs/PERFORMANCE.md §1/§7). */
+  mensaje: {
+    background: "linear-gradient(135deg, rgba(16,16,20,.80) 0%, rgba(0,0,0,.72) 100%)",
+    border: "none",
+    boxShadow: "0 12px 40px rgba(0,0,0,.5)",
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
+  },
+
   /** Settings panel — Liquid Glass SIN backdrop-filter.
    *  Ajustes es una pantalla sin desenfoque (decisión de producto): la
    *  lectura la sostiene la base opaca del panel (`backgroundColor` en

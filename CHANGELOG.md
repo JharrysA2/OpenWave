@@ -6,59 +6,42 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
-### Changed
-
-- **Los mensajes temporales adoptan de verdad el Liquid Glass del player
-  bar.** La pasada anterior los había dejado en un vidrio oscuro casi
-  opaco: la petición pedía vidrio TRANSLÚCIDO que se vea a través, como el
-  de la barra de reproducción, y «blanco o negro» era para las LETRAS (que,
-  sobre vidrio translúcido, van siempre en blanco — el negro no se leería).
-  El token `GLASS.mensaje` pasa a ser el material exacto del player
-  (`rgba(10,10,18,.18)` + `blur(10px)` + su brillo interior superior), sin
-  borde, y lo heredan **todos** los avisos:
-  - **Toasts** (info/éxito/error): del vidrio casi opaco al vidrio
-    translúcido del player con letras blancas.
-  - **Banner «Servidor sin conexión»**: del chip opaco .86 al vidrio del
-    player con blur(10px) — detrás suyo pasan las vistas al hacer scroll.
-  - **Píldoras del videoclip** (progreso, «sin videoclip», error): base
-    translúcida (a .24: detrás hay vídeo brillante y la letra debe leerse
-    siempre) sobre su difuminado de 12px.
-  - **Estados de error** (`StatusState`): círculo del icono, badge del
-    código y «Reintentar» con el material del player.
-  - **ErrorBoundary**: fuera el fondo casi opaco — material del player (el
-    blur se queda apagado: no hay nada detrás que difuminar).
-
 ## [1.1.9] - 2026-10-22
 
 ### Changed
 
-- **Mega auditoría de los mensajes temporales: liquid glass en blanco y
-  negro y SIN contorno.** Todos los avisos que aparecen en pantalla van
-  ahora con el mismo vidrio negro translúcido y texto blanco (nuevo token
-  `GLASS.mensaje`), sin borde ni contorno de ningún color. La regla era ya
-  la convención en errores (toasts de reproducción y ErrorBoundary) y se
-  extiende y formaliza a todas las superficies de mensaje:
-  - **Toasts**: el éxito pintaba el vidrio de **verde** (fondo
-    `rgba(5,46,22,.88)` + texto `#86efac`) y cada tipo llevaba su borde;
-    info, éxito y error son hoy idénticos en negro con texto blanco. El
-    `type` solo conserva su papel semántico (dedup/registro).
-  - **Banner «Servidor sin conexión»**: iba en **ámbar** total (fondo,
-    texto, punto y dos bordes); ahora vidrio negro opaco, texto y punto
-    blancos y badge del código sin borde y en blanco.
-  - **Píldoras del videoclip de fondo** (progreso, «sin videoclip», error):
-    fuera la línea de contorno y el teñido del punto y del botón
-    «Reintentar» con el acento de la vista; todo en blanco sobre vidrio
-    negro.
+- **Los mensajes temporales llevan el mismo Liquid Glass real del player
+  bar: vidrio translúcido que se ve a través, letras blancas y sin
+  contorno.** Nuevo token `GLASS.mensaje` con el material exacto de la
+  barra de reproducción (`rgba(10,10,18,.18)` + `blur(10px)` + su brillo
+  interior superior). El «blanco o negro» es para las LETRAS — sobre vidrio
+  translúcido van siempre en blanco (el negro no se leería) — y no para el
+  vidrio. Color de estado prohibido en los avisos: ni verdes, ni rojos, ni
+  ámbar; el `type` solo conserva su papel semántico (dedup/registro).
+  Heredan el material:
+  - **Toasts** (info/éxito/error): idénticos entre sí, translúcidos y con
+    letras blancas — el éxito estaba pintado de verde (`rgba(5,46,22,.88)`
+    + texto `#86efac`) y cada tipo llevaba su borde.
+  - **Banner «Servidor sin conexión»**: estaba en **ámbar** total (fondo,
+    texto, punto y dos bordes); ahora vidrio del player con blur(10px) —
+    detrás suyo pasan las vistas al hacer scroll — punto y badge del código
+    en blanco y sin borde.
+  - **Píldoras del videoclip** (progreso, «sin videoclip», error): base
+    translúcida algo mayor (a .24: detrás hay vídeo brillante y la letra
+    debe leerse siempre) sobre su difuminado de 12px; fuera la línea de
+    contorno y el teñido del punto y del botón «Reintentar» con el acento
+    de la vista.
   - **Estados de error** (`StatusState`): el círculo del icono, el badge
-    del código y el botón «Reintentar» usaban el acento con bordes; van en
-    vidrio blanco sin contorno con icono y texto blancos. `accentColor` se
-    acepta por compatibilidad pero ya no pinta nada.
-  - **ErrorBoundary**: ya era blanco y negro, pero conservaba un borde
-    blanco fino en la tarjeta y en el círculo del icono — fuera.
-  Quedan fuera de la regla por no ser mensajes: badges persistentes
-  («Sincronizado», «Pre-cargada», «OFFLINE», héroe de Descargas),
-  affordances interactivas (corazón, hover de borrar, botón de peligro) y
-  la paleta de acento del usuario.
+    del código y el «Reintentar» usaban el acento con bordes; van con el
+    material del player y letras blancas. `accentColor` se acepta por
+    compatibilidad pero ya no pinta nada.
+  - **ErrorBoundary**: sobre su fondo sólido no hay nada que difuminar, el
+    blur queda apagado — y fuera el borde blanco fino de la tarjeta y del
+    círculo del icono.
+  Quedan fuera por no ser mensajes: badges persistentes («Sincronizado»,
+  «Pre-cargada», «OFFLINE», héroe de Descargas), affordances interactivas
+  (corazón, hover de borrar, botón de peligro) y la paleta de acento del
+  usuario.
 
 ## [1.1.8] - 2026-10-21
 

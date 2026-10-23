@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { api } from "../utils/api";
-import { deriveTheme, extractOklchAccent, getLuminance, BASE } from "../utils/colorTheme";
+import { deriveTheme, extractOklchAccent, getLuminance, BASE, clamp01 } from "../utils/colorTheme";
 
 //  useDynamicTheme — extracción de color de la portada (OKLCH) + CSS vars
 //  (--neon, --neon-fg, --neon-transition, --bg-base).
@@ -42,8 +42,6 @@ const OVERLAY_LUM_BRIGHT = 0.92;
 const OVERLAY_MAX = 1;
 /** Opacidad mínima (acento casi blanco). */
 const OVERLAY_MIN = 0.08;
-
-const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
 
 /**
  * Interpolación smoothstep: 0 en `edge0`, 1 en `edge1`, con transición suave.

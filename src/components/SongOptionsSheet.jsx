@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FONT } from "../constants";
 import { api } from "../utils/api";
+import { fmtTime } from "../utils/formatTime";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, SPACING, SHADOWS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
@@ -542,10 +543,7 @@ export function SongOptionsSheet({
                   details.views && ["Vistas", details.views],
                   details.likes && ["Me gusta", details.likes],
                   details.genre && ["Género", details.genre],
-                  song.duration > 0 && [
-                    "Duración",
-                    `${Math.floor(song.duration / 60)}:${String(song.duration % 60).padStart(2, "0")}`,
-                  ],
+                  song.duration > 0 && ["Duración", fmtTime(song.duration)],
                   ["Video ID", song.videoId],
                 ]
                   .filter(Boolean)

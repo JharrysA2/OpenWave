@@ -2,14 +2,13 @@ import React, { useRef, useState } from "react";
 import { FONT } from "../../constants";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, TYPOGRAPHY, GLASS } from "../../utils/theme";
 import { APP_COLORS } from "../../utils/appPalette";
-import { deriveTheme, hexToHsv, hsvToHex } from "../../utils/colorTheme";
+import { clamp01, deriveTheme, hexToHsv, hsvToHex } from "../../utils/colorTheme";
 import { useOverlayLayer } from "../../hooks/useOverlayLayer";
 import { useEscClose } from "../../hooks/useEscape";
 import { useSettings } from "../../contexts/useSettings";
 import { Ic } from "../../icons/Icons";
 
 const HEX_RE = /^#?[0-9a-fA-F]{6}$/;
-const clamp01 = (n) => Math.min(1, Math.max(0, n));
 const normHex = (s) => `#${String(s).replace(/^#/, "").toLowerCase()}`;
 
 /**

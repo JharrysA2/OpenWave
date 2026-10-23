@@ -1,5 +1,6 @@
 import React from "react";
 import { FONT } from "../constants";
+import { fmtTime } from "../utils/formatTime";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import {
@@ -201,8 +202,7 @@ export default function TrackList({
                   flexShrink: 0,
                 }}
               >
-                {Math.floor(song.duration / 60)}:
-                {String(Math.floor(song.duration % 60)).padStart(2, "0")}
+                {fmtTime(song.duration)}
               </span>
             )}
 

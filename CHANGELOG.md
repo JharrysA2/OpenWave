@@ -15,6 +15,11 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   (radio/scaleX, CSP con nonce, lock por vídeo, escritura atómica del MP3,
   AUMID, presupuesto de GPU). No cambia ninguna línea de código ni el
   comportamiento de la app.
+- **Un solo `clamp01` y un solo formateador de duración**: `AppColorModal` y
+  `useDynamicTheme` repetían la misma función de recorte, y `TrackList` y
+  `SongOptionsSheet` reimplementaban `fmtTime` a mano. Ahora se importan de
+  `utils/colorTheme` y `utils/formatTime`; el resultado en pantalla es el
+  mismo.
 
 ## [1.1.9] - 2026-10-22
 

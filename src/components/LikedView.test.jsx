@@ -69,7 +69,7 @@ beforeEach(() => {
 });
 
 describe("LikedView", () => {
-  // ── Hero + estado vacío ─────────────────────────────────────────
+  // Hero + estado vacío
 
   it("should show hero and empty state when no liked songs", () => {
     renderLiked();
@@ -84,7 +84,7 @@ describe("LikedView", () => {
     expect(screen.getByText("Artistas")).toBeInTheDocument();
   });
 
-  // ── Pestaña Canciones (estilo playlist) ─────────────────────────
+  // Pestaña Canciones (estilo playlist)
 
   it("should render list of liked songs", () => {
     const likedSongs = [song("1"), song("2")];
@@ -120,7 +120,7 @@ describe("LikedView", () => {
     expect(openOptions).toHaveBeenCalledWith(expect.objectContaining({ videoId: "1" }));
   });
 
-  // ── Pestaña Álbumes ─────────────────────────────────────────────
+  // Pestaña Álbumes
 
   it("should show empty state in Álbumes tab when none liked", () => {
     renderLiked();
@@ -150,7 +150,7 @@ describe("LikedView", () => {
     expect(openEntityOptions).toHaveBeenCalledWith("album", album);
   });
 
-  // ── Pestaña Artistas ────────────────────────────────────────────
+  // Pestaña Artistas
 
   it("should show empty state in Artistas tab when none followed", () => {
     renderLiked();
@@ -173,7 +173,7 @@ describe("LikedView", () => {
     expect(openEntityOptions).toHaveBeenCalledWith("artist", followedArtist);
   });
 
-  // ── Contadores ──────────────────────────────────────────────────
+  // Contadores
 
   it("should show totals in the hero subtitle", () => {
     renderLiked({
@@ -186,7 +186,7 @@ describe("LikedView", () => {
     expect(screen.getByTestId("library-summary")).toHaveTextContent("1 artista");
   });
 
-  // ── Hover del hero (glass sutil, sin estados "pegados") ─────────
+  // Hover del hero (glass sutil, sin estados "pegados")
 
   it("should apply soft glass hover on Aleatorio and restore it on leave", () => {
     renderLiked({ likedSongs: [song("1")] });
@@ -214,7 +214,7 @@ describe("LikedView", () => {
     expect(play.style.background).toBe(baseBg);
   });
 
-  // ── Reproducción por pestaña ───────────────────────────────────
+  // Reproducción por pestaña
 
   it("Reproducir in Canciones plays the first song with the full queue", () => {
     const playSong = vi.fn();
@@ -287,7 +287,7 @@ describe("LikedView", () => {
     expect(screen.getByTestId("hero-play")).toBeDisabled();
   });
 
-  // ── Selección múltiple (solo pestaña Canciones) ────────────────
+  // Selección múltiple (solo pestaña Canciones)
 
   it("shows the selection actions only in the Canciones tab", () => {
     renderLiked({ likedSongs: [song("1")] });

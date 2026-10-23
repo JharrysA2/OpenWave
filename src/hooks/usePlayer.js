@@ -4,10 +4,8 @@ import { withHDThumbnails, withLocalCover } from "../utils/thumbnails";
 import { getLyricsOverride } from "../utils/lyricsOverrides";
 import { usePerformance } from "../contexts/PerformanceContext";
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  Module-level caches — Rule: js-cache-storage
 //  Evita leer localStorage en cada render. Se cachea una vez al cargar el módulo.
-// ═══════════════════════════════════════════════════════════════════════════════
 
 const SW_QUEUE_KEY = "sw_queue";
 const SW_VOLUME_KEY = "sw_volume";
@@ -59,16 +57,14 @@ const scheduleFrame =
     ? requestAnimationFrame.bind(globalThis)
     : (cb) => setTimeout(() => cb(performance.now()), 16);
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  Pure helpers — fuera del hook para evitar re-creación en cada render
 //  Rule: rerender-memo — funciones puras no necesitan estar dentro del hook
-// ═══════════════════════════════════════════════════════════════════════════════
 
 // Con el ajuste "Recomendar canciones similares" activo: si quedan ≤ N
 // canciones por debajo de la actual, se rellena el final con más abajo.
 const QUEUE_RECS_TAIL_MIN = 5;
 
-// ── pickNextIdx: próxima canción de la cola ────────────────────────────────
+// pickNextIdx: próxima canción de la cola
 //    Compartida por handleNext Y por el crossfade — los DOS caminos deben
 //    elegir igual (antes el crossfade bypaseaba el aleatorio: con crossfade
 //    activo el shuffle no hacía nada).
@@ -111,7 +107,7 @@ export function usePlayer(
   // (tests) el default del contexto es sleeping:false → sin cambios.
   const { sleeping } = usePerformance();
 
-  // ── Persistir cola en localStorage ──────────────────────────────────────
+  // Persistir cola en localStorage
   useEffect(() => {
     try {
       localStorage.setItem(SW_QUEUE_KEY, JSON.stringify({ queue, queueIndex }));
@@ -155,7 +151,7 @@ export function usePlayer(
   const queueRecsPromiseRef = useRef(null); // promesa de esa petición
   const fetchSongIdRef = useRef(null); // Para ignorar respuestas API de canciones anteriores
 
-  // ── Pre-cache: stream URLs, lyrics, thumbnails de las siguientes canciones ──
+  // Pre-cache: stream URLs, lyrics, thumbnails de las siguientes canciones
   const streamCacheRef = useRef({});
   const lyricsCacheRef = useRef({});
   const thumbnailCacheRef = useRef({}); // thumbnails HD por videoId
@@ -221,7 +217,7 @@ export function usePlayer(
     }
   }, []);
 
-  // ── Calidad Alta: pedir descarga (calidad de descarga) y esperar el MP3 ──
+  // Calidad Alta: pedir descarga (calidad de descarga) y esperar el MP3
   // Devuelve true si el archivo local está listo; false si conviene caer al
   // stream normal para no dejar la reproducción muda.
   const ensureDownloaded = useCallback(
@@ -245,7 +241,7 @@ export function usePlayer(
     [localExists, requestDownload],
   );
 
-  // ── normalizeThumbnails: Asegura que un song tenga thumbnails[] HD ─────────
+  // normalizeThumbnails: Asegura que un song tenga thumbnails[] HD
   //    Si el song viene de history/downloads sin thumbnails[], genera las
   //    resoluciones HD desde la URL única y cachea el resultado.
   const normalizeThumbnails = useCallback((song) => {
@@ -276,12 +272,12 @@ export function usePlayer(
     return normalized;
   }, []);
 
-  // ── performCrossfade: Spotify-style simultaneous fade ────────────────────
+  // performCrossfade: Spotify-style simultaneous fade
   //    Monitorea el progreso y cuando currentTime >= duration - crossfadeDuration,
   //    fade-out del audio actual (audioRef) mientras fade-in del siguiente (nextAudioRef).
   //    Usa crossfadeIdRef para detectar si el usuario cambió de canción durante el fade.
   //
-  //    ⭐ CORRECCIÓN B2: NO usar `currentSong` del closure (puede ser stale).
+  // CORRECCIÓN B2: NO usar `currentSong` del closure (puede ser stale).
   //    Leer siempre `currentlyPlayingSongRef.current` para enviar el feedback
   //    correcto de la canción que REALMENTE estaba sonando.
   const performCrossfade = useCallback(
@@ -342,7 +338,7 @@ export function usePlayer(
           } catch {}
         }
       }
-      // ⭐ Red de seguridad (failSafely): si el crossfade falla por sí solo —
+      // Red de seguridad (failSafely): si el crossfade falla por sí solo —
       //    sin abort del usuario — y la canción actual ya terminó mientras
       //    esperábamos el stream, nadie volverá a disparar onEnded → avanzar
       //    manualmente para evitar "dead air" (silencio eterno). Envía también
@@ -376,7 +372,7 @@ export function usePlayer(
         return;
       }
 
-      // ⭐ Marcar el inicio del crossfade para que el progress-monitoring
+      // Marcar el inicio del crossfade para que el progress-monitoring
       //    sepa que el crossfade está en ejecución (útil para tests)
       crossfadeStartedAtRef.current = Date.now();
 
@@ -395,11 +391,11 @@ export function usePlayer(
         return;
       }
 
-      // ⭐ Capturar la canción que SUENA antes de sobreescribir
+      // Capturar la canción que SUENA antes de sobreescribir
       //    currentlyPlayingSongRef: el feedback "complete" debe ir para esta.
       const finishedSong = currentlyPlayingSongRef.current;
 
-      // ⭐ Crossfade simultáneo: fade-OUT en currentAudio, fade-IN en nextAudio.
+      // Crossfade simultáneo: fade-OUT en currentAudio, fade-IN en nextAudio.
       //    Equal-power (seno/coseno) = potencia constante, igual que el CrossFade
       //    de Tone.js y los faders de los players nativos. En vez de pasos fijos
       //    (setTimeout), usamos requestAnimationFrame con progreso por TIEMPO
@@ -410,7 +406,7 @@ export function usePlayer(
 
       await new Promise((resolve) => {
         const step = () => {
-          // ⭐ Abortado (skip/pausa/seek → cancelCrossfade bumpió el id):
+          // Abortado (skip/pausa/seek → cancelCrossfade bumpió el id):
           //    restaurar volumen y salir; cancelCrossfade ya hizo el resto.
           if (cfId !== crossfadeIdRef.current) {
             nextAudio.pause();
@@ -420,7 +416,7 @@ export function usePlayer(
             return;
           }
           const progress = Math.min((performance.now() - fadeStart) / fadeMs, 1);
-          // ⭐ Equal-power: coseno (1→0) + seno (0→1) = potencia constante
+          // Equal-power: coseno (1→0) + seno (0→1) = potencia constante
           const fadeOut = Math.cos((progress * Math.PI) / 2);
           const fadeIn = Math.sin((progress * Math.PI) / 2);
           currentAudio.volume = Math.max(0, volumeRef.current * fadeOut);
@@ -437,7 +433,7 @@ export function usePlayer(
       // Fade abortado → cancelCrossfade ya restauró el estado → salir.
       if (cfId !== crossfadeIdRef.current) return;
 
-      // ⭐ Crossfade completado: snap final a volúmenes exactos (evita valores
+      // Crossfade completado: snap final a volúmenes exactos (evita valores
       //    residuales del último frame del fade)
       currentAudio.pause();
       currentAudio.src = "";
@@ -449,10 +445,10 @@ export function usePlayer(
       audioRef.current = nextAudio;
       nextAudioRef.current = currentAudio;
 
-      // ⭐ Actualizar estado: currentSong, queueIndex, duration
+      // Actualizar estado: currentSong, queueIndex, duration
       setCurrentSong(normalizedNext);
       currentlyPlayingSongRef.current = normalizedNext;
-      // ⭐ Duración de la nueva canción: preferir la metadata de la cola; si no
+      // Duración de la nueva canción: preferir la metadata de la cola; si no
       //    la tiene, usar la duración REAL del elemento (su metadata ya cargó
       //    durante el fade). Necesario junto al guard de durationchange en App:
       //    ese guard ignora los eventos del audio ENTRANTE durante el fade para
@@ -462,7 +458,7 @@ export function usePlayer(
       if (nextDuration > 0) {
         setDuration(nextDuration);
       }
-      // ⚠️  Sincronizar progressRef con el currentTime REAL del nuevo audio.
+      // Sincronizar progressRef con el currentTime REAL del nuevo audio.
       //    nextAudio ha estado reproduciéndose DURANTE el crossfade (~5s).
       //    Usar su currentTime actual evita que la barra muestre un valor
       //    stale del audio anterior (~180s) durante los ~250ms hasta el
@@ -480,9 +476,9 @@ export function usePlayer(
       crossfadeStartedAtRef.current = 0;
 
       // Enviar feedback de completado para la canción anterior.
-      // ⭐ CORRECCIÓN B2: usar currentlyPlayingSongRef (la canción REAL que sonaba)
+      // CORRECCIÓN B2: usar currentlyPlayingSongRef (la canción REAL que sonaba)
       //    en vez de currentSong (closure que puede ser stale si el usuario cambió rápido).
-      // ⭐ CORRECCIÓN B7: usar finishedSong — capturada ANTES de sobreescribir
+      // CORRECCIÓN B7: usar finishedSong — capturada ANTES de sobreescribir
       //    currentlyPlayingSongRef. La versión anterior leía la ref DESPUÉS del
       //    swap y enviaba el "complete" de la canción NUEVA en vez de la que
       //    realmente terminó.
@@ -512,9 +508,9 @@ export function usePlayer(
     [crossfadeDuration, normalizeThumbnails, localExists],
   );
 
-  // ── Reproducción (SIN crossfade inline — el crossfade se maneja vía progress monitoring) ──
+  // Reproducción (SIN crossfade inline — el crossfade se maneja vía progress monitoring)
   //
-  //  ⭐ CORRECCIÓN B3: evitar race condition entre playSong y performCrossfade.
+  // CORRECCIÓN B3: evitar race condition entre playSong y performCrossfade.
   //    spawnCrossfade es el único lugar que puede iniciar un crossfade. playSong
   //    llama a cancelCrossfade() ANTES de reproducir, pero hay un race window: si
   //    el progress-monitoring dispara performCrossfade al mismo tiempo que playSong
@@ -522,7 +518,7 @@ export function usePlayer(
   //    limpió los refs. La solución: un mutex flag (crossfadePendingRef) que hace
   //    que performCrossfade se aborte si detecta que playSong está active.
 
-  // ── appendRecommendations: relacionadas AÑADIDAS por debajo ─────────────
+  // appendRecommendations: relacionadas AÑADIDAS por debajo
   //    - force = true → SIEMPRE (la radio de las canciones jugadas fuera
   //      de la cola; no depende del ajuste). force = false → solo con el
   //      ajuste "queueRecommendations" (colecciones: álbum/playlist/...).
@@ -585,7 +581,7 @@ export function usePlayer(
     [],
   );
 
-  // ── maybeTopUpRecommendations: que SIEMPRE quede algo por debajo ────────
+  // maybeTopUpRecommendations: que SIEMPRE quede algo por debajo
   //    Con el ajuste activo, cuando quedan ≤ QUEUE_RECS_TAIL_MIN canciones
   //    por debajo de la actual (o ninguna), se rellena el final con más
   //    relacionadas. Solo AÑADE: la cola principal no se toca. Con el
@@ -605,7 +601,7 @@ export function usePlayer(
     async (song, startFrom = 0, fromQueue = false, initialQueue = null) => {
       if (!song || !song.videoId) return;
 
-      // ⭐ Mismo vídeo ya sonando → PAUSA/REANUDA, nunca reiniciar.
+      // Mismo vídeo ya sonando → PAUSA/REANUDA, nunca reiniciar.
       //    Antes el toggle era SOLO sin contexto (!initialQueue): un clic
       //    en la misma canción desde álbum/playlist/favoritos/descargas
       //    REINICIABA la pista desde 0. Única excepción: startFrom
@@ -640,7 +636,7 @@ export function usePlayer(
         const audio = audioRef.current;
         if (audio) {
           if (audio.ended) {
-            // ⭐ La canción acaba de TERMINAR (onEnded de repeat-one, final
+            // La canción acaba de TERMINAR (onEnded de repeat-one, final
             //    de cola de 1 canción con repeat-all, o clic justo tras el
             //    final): "reanudar" = reproducir de nuevo desde 0. Sin esta
             //    rama, isPlaying sigue en true tras el ended natural y el
@@ -664,7 +660,7 @@ export function usePlayer(
         return;
       }
 
-      // ⭐ CORRECCIÓN B3: cancelar crossfade activo ANTES de reproducir.
+      // CORRECCIÓN B3: cancelar crossfade activo ANTES de reproducir.
       //    crossfadePendingRef se setea aquí para que si el progress-monitoring
       //    intenta iniciar un crossfade durante este playSong, se aborte.
       cancelCrossfade();
@@ -677,10 +673,10 @@ export function usePlayer(
       // Limpiar flag de retry proxy para cada canción nueva
       proxyRetryRef.current = false;
 
-      // ═══ NORMALIZAR THUMBNAILS antes de actualizar UI ═══
+      // NORMALIZAR THUMBNAILS antes de actualizar UI
       const normalizedSong = normalizeThumbnails(song);
 
-      // ═══ ACTUALIZAR UI INMEDIATAMENTE antes de empezar la reproducción ═══
+      // ACTUALIZAR UI INMEDIATAMENTE antes de empezar la reproducción
       setCurrentSong(normalizedSong);
       currentlyPlayingSongRef.current = normalizedSong;
       setIsPlaying(true);
@@ -688,24 +684,9 @@ export function usePlayer(
       progressRef.current = 0;
       setStreamLoading(true);
 
-      // ═══ MANEJO DE COLA ═══════════════════════════════════════════════════
-      //    Regla única (como Spotify / YouTube Music):
-      //    - initialQueue (pantalla de contexto: álbum, playlist, favoritos,
-      //      descargas) → la cola ES ese contexto. Si la cola ya es ese
-      //      mismo contexto, NO se resetea (conserva reordenos, añadidos y
-      //      recomendaciones): solo salta el índice a la pista clickeada.
-      //    - fromQueue = true → la cola no se toca; el índice lo pone el
-      //      caller (panel de cola, handleNext, handlePrev, repetición...).
-      //    - Sin contexto (listas navegables: inicio, búsqueda, artista,
-      //      historial, "Radio"…) → RADIO SIEMPRE: la cola se reconstruye
-      //      alrededor de la canción clickeada, AUNQUE ya esté en la cola
-      //      — nunca se reutiliza la anterior. Cada reproducción recibe
-      //      una cola fresca que cambia siempre (cada clic vuelve a pedir
-      //      /queue y el backend rota el orden: refresco estilo YouTube
-      //      Music). Nunca se rellena con la lista de origen ni con
-      //      resultados de búsqueda.
-      //    - Recomendaciones de colecciones (ajuste "queueRecommendations"):
-      //      solo se AÑADEN AL FINAL, nunca reemplazan ni mueven nada.
+      // Cola: el contexto (álbum, playlist, favoritos, descargas) manda, y el
+      // mismo contexto no se resetea; fromQueue no la toca; sin contexto se
+      // reconstruye como radio en cada reproducción.
 
       if (initialQueue && Array.isArray(initialQueue) && initialQueue.length > 0) {
         const contextIds = initialQueue.map((s) => s?.videoId);
@@ -762,7 +743,7 @@ export function usePlayer(
         appendRecommendations(song, { force: true, max: 15 });
       }
 
-      // ═══ CALIDAD ALTA: reproducir a la calidad de descarga ═══════════
+      // CALIDAD ALTA: reproducir a la calidad de descarga
       // Si aún no está el MP3 local, se pide la descarga (con la calidad de
       // descarga) y se espera a que esté listo; si falla o expira, se cae
       // al stream normal para no dejar la reproducción muda.
@@ -775,7 +756,7 @@ export function usePlayer(
         if (fetchSongIdRef.current !== song.videoId) return;
       }
 
-      // ═══ REPRODUCCIÓN DE AUDIO ═════════════════════════════════════
+      // REPRODUCCIÓN DE AUDIO
       //    Verificar cache primero (pre-cargado por el efecto de pre-cache)
       //    Crossfade SOLO se activa cuando handleSongEnded lo habilita
       //    (crossfadeEnabledRef). Así el fade-in solo ocurre al final
@@ -855,7 +836,7 @@ export function usePlayer(
         }
       }
 
-      // ⭐ FIN del playSong — desmarcar pending. crossfadePendingRef se
+      // FIN del playSong — desmarcar pending. crossfadePendingRef se
       //    usa en performCrossfade para evitar iniciar un crossfade mientras
       //    playSong está configurando el audio (race window B3).
       crossfadePendingRef.current = false;
@@ -875,7 +856,7 @@ export function usePlayer(
     const audio = audioRef.current;
     if (!audio || !currentSong) return;
     if (isPlaying) {
-      // ⭐ Pausar en medio de un crossfade CANCELA el fade (como hace howler.js
+      // Pausar en medio de un crossfade CANCELA el fade (como hace howler.js
       //    con sus fades al pausar/parar): si no, el fade loop seguiría y
       //    nextAudio seguiría sonando después de la pausa — la música
       //    continuaría pese a que el usuario pausó.
@@ -890,8 +871,8 @@ export function usePlayer(
     }
   }, [isPlaying, currentSong]);
 
-  // ── sendFeedback: enviar señal al backend para entrenar recomendaciones ────
-  //    ⚠️  Debe estar ANTES de performCrossfade que lo referencia.
+  // sendFeedback: enviar señal al backend para entrenar recomendaciones
+  // Debe estar ANTES de performCrossfade que lo referencia.
   const sendFeedback = useCallback((action, song) => {
     if (!song?.videoId) return;
     api
@@ -904,8 +885,8 @@ export function usePlayer(
       .catch(() => {});
   }, []);
 
-  // ── spawnCrossfade: iniciar un crossfade si es válido ────────────────────────
-  //    ⭐ CORRECCIÓN B3: esta función es el UNICO lugar que inicia un crossfade.
+  // spawnCrossfade: iniciar un crossfade si es válido
+  // CORRECCIÓN B3: esta función es el UNICO lugar que inicia un crossfade.
   //    Reemplaza el code inline en el progress-monitoring effect.
   //    Rechaza iniciar crossfade si:
   //      - playSong está ejecutándose (crossfadePendingRef=true) → evita race
@@ -931,11 +912,11 @@ export function usePlayer(
     [performCrossfade],
   );
 
-  // ── cancelCrossfade: cancela un crossfade en curso (skip manual, pausa, seek) ──
+  // cancelCrossfade: cancela un crossfade en curso (skip manual, pausa, seek)
   //    A diferencia de la versión anterior (abortCrossfade):
   //    - NO borra el src del audio actual → pausa/seek/handlePrev conservan la
   //      canción y su posición; playSong pondrá otro src cuando toque.
-  //    - ⭐ Restaura el volumen del audio actual: antes quedaba a mitad del
+  // -  Restaura el volumen del audio actual: antes quedaba a mitad del
   //      fade (ej: 0.3) si el usuario saltaba de canción.
   //    - El fade loop (rAF) detecta el bump de crossfadeIdRef y se detiene solo.
   function cancelCrossfade() {
@@ -956,11 +937,11 @@ export function usePlayer(
   }
 
   const handleNext = useCallback(async () => {
-    // ⭐ Cancelar crossfade activo si el usuario salta manualmente
+    // Cancelar crossfade activo si el usuario salta manualmente
     cancelCrossfade();
 
     // Detectar skip rápido (< 5s) para entrenar recomendaciones
-    // ⭐ CORRECCIÓN B2: usar currentlyPlayingSongRef para el feedback,
+    // CORRECCIÓN B2: usar currentlyPlayingSongRef para el feedback,
     //    no currentSong del closure (que puede ser stale si cambió rápido).
     if (currentlyPlayingSongRef.current?.videoId && progressRef.current < 5) {
       sendFeedback("skip", currentlyPlayingSongRef.current);
@@ -1035,8 +1016,8 @@ export function usePlayer(
     playSong,
     sendFeedback,
     appendRecommendations,
-  ]); // ═══════════════════════════════════════════════════════════════════════════
-  // ⭐ Mantener handleNextRef fresco: performCrossfade lo usa como red de
+  ]);
+  // Mantener handleNextRef fresco: performCrossfade lo usa como red de
   //    seguridad (failSafely) cuando el crossfade falla después de que la
   //    canción ya terminó — evita "dead air".
   useEffect(() => {
@@ -1044,7 +1025,6 @@ export function usePlayer(
   }, [handleNext]);
 
   //  PROGRESS MONITORING: Disparar crossfade ANTES de que termine la canción
-  // ═══════════════════════════════════════════════════════════════════════════
   //    Verifica periódicamente si faltan menos de crossfadeDuration segundos
   //    (2s de cadencia grosera lejos del disparo,300ms al acercarse).
   //    Si es así, inicia el crossfade simultáneo (fade-OUT + fade-IN).
@@ -1055,12 +1035,12 @@ export function usePlayer(
     if (crossfadeDuration <= 0 || !isPlaying || !currentSong?.videoId || duration <= 0) return;
     if (crossfadeActiveRef.current) return;
 
-    // ⭐ repeat-one: no hay "siguiente" que mezclar — el replay lo maneja
+    // repeat-one: no hay "siguiente" que mezclar — el replay lo maneja
     //    handleSongEnded. Cruzar al siguiente con repeat-one activo ignoraría
     //    la preferencia del usuario (Spotify tampoco mezcla en repeat-one).
     if (repeatMode === "one") return;
 
-    // ⭐ Protección: si la canción apenas dura más que el crossfade, no mezclar
+    // Protección: si la canción apenas dura más que el crossfade, no mezclar
     if (duration <= crossfadeDuration + 1) return;
 
     // Auto-reprogramado con setTimeout en vez de setInterval fijo: cadencia
@@ -1090,7 +1070,7 @@ export function usePlayer(
   }, [crossfadeDuration, isPlaying, currentSong?.videoId, duration, repeatMode, spawnCrossfade]);
 
   const handlePrev = useCallback(() => {
-    // ⭐ Cancelar crossfade activo si el usuario retrocede manualmente.
+    // Cancelar crossfade activo si el usuario retrocede manualmente.
     //    A diferencia de la versión anterior, el src del audio actual se
     //    conserva → "volver al inicio" (currentTime > 3s) vuelve a funcionar
     //    en medio de un crossfade.
@@ -1112,7 +1092,7 @@ export function usePlayer(
   }, [queue, queueIndex, results, currentSong, playSong]);
 
   const handleSeek = useCallback((time) => {
-    // ⭐ Cancelar crossfade activo: si el usuario busca, cambió de intención
+    // Cancelar crossfade activo: si el usuario busca, cambió de intención
     //    (ej: volvió atrás) — el fade no debe completar el salto de canción.
     cancelCrossfade();
     const audio = audioRef.current;
@@ -1158,7 +1138,7 @@ export function usePlayer(
   // Al desmontar no queda ningún timer de persistencia colgado.
   useEffect(() => () => clearTimeout(volumePersistRef.current.timer), []);
 
-  // ── addToQueue: Añade al FINAL de la cola (previene duplicados) ───
+  // addToQueue: Añade al FINAL de la cola (previene duplicados)
   const addToQueue = useCallback((song) => {
     setQueue((q) => {
       if (q.some((s) => s.videoId === song.videoId)) return q; // ya existe
@@ -1166,7 +1146,7 @@ export function usePlayer(
     });
   }, []);
 
-  // ── playNext: Inserta DESPUÉS de la canción actual (previene duplicados) ──
+  // playNext: Inserta DESPUÉS de la canción actual (previene duplicados)
   //    Si la canción ya existe en la cola, la mueve a la nueva posición.
   //    Si no hay canción actual en la cola, al PRINCIPIO.
   //    Ajusta queueIndex si la canción eliminada estaba antes del índice actual.
@@ -1188,7 +1168,7 @@ export function usePlayer(
     }
   }, []);
 
-  // ── removeFromQueue: Eliminar canción en índice dado ───────────────────
+  // removeFromQueue: Eliminar canción en índice dado
   const removeFromQueue = useCallback((index) => {
     setQueue((q) => q.filter((_, i) => i !== index));
     setQueueIndex((prev) => {
@@ -1199,7 +1179,7 @@ export function usePlayer(
     });
   }, []);
 
-  // ── moveUp: Mover canción hacia arriba en la cola ─────────────────────
+  // moveUp: Mover canción hacia arriba en la cola
   const moveUp = useCallback((index) => {
     if (index <= 0) return;
     setQueue((q) => {
@@ -1214,7 +1194,7 @@ export function usePlayer(
     });
   }, []);
 
-  // ── moveDown: Mover canción hacia abajo en la cola ────────────────────
+  // moveDown: Mover canción hacia abajo en la cola
   const moveDown = useCallback((index) => {
     setQueue((q) => {
       if (index >= q.length - 1) return q;
@@ -1229,7 +1209,7 @@ export function usePlayer(
     });
   }, []);
 
-  // ── moveInQueue: Mover canción de fromIndex a toIndex (drag & drop) ──
+  // moveInQueue: Mover canción de fromIndex a toIndex (drag & drop)
   const moveInQueue = useCallback((fromIndex, toIndex) => {
     if (fromIndex === toIndex) return;
     setQueue((q) => {
@@ -1247,13 +1227,13 @@ export function usePlayer(
     });
   }, []);
 
-  // ── handleSongEnded: separado de handleNext para repeat-one ──────────────
+  // handleSongEnded: separado de handleNext para repeat-one
   //    Cuando el audio termina NATURALMENTE, comprobamos repeatMode.
   //    - "one": reproducir la misma canción de nuevo
   //    - "all": handleNext (que se encarga del bucle)
   //    - "off": handleNext normal
   const handleSongEnded = useCallback(async () => {
-    // ⭐ Si hay un crossfade activo, IGNORAR este onEnded.
+    // Si hay un crossfade activo, IGNORAR este onEnded.
     //    El audio actual está en medio de un crossfade simultáneo
     //    (performCrossfade está fadeando OUT este audio mientras
     //    fadea IN el siguiente). Si handleSongEnded se ejecuta,
@@ -1262,7 +1242,7 @@ export function usePlayer(
     //    de golpe, rompiendo la transición suave.
     if (crossfadeActiveRef.current) return;
 
-    // ⭐ CORRECCIÓN B2: usar currentlyPlayingSongRef para el feedback,
+    // CORRECCIÓN B2: usar currentlyPlayingSongRef para el feedback,
     //    no currentSong del closure (que puede ser stale).
     const songThatWasPlaying = currentlyPlayingSongRef.current;
     if (songThatWasPlaying?.videoId) {
@@ -1273,13 +1253,13 @@ export function usePlayer(
       await playSong(songThatWasPlaying, 0, true);
       return;
     }
-    // ⭐ El crossfade ya lo manejó el progress monitoring (performCrossfade)
+    // El crossfade ya lo manejó el progress monitoring (performCrossfade)
     //    Si llegamos aquí es porque el crossfade NO estaba habilitado o no alcanzó
     //    handleNext se llama sin parámetro (false) porque el fade ya no va aquí
     await handleNext();
   }, [repeatMode, playSong, handleNext, sendFeedback]);
 
-  // ── toggleRepeatMode: cicla off → all → one → off ──────────────────────
+  // toggleRepeatMode: cicla off → all → one → off
   //    off = no repetir al final de la cola;
   //    all = repetir la COLA ENTERA al final;
   //    one = repetir la MISMA canción una y otra vez (icono con "1").
@@ -1291,7 +1271,7 @@ export function usePlayer(
     });
   }, []);
 
-  // ── Pre-cache inteligente: solo 1 canción + debounce ──────────────
+  // Pre-cache inteligente: solo 1 canción + debounce
   //    Solo precargamos 1 canción en lugar de 3 para reducir llamadas API
   //    y asignaciones de memoria. Debounce de 500ms + requestIdleCallback.
   const preCacheTimeoutRef = useRef(null);
@@ -1396,7 +1376,7 @@ export function usePlayer(
     };
   }, [queue, queueIndex, normalizeThumbnails, initialQuality, localExists, requestDownload]);
 
-  // ── Sueño profundo (app-sleep): liberar portadas precargadas ──────────────
+  // Sueño profundo (app-sleep): liberar portadas precargadas
   //    A los 15 s con la ventana oculta, PerformanceContext pone sleeping=true:
   //    las Image detached del precaché mantienen su bitmap decodificado en la
   //    caché de imágenes aunque no estén en el DOM → se vacían (src=""). Al
@@ -1414,7 +1394,7 @@ export function usePlayer(
     }
   }, [sleeping]);
 
-  // ── Sincronizar volumen con el elemento audio ──────────────────────────────
+  // Sincronizar volumen con el elemento audio
 
   // Volumen se sincroniza via handleVolume; no se necesita efecto extra
 

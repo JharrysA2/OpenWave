@@ -45,7 +45,7 @@ function VolSlider({ visible, volPos, volume, onVolume, accentColor, onMouseEnte
 
   const handleMouseDown = useCallback(
     (e) => {
-      // ⭐ El arrastre del volumen NO debe iniciar una selección de texto
+      // El arrastre del volumen NO debe iniciar una selección de texto
       //    (subrayado azul al arrastrar por encima del resto de la UI).
       e.preventDefault();
       setDragging(true);
@@ -162,7 +162,7 @@ function VolSlider({ visible, volPos, volume, onVolume, accentColor, onMouseEnte
             pointerEvents: "none",
             opacity: showThumb ? 1 : 0,
             transform: showThumb ? "translateX(-50%) scale(1)" : "translateX(-50%) scale(0.5)",
-            // ⭐ Sincronía con el relleno: MISMA política de transición en los
+            // Sincronía con el relleno: MISMA política de transición en los
             //    dos (ninguno anima durante el drag, idéntica curva al soltar).
             //    Antes el thumb seguía animando `bottom .08s` mientras el
             //    relleno iba instantáneo → bolita y barra desincronizados.
@@ -223,7 +223,7 @@ export const PlayerBar = memo(function PlayerBar({
   const { visible } = usePerformance();
   const { settings } = useSettings();
 
-  // ── Ajustes aplicados en vivo ───────────────────────────────────────────
+  // Ajustes aplicados en vivo
   // showProgressTime: oculta los números (actual / total) de la barra.
   const showTime = settings.showProgressTime ?? true;
   // playerBtnShape: forma del botón de play (circle/rounded/square/pill).
@@ -247,21 +247,8 @@ export const PlayerBar = memo(function PlayerBar({
   const paintedProgressRef = useRef(null);
   const paintedDurationRef = useRef(null);
 
-  // ── Radio anti-deformación del relleno ───────────────────────────────
-  // Bug: «cuando suena la canción la barra se mira bugueada y no tiene los
-  // bordes redondeados». scaleX COMPRIME el eje X del border-radius del
-  // relleno (width:100% × factor), así que en todo progreso < 100 % las
-  // dos puntas salían achatadas y despareadas con la pista (esquinas
-  // «fantasma» en la unión izquierda). Compensamos el radio horizontal con
-  // r / scaleX para que las puntas se vean pill en CUALQUIER progreso.
-  // La escritura (paint de la región de la barra) solo ocurre cuando la
-  // forma cambia de verdad: el scaleX se cuantiza a pasos del 1 % y SIEMPRE
-  // hacia ABAJO (floor), nunca hacia arriba. s_cuantizado ≤ s_real implica
-  // que el radio visual (r · s_real/s_cuantizado) queda ≥ r: las puntas
-  // pueden salir un ≤1 % más redondeadas, jamás cuadradas.
-  // Bug corregido («los bordes solo se aplican en hover»): el antiguo
-  // Math.max(0.05, round al 5 %) infracompensaba por debajo del 5 % de
-  // progreso — a 2,2 % la punta visual era 0,88 px en vez de 2 px.
+  // El radius se compensa por scaleX (r / scaleX): sin eso las puntas del
+  // relleno se aplanan con progreso < 100 %.
   const fillScaleRef = useRef(0);
   const trackHoveredRef = useRef(false);
   const applyFillRadius = useCallback(() => {
@@ -290,7 +277,7 @@ export const PlayerBar = memo(function PlayerBar({
   const [cfPos, setCfPos] = useState({ bottom: 0, left: 0 });
   const [volPos, setVolPos] = useState({ bottom: 0, left: 0 });
 
-  // ── Progreso en tiempo real SIN setInterval ni re-renders ────────────
+  // Progreso en tiempo real SIN setInterval ni re-renders
   //    `progressRef` (que escribe usePlayer) es la fuente de verdad. Antes
   //    un setInterval de 200ms hacía setState 5 veces por segundo y
   //    re-renderizaba toda la barra. Ahora escribimos directo al DOM:
@@ -343,13 +330,9 @@ export const PlayerBar = memo(function PlayerBar({
     applyFillRadius();
   }, [applyFillRadius]);
 
-  // Loop: 200ms interval while playing — a mitad de camino entre el rAF a
-  // 60fps (GPU-heavy en este equipo) y el tick de 1s (el relleno saltaba a
-  // "mini tirones" una vez por segundo). paintProgress escribe al DOM sin
-  // re-render de React, así que los ticks extra son un par de asignaciones;
-  // y desde que el relleno va por scaleX en capa propia esos ticks ni siquiera
-  // repintan la región de la barra (composición pura), así que se mantiene la
-  // cadencia fina sin coste de iGPU.
+  // Tick de 200ms mientras suena: a mitad de camino entre el rAF a 60fps (caro
+  // en iGPU) y 1s (el relleno saltaba). paintProgress escribe al DOM sin
+  // re-render, y el scaleX va en capa propia: no repinta la barra.
   // Se pausa cuando la ventana no es visible — no aporta nada leer el reloj
   // si nadie mira la barra, y la música sigue sonando. Igual con un overlay
   // a pantalla completa montado (`useOverlayActive`): la barra queda debajo
@@ -384,7 +367,7 @@ export const PlayerBar = memo(function PlayerBar({
     cfTimerRef.current = setTimeout(() => setCfOpen(false), 300);
   };
 
-  // ── Hover volume: abrir con temporizador, cerrar con retardo ─────────
+  // Hover volume: abrir con temporizador, cerrar con retardo
   const openVol = () => {
     clearTimeout(volHoverTimerRef.current);
     if (volBtnRef.current) {
@@ -406,7 +389,7 @@ export const PlayerBar = memo(function PlayerBar({
   }, []);
 
   const totalDisplay =
-    // ⭐ V3: durante un crossfade, la duración ya podría ser la de la siguiente
+    // V3: durante un crossfade, la duración ya podría ser la de la siguiente
     //    canción — mostrar la que se pintó por última vez en la barra hasta que
     //    el swap esté completo (evita que el rótulo cambie en medio del fade).
     paintedDurationRef.current != null ? fmtTime(paintedDurationRef.current) : fmtTime(duration);
@@ -457,7 +440,7 @@ export const PlayerBar = memo(function PlayerBar({
     >
       {/* Main row: Three-column layout */}
       <div style={{ display: "flex", alignItems: "center" }}>
-        {/* ── Left: Cover + Info — tamaño fijo ──────────── */}
+        {/* Left: Cover + Info — tamaño fijo */}
         <div
           style={{
             width: "200px",
@@ -523,7 +506,7 @@ export const PlayerBar = memo(function PlayerBar({
           </div>
         </div>
 
-        {/* ── Center: Controls only ──── */}
+        {/* Center: Controls only */}
         <div
           style={{
             flex: 1,
@@ -690,7 +673,7 @@ export const PlayerBar = memo(function PlayerBar({
           </div>
         </div>
 
-        {/* ── Right: Volume + Crossfade + Dots + Lyrics ────────────────────────────── */}
+        {/* Right: Volume + Crossfade + Dots + Lyrics */}
         <div
           style={{
             width: "200px",
@@ -943,7 +926,7 @@ export const PlayerBar = memo(function PlayerBar({
         </div>
       </div>
 
-      {/* ── Full-width Progress bar row — debajo de todo ──── */}
+      {/* Full-width Progress bar row — debajo de todo */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
         <span
           ref={progressTimeRef}
@@ -963,7 +946,7 @@ export const PlayerBar = memo(function PlayerBar({
           ref={progressBarRef}
           onClick={handleProgressClick}
           onMouseDown={(e) => {
-            // ⭐ Arrastrar sobre la barra para buscar (seek) no debe iniciar
+            // Arrastrar sobre la barra para buscar (seek) no debe iniciar
             //    una selección de texto en los rótulos de alrededor.
             e.preventDefault();
           }}

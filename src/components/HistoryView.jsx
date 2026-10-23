@@ -71,7 +71,7 @@ export default function HistoryView({
         paddingBottom: "90px",
       }}
     >
-      {/* ── Hero Section ─────────────────────────── */}
+      {/* Hero Section */}
       <div
         style={{
           display: "flex",
@@ -252,7 +252,7 @@ export default function HistoryView({
         </div>
       </div>
 
-      {/* ── Lista (con buscador local) ────────────── */}
+      {/* Lista (con buscador local) */}
       {history.length === 0 ? (
         <div
           style={{

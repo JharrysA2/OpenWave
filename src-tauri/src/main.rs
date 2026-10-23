@@ -1,14 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-/// Fija el AppUserModelID del proceso ANTES de crear la ventana/WebView.
-///
-/// Sin esto, Windows agrupa los procesos de WebView2 como «Microsoft Edge
-/// WebView2» («Administrador de WebView2») en el Administrador de Tareas y
-/// en la barra de tareas. Con el AUMID puesto, el runtime de WebView2
-/// hereda `com.soundwave.app` y todos sus procesos aparecen como «OpenWave»
-/// con su icono (la clave HKCU AppUserModelId\com.soundwave.app con
-/// DisplayName/IconUri la crea el instalador; en desarrollo basta con el
-/// AUMID del proceso). Hay que hacerlo ANTES de arrancar WebView2.
+/// Fija el AppUserModelID ANTES de crear la ventana/WebView: sin él Windows
+/// agrupa los procesos de WebView2 como «Administrador de WebView2» en vez de
+/// «OpenWave». La clave HKCU AppUserModelId\com.soundwave.app la crea el
+/// instalador; en desarrollo basta el AUMID del proceso.
 #[cfg(windows)]
 fn set_appusermodel_id() {
     use windows::core::w;

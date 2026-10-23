@@ -1,4 +1,4 @@
-/* ═════════════════════════════════════════════════════════════════════════════
+/* ═ */
    dynamic-theme.css — Variables derivadas de --neon Y la transición del color.
 
    El hook useDynamicTheme escribe SOLO estas variables inline (dependen de la
@@ -24,7 +24,7 @@
   --neon-btn-hover: color-mix(in srgb, var(--neon) 67%, transparent);
 }
 
-/* ═══ Transición del color de acento ═════════════════════════════════════════
+/* Transición del color de acento */
    Sustituye la animación rAF del hook. La duración la controla el hook vía
    --neon-transition ("0s" o "Ns"). 0.2s es el fallback pre-React. */
 
@@ -40,7 +40,7 @@
   transition: --neon var(--neon-transition, 0.2s);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* ═ */
    #sw-slider-style — estilos globales de sliders, scrollbars y placeholders
    (migrado íntegro desde el hook useDynamicTheme).
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -162,7 +162,7 @@ input[type="range"]::-moz-range-thumb {
   scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
 
-/* ── Tipografía consistente de la app ─────────────────────────────────
+/* Tipografía consistente de la app */
    La raíz de App declara FONT, pero cualquier contenido montado en
    <body> por un portal (modales, mute del player) caería en la fuente
    del sistema; body fija la misma familia que constants.FONT. */
@@ -170,7 +170,7 @@ body {
   font-family: "DM Sans", system-ui, sans-serif;
 }
 
-/* ── Tipografía consistente en controles de formulario ───────────────
+/* Tipografía consistente en controles de formulario */
    El UA stylesheet NO hereda la fuente en botones/inputs/selects
    (se pintaban con la fuente del sistema —Segoe/Arial— en vez de la
    DM Sans de la app: botones de «Reproducir todo», «Limpiar», los de
@@ -184,7 +184,7 @@ textarea {
   font-family: inherit;
 }
 
-/* ── Divisores de filas en Ajustes ──────────────────────────────────
+/* Divisores de filas en Ajustes */
    Las filas (SettingRow) se separan con una línea de pelo SOLO entre
    hermanas: la sombra separadora anterior (SHADOWS.sepRow) dibujaba una
    banda oscura rara bajo cada fila, incluso tras la última dentro de la

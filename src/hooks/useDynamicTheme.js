@@ -2,14 +2,12 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { api } from "../utils/api";
 import { deriveTheme, extractOklchAccent, getLuminance, BASE } from "../utils/colorTheme";
 
-// ═════════════════════════════════════════════════════════════════════════════
 //  useDynamicTheme — extracción de color de la portada (OKLCH) + CSS vars
 //  (--neon, --neon-fg, --neon-transition, --bg-base).
 //  El resto de variables derivadas (--neon-border, --neon-btn…)
 //  se escriben SOLO una vez en src/dynamic-theme.css usando color-mix().
-// ═════════════════════════════════════════════════════════════════════════════
 
-// ── Acentos por defecto (sin extracción / ajuste antiguo sin appColor) ──────
+// Acentos por defecto (sin extracción / ajuste antiguo sin appColor)
 
 export const DEFAULT_ACCENT = "#a78bfa";
 // on-accent del acento por defecto, derivado con la misma garantía ≥4.5:1 que
@@ -27,7 +25,7 @@ const ACHROMATIC_THEME = Object.freeze({
   ambient: "#8e8e96",
 });
 
-// ── Opacidad del overlay en función de la luminancia del acento ─────────────
+// Opacidad del overlay en función de la luminancia del acento
 //    El overlay (viñeta) se dibuja sobre el fondo. Un acento oscuro aguanta
 //    opacidad plena, pero uno casi blanco (crema, amarillo pastel…) lavaría
 //    el fondo y rompería el contraste del texto blanco.
@@ -75,24 +73,24 @@ export function overlayOpacityForLuminance(lum) {
 }
 
 export function useDynamicTheme({ settings, currentSong }) {
-  // ── Dynamic Theme (colores derivados de la portada) ───────────────────────
+  // Dynamic Theme (colores derivados de la portada)
   //    `extractedTheme` es null hasta que el canvas responde, o el objeto
   //    { accent, onAccent, ambient } de la portada actual (o el Tema
   //    acromático si la extracción concluye que no hay tono).
   const [extractedTheme, setExtractedTheme] = useState(null);
   const colorFetchIdRef = useRef(0);
 
-  // ── Velocidad de transición de color ───────────────────────────────────
+  // Velocidad de transición de color
 
   const cfTransitionSpeed = useMemo(() => {
-    // ⚠️  NO acoplar al crossfadeDuration. El color debe transicionar
+    // NO acoplar al crossfadeDuration. El color debe transicionar
     //    con su propia velocidad independiente del crossfade de audio.
     //    Si el usuario puso 1s, que sea 1s aunque el crossfade sea 5s.
     const speed = settings.colorTransitionSpeed ?? 0.2;
     return speed === 0 ? "0s" : `${speed}s`;
   }, [settings.colorTransitionSpeed]);
 
-  // ── Color de la app (Ajustes → Apariencia → appColor) ─────────────────────
+  // Color de la app (Ajustes → Apariencia → appColor)
   //    appColor pasa por deriveTheme() igual que una portada: el brillo se
   //    normaliza al rango visible del tema oscuro (los colores oscuros se
   //    aclaran y los muy claros se oscurecen un poco) y el on-accent queda a
@@ -112,11 +110,9 @@ export function useDynamicTheme({ settings, currentSong }) {
     [settings.dynamicTheme, extractedTheme],
   );
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  FONDO TINTADO: --bg-base usa var(--neon) para que el fondo herede la
   //  transición CSS de --neon (no hay animación rAF: la interpolación la hace
   //  el navegador vía @property --neon + `transition: --neon` en el CSS).
-  // ═══════════════════════════════════════════════════════════════════════════
 
   const bgBase = useMemo(() => (settings.pureBlack ? "#000" : BASE), [settings.pureBlack]);
 
@@ -127,7 +123,7 @@ export function useDynamicTheme({ settings, currentSong }) {
     [bgBase],
   );
 
-  // ── Opacidad del overlay: suave y siempre presente cuando dynamicTheme está activo ──
+  // Opacidad del overlay: suave y siempre presente cuando dynamicTheme está activo
   //    Incluso con el color default (#a78bfa) se ve sutil, y transiciona suavemente.
   //    Para acentos muy brillantes la opacidad baja siguiendo una CURVA
   //    continua (smoothstep), así el cambio de canción no salta de golpe.
@@ -137,7 +133,7 @@ export function useDynamicTheme({ settings, currentSong }) {
     return overlayOpacityForLuminance(getLuminance(neonColor));
   }, [settings.dynamicTheme, hasAccent, neonColor]);
 
-  // ── Extraer colores de la portada vía canvas (nuevo algoritmo OKLCH) ─────
+  // Extraer colores de la portada vía canvas (nuevo algoritmo OKLCH)
 
   useEffect(() => {
     if (!currentSong?.videoId || !settings.dynamicTheme) {
@@ -146,11 +142,11 @@ export function useDynamicTheme({ settings, currentSong }) {
     }
 
     const fetchId = ++colorFetchIdRef.current;
-    // 🔄 NO reseteamos extractedTheme — el color anterior persiste hasta
+    // NO reseteamos extractedTheme — el color anterior persiste hasta
     //    que el canvas devuelva el nuevo.
     const thumbUrl = currentSong.thumbnail;
 
-    // ── Result flag: evita que una respuesta tardía pise la ganadora ──────
+    // Result flag: evita que una respuesta tardía pise la ganadora
     let gotTheme = false;
 
     const applyTheme = (repHex, source) => {
@@ -166,7 +162,7 @@ export function useDynamicTheme({ settings, currentSong }) {
       }
     };
 
-    // ── Canvas desde thumbnail ─────────────────────────────────────────────
+    // Canvas desde thumbnail
     //    Primero intenta carga directa con crossOrigin (para CORS).
     //    Si falla (ej: YouTube bloquea CORS de la URL directa),
     //    reintenta con el proxy del backend que SÍ devuelve CORS headers.
@@ -213,7 +209,7 @@ export function useDynamicTheme({ settings, currentSong }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSong?.videoId, settings.dynamicTheme]);
 
-  // ── CSS variables globales dinámicas ───────────────────────────────────────
+  // CSS variables globales dinámicas
   //    Solo se escriben inline las que dependen de la canción. Las que son
   //    fórmulas estáticas de var(--neon) viven en src/dynamic-theme.css
   //    (color-mix) y en index.html (@property --neon, keyframes, reduced-motion).

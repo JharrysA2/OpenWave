@@ -123,7 +123,7 @@ def extract_chart_items(charts, limit: int = 30, ytm=None):
                     candidates = items
                     break
 
-    # ── Forma ytmusicapi >= 1.12: playlists de gráfico, sin canciones ────
+    # Forma ytmusicapi >= 1.12: playlists de gráfico, sin canciones
     if not candidates and ytm is not None:
         playlist_id = _pick_chart_playlist(charts)
         if playlist_id:

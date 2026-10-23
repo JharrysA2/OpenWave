@@ -228,7 +228,7 @@ class TestStreamRangeSeek:
         path.write_bytes(content)
         return path
 
-    # ── /stream/{id} — MP3 local ──────────────────────────────────────────
+    # /stream/{id} — MP3 local
 
     def test_local_sin_range_es_200_seekable(self, client):
         """Primera petición (bytes=0- o sin Range) → Accept-Ranges: bytes."""
@@ -275,7 +275,7 @@ class TestStreamRangeSeek:
         finally:
             self._cleanup("range_seek_ddd")
 
-    # ── /stream/quality/{id} — M4A local (calidad Baja) ───────────────────
+    # /stream/quality/{id} — M4A local (calidad Baja)
 
     def test_quality_range_parcial_206(self, client, mocker, tmp_path):
         """El M4A de baja calidad también debe ser seekable."""
@@ -289,7 +289,7 @@ class TestStreamRangeSeek:
         assert resp.headers["accept-ranges"] == "bytes"
         assert resp.content == b"byte"
 
-    # ── /stream/play/{id} — proxy con passthrough de Range ────────────────
+    # /stream/play/{id} — proxy con passthrough de Range
 
     def test_play_relay_upstream_206(self, client, mocker):
         """El rango del navegador se reenvía al upstream y se relaya el 206."""

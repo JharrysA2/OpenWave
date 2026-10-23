@@ -461,7 +461,7 @@ export default function HomeView({
   playlists = [],
   onSelectPlaylist,
   onSelectAlbum,
-  // ── Estado de la biblioteca (useLibrary) ──────────────────────────────────
+  // Estado de la biblioteca (useLibrary)
   // "loading" → skeleton; "error" → estado con código + Reintentar; "ready" →
   // contenido. Antes se deducía de "history vacío" y el skeleton convivía con
   // el estado vacío (y quedaba eterno con el backend caído).
@@ -471,7 +471,7 @@ export default function HomeView({
 }) {
   const { feed, settled } = useHomeFeed();
 
-  // ── Secciones (rejilla apilada): endpoints con fallback a historial ───────
+  // Secciones (rejilla apilada): endpoints con fallback a historial
   const recentsItems = (feed.recents || history.slice(0, LIMITS.recents)).slice(0, LIMITS.recents);
   // Fallback de "Para ti": historial que no se ve ya en Recientes.
   const recentsIds = new Set(recentsItems.map((s) => s.videoId).filter(Boolean));
@@ -490,7 +490,7 @@ export default function HomeView({
       playlists.length >
     0;
 
-  // ── Search bar state ────────────────────────────────────────────────────────
+  // Search bar state
   const [searchValue, setSearchValue] = React.useState("");
   const searchInputRef = React.useRef(null);
 
@@ -504,7 +504,7 @@ export default function HomeView({
         paddingBottom: "90px",
       }}
     >
-      {/* ── Hero: Saludo + Search — la personalidad de la página ─────────── */}
+      {/* Hero: Saludo + Search — la personalidad de la página */}
       <div
         style={{
           marginBottom: SPACING.section.marginBottom,
@@ -565,7 +565,7 @@ export default function HomeView({
         />
       </div>
 
-      {/* ── Estado de error: código reportable + Reintentar ────────────── */}
+      {/* Estado de error: código reportable + Reintentar */}
       {status === "error" && (
         <StatusState code={errorCode} onRetry={onRetry} accentColor={accentColor} />
       )}
@@ -621,7 +621,7 @@ export default function HomeView({
         </>
       )}
 
-      {/* ── 2) Para ti — mix del backend, fallback historial ───────────────── */}
+      {/* 2) Para ti — mix del backend, fallback historial */}
       {status === "ready" && forYouItems.length > 0 && (
         <>
           <SectionHeader delay={300}>Para ti</SectionHeader>
@@ -643,7 +643,7 @@ export default function HomeView({
         </>
       )}
 
-      {/* ── 3) Tendencias — charts del país del sistema ─────────────────────── */}
+      {/* 3) Tendencias — charts del país del sistema */}
       {status === "ready" && trendingItems.length > 0 && (
         <>
           <SectionHeader delay={360}>Tendencias</SectionHeader>
@@ -665,7 +665,7 @@ export default function HomeView({
         </>
       )}
 
-      {/* ── 4) Álbumes — de tus artistas más escuchados ─────────────────────── */}
+      {/* 4) Álbumes — de tus artistas más escuchados */}
       {status === "ready" && albumItems.length > 0 && (
         <>
           <SectionHeader delay={420}>Álbumes</SectionHeader>
@@ -688,7 +688,7 @@ export default function HomeView({
         </>
       )}
 
-      {/* ── 5) Tus playlists — librería local ───────────────────────────────── */}
+      {/* 5) Tus playlists — librería local */}
       {status === "ready" && playlists.length > 0 && (
         <>
           <SectionHeader delay={480}>Tus playlists</SectionHeader>
@@ -706,7 +706,7 @@ export default function HomeView({
         </>
       )}
 
-      {/* ── Estado vacío — cuando ya llegó todo y sigue sin haber nada ──── */}
+      {/* Estado vacío — cuando ya llegó todo y sigue sin haber nada */}
       {status === "ready" && !hasAnyContent && settled && (
         <div
           style={{

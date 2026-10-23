@@ -12,7 +12,7 @@ const MusicCover = memo(function MusicCover({
   displaySize = 176,
   priority = false,
 }) {
-  // ── Memo: sources, srcset y blur ──────────────────────────────────
+  // Memo: sources, srcset y blur
   const { allSrcs, srcSetStr, blurSrc } = useMemo(
     () => getCoverSources({ thumbnails, src }),
     [thumbnails, src],
@@ -88,7 +88,7 @@ const MusicCover = memo(function MusicCover({
       }}
       className={className}
     >
-      {/* ── Blur placeholder (visible hasta que carga la imagen real) ── */}
+      {/* Blur placeholder (visible hasta que carga la imagen real) */}
       {blurSrc && !loaded && (
         <img
           src={blurSrc}
@@ -108,7 +108,7 @@ const MusicCover = memo(function MusicCover({
         />
       )}
 
-      {/* ── Imagen principal ────────────────────────────────────────── */}
+      {/* Imagen principal */}
       <img
         key={displaySrc}
         ref={(el) => {
@@ -127,11 +127,11 @@ const MusicCover = memo(function MusicCover({
         onLoad={() => setLoaded(true)}
         onError={() => {
           if (!useProxy && proxyFallback) {
-            // ⭐ Primer error: intentar vía proxy (bypass CORS)
+            // Primer error: intentar vía proxy (bypass CORS)
             setUseProxy(true);
             setLoaded(false);
           } else if (useProxy) {
-            // ⭐ Segundo error (proxy también falló): NO mostrar fallback aún.
+            // Segundo error (proxy también falló): NO mostrar fallback aún.
             //    Bajar al siguiente tamaño de la cadena (handleError).
             //    Si no hay más tamaños, handleError mostrará fallback.
             setUseProxy(false);

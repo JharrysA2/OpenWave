@@ -174,7 +174,7 @@ describe("PlaylistView", () => {
     expect(play.style.color).toContain("var(--neon-fg)");
   });
 
-  // ── Error de red ≠ playlist vacía (bug de la auditoría v1) ─────────────────
+  // Error de red ≠ playlist vacía (bug de la auditoría v1)
 
   it("un fallo de carga muestra estado de error con Reintentar, nunca «vacía»", async () => {
     api.fetchPlaylistSongs.mockRejectedValueOnce(

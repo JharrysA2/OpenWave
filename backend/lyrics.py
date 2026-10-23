@@ -234,7 +234,7 @@ async def get_lyrics(video_id: str, title: str = "", artist: str = ""):
     if cached is not None:
         return {"lyrics": cached}
 
-    # ── Local-first: la canción descargada guarda su .lrc al descargarla.
+    # Local-first: la canción descargada guarda su .lrc al descargarla.
     #    Leerlo de disco funciona SIN internet y al instante; solo si no
     #    existe se va a las fuentes remotas de abajo.
     local = await get_local_lyrics(video_id)

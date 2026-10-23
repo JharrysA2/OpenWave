@@ -20,7 +20,7 @@ import {
 } from "./backendHealth";
 import { api } from "./api";
 
-// ── Helpers de respuesta ─────────────────────────────────────────────────────
+// Helpers de respuesta
 
 function okJson(data = { status: "ok" }) {
   return {
@@ -56,7 +56,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-// ── Estado ───────────────────────────────────────────────────────────────────
+// Estado
 
 describe("backendHealth — estado", () => {
   it("starts optimistic: online and sin error", () => {
@@ -139,7 +139,7 @@ describe("backendHealth — estado", () => {
   });
 });
 
-// ── Health-check ─────────────────────────────────────────────────────────────
+// Health-check
 
 describe("backendHealth — checkHealth", () => {
   it("marks online when /health responds 200", async () => {
@@ -236,7 +236,7 @@ describe("backendHealth — checkHealth", () => {
   });
 });
 
-// ── Heartbeat ────────────────────────────────────────────────────────────────
+// Heartbeat
 
 describe("backendHealth — heartbeat", () => {
   it("polls with the slow interval while online", async () => {
@@ -364,7 +364,7 @@ describe("backendHealth — heartbeat", () => {
   });
 });
 
-// ── Ventana oculta (minimizada): consumo ~0 ─────────────────────────────────
+// Ventana oculta (minimizada): consumo ~0
 
 describe("backendHealth — ventana oculta", () => {
   /** Simula que la ventana se oculta (minimizada) o vuelve a verse. */
@@ -451,7 +451,7 @@ describe("backendHealth — ventana oculta", () => {
   });
 });
 
-// ── Integración con api.js ───────────────────────────────────────────────────
+// Integración con api.js
 
 describe("backendHealth — integración con api", () => {
   it("api.get marca offline cuando la petición falla por red", async () => {

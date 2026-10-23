@@ -9,7 +9,7 @@ import {
 } from "./errorCodes";
 
 describe("errorCodes — catálogo", () => {
-  // ── Estructura ────────────────────────────────────────────────────────────
+  // Estructura
 
   it("todos los códigos tienen texto en es y en", () => {
     for (const [code, entry] of Object.entries(ERROR_CODES)) {
@@ -26,7 +26,7 @@ describe("errorCodes — catálogo", () => {
     expect(DEFAULT_ERROR_CODE).toBe("E-UI-00");
   });
 
-  // ── describeError ─────────────────────────────────────────────────────────
+  // describeError
 
   it("describeError devuelve textos del código pedido", () => {
     const info = describeError("E-CNX-01");
@@ -52,7 +52,7 @@ describe("errorCodes — catálogo", () => {
     expect(describeError(undefined).code).toBe(DEFAULT_ERROR_CODE);
   });
 
-  // ── codeForHttp ───────────────────────────────────────────────────────────
+  // codeForHttp
 
   it("codeForHttp: 5xx interno salvo que el cuerpo hable de YTMusic", () => {
     expect(codeForHttp(500)).toBe("E-INT-00");
@@ -62,7 +62,7 @@ describe("errorCodes — catálogo", () => {
     expect(codeForHttp(429, "rate limited")).toBe("E-CNX-03");
   });
 
-  // ── codeFromReason ────────────────────────────────────────────────────────
+  // codeFromReason
 
   it("codeFromReason deriva de motivo legible", () => {
     expect(codeFromReason("Timeout")).toBe("E-CNX-02");
@@ -73,7 +73,7 @@ describe("errorCodes — catálogo", () => {
     expect(codeFromReason()).toBe("E-CNX-01");
   });
 
-  // ── formatErrorCode ───────────────────────────────────────────────────────
+  // formatErrorCode
 
   it("formatErrorCode envuelve el código entre paréntesis", () => {
     expect(formatErrorCode("E-CNX-01")).toBe("(E-CNX-01)");

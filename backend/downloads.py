@@ -27,15 +27,8 @@ from utils import get_mp3_path
 
 logger = get_logger(__name__)
 
-# ── Lock POR VÍDEO ────────────────────────────────────────────────────────────
-# Dos descargas concurrentes del mismo video_id (individual + pista de un
-# álbum, o dos álbumes) pasaban ambas el check `mp3_path.exists()` y
-# escribían el MISMO `MUSIC_DIR/{id}.mp3.part`: dos ffmpeg entrelazados y,
-# peor aún, el `os.replace` de uno publicaba un MP3 mientras el otro siguió
-# escribiendo por el descriptor ya renombrado — rompiendo la invariante
-# «exists() ⇒ COMPLETO» (la que lee el modo Alta para precachear).
-# Serializar por vídeo lo cierra: la segunda hebra espera y al entrar ve el
-# MP3 ya publicado (su camino es no-op). El lock de BD (_db_lock) siempre se
+# Lock por vídeo: dos descargas del mismo video_id escribían el mismo
+# `.part` y rompían la invariante «exists() ⇒ COMPLETO». El lock de BD se
 # toma por dentro, sin ciclos posibles.
 _download_locks_guard = threading.Lock()
 _download_locks: dict = {}
@@ -135,7 +128,7 @@ def do_download(
     _lock = _get_download_lock(video_id)
     _lock.acquire()
     try:
-        # ── 1. Buscar ffmpeg ──────────────────────────────────────────
+        # Buscar ffmpeg
         # Prioridad al ffmpeg empaquetado junto a la app (MSI) o al
         # preparado para desarrollo en Windows (build/staging/ffmpeg);
         # después el comportamiento histórico y, por último, el PATH.
@@ -156,8 +149,8 @@ def do_download(
         if not _ffmpeg_dir:
             logger.info("ffmpeg.exe not found, using system PATH")
 
-        # ── 2. Portada en MÁXIMA calidad (ANTES del audio: la embebemos
-        #       en los tags ID3 del MP3) ─────────────────────────────────
+        # Portada en máxima calidad, antes del audio: se embebe en los tags
+        # ID3 del MP3.
         cover_path = COVERS_DIR / f"{video_id}.jpg"
         if not cover_path.exists():
             got_cover = False
@@ -186,7 +179,7 @@ def do_download(
             if not got_cover:
                 logger.warning("Cover art failed %s", video_id)
 
-        # ── 3. Descargar audio ────────────────────────────────────────
+        # Descargar audio
         _ydl_opts = {
             # Mejor fuente de AUDIO disponible (m4a/opus de mayor bitrate
             # que el muxed) con caída al itag 18 (360p) dentro de la propia
@@ -243,17 +236,11 @@ def do_download(
             if last_error is not None:
                 raise last_error
 
-            # ── Conversión ATÓMICA a MP3 ───────────────────────────────
-            # Sin el postprocesador FFmpegExtractAudio de yt-dlp: ese PP
-            # escribe el .mp3 FINAL directamente (temp_path == new_path),
-            # así que mientras ffmpeg convierte, get_mp3_path().exists()
-            # ya devuelve True con un archivo PARCIAL — y el modo «Alta»
-            # (ensureDownloaded / stream/exists / pre-cache) lo interpreta
-            # como «descarga lista» y reproducía un stub de 15-30 s (los
-            # bytes parciales del MP3 a 192 kb/s) en vez de la canción.
-            # Aquí la conversión va a `.part` y solo `os.replace` publica
-            # el .mp3: desde entonces exists() ⇒ COMPLETO (mismo patrón
-            # de escritura atómica que _build_low_quality en streaming.py).
+            # Conversión ATÓMICA a MP3
+            # Sin el postprocesador FFmpegExtractAudio: ese PP escribe el .mp3
+            # final en caliente, así que exists() daba True con un archivo
+            # parcial y el modo «Alta» reproducía un stub. Aquí se convierte a
+            # `.part` y solo `os.replace` publica: exists() ⇒ COMPLETO.
             src = next(
                 (
                     MUSIC_DIR / f"{video_id}.{ext}"
@@ -315,7 +302,7 @@ def do_download(
 
         download_progress[video_id] = {"status": "saving", "progress": 100}
 
-        # ── 4. Descargar letras (importación directa, sin self-request) ─
+        # Descargar letras (importación directa, sin self-request)
         lyrics_path = LYRICS_DIR / f"{video_id}.lrc"
         if not lyrics_path.exists():
             try:
@@ -335,7 +322,7 @@ def do_download(
             except Exception as le:
                 logger.warning("Lyrics failed %s: %s", video_id, le)
 
-        # ── 5. Guardar metadata ───────────────────────────────────────
+        # Guardar metadata
         meta_path = MUSIC_DIR / f"{video_id}.json"
         with suppress(Exception):
             meta_path.write_text(
@@ -358,7 +345,7 @@ def do_download(
                 encoding="utf-8",
             )
 
-        # ── 6. Registrar en DB (con thumbnails[] HD) ────────────────
+        # Registrar en DB (con thumbnails[] HD)
         thumbnails_json = json.dumps(thumbnails or [], ensure_ascii=False)
         with _db_lock, get_db() as conn:
             conn.execute(

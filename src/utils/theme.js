@@ -13,9 +13,7 @@
  *   </div>
  */
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  PALETA COMPLETA — Material Design 3 (desde DESIGN.md YAML)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 const PALETTE = {
   // Superficies
@@ -90,9 +88,7 @@ const PALETTE = {
   accentFallback: "#7c3aed",
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  COLORES DE USO — Jerarquía de texto y tokens funcionales
-// ═══════════════════════════════════════════════════════════════════════════════
 //
 // Jerarquía de texto (desde DESIGN.md — sección Colors):
 //   Primary:   #ffffff        — headers, estados activos
@@ -101,7 +97,7 @@ const PALETTE = {
 //   Muted:     25% white      — timestamps, detalles técnicos
 
 export const COLORS = {
-  // ── Fondos (desde PALETTE + extras funcionales) ──────────────────────────
+  // Fondos (desde PALETTE + extras funcionales)
   surface: PALETTE.surface,
   surfaceDim: PALETTE.surfaceDim,
   surfaceBright: PALETTE.surfaceBright,
@@ -113,7 +109,7 @@ export const COLORS = {
   surfacePureBlack: "#000000",
   surfacePlayer: PALETTE.bgPlayer,
   surfaceSidebar: "rgba(0,0,0,.2)",
-  // ── Escalera tonal M3 cableada (roles que YA estaban en PALETTE) ─────────
+  // Escalera tonal M3 cableada (roles que YA estaban en PALETTE)
   // Superficies planas (tarjetas, filas, rellenos de modal): profundidad por
   // TONO de la escalera `surfaceContainer*` en vez de blanco translúcido —
   // la filosofía de elevación de Material 3 y la de PERFORMANCE.md §1/§7
@@ -127,7 +123,7 @@ export const COLORS = {
   surfaceTitleBar: "rgba(10,10,15,.92)",
   surfaceCoverBg: "#111",
 
-  // ── Texto (jerarquía desde DESIGN.md prose) ──────────────────────────────
+  // Texto (jerarquía desde DESIGN.md prose)
   //    NOTA: el fondo de la app SIEMPRE es oscuro (#0a0a0f o #000), por lo que
   //    los textos permanecen blancos en todo momento. Solo elementos UI que
   //    usan el color acento como FONDO deben usar contraste dinámico (--neon-fg).
@@ -144,13 +140,13 @@ export const COLORS = {
   onSurfaceVariant: PALETTE.onSurfaceVariant,
   onBackground: PALETTE.onBackground,
 
-  // ── Acento dinámico ──────────────────────────────────────────────────────
+  // Acento dinámico
   accentDefault: "#a78bfa",
   accentFallback: PALETTE.accentFallback,
   accentDefaultRgb: "167, 139, 250",
   white: "#ffffff",
 
-  // ── Paleta completa de acento (M3) ───────────────────────────────────────
+  // Paleta completa de acento (M3)
   primary: PALETTE.primary,
   onPrimary: PALETTE.onPrimary,
   primaryContainer: PALETTE.primaryContainer,
@@ -167,7 +163,7 @@ export const COLORS = {
   tertiaryContainer: PALETTE.tertiaryContainer,
   onTertiaryContainer: PALETTE.onTertiaryContainer,
 
-  // ── Estados ──────────────────────────────────────────────────────────────
+  // Estados
   error: PALETTE.error,
   onError: PALETTE.onError,
   errorContainer: PALETTE.errorContainer,
@@ -176,14 +172,14 @@ export const COLORS = {
   likeColor: "#f43f5e",
   successColor: "#22c55e",
 
-  // ── Neutros / bordes ─────────────────────────────────────────────────────
+  // Neutros / bordes
   borderSubtle: "rgba(255,255,255,.06)",
   borderLight: "rgba(255,255,255,.1)",
   borderActive: "rgba(255,255,255,.18)",
   outline: PALETTE.outline,
   outlineVariant: PALETTE.outlineVariant,
 
-  // ── Iconos ───────────────────────────────────────────────────────────────
+  // Iconos
   iconDefault: "rgba(255,255,255,.25)",
   iconActive: "rgba(255,255,255,.5)",
   iconDim: "rgba(255,255,255,.35)",
@@ -191,7 +187,7 @@ export const COLORS = {
   placeholderIcon: "#2e2e45",
   settingsIcon: "rgba(255,255,255,.7)",
 
-  // ── Misc ─────────────────────────────────────────────────────────────────
+  // Misc
   scrollbar: "rgba(255,255,255,.12)",
   scrollbarHover: "rgba(255,255,255,.25)",
   progressTrack: "rgba(255,255,255,.08)",
@@ -205,18 +201,10 @@ export const COLORS = {
   surfaceTint: PALETTE.surfaceTint,
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  TIPOGRAFÍA
-// ═══════════════════════════════════════════════════════════════════════════════
 //
-// Fuente: DM Sans — moderna, suave, excelente lectura en modo oscuro.
-// Pesos DM Sans disponibles: 400, 500, 600, 700 (sin 800/900).
-//
-// La jerarquía se ha ajustado para ser armónica y no cansar la vista:
-//   Headlines:  700 (antes 900) — contundente pero no agresivo
-//   Subheading: 600 (antes 800) — suficiente presencia
-//   Body:       500 (antes 600) — cómodo para lectura prolongada
-//   Caption:    500 (antes 600) — legible sin esfuerzo
+// DM Sans ofrece 400, 500, 600 y 700; 800/900 se recortan a 700. Jerarquía:
+// headlines 700, subheading 600, body y caption 500.
 
 const FONT_FAMILY = "'DM Sans', system-ui, sans-serif";
 
@@ -231,7 +219,7 @@ export const TYPOGRAPHY = {
     letterSpacing: "-0.02em",
   },
 
-  // ── Apple Design: tracking size-specific, leading inverso ─────────────
+  // Apple Design: tracking size-specific, leading inverso
   //    "Large display text wants negative tracking; small text wants
   //     slightly positive tracking for legibility." — WWDC 2020
 
@@ -302,7 +290,7 @@ export const TYPOGRAPHY = {
     letterSpacing: "0.02em",
   },
 
-  // ── Alias para compatibilidad con código existente ─────────────────────
+  // Alias para compatibilidad con código existente
   h1Alias: {
     fontFamily: FONT_FAMILY,
     fontSize: "30px",
@@ -370,9 +358,7 @@ export const TYPOGRAPHY = {
   titleBar: { fontFamily: FONT_FAMILY, fontSize: "13px", fontWeight: "600", letterSpacing: ".5px" },
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  RADIOS DE BORDE
-// ═══════════════════════════════════════════════════════════════════════════════
 //
 // Sistema de radii desde DESIGN.md (YAML rounded + prose overrides):
 //   sm:     0.25rem (4px)
@@ -415,9 +401,7 @@ export const RADIUS = {
   downloadItem: "12px",
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  ESPACIADOS
-// ═══════════════════════════════════════════════════════════════════════════════
 //
 // Desde DESIGN.md spacing + prose:
 //   sidebar-width:  200px
@@ -478,9 +462,7 @@ export const SPACING = {
   },
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  SOMBRAS Y GLOWS
-// ═══════════════════════════════════════════════════════════════════════════════
 //
 // Los neones se acompañan de sombras multicapa:
 //   - Glow primario: 44% opacity
@@ -532,9 +514,7 @@ export const SHADOWS = {
   sepRight: "14px 0 34px rgba(0,0,0,.4)",
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  TRANSICIONES
-// ═══════════════════════════════════════════════════════════════════════════════
 //
 // Todas las interacciones usan la curva cúbica característica:
 //   cubic-bezier(.16, 1, .3, 1)
@@ -575,11 +555,9 @@ export const TRANSITIONS = {
   cardHover: "background .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  GLASSMORPHISM — Apple Liquid Glass Design System
 //  "Build nav/toolbars/sheets as translucent layers with backdrop-filter."
 //  "Material weight encodes hierarchy: darker = structural, lighter = interactive."
-// ═══════════════════════════════════════════════════════════════════════════════
 
 export const GLASS = {
   /** Player bar — Liquid Glass: translucent + light blur. Es LA única
@@ -798,9 +776,7 @@ export const GLASS = {
   floatShadow: "0 8px 32px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.25)",
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  LAYOUTS REUTILIZABLES
-// ═══════════════════════════════════════════════════════════════════════════════
 
 export const LAYOUTS = {
   /** Fila de canción — glassmorphism on hover */
@@ -920,9 +896,7 @@ export const LAYOUTS = {
   },
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  FUNCIONES AYUDA
-// ═══════════════════════════════════════════════════════════════════════════════
 
 /**
  * Añade opacidad alpha (hex) a un color hexadecimal.
@@ -1002,20 +976,12 @@ export const mutedAccent = (hex) => {
 export const sidebarBgGradient = () =>
   `linear-gradient(165deg, color-mix(in srgb, var(--neon) 40%, #05050a) 0%, color-mix(in srgb, var(--neon) 18%, #05050a) 60%, color-mix(in srgb, var(--neon) 6%, #05050a) 100%)`;
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  ANIMACIONES DE ENTRADA — Apple Design principles
-// ═══════════════════════════════════════════════════════════════════════════════
+//  ANIMACIONES DE ENTRADA
 //
-// Apple: "Respond on pointer-down, not on release."
-// Apple: "Animation is a conversation between you and the object."
-//
-// Solo animamos opacity y transform (propiedades GPU-composited).
-// Stagger: usar `ANIMATIONS.fadeSlideUp(i * 40)` para retardar cada item.
-// La curva cúbica y keyframes se definen globalmente en App.jsx.
-//
-// ⚡ prefers-reduced-motion: los estilos inline NO pueden detectar media
-//    queries, pero el CSS global en index.html ya respeta prefers-reduced-motion
-//    reemplazando las keyframes por transiciones de opacity simple.
+// Solo se animan opacity y transform (composited). Stagger con
+// `ANIMATIONS.fadeSlideUp(i * 40)`; las keyframes viven en App.jsx.
+// prefers-reduced-motion se resuelve en el CSS de index.html: los estilos
+// inline no pueden detectar media queries.
 
 /** Curva Apple-style: critically damped, no overshoot — damping 1.0, response ~0.35 */
 /** Tope de items con retardo propio en `staggerFast` (ver su comentario). */
@@ -1073,14 +1039,13 @@ export const ANIMATIONS = {
   }),
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  GLASSMORPHISM — Apple Liquid Glass Design System
 //  "Build nav/toolbars/sheets as translucent layers with backdrop-filter."
 //  "Material weight encodes hierarchy: darker = structural, lighter = interactive."
 //
-//  ⚠️  GLASS es la ÚNICA fuente de materiales translúcidos. Existía un objeto
+// GLASS es la ÚNICA fuente de materiales translúcidos. Existía un objeto
 //      `MATERIALS` duplicado (mismos usos, valores distintos) que ningún
 //      componente consumía: se eliminó para no tener dos verdades para lo mismo.
 //
-// ── Re-export desde playerStyles (fuente única de verdad) ───────────────────
+// Re-export desde playerStyles (fuente única de verdad)
 export { BTN_SHAPES, getBtnShapeStyle, BAR_STYLES } from "./playerStyles";

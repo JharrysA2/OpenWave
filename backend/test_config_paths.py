@@ -45,7 +45,7 @@ def test_codigo_no_escribible_cae_en_localappdata(monkeypatch, tmp_path):
     assert config._datos_dir() == esperado
 
 
-# ── Rama de Windows: «Datos de Programas» (%PROGRAMDATA%\OpenWave) ──────────
+# Rama de Windows: «Datos de Programas» (%PROGRAMDATA%\OpenWave)
 # Se prueba contra `_resolver_datos_dir` (misma lógica que `_datos_dir`, con
 # el entorno y la plataforma como parámetros) porque activar aquí `os.name`
 # rompería pathlib en Linux.

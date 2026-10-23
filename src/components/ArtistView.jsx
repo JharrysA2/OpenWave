@@ -42,7 +42,7 @@ export default function ArtistView({
   // Código reportable del último fallo de carga (utils/errorCodes).
   const [loadError, setLoadError] = useState(null);
 
-  // ── Seguir / Dejar de seguir ────────────────────────────────────
+  // Seguir / Dejar de seguir
   const following = !!isArtistFollowed?.({ browseId, name: artist?.name });
 
   const artistEntity = artist
@@ -90,7 +90,7 @@ export default function ArtistView({
       .catch(() => {});
   }, [browseId]);
 
-  // ── Álbumes COMPLETOS ────────────────────────────────────────────────
+  // Álbumes COMPLETOS
   //    get_artist solo trae el primer carrusel de álbumes/singles; el
   //    endpoint paginado (/artist/{id}/albums) trae ABSOLUTAMENTE todos.
   //    Se cargan en segundo plano y rellenan el scroll horizontal cuando
@@ -243,7 +243,7 @@ export default function ArtistView({
         </button>
       </div>
 
-      {/* ── Foto circular overlappea entre banner y contenido ─────────── */}
+      {/* Foto circular overlappea entre banner y contenido */}
       <div
         style={{
           position: "relative",
@@ -371,7 +371,7 @@ export default function ArtistView({
         </div>
       </div>
 
-      {/* ── Contenido debajo ─────────────────────────────────────────── */}
+      {/* Contenido debajo */}
       <div style={{ padding: "12px 16px 100px" }}>
         {/* Top canciones */}
         {artist.songs?.length > 0 && (

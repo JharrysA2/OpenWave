@@ -64,7 +64,7 @@ beforeEach(() => {
 });
 
 describe("HomeView", () => {
-  // ── Empty / saludo / estados ───────────────────────────────────────────
+  // Empty / saludo / estados
 
   it("muestra el estado vacío cuando no hay nada (tras asentarse el feed)", async () => {
     renderHome();
@@ -111,7 +111,7 @@ describe("HomeView", () => {
     expect(screen.queryByTestId("status-state")).not.toBeInTheDocument();
   });
 
-  // ── Sección 1: Recientes (cronológico, fallback = historial) ───────────
+  // Sección 1: Recientes (cronológico, fallback = historial)
 
   it("muestra Recientes desde el historial como fallback", () => {
     const history = Array.from({ length: 8 }, (_, i) => song(`${i}`));
@@ -156,7 +156,7 @@ describe("HomeView", () => {
     );
   });
 
-  // ── Sección 2: Para ti (feed del backend) ──────────────────────────────
+  // Sección 2: Para ti (feed del backend)
 
   it("muestra Para ti desde /home/for-you con su mix", async () => {
     mockFeed({ "/home/for-you": [song("fy1"), song("fy2"), song("fy3")] });
@@ -176,7 +176,7 @@ describe("HomeView", () => {
     expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "fy6" }));
   });
 
-  // ── Sección 3: Tendencias ──────────────────────────────────────────────
+  // Sección 3: Tendencias
 
   it("muestra Tendencias desde /trending y reproduce al pulsar", async () => {
     const playSong = vi.fn();
@@ -188,7 +188,7 @@ describe("HomeView", () => {
     expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "tr1" }));
   });
 
-  // ── Sección 4: Álbumes ─────────────────────────────────────────────────
+  // Sección 4: Álbumes
 
   it("muestra Álbumes desde /home/albums y navega al pulsar", async () => {
     const onSelectAlbum = vi.fn();
@@ -201,7 +201,7 @@ describe("HomeView", () => {
     expect(onSelectAlbum).toHaveBeenCalledWith(expect.objectContaining({ browseId: "b1" }));
   });
 
-  // ── Sección 5: Tus playlists ───────────────────────────────────────────
+  // Sección 5: Tus playlists
 
   it("muestra Tus playlists con nº de canciones y navega al pulsar", () => {
     const onSelectPlaylist = vi.fn();
@@ -220,7 +220,7 @@ describe("HomeView", () => {
     expect(screen.getByText("1 canción")).toBeInTheDocument();
   });
 
-  // ── Fallback si un endpoint falla ──────────────────────────────────────
+  // Fallback si un endpoint falla
 
   it("si los endpoints fallan, la home sigue viva con el historial", async () => {
     api.get.mockRejectedValue(new Error("backend caído"));
@@ -234,7 +234,7 @@ describe("HomeView", () => {
     expect(screen.queryByText("Álbumes")).not.toBeInTheDocument();
   });
 
-  // ── Reintentos del feed (primer arranque con backend en frío) ──────────
+  // Reintentos del feed (primer arranque con backend en frío)
 
   it("reintenta ante timeout y la sección aparece cuando el backend responde", async () => {
     vi.useFakeTimers();
@@ -291,7 +291,7 @@ describe("HomeView", () => {
     }
   });
 
-  // ── Highlight + pulso ──────────────────────────────────────────────────
+  // Highlight + pulso
 
   it("should highlight the current song", () => {
     const history = Array.from({ length: 8 }, (_, i) => song(`${i}`));
@@ -322,7 +322,7 @@ describe("HomeView", () => {
   });
 });
 
-// ── Bandas horizontales (shelves) — el inicio en filas con scroll-x ─────
+// Bandas horizontales (shelves) — el inicio en filas con scroll-x
 
 describe("HomeView — bandas horizontales", () => {
   it("cada sección es una banda con scroll-x, sin wrap (fila única)", () => {

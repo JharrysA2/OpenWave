@@ -14,7 +14,7 @@ export function useSearch(initialTab = "music") {
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoError, setVideoError] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
-  // ── Errores con código reportable ────────────────────────────────────────
+  // Errores con código reportable
   // Sin esto un fallo de búsqueda se tragaba en silencio y la pantalla
   // decía "Sin resultados" cuando en realidad no se pudo consultar.
   const [searchError, setSearchError] = useState(null); // { message, code }
@@ -23,7 +23,7 @@ export function useSearch(initialTab = "music") {
   const searchInputRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
-  // ── Búsqueda de canciones ──────────────────────────────────────────────────
+  // Búsqueda de canciones
 
   const doSearch = useCallback(async (q) => {
     if (!q.trim()) {
@@ -55,7 +55,7 @@ export function useSearch(initialTab = "music") {
     }
   }, []);
 
-  // ── Búsqueda de videos ─────────────────────────────────────────────────────
+  // Búsqueda de videos
 
   const doSearchVideos = useCallback(async (q) => {
     if (!q.trim()) {
@@ -83,10 +83,10 @@ export function useSearch(initialTab = "music") {
     setVideoLoading(false);
   }, []);
 
-  // ── Manejador de búsqueda inmediata (sin debounce) ──────────────────────────
+  // Manejador de búsqueda inmediata (sin debounce)
   //    La búsqueda se ejecuta SOLO cuando el usuario presiona Enter o clickea
   //    el ícono de búsqueda (no en cada tecleo).
-  //    ⚡ Rule: async-parallel — Promise.all para operaciones independientes
+  // Rule: async-parallel — Promise.all para operaciones independientes
 
   const handleSearchChange = useCallback(
     (value) => {

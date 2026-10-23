@@ -85,7 +85,7 @@ export function PageRendimiento({ neonColor }) {
         ))}
       </SettingsSection>
 
-      {/* ── Pausa de efectos con la ventana oculta ─────────────────────── */}
+      {/* Pausa de efectos con la ventana oculta */}
       <SettingsSection title={t.perfEffects}>
         <SettingRow
           border={false}

@@ -86,7 +86,7 @@ describe("overlayOpacityForLuminance", () => {
     expect(overlayOpacityForLuminance(Infinity)).toBe(1);
   });
 
-  // ── Par por defecto (--neon, --neon-fg) ──────────────────────────────────
+  // Par por defecto (--neon, --neon-fg)
 
   it("DEFAULT_ACCENT_FG cumple ≥4.5:1 contra DEFAULT_ACCENT (no blanco fijo)", () => {
     expect(contrastRatio(DEFAULT_ACCENT_FG, DEFAULT_ACCENT)).toBeGreaterThanOrEqual(
@@ -99,7 +99,7 @@ describe("overlayOpacityForLuminance", () => {
   });
 });
 
-// ── Color de la app (appColor) ──────────────────────────────────────────────
+// Color de la app (appColor)
 
 describe("useDynamicTheme — color de la app (appColor)", () => {
   const mkSettings = (appColor, dynamicTheme = false) => ({

@@ -150,7 +150,7 @@ describe("AlbumView", () => {
     expect(check.closest("svg").parentElement.style.color).toBe("var(--neon-fg)");
   });
 
-  // ── Rendimiento: blur moderado en el banner (regresión de raster GPU) ──
+  // Rendimiento: blur moderado en el banner (regresión de raster GPU)
   it("el banner del álbum usa blur(8px), no blur(12px)", async () => {
     const { container } = render(<AlbumView {...defaultProps} />);
     await waitFor(() => {

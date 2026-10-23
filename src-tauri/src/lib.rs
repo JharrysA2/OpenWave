@@ -190,13 +190,10 @@ fn resolver_data_dir(backend_dir: &std::path::Path, env: &EntornoDatos) -> PathB
     }
 }
 
-/// true si `backend_dir` pertenece a una INSTALACIÓN de Windows (no al repo
-/// de desarrollo). Solo ahí deciden: en Windows los datos NUNCA deben ir
-/// junto al código aunque el directorio sea escribible — el arranque desde
-/// la última página del instalador hereda un token elevado,
-/// `dir_writable(Program Files\...\backend)` devuelve true y la base de
-/// datos y las descargas acababan archivadas en «Archivos de programa» (la
-/// queja original del usuario, reproducida en la primera prueba real).
+/// true si `backend_dir` pertenece a una instalación de Windows. Ahí los datos
+/// NUNCA van junto al código aunque el directorio sea escribible: el arranque
+/// desde el instalador hereda token elevado y `dir_writable(Program Files\...)`
+/// devuelve true, con lo que la BD acababa en «Archivos de programa».
 ///
 /// Se detecta por el layout del empaquetado, que es estable:
 ///   * la ruta contiene `Program Files` / `Program Files (x86)`, o
@@ -361,20 +358,11 @@ fn create_err_log(data_dir: &std::path::Path) -> Option<std::fs::File> {
         .ok()
 }
 
-/// Fija el icono **ICON_BIG** de la ventana (el que leen Alt+Tab, la lista
-/// de ventanas y el taskbar cuando el AUMID **no** tiene ítem de app en
-/// `AppsFolder` — p. ej. arranque sin identidad de paquete).
-///
-/// Tauri solo fija el icono *small* (`WM_SETICON ICON_SMALL` vía
-/// `set_window_icon`); el *big* (`ICON_BIG`) queda `NULL`. Aquí copiamos y
-/// escalamos el icono small ya cargado (256x256) a 48x48 — el `HICON` es
-/// válido porque se crea en ESTE proceso (mandar uno de otro proceso, como
-/// se probó en PowerShell, no sirve: el handle es inútil en el proceso que
-/// lo recibe) — y lo enviamos ANTES de que arrance el bucle de mensajes.
-///
-/// El icono del botón del taskbar con identidad de paquete NO depende de
-/// esto, sino del ítem de AppsFolder del AUMID (uap:VisualElements con
-/// AppListEntry por defecto); ver `docs/PERFORMANCE.md` §10.
+/// Fija el icono ICON_BIG (Alt+Tab, lista de ventanas y taskbar cuando el
+/// AUMID no tiene item de app en `AppsFolder`). Tauri solo fija el *small*;
+/// aquí se copia y escala el small ya cargado (256x256 a 48x48) en ESTE
+/// proceso: un `HICON` de otro proceso no sirve. El icono con identidad de
+/// paquete lo da el item de AppsFolder (`docs/PERFORMANCE.md` §10).
 #[cfg(windows)]
 fn set_taskbar_icon(window: &tauri::WebviewWindow) {
     use windows::Win32::Foundation::{HANDLE, LPARAM, WPARAM};
@@ -454,7 +442,7 @@ pub fn run() {
             #[cfg(windows)]
             set_taskbar_icon(&window);
 
-            // ── Una sola instancia en BACKEND_ADDR ─────────────────────────
+            // Una sola instancia en BACKEND_ADDR
             // Si ya responde OpenWave: reutilizarla (nada de dos backends).
             // Si el puerto lo ocupa OTRO proceso: avisar claro — lanzar el
             // nuestro solo moriría con «Errno 98 address already in use».
@@ -497,7 +485,7 @@ pub fn run() {
                 }
             };
 
-            // ── Directorio de datos único ──────────────────────────────────
+            // Directorio de datos único
             // Rust lo decide y se lo pasa al backend (OPENWAVE_DATA_DIR):
             // log, base de datos, descargas y backend.err.log viven juntos,
             // tanto en desarrollo (backend/) como instalados
@@ -779,7 +767,7 @@ mod tests {
         assert!(t0.elapsed() < Duration::from_secs(3));
     }
 
-    // ── Directorio de datos: «Datos de Programas» (%PROGRAMDATA%) ──────────
+    // Directorio de datos: «Datos de Programas» (%PROGRAMDATA%)
 
     use super::{dir_writable, migrar_datos_heredados, resolver_data_dir, EntornoDatos};
     use std::path::PathBuf;
@@ -911,7 +899,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
-    // ── Migración de datos heredados (OpenWave y la marca SoundWave) ───────
+    // Migración de datos heredados (OpenWave y la marca SoundWave)
 
     #[test]
     fn migracion_copia_los_datos_y_renombra_soundwave() {

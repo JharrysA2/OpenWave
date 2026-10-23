@@ -83,7 +83,7 @@ beforeEach(() => {
 });
 
 describe("DownloadsView", () => {
-  // ── Estado vacío ────────────────────────────────────────────────
+  // Estado vacío
 
   it("should show empty state when no downloads", () => {
     renderDownloads();
@@ -100,7 +100,7 @@ describe("DownloadsView", () => {
     expect(screen.queryByText("Artistas")).toBeNull();
   });
 
-  // ── Pestaña Canciones ───────────────────────────────────────────
+  // Pestaña Canciones
 
   it("should render list of downloaded songs", () => {
     const downloads = [song("1"), song("2")];
@@ -155,7 +155,7 @@ describe("DownloadsView", () => {
     expect(screen.getAllByText("OFFLINE")).toHaveLength(3);
   });
 
-  // ── Pestaña Álbumes (agrupación de descargas) ───────────────────
+  // Pestaña Álbumes (agrupación de descargas)
 
   it("should group downloads into album cards", () => {
     const downloads = [
@@ -203,7 +203,7 @@ describe("DownloadsView", () => {
     expect(screen.getByText(/Los álbumes de tus descargas/)).toBeInTheDocument();
   });
 
-  // ── Reproducción por pestaña ───────────────────────────────────
+  // Reproducción por pestaña
 
   it("Reproducir in Canciones plays the first download with the full queue", () => {
     const playSong = vi.fn();
@@ -253,7 +253,7 @@ describe("DownloadsView", () => {
     expect(screen.getByTestId("hero-play")).toBeEnabled();
   });
 
-  // ── Selección múltiple y borrado masivo ────────────────────────
+  // Selección múltiple y borrado masivo
 
   it("deletes the selected downloads after confirm (1 sola petición)", async () => {
     api.deleteSelectedDownloads.mockResolvedValue(true);
@@ -350,7 +350,7 @@ describe("DownloadsView", () => {
     expect(play.style.color).toContain("var(--neon-fg)");
   });
 
-  // ── Error ≠ vacío (bug de la auditoría v1) ─────────────────────────────────
+  // Error ≠ vacío (bug de la auditoría v1)
 
   it("status=error muestra estado con código y Reintentar, no «Descargas vacías»", () => {
     const onRetry = vi.fn();

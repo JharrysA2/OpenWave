@@ -113,7 +113,7 @@ describe("MainRouter — pantalla «Todas las canciones»", () => {
   });
 });
 
-// ── Regresión: tab corrupta en localStorage ────────────────────────────────
+// Regresión: tab corrupta en localStorage
 // Antes el `default` del switch era `return null`: una clave corrupta (o de
 // una versión futura) dejaba el contenido principal EN BLANCO, sin error ni
 // forma de salir. Ahora cualquier tab desconocida cae a Inicio.

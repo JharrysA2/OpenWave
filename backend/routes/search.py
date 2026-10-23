@@ -42,7 +42,7 @@ async def search(request: Request, q: str, limit: int = Query(25, ge=1, le=100))
         songs = [
             fmt_song(r)
             for r in ytm.search(q, filter="songs", limit=limit)
-            # ⭐ Sin videoId no hay canción reproducible: fmt_song rechazaría
+            # Sin videoId no hay canción reproducible: fmt_song rechazaría
             #    el None en get_mp3_path y toda la búsqueda devolvería 500
             #    (un resultado de YTMusic sin videoId es posible en vivo).
             if r.get("resultType") == "song" and r.get("videoId")
@@ -279,20 +279,10 @@ async def home_quick_picks(request: Request):
     return {"results": songs or []}
 
 
-# ── «Para ti» (mix estilo YouTube Music) ────────────────────────────────────
-# Réplica del Mix de YouTube Music en 4 pasos:
-#   1. Canción Ancla: la más repetida en la ventana reciente (eventos de
-#      reproducción de las últimas 72 h). Es la posición #1 del mix.
-#   2. Semilla de radio: get_watch_playlist(radio=True) sobre el ancla trae
-#      las ~25 canciones que YouTube relaciona (filtrado colaborativo +
-#      análisis acústico).
-#   3. Cruce con el historial largo plazo: las que el usuario ya disfruta
-#      (más reproducidas de siempre / con «Me gusta») van justo después del
-#      ancla; el resto se baraja como descubrimiento.
-#   4. Dinámico: cada reproducción invalida la caché y el orden se baraja en
-#      cada armado, así el mix mantiene las canciones pero no sale siempre
-#      igual.
-# No se reparte por artista: el orden lo manda YouTube + la afinidad real.
+# «Para ti»: mix estilo YouTube Music. Ancla = la canción más repetida en las
+# últimas 72 h (posición 1); radio de YouTube alrededor del ancla; después las
+# que el usuario ya escucha y el resto barajado. Cada reproducción invalida la
+# caché, así que el orden cambia y las canciones se mantienen.
 
 FOR_YOU_WINDOW_HOURS = 72  # ventana del historial reciente
 FOR_YOU_MIN_PLAYS = 3  # repeticiones para proclamar «Canción Ancla»

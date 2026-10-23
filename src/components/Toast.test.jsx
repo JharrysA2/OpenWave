@@ -3,16 +3,16 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { Toasts } from "./Toast";
 
-// ── Sample toasts ─────────────────────────────────────────────────────────────
+// Sample toasts
 
 const infoToast = { id: 1, msg: "Información", type: "info" };
 const errorToast = { id: 2, msg: "Error crítico", type: "error" };
 const successToast = { id: 3, msg: "Operación exitosa", type: "success" };
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// Tests
 
 describe("Toasts", () => {
-  // ── Render vacío ────────────────────────────────────────────────────────────
+  // Render vacío
 
   it("should render an empty container when toasts array is empty", () => {
     const { container } = render(<Toasts toasts={[]} />);
@@ -21,7 +21,7 @@ describe("Toasts", () => {
     expect(outerDiv.childNodes.length).toBe(0);
   });
 
-  // ── Render con toasts ───────────────────────────────────────────────────────
+  // Render con toasts
 
   it("should render a single info toast with its message", () => {
     render(<Toasts toasts={[infoToast]} />);
@@ -35,7 +35,7 @@ describe("Toasts", () => {
     expect(screen.getByText("Operación exitosa")).toBeInTheDocument();
   });
 
-  // ── Estilos (blanco y negro, sin contorno) ────────────────────────────────
+  // Estilos (blanco y negro, sin contorno)
 
   it("should use the same neutral liquid-glass background for every toast type", () => {
     render(<Toasts toasts={[infoToast, errorToast, successToast]} />);
@@ -79,7 +79,7 @@ describe("Toasts", () => {
     expect(toastDiv).toHaveStyle({ color: "#ffffff" });
   });
 
-  // ── Orden de render ────────────────────────────────────────────────────────
+  // Orden de render
 
   it("should render toasts in the order they appear in the array", () => {
     const { container } = render(<Toasts toasts={[infoToast, errorToast]} />);
@@ -88,7 +88,7 @@ describe("Toasts", () => {
     expect(outerDiv.childNodes[1].textContent).toBe("Error crítico");
   });
 
-  // ── Contenedor externo ──────────────────────────────────────────────────────
+  // Contenedor externo
 
   it("should render the outer container with fixed positioning", () => {
     const { container } = render(<Toasts toasts={[infoToast]} />);
@@ -96,7 +96,7 @@ describe("Toasts", () => {
     expect(outerDiv).toHaveStyle({ position: "fixed", bottom: "90px", zIndex: 9999 });
   });
 
-  // ── Unicidad de key ─────────────────────────────────────────────────────────
+  // Unicidad de key
 
   it("should use toast id as React key", () => {
     const { container } = render(<Toasts toasts={[infoToast, { ...infoToast, id: 1 }]} />);
@@ -105,7 +105,7 @@ describe("Toasts", () => {
     expect(outerDiv.childNodes.length).toBe(2);
   });
 
-  // ── Mensajes largos ─────────────────────────────────────────────────────────
+  // Mensajes largos
 
   it("should render long messages without truncation", () => {
     const longMsg = "A".repeat(200);

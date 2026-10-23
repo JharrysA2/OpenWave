@@ -11,7 +11,7 @@ import {
   SegBtn,
 } from "./SettingsComponents";
 
-// ── SettingRow ─────────────────────────────────────────────────────────────
+// SettingRow
 
 describe("SettingRow", () => {
   it("should render label and description", () => {
@@ -70,7 +70,7 @@ describe("SettingRow", () => {
   });
 });
 
-// ── SettingsSection ────────────────────────────────────────────────────────
+// SettingsSection
 
 describe("SettingsSection", () => {
   it("should render title", () => {
@@ -88,7 +88,7 @@ describe("SettingsSection", () => {
   });
 });
 
-// ── SettingsToggle ─────────────────────────────────────────────────────────
+// SettingsToggle
 
 describe("SettingsToggle", () => {
   it("should render in off state by default", () => {
@@ -131,7 +131,7 @@ describe("SettingsToggle", () => {
   });
 });
 
-// ── SettingsChevron ────────────────────────────────────────────────────────
+// SettingsChevron
 
 describe("SettingsChevron", () => {
   it("should render SVG chevron", () => {
@@ -143,7 +143,7 @@ describe("SettingsChevron", () => {
   });
 });
 
-// ── SegBtn ────────────────────────────────────────────────────────────────────
+// SegBtn
 
 describe("SegBtn", () => {
   it("should render all options", () => {
@@ -224,7 +224,7 @@ describe("SegBtn", () => {
   });
 });
 
-// ── BarPreview ─────────────────────────────────────────────────────────────
+// BarPreview
 
 describe("BarPreview", () => {
   it("should render with default line style", () => {

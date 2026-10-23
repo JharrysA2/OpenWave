@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 
-// ── Importaciones del proyecto refactorizado ──────────────────────────────────
+// Importaciones del proyecto refactorizado
 import { FONT } from "./constants";
 import { api } from "./utils/api";
 import { ANIMATIONS, GLASS } from "./utils/theme";
@@ -37,14 +37,12 @@ const LyricsView = React.memo(
   lazy(() => import("./components/LyricsView").then((m) => ({ default: m.LyricsView }))),
 );
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  AppInner — lógica principal de la aplicación
-// ═══════════════════════════════════════════════════════════════════════════════
 
 function AppInner() {
   const { settings, updateSetting } = useSettings();
 
-  // ── Hooks personalizados ────────────────────────────────────────────────────
+  // Hooks personalizados
   const { toasts, show: toast } = useToast();
   const {
     query,
@@ -145,7 +143,7 @@ function AppInner() {
     moveInQueue,
   } = player;
 
-  // ── Tarjeta de medios de la taskbar de Windows (SMTC) ────────────────────
+  // Tarjeta de medios de la taskbar de Windows (SMTC)
   // Publica título/artista/portada de la canción actual (y no el «OpenWave»
   // genérico de la ventana) + cablea play/pausa/prev/next del SO al
   // reproductor. Todo con feature-detection: ver hooks/useMediaSession.js.
@@ -160,7 +158,7 @@ function AppInner() {
     audioRef,
   });
 
-  // ── Navegación a detalle: Álbum / Artista ─────────────────────────────
+  // Navegación a detalle: Álbum / Artista
   const [albumBrowseId, setAlbumBrowseId] = useState(null);
   const [artistBrowseId, setArtistBrowseId] = useState(null);
   // Pantalla «Todas las canciones del artista» ({browseId, name}): estado
@@ -177,13 +175,13 @@ function AppInner() {
     setArtistSongs(null);
   }, []);
 
-  // ── Estado de UI ────────────────────────────────────────────────────────────
+  // Estado de UI
   const [tab, setTab] = useState(() => settings.defaultTab || "home");
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
-  // ── Temporizador de apagado (Ajustes → Reproductor y sonido) ──────────────
+  // Temporizador de apagado (Ajustes → Reproductor y sonido)
   // `sleep` = { at: timestamp (ms) en el que pausar, minutes: preset elegido };
   // null = inactivo. Vive aquí (no en la página de ajustes) para que siga
   // contando aunque el panel de ajustes se cierre o se cambie de sección.
@@ -208,7 +206,7 @@ function AppInner() {
     return () => clearTimeout(id);
   }, [sleep, togglePlay, toast]);
 
-  // ── useCallback para evitar re-renders en Sidebar ────────────────────────────
+  // useCallback para evitar re-renders en Sidebar
   const onSelectPlaylist = useCallback(
     (pl) => {
       setSelectedPlaylist(pl);
@@ -239,13 +237,13 @@ function AppInner() {
     [setShowCreatePlaylistModal],
   );
 
-  // ── Playlist picker (desde el botón "Agregar a") ───────────────────────
+  // Playlist picker (desde el botón "Agregar a")
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [playlistPickerSong, setPlaylistPickerSong] = useState(null);
   // Selección múltiple (pistas de un álbum desde EntityOptionsSheet)
   const [playlistPickerSongs, setPlaylistPickerSongs] = useState(null);
 
-  // ── Conexión con el backend ────────────────────────────────────────────────
+  // Conexión con el backend
   //    El heartbeat vive en utils/backendHealth (external store). Aquí solo lo
   //    arrancamos/paramos y reaccionamos a las reconexiones.
   useEffect(() => {
@@ -267,12 +265,12 @@ function AppInner() {
     [refreshLibrary],
   );
 
-  // ── Dynamic theme: color de portada + CSS vars (--neon, overlay) ──
+  // Dynamic theme: color de portada + CSS vars (--neon, overlay)
   const { neonColor, bgStyle } = useDynamicTheme({
     settings,
     currentSong,
   });
-  // ── Error handler compartido para ambos audio elements ─────────────────
+  // Error handler compartido para ambos audio elements
   //    Suprime errores causados por crossfade cleanup (src="") y aborts.
   const handleAudioError = useCallback(
     (e) => {
@@ -301,7 +299,7 @@ function AppInner() {
     [proxyRetryRef, toast],
   );
 
-  // ── Wrapper de toggleLike que también envía feedback ───────────────────────
+  // Wrapper de toggleLike que también envía feedback
 
   const handleToggleLike = useCallback(
     (videoId, song) => {
@@ -314,7 +312,7 @@ function AppInner() {
     [liked, toggleLike, sendFeedback],
   );
 
-  // ── Canciones que te gustan (de todas las fuentes) ──────────────────────────
+  // Canciones que te gustan (de todas las fuentes)
   //    Ya no depende solo de la cola: incluye historial, descargas y los
   //    metadatos guardados al dar like (sw_liked_meta_v1) — así las canciones
   //    gustadas no desaparecen al cambiar de cola.
@@ -337,7 +335,7 @@ function AppInner() {
     return [...byId.values()];
   }, [liked, likedMeta, queue, currentSong, history, downloads]);
 
-  // ── Handlers de navegación a detalle ──────────────────────────────────────
+  // Handlers de navegación a detalle
 
   const goToAlbum = useCallback(
     (browseIdOrItem) => {
@@ -370,7 +368,7 @@ function AppInner() {
     [tab],
   );
 
-  // ── Pantalla «Todas las canciones del artista» ─────────────────────
+  // Pantalla «Todas las canciones del artista»
   //    Abrir: apila sobre la página del artista. Cerrar (atrás/ESC):
   //    solo se limpia este estado → MainRouter vuelve a mostrar
   //    ArtistView (caché: instantáneo).
@@ -448,7 +446,7 @@ function AppInner() {
     setTab(prevTab || "home");
   }, [prevTab]);
 
-  // ── Opciones de canción (estado + hoja de opciones) ──────────────────────────
+  // Opciones de canción (estado + hoja de opciones)
   //    Se declara tras los handlers de navegación, ya que la hoja los usa.
 
   const { openOptions, songOptionsSheet } = useSongOptions({
@@ -468,7 +466,7 @@ function AppInner() {
     toast,
   });
 
-  // ── Entidades guardadas (álbumes con ♥ y artistas que sigues) ──────────────
+  // Entidades guardadas (álbumes con ♥ y artistas que sigues)
 
   const {
     likedAlbums,
@@ -479,7 +477,7 @@ function AppInner() {
     toggleFollow,
   } = useSavedEntities();
 
-  // ── Opciones de álbum/artista (hoja compartida + descarga de álbum) ────────
+  // Opciones de álbum/artista (hoja compartida + descarga de álbum)
 
   const { openEntityOptions, entityOptionsSheet, downloadAlbum, playAlbum, fetchAlbumTracks } =
     useEntityOptions({
@@ -499,14 +497,14 @@ function AppInner() {
       downloadQuality: settings.downloadQuality,
     });
 
-  // ── Navegación ──────────────────────────────────────────────────────────────
+  // Navegación
 
   useEffect(() => {
     setTab(settings.defaultTab || "home");
     closeDetailViews();
   }, [settings.defaultTab, closeDetailViews]);
 
-  // ── Búsqueda desde HomeView ────────────────────────────────────────────────
+  // Búsqueda desde HomeView
   //    Cuando el usuario presiona Enter en la barra de búsqueda de HomeView,
   //    navega automáticamente al tab de búsqueda con la query ejecutada.
 
@@ -521,14 +519,14 @@ function AppInner() {
     [setQuery, setTab, doSearch, doSearchVideos],
   );
 
-  // ── Reintento de búsqueda (estado de error con código) ────────────────────
+  // Reintento de búsqueda (estado de error con código)
   const handleRetrySearch = useCallback(() => {
     if (!query.trim()) return;
     doSearch(query);
     doSearchVideos(query);
   }, [query, doSearch, doSearchVideos]);
 
-  // ── Callbacks estables para MainRouter y PlayerBar ─────────────────────────
+  // Callbacks estables para MainRouter y PlayerBar
   //    Ambos son React.memo: con lambdas inline, CADA render de App
   //    (mousemove del slider de volumen, play/pause, toasts, abrir/cerrar
   //    letras…) re-renderizaba el árbol visible completo. Con identidades
@@ -567,7 +565,7 @@ function AppInner() {
     setTab("home");
   }, []);
 
-  // ── ESC = atrás ─────────────────────────────────────────────────────────────
+  // ESC = atrás
   //    Con cualquier overlay montado no se navega (lo cierra useEscClose si
   //    está en su pila); sin overlay, ESC «sale» de la vista actual: detalle
   //    de álbum/artista → la sección de la que vino, vista de playlist →
@@ -605,7 +603,7 @@ function AppInner() {
 
   useEscBack(handleEscBack);
 
-  // ── Barra lateral retráctil ────────────────────────────────────────────────
+  // Barra lateral retráctil
   // Visible u oculta según el ajuste persistido (por defecto visible).
   // Se alterna con el botón « de la cabecera, el botón » flotante, desde
   // Ajustes → Apariencia y con Ctrl+B. La app no usa contentEditable, así
@@ -638,7 +636,7 @@ function AppInner() {
     [currentSong, openOptions],
   );
 
-  // ── Modo de reproducción ────────────────────────────────────────────────────
+  // Modo de reproducción
 
   const handlePlayModeToggle = useCallback(
     (mode) => {
@@ -648,9 +646,7 @@ function AppInner() {
     [setShuffleActive, toggleRepeatMode],
   );
 
-  // ═══════════════════════════════════════════════════════════════════════════════
   //  Renderizado principal
-  // ═══════════════════════════════════════════════════════════════════════════════
 
   return (
     <div
@@ -665,18 +661,18 @@ function AppInner() {
         overflow: "hidden",
       }}
     >
-      {/* ── Aviso de desconexión con el backend ───────────────────────── */}
+      {/* Aviso de desconexión con el backend */}
       <ConnectionBanner />
 
-      {/* ── Pantalla de arranque: logo → primer health-check → lista ──── */}
+      {/* Pantalla de arranque: logo → primer health-check → lista */}
       <BootScreen />
 
-      {/* ── Custom Title Bar — glassmorphism ──── */}
+      {/* Custom Title Bar — glassmorphism */}
       <TitleBar />
 
       {/* Sidebar + Main area — fills entire height below title bar */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
-        {/* ── Sidebar — glassmorphism structural material ── */}
+        {/* Sidebar — glassmorphism structural material */}
         <Sidebar
           tab={tab}
           accentColor={neonColor}
@@ -691,7 +687,7 @@ function AppInner() {
           onToggle={toggleSidebar}
         />
 
-        {/* ── Mostrar barra lateral: botón » mientras esté oculta ── */}
+        {/* Mostrar barra lateral: botón » mientras esté oculta */}
         {!sidebarVisible && (
           <button
             data-testid="sidebar-show-btn"
@@ -868,7 +864,7 @@ function AppInner() {
         }}
       />
 
-      {/* ── Lyrics View (overlay) ─────────────────────────────────────────── */}
+      {/* Lyrics View (overlay) */}
       {/* Create Playlist Modal */}
       <CreatePlaylistModal
         open={showCreatePlaylistModal}
@@ -954,9 +950,7 @@ function AppInner() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  App — Entry point
-// ═══════════════════════════════════════════════════════════════════════════════
 
 export default function App() {
   return (

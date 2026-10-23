@@ -32,7 +32,7 @@ function renderHistory(props = {}) {
 }
 
 describe("HistoryView", () => {
-  // ── Empty state ──────────────────────────────────────────────────
+  // Empty state
 
   it("should show empty state when no history", () => {
     renderHistory();
@@ -40,7 +40,7 @@ describe("HistoryView", () => {
     expect(screen.getByText("No hay historial aún")).toBeInTheDocument();
   });
 
-  // ── History songs list ──────────────────────────────────────────
+  // History songs list
 
   it("should render list of history songs", () => {
     const history = [song("1"), song("2")];
@@ -82,7 +82,7 @@ describe("HistoryView", () => {
     expect(parentRow.textContent).toContain("1 reproducción");
   });
 
-  // ── Play song ──────────────────────────────────────────────────
+  // Play song
 
   it("should call playSong when a song row is clicked", () => {
     const playSong = vi.fn();
@@ -94,7 +94,7 @@ describe("HistoryView", () => {
     );
   });
 
-  // ── Options button ──────────────────────────────────────────────
+  // Options button
 
   it("should call openOptions when dots button is clicked", () => {
     const openOptions = vi.fn();
@@ -123,7 +123,7 @@ describe("HistoryView", () => {
     }
   });
 
-  // ── Current song highlighting ──────────────────────────────────
+  // Current song highlighting
 
   it("should highlight the currently playing song", () => {
     const history = [song("1"), song("2")];
@@ -132,7 +132,7 @@ describe("HistoryView", () => {
     expect(screen.getByText("History Song 2")).toBeInTheDocument();
   });
 
-  // ── Edge cases ──────────────────────────────────────────────────
+  // Edge cases
 
   it("should handle songs without thumbnails", () => {
     const history = [song("1", { thumbnails: undefined, thumbnail: undefined })];
@@ -156,7 +156,7 @@ describe("HistoryView", () => {
     expect(play.style.color).toContain("var(--neon-fg)");
   });
 
-  // ── Error ≠ vacío (bug de la auditoría v1) ─────────────────────────────────
+  // Error ≠ vacío (bug de la auditoría v1)
 
   it("status=error muestra estado con código y Reintentar, no «No hay historial»", () => {
     const onRetry = vi.fn();

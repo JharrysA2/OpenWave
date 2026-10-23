@@ -45,14 +45,14 @@ function renderSheet(props = {}) {
 }
 
 describe("SongOptionsSheet", () => {
-  // ── Null state ────────────────────────────────────────────────────
+  // Null state
 
   it("should render null when no song", () => {
     const { container } = renderSheet({ open: true });
     expect(container.innerHTML).toBe("");
   });
 
-  // ── Render with song ──────────────────────────────────────────────
+  // Render with song
 
   it("should render song title and artist when open", () => {
     renderSheet({ song, open: true });
@@ -71,7 +71,7 @@ describe("SongOptionsSheet", () => {
     expect(screen.queryByText("OFFLINE")).not.toBeInTheDocument();
   });
 
-  // ── Backdrop ──────────────────────────────────────────────────────
+  // Backdrop
 
   it("should call onClose when backdrop overlay is clicked", () => {
     const onClose = vi.fn();
@@ -82,7 +82,7 @@ describe("SongOptionsSheet", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  // ── Buttons grid ───────────────────────────────────────────────────
+  // Buttons grid
 
   it("should show Descargar button", () => {
     renderSheet({ song, open: true });
@@ -125,7 +125,7 @@ describe("SongOptionsSheet", () => {
     expect(screen.getByText("Detalles")).toBeInTheDocument();
   });
 
-  // ── Download button states ────────────────────────────────────────
+  // Download button states
 
   it("should show downloaded song as delete action", () => {
     renderSheet({ song: { ...song, downloaded: true }, open: true });
@@ -133,7 +133,7 @@ describe("SongOptionsSheet", () => {
     expect(screen.getByText("Eliminar descarga")).toBeInTheDocument();
   });
 
-  // ── Like button ───────────────────────────────────────────────────
+  // Like button
 
   it("should call onLike when Me gusta is clicked", () => {
     const onLike = vi.fn();
@@ -142,7 +142,7 @@ describe("SongOptionsSheet", () => {
     expect(onLike).toHaveBeenCalledWith("abc123", song);
   });
 
-  // ── Play next ─────────────────────────────────────────────────────
+  // Play next
 
   it("should call onPlayNext when Agregar a cola is clicked", () => {
     const onPlayNext = vi.fn();
@@ -153,7 +153,7 @@ describe("SongOptionsSheet", () => {
     expect(toast).toHaveBeenCalledWith("Agregada a la cola", "success");
   });
 
-  // ── Share button ──────────────────────────────────────────────────
+  // Share button
 
   it("should copy link when Compartir is clicked", () => {
     const writeText = vi.fn();
@@ -165,7 +165,7 @@ describe("SongOptionsSheet", () => {
     expect(toast).toHaveBeenCalledWith("Enlace copiado", "success");
   });
 
-  // ── Details button ────────────────────────────────────────────────
+  // Details button
 
   it("should fetch details when Detalles is clicked", async () => {
     const mockFetch = vi
@@ -184,7 +184,7 @@ describe("SongOptionsSheet", () => {
     vi.unstubAllGlobals();
   });
 
-  // ── Album and Artist buttons ────────────────────────────────────
+  // Album and Artist buttons
 
   it("should call onGoToAlbum when Álbum is clicked", () => {
     const onGoToAlbum = vi.fn();
@@ -202,7 +202,7 @@ describe("SongOptionsSheet", () => {
     expect(onGoToArtist).toHaveBeenCalledWith(expect.objectContaining({ videoId: "abc123" }));
   });
 
-  // ── Delete button ─────────────────────────────────────────────────
+  // Delete button
 
   it("should render delete button when onDeleteSong is provided", () => {
     renderSheet({ song, open: true, onDeleteSong: vi.fn() });
@@ -214,7 +214,7 @@ describe("SongOptionsSheet", () => {
     expect(screen.queryByText("Eliminar de biblioteca")).not.toBeInTheDocument();
   });
 
-  // ── Close button ──────────────────────────────────────────────────
+  // Close button
 
   it("should call onClose when close button is clicked", () => {
     const onClose = vi.fn();
@@ -229,7 +229,7 @@ describe("SongOptionsSheet", () => {
     }
   });
 
-  // ── Descarga robusta (bug auditoría v1: botón clavado en «0 %») ───────────
+  // Descarga robusta (bug auditoría v1: botón clavado en «0 %»)
 
   describe("descarga con fallos", () => {
     afterEach(() => {
@@ -309,7 +309,7 @@ describe("SongOptionsSheet", () => {
   });
 });
 
-// ── Borrar descarga (acción «Eliminar descarga») ───────────────────────────
+// Borrar descarga (acción «Eliminar descarga»)
 describe("SongOptionsSheet — borrar descarga", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

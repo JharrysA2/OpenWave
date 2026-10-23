@@ -51,7 +51,7 @@ export default function AlbumView({
     onMouseLeave: () => setHoverKey((k) => (k === key ? null : k)),
   });
 
-  // ── Entidad "álbum" para Me gusta / hoja de opciones ───────────────
+  // Entidad "álbum" para Me gusta / hoja de opciones
   const albumEntity = album
     ? {
         browseId,
@@ -74,7 +74,7 @@ export default function AlbumView({
   };
   const [loading, setLoading] = useState(true);
 
-  // ── Multi-select mode ──
+  // Multi-select mode
   const {
     selectMode,
     selected,
@@ -84,7 +84,7 @@ export default function AlbumView({
     resetSelect,
   } = useMultiSelect();
 
-  // ── Transfer modal ──
+  // Transfer modal
   const [showTransferModal, setShowTransferModal] = useState(false);
 
   useEffect(() => {
@@ -105,7 +105,7 @@ export default function AlbumView({
       });
   }, [browseId, resetSelect]);
 
-  // ── Transfer selected to another playlist ──
+  // Transfer selected to another playlist
   const handleTransferSelected = async (targetPlaylistId) => {
     if (selected.size === 0 || !album?.tracks) return;
     const songsToTransfer = album.tracks.filter((t) => selected.has(t.videoId));
@@ -119,7 +119,7 @@ export default function AlbumView({
     if (refreshPlaylists) await refreshPlaylists();
   };
 
-  // ── Remove selected from album (visual only, since it's not a playlist) ──
+  // Remove selected from album (visual only, since it's not a playlist)
   const handleRemoveSelected = async () => {
     if (selected.size === 0) return;
     const count = selected.size;
@@ -156,7 +156,7 @@ export default function AlbumView({
         paddingBottom: "90px",
       }}
     >
-      {/* ── Hero: Banner con cover blur de fondo + cover overlappeando ── */}
+      {/* Hero: Banner con cover blur de fondo + cover overlappeando */}
       <div
         style={{
           position: "relative",
@@ -245,7 +245,7 @@ export default function AlbumView({
         </button>
       </div>
 
-      {/* ── Cover overlappea entre banner y contenido — más dramático ── */}
+      {/* Cover overlappea entre banner y contenido — más dramático */}
       <div
         style={{
           position: "relative",
@@ -347,7 +347,7 @@ export default function AlbumView({
         </div>
       </div>
 
-      {/* ── Action buttons row ─────────────────────────── */}
+      {/* Action buttons row */}
       {album.tracks?.length > 0 && (
         <div
           style={{
@@ -595,7 +595,7 @@ export default function AlbumView({
         </div>
       )}
 
-      {/* ── Track list — más refinado con separadores sutiles ─────────── */}
+      {/* Track list — más refinado con separadores sutiles */}
       <div style={{ padding: "0 18px 100px" }}>
         {(!album.tracks || album.tracks.length === 0) && (
           <div
@@ -789,7 +789,7 @@ export default function AlbumView({
         })}
       </div>
 
-      {/* ── Transfer Modal ─────────────────────────── */}
+      {/* Transfer Modal */}
       <TransferModal
         open={showTransferModal}
         onClose={() => setShowTransferModal(false)}

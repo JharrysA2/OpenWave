@@ -1,11 +1,9 @@
-// ═══════════════════════════════════════════════════════════════════════════════
 //  Detección de render por software (sin GPU dedicada).
 //
 //  Sin GPU rasteriza TODO en CPU (llvmpipe/SwiftShader) y los efectos de cristal
 //  (backdrop-filter) cuestan ~×10 más que con aceleración real. En ese caso la
 //  app debe arrancar en modo bajo consumo (perfMode "auto"); con GPU real
 //  (Windows) "auto" resuelve a equilibrado y no se toca nada.
-// ═══════════════════════════════════════════════════════════════════════════════
 
 /** Cadenas del renderer WebGL que indican rasterización por software. */
 const SOFTWARE_MARKERS = [

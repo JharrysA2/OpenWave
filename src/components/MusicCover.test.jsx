@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 import { MusicCover } from "./MusicCover";
 
 describe("MusicCover", () => {
-  // ── Fallback state (no src, no thumbnails) ───────────────────────
+  // Fallback state (no src, no thumbnails)
 
   it("should render a fallback music icon when no src or thumbnails", () => {
     const { container } = render(<MusicCover />);
@@ -19,7 +19,7 @@ describe("MusicCover", () => {
     expect(container.innerHTML).toContain("svg");
   });
 
-  // ── With src ─────────────────────────────────────────────────────
+  // With src
 
   it("should render an img element when src is provided", () => {
     const { container } = render(<MusicCover src="https://example.com/image.jpg" alt="Cover" />);
@@ -40,7 +40,7 @@ describe("MusicCover", () => {
     expect(img).toHaveAttribute("alt", "");
   });
 
-  // ── Googleusercontent URLs ──────────────────────────────────────
+  // Googleusercontent URLs
 
   it("should generate 5 resolution sizes for googleusercontent", () => {
     const { container } = render(
@@ -89,7 +89,7 @@ describe("MusicCover", () => {
     let img = container.querySelector("img:not([aria-hidden])");
     expect(img.src).toContain("w2048");
 
-    // ═══ Cadena de fallback completa ═══
+    // Cadena de fallback completa
     //    Ciclo: error directo → proxy → error proxy → siguiente tamaño
     //    5 tamaños: w2048, w1200, w576, w226, w120 = 5 ciclos = 10 errores
     //    Después: fallback icon
@@ -143,7 +143,7 @@ describe("MusicCover", () => {
     expect(mainImg).toHaveAttribute("sizes", "176px");
   });
 
-  // ── YouTube URLs ────────────────────────────────────────────────
+  // YouTube URLs
 
   it("should generate 4 YouTube sizes from a ytimg URL", () => {
     const { container } = render(
@@ -182,7 +182,7 @@ describe("MusicCover", () => {
     expect(blurImg.src).toContain("test789");
   });
 
-  // ── With thumbnails array ───────────────────────────────────────
+  // With thumbnails array
 
   it("should render img when thumbnails array is provided", () => {
     const thumbnails = [{ url: "https://example.com/thumb.jpg", width: 200, height: 200 }];
@@ -234,7 +234,7 @@ describe("MusicCover", () => {
     expect(entries[2]).toContain("huge");
   });
 
-  // ── Priority prop ──────────────────────────────────────────────
+  // Priority prop
 
   it("should set eager loading and high fetchpriority when priority is true", () => {
     const { container } = render(<MusicCover src="https://example.com/img.jpg" alt="" priority />);
@@ -250,7 +250,7 @@ describe("MusicCover", () => {
     expect(img.src).toContain("example.com");
   });
 
-  // ── Custom displaySize and style ───────────────────────────────
+  // Custom displaySize and style
 
   it("should apply custom style to the wrapper", () => {
     const { container } = render(

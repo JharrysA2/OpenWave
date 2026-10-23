@@ -36,7 +36,7 @@ from ytdlp_auth import browser_cookie_opts, cookies_file_opt
 
 logger = get_logger(__name__)
 
-# ── Lock POR VÍDEO ────────────────────────────────────────────────────────────
+# Lock POR VÍDEO
 # Mismo patrón que downloads.py: dos «Preparar» simultáneos del mismo vídeo
 # (doble pulsación, reabrir rápido) escribirían el MISMO fichero final. El
 # lock serializa y el segundo, al entrar, ve el fichero publicado → no-op.
@@ -75,7 +75,7 @@ def _search_ffmpeg_dir() -> str | None:
     return None
 
 
-# ── Rutas y estado ────────────────────────────────────────────────────────────
+# Rutas y estado
 _FINAL_EXTS = ("mp4", "webm")
 
 # Tope de resolución por defecto: 1080p. La pantalla del cliente puede pedir

@@ -127,7 +127,7 @@ export function useVisibility() {
     };
   }, [reconcile]);
 
-  // ── Watchdog de despertar ────────────────────────────────────────────────
+  // Watchdog de despertar
   // Mientras la app esté CONGELADA (visible=false con el documento a la
   // vista — WebView2 nunca reporta hidden), consulta IsIconic cada segundo:
   // si la señal de restauración no llega (o llega tarde), el despertar pasa

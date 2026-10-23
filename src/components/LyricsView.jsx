@@ -40,7 +40,7 @@ import { useOverlayLayer, useOverlayActive } from "../hooks/useOverlayLayer";
 import { useEscClose } from "../hooks/useEscape";
 import { usePerformance } from "../contexts/PerformanceContext";
 
-// ── dnd-kit: Drag & Drop para reordenar cola ─────────────────────────────
+// dnd-kit: Drag & Drop para reordenar cola
 import {
   DndContext,
   closestCenter,
@@ -52,11 +52,9 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-// ═══════════════════════════════════════════════════════════════════════════
 //  DragHandleSensor — PointerSensor personalizado que SOLO se activa
 //  cuando el target del evento es el drag handle (.sw-drag-handle).
 //  Esto evita que dnd-kit secuestre el gesture de swipe-to-delete.
-//  ═══════════════════════════════════════════════════════════════════════════
 class DragHandleSensor extends PointerSensor {
   static activators = [
     {
@@ -69,9 +67,7 @@ class DragHandleSensor extends PointerSensor {
   ];
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 //  SortableQueueItem — Componente individual para drag & drop en la cola
-//  ═══════════════════════════════════════════════════════════════════════════
 function SortableQueueItem({
   song,
   _index,
@@ -88,19 +84,19 @@ function SortableQueueItem({
     disabled: !editMode,
   });
 
-  // ⭐ Estado hover local — NO mutamos el DOM directamente
+  // Estado hover local — NO mutamos el DOM directamente
   //    para no interferir con el transform de dnd-kit.
   const [hovered, setHovered] = useState(false);
 
-  // ⭐ CSS base: el transform SOLO viene de dnd-kit,
+  // CSS base: el transform SOLO viene de dnd-kit,
   //    nunca lo tocamos con onMouseEnter/onLeave.
-  // ⭐ Transform SOLO durante arrastre activo.
+  // Transform SOLO durante arrastre activo.
   //    Cuando se elimina un item, dnd-kit devuelve transforms para reacomodar
   //    los items restantes (x !== 0), lo que los mueve horizontalmente.
   //    Solo queremos transform durante drag para evitar ese efecto.
   const baseTransform = isDragging ? CSS.Transform.toString(transform) : "none";
 
-  // ⭐ Colores hover en edit mode: los manejamos vía estado, no vía DOM
+  // Colores hover en edit mode: los manejamos vía estado, no vía DOM
   const bgColor = isDragging
     ? `${accentColor}30`
     : hovered && editMode
@@ -280,10 +276,8 @@ function SortableQueueItem({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 //  FloatingModal — Base compartida para modales flotantes centrados.
 //  Liquid glass + backdrop overlay + cierre con click afuera o ESC.
-// ═══════════════════════════════════════════════════════════════════════════
 function FloatingModal({ title, icon, accentColor, onClose, children, width = "480px" }) {
   // Overlay a pantalla completa: pausa las animaciones infinitas de detrás
   // (ver useOverlayLayer y html.overlay-open en index.html).
@@ -418,7 +412,7 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
   );
 }
 
-// ── Material de botón del player bar (referencia de estilo) ───────────────
+// Material de botón del player bar (referencia de estilo)
 // Los botones de la barra usan el cristal de `GLASS.btn` —degradado, brillo
 // interior y sombra— con el contorno anulado (`BAR_BTN` + `border: "none"`
 // en PlayerBar). Los botones y filas de la pantalla de letras (hoja de
@@ -429,9 +423,7 @@ const BAR_BTN_GLASS = {
   boxShadow: SHADOWS.closeBtn,
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
 //  SearchLyricsModal — Modal flotante para buscar letras por título/artista.
-// ═══════════════════════════════════════════════════════════════════════════
 function SearchLyricsModal({
   accentColor,
   song,
@@ -663,9 +655,7 @@ function SearchLyricsModal({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 //  SourceModal — Modal flotante para elegir fuente de letras con fallback.
-// ═══════════════════════════════════════════════════════════════════════════
 function SourceModal({ accentColor, settings, updateSetting, onClose }) {
   const SOURCES = [
     { key: "lrclib", label: "LRCLib", desc: "Sincronizado (LRC)", badge: "Sync" },
@@ -833,9 +823,7 @@ function SourceModal({ accentColor, settings, updateSetting, onClose }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 //  EditLyricsModal — Modal flotante para editar letras manualmente.
-// ═══════════════════════════════════════════════════════════════════════════
 function EditLyricsModal({ accentColor, lyrics, onEditLyrics, onClose }) {
   const [text, setText] = useState(() => {
     if (!Array.isArray(lyrics)) return "";
@@ -970,10 +958,8 @@ function EditLyricsModal({ accentColor, lyrics, onEditLyrics, onClose }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 //  LyricsSettingsModal — Modal de configuración de letras
 //  Secciones: búsqueda, fuente, edición, recarga, ajustes visuales.
-//  ═══════════════════════════════════════════════════════════════════════════
 function LyricsSettingsModal({
   accentColor,
   settings,
@@ -1166,7 +1152,7 @@ function LyricsSettingsModal({
           scrollbarColor: `${accentColor}33 transparent`,
         }}
       >
-        {/* ── Buscar letras ────────────────────────────────────── */}
+        {/* Buscar letras */}
         <div
           onClick={onOpenSearch}
           style={sectionBtnStyle}
@@ -1180,7 +1166,7 @@ function LyricsSettingsModal({
           <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)" }}>▶</span>
         </div>
 
-        {/* ── Fuente de letras ─────────────────────────────────── */}
+        {/* Fuente de letras */}
         <div
           onClick={onOpenSource}
           style={sectionBtnStyle}
@@ -1194,7 +1180,7 @@ function LyricsSettingsModal({
           <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)" }}>▶</span>
         </div>
 
-        {/* ── Editar letras ────────────────────────────────────── */}
+        {/* Editar letras */}
         <div
           onClick={onOpenEdit}
           style={sectionBtnStyle}
@@ -1208,7 +1194,7 @@ function LyricsSettingsModal({
           <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)" }}>▶</span>
         </div>
 
-        {/* ── Recargar ─────────────────────────────────────────── */}
+        {/* Recargar */}
         <div
           onClick={onReload}
           style={{ ...sectionBtnStyle, justifyContent: "flex-start", gap: "8px" }}
@@ -1222,7 +1208,7 @@ function LyricsSettingsModal({
           </div>
         </div>
 
-        {/* ── Apariencia ───────────────────────────────────────── */}
+        {/* Apariencia */}
         <div
           onClick={() => setExpandedSection(expandedSection === "visual" ? null : "visual")}
           style={sectionBtnStyle}
@@ -1336,10 +1322,8 @@ function LyricsSettingsModal({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 //  KaraokeWords — Iluminación palabra por palabra con glow sutil.
 //  NO usa transform: scale() (causa overlap). Solo color + text-shadow.
-// ═══════════════════════════════════════════════════════════════════════════
 const KaraokeWords = React.memo(
   function KaraokeWords({ text, activeWordIdx, accentColor }) {
     let idx = -1;
@@ -1351,38 +1335,18 @@ const KaraokeWords = React.memo(
         <span
           key={pi}
           style={{
-            // Transición SOLO de color y peso (medido 03/10, sonda J): el
-            // fade de color costó ~0 pts (19,9% vs 20,0% de control pareado
-            // al mismo punto de la canción) y devuelve la suavidad palabra
-            // a palabra («palabra a palabra no es suave»). SIN transición de
-            // text-shadow: interpolar el blur re-rasterizaba el glow en cada
-            // frame de la transición (doble radio −10,7 pts en la pareja K;
-            // el radio de 32px, −4 pts por sí solo en PD/PE).
-            // El fondo (color) y el PESO se interpolan: se probó `steps(4)` en
-            // el peso para recortar los re-layout por palabra y la iluminación
-            // se veía escalonada — la suavidad palabra a palabra es justo lo
-            // que se pidió al restaurar el fade. Pero el peso SÍ afecta al
-            // layout (cambia el ancho de los glifos) y con palabra nueva cada
-            // 200-400 ms una transición de .4s tenía la línea re-diseñándose
-            // y repintándose en casi todos los fotogramas. A .15s el cambio
-            // dura ~9 fotogramas (sigue siendo continuo, sin saltos) y el
-            // trabajo por palabra cae ~2,7×; en reposo se ve igual (el peso
-            // final es el de siempre).
+            // Solo color y peso: animar text-shadow re-rasteriza el glow. El
+            // peso mueve el layout, así que .15s evita re-formar la línea en
+            // cada fotograma y el cambio sigue viéndose continuo.
             transition:
               "color .5s cubic-bezier(.25,.1,.25,1), font-weight .15s cubic-bezier(.25,.1,.25,1)",
             color: isLit ? "#ffffff" : COLORS.textTertiary,
-            // Un solo escalón de peso iluminado (700). Antes la palabra activa
-            // iba a 900, pero DM Sans se declara `font-weight: 400 700`
-            // (index.html, fuente variable): 900 se recorta a 700 y los glifos
-            // son IDÉNTICOS. Aun así la interpolación 700↔900 marcaba la línea
-            // como sucia y la re-formaba ~9 fotogramas al apagarse la palabra
-            // anterior: trabajo de layout/repintado sin ningún cambio visible.
-            // Con un solo escalón cada palabra nueva re-forma la línea una vez
-            // (500→700) y la anterior ya no anima nada.
+            // Un solo escalón 500→700: DM Sans se declara `400 700`, así que
+            // 900 se recorta a 700 y solo marcaba la línea sucia sin cambio
+            // visible en los glifos.
             fontWeight: isLit ? "700" : "500",
-            // Glow de un solo radio: el 32px aportaba poco halo y costaba
-            // ~4 pts por sí solo (pareja PD/PE: 32,3% → 28,3%). El 16px
-            // conserva el «glow sutil» del diseño.
+            // Glow de un solo radio: el 32px apenas añadía halo y costaba
+            // rendimiento; el 16px conserva el «glow sutil» del diseño.
             textShadow: isLit ? `0 0 16px ${accentColor}88` : "none",
           }}
         >
@@ -1397,12 +1361,10 @@ const KaraokeWords = React.memo(
     prev.accentColor === next.accentColor,
 );
 
-// ═══════════════════════════════════════════════════════════════════════════
 //  LyricLine — Línea sincronizada memoizada.
 //  Recibe props PRIMITIVAS + handlers estables, así React la salta cuando no
 //  cambia. El reloj de letras solo re-renderiza cuando cambia la línea activa o
 //  su palabra; el resto de la lista no se toca.
-//  ═══════════════════════════════════════════════════════════════════════════
 const LyricLine = React.memo(function LyricLine({
   index,
   text,
@@ -1421,7 +1383,7 @@ const LyricLine = React.memo(function LyricLine({
 }) {
   const basePx = parseFloat(lyricsFontSize) || 36;
 
-  // ── Lente cilíndrico ligero: font-size + escala + opacidad (sin 3D compositing) ──
+  // Lente cilíndrico ligero: font-size + escala + opacidad (sin 3D compositing)
   //    Font-size: jerarquía de tamaño (afecta layout, sin overlap). Va
   //    CUANTIZADO en tres escalones —activa / vecina / resto—: con la curva
   //    continua, cada cambio de línea tocaba el font-size de ~7 líneas a la
@@ -1435,16 +1397,9 @@ const LyricLine = React.memo(function LyricLine({
   const scaleX = isActive ? 1 : Math.max(0.6, 1 - 0.05 * lineDistance);
   const scaleY = isActive ? 1 : Math.max(0.85, 1 - 0.015 * lineDistance);
 
-  // ── Ventana de render: NO usar content-visibility ──────────────────────
-  //    Probado y descartado con A/B empírico (misma canción, 5 aperturas
-  //    con y sin la propiedad, monitor 2 Hz): `content-visibility: auto` en
-  //    las líneas no activas PEORA el escenario real del karaoke — el
-  //    scroll suave activa/desactiva líneas continuamente y cada activación
-  //    corrige el tamaño estimado (contain-intrinsic-size) → layout extra +
-  //    repintado. Medido: GPU 18.4% → 10.2%, layout 3139 → 2520 ms y un
-  //    longtask de 60 ms de más. El montaje completo de las líneas es barato
-  //    (medido: sin longtask en la apertura); el jank venía del pre-difuminado
-  //    (resuelto con convertToBlob fuera del hilo principal).
+  // NO usar content-visibility en las líneas no activas: el scroll la
+  // activa/desactiva y cada activación corrige contain-intrinsic-size, que
+  // añade layout y repintado (medido: peor que montar todas).
   return (
     <div
       data-testid={`lyric-line-${index}`}
@@ -1457,16 +1412,10 @@ const LyricLine = React.memo(function LyricLine({
         fontSize: `${lineFontPx.toFixed(1)}px`,
         fontWeight: isActive ? "900" : isNearActive ? "700" : "500",
         lineHeight: isActive ? "1.5" : "1.7",
-        // font-size: interpolar el tamaño re-forma los glifos y obliga a style
-        // recalc + LAYOUT + repintado de toda el área visible en cada frame,
-        // porque en cada cambio de línea se reposicionan las vecinas (el
-        // «one-shot del bloque completo al cambiar de línea» que quedaba
-        // pendiente en docs/PERFORMANCE.md §9.2). Se acorta a .3 s: el
-        // movimiento sigue siendo continuo (60 fps, sin saltos) pero dura la
-        // mitad, así que son ~18 frames de trabajo en vez de ~40.
-        // (Probado y DESCARTADO `steps(8)`: repartía el mismo trabajo en 8
-        // saltos y el crecimiento se veía a tirones — «como a 2 fps».)
-        // `opacity` y `transform` son de composición: no repintan.
+        // Interpolar font-size re-forma los glifos y obliga a layout de toda
+        // el área en cada cambio de línea; .3s lo deja en ~18 frames en vez
+        // de ~40 y sigue viéndose continuo (`steps` daba tirones). `opacity`
+        // y `transform` son de composición: no repintan.
         transition:
           "opacity .6s cubic-bezier(.25,.1,.25,1), font-size .3s cubic-bezier(.25,.1,.25,1), transform .65s cubic-bezier(.25,.1,.25,1)",
         transform: `scaleX(${scaleX}) scaleY(${scaleY})`,
@@ -1476,7 +1425,7 @@ const LyricLine = React.memo(function LyricLine({
         opacity: isActive ? 1 : Math.max(0.15, 1 - 0.18 * lineDistance),
       }}
     >
-      {/* ── Karaoke palabra por palabra (si lyricsAnimate está activo) ──── */}
+      {/* Karaoke palabra por palabra (si lyricsAnimate está activo) */}
       {isActive && activeWordIdx >= 0 && animate ? (
         <span
           style={{
@@ -1540,20 +1489,20 @@ export function LyricsView({
   const lineRefs = useRef({});
   const scrollTimerRef = useRef(null);
   const currentLineRef = useRef(-1);
-  // ⭐ Auto-scroll latch: distingue el scroll PROGRAMÁTICO (scrollIntoView)
+  // Auto-scroll latch: distingue el scroll PROGRAMÁTICO (scrollIntoView)
   //    del scroll MANUAL. Sin esto, el smooth scroll dispara onScroll y el
   //    auto-scroll se auto-cancela (seguimiento en "brincos" cada ~3s).
   const scrollLatchRef = useRef(0); // performance.now() del último scroll programático
   const lastScrolledLineRef = useRef(-1); // última línea centrada por auto-scroll
   const SCROLL_LATCH_MS = 800; // ventana en ms para ignorar el smooth scroll propio
-  // ── Estado del reloj de letras (dirigido por eventos del <audio>) ──────
+  // Estado del reloj de letras (dirigido por eventos del <audio>)
   //    `wordIdx` lo escribe el reloj SOLO al cruzar de palabra; los mirrors
   //    en ref evitan setState redundantes en cada despertar.
   const [wordIdx, setWordIdx] = useState(-1);
   const wordIdxRef = useRef(-1); // último wordIdx escrito (mirror)
   const wordLineRef = useRef(-1); // línea a la que pertenece wordListRef
   const wordListRef = useRef(null); // palabras de esa línea (se recortan solo al cambiar)
-  // ── Settings modal ──────────────────────────────────────────────────
+  // Settings modal
   const [showLyricsSettings, setShowLyricsSettings] = useState(false);
   // ESC = «atrás» en la pantalla de letras: primero el popover de
   // configuración, después la propia pantalla. La pila de useEscClose
@@ -1564,7 +1513,7 @@ export function LyricsView({
   // Código reportable del último fallo al traer la letra: sin esto, un error
   // de red se mostraba como "Letras no encontradas" (falso negativo).
   const [lyricsError, setLyricsError] = useState(null);
-  // ⭐ Ref (no dispara re-render): marca que el próximo fetch debe saltarse
+  // Ref (no dispara re-render): marca que el próximo fetch debe saltarse
   //    el cache. Evita el doble disparo que causaba resetear reloadCounter.
   const skipCacheRef = useRef(false);
 
@@ -1576,7 +1525,7 @@ export function LyricsView({
     skipCacheRef.current = true;
   }, [song?.videoId]);
 
-  // ── Vídeo de fondo (ajuste «Vídeo de fondo» en ⋮ → Apariencia) ──────────
+  // Vídeo de fondo (ajuste «Vídeo de fondo» en ⋮ → Apariencia)
   //    Al abrir la pantalla de letras, si el ajuste está encendido se
   //    pregunta al backend si el vídeo está preparado y, si no, se prepara en
   //    segundo plano siguiendo su progreso. Mientras no esté (o si la canción
@@ -1744,19 +1693,9 @@ export function LyricsView({
   // se pausa (deja de decodificar) y el karaoke se detiene mientras tanto.
   const overlayOpen = useOverlayActive();
 
-  // El `<audio>` de la app es el transporte y el reloj de referencia; el vídeo
-  // lo sigue y va SIEMPRE mudo (el sonido es el de la app, nunca los dos).
-  //
-  // Sin bucle: el `<video>` se presenta solo (lo decodifica y lo compone el
-  // navegador, React no toca ni un fotograma) y lo único que hacemos aquí es
-  // COMPARAR DOS RELOJES, y eso solo hace falta cuando uno de los dos cambia
-  // de estado o avanza. Antes era un rAF encadenado a 60 Hz: seguía pidiendo
-  // fotograma con el clip terminado o con la ventana oculta (casos en los que
-  // el plan es «pausa»), o sea trabajo por fotograma para leer dos números.
-  // Los eventos del `<audio>` (`timeupdate` ~4 Hz con la canción en marcha,
-  // `seeked`, `play`, `pause`…) y los del propio `<video>` (arranca solo por
-  // `autoPlay` y hay que poder pararlo) cubren todo lo que puede
-  // desincronizar; la tolerancia del plan absorbe el resto.
+  // El `<audio>` es el transporte y el reloj de referencia; el vídeo lo sigue
+  // y va siempre mudo. Solo se comparan los dos relojes, por eventos: un rAF
+  // encadenado pedía fotograma con el clip parado o la ventana oculta.
   useEffect(() => {
     if (!open || !isVideoReady(videoState)) return undefined;
     const video = videoRef.current;
@@ -1823,7 +1762,7 @@ export function LyricsView({
     };
   }, [open, videoState, audioRef, visible, overlayOpen]);
 
-  // ── Búsqueda de letras ──────────────────────────────────────────────────
+  // Búsqueda de letras
   const [searchResults, setSearchResults] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [openSearchModal, setOpenSearchModal] = useState(false);
@@ -1846,7 +1785,7 @@ export function LyricsView({
     (result) => {
       if (result?.text) {
         const lines = result.text.split("\n").filter((l) => l.trim());
-        // ⭐ Persistir la elección en localStorage: el overlay se DESMONTA al
+        // Persistir la elección en localStorage: el overlay se DESMONTA al
         //    cerrar letras, así que sin esto la letra buscada se perdía y al
         //    reabrir volvía la original (cache/API).
         setLyricsOverride(song?.videoId, { lines, source: result.source || "unknown" });
@@ -1921,7 +1860,7 @@ export function LyricsView({
     }
   }, []);
 
-  // ── Fetch lyrics when song changes (con pre-cache) ──────────────────────
+  // Fetch lyrics when song changes (con pre-cache)
   //    reloadCounter se incrementa al presionar "Recargar" en el modal
   //    de configuración, forzando un re-fetch incluso si el cache existe.
 
@@ -1942,7 +1881,7 @@ export function LyricsView({
     lastScrolledLineRef.current = -1;
     scrollLatchRef.current = 0;
 
-    // ⭐ La vista se REINICIA al cambiar de canción: el contenedor es el
+    // La vista se REINICIA al cambiar de canción: el contenedor es el
     //    mismo (sin key) y mantiene el scrollTop de la anterior, así que la
     //    nueva letra arrancaba a media altura o abajo en vez del inicio.
     if (lyricsContainerRef.current) {
@@ -1953,7 +1892,7 @@ export function LyricsView({
     const title = song.title || "";
     const artist = song.artist || "";
 
-    // ⭐ Letra elegida por el usuario (Buscar/Editar letras) — persistida en
+    // Letra elegida por el usuario (Buscar/Editar letras) — persistida en
     //    localStorage por videoId, sobrevive al desmontar el overlay. Solo la
     //    salta una recarga forzada ("Recargar letras" la limpia aparte).
     if (!skipCacheRef.current) {
@@ -1992,7 +1931,7 @@ export function LyricsView({
         `/lyrics/${videoId}?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`,
       )
       .then((data) => {
-        // ⭐ Reflejar en el cache lo que se mostró: sin esto, "Recargar letras"
+        // Reflejar en el cache lo que se mostró: sin esto, "Recargar letras"
         //    dejaba la pantalla con la letra fresca pero al reabrir volvía la
         //    vieja que seguía cacheada.
         if (Array.isArray(data?.lyrics) && data.lyrics.length > 0) {
@@ -2010,7 +1949,7 @@ export function LyricsView({
       })
       .finally(() => {
         setLoading(false);
-        // ⭐ Reset via REF (no state): no re-dispara el efecto → sin doble fetch
+        // Reset via REF (no state): no re-dispara el efecto → sin doble fetch
         //    ni re-uso de la cache vieja. El cache vuelve a funcionar en la
         //    próxima canción.
         skipCacheRef.current = false;
@@ -2028,22 +1967,10 @@ export function LyricsView({
   // `overlayOpen` está declarado arriba, junto al sincronizador del vídeo:
   // el reloj de karaoke de abajo se detiene mientras haya un overlay.
 
-  // ── Reloj de letras: despierta SOLO cuando cambia el resaltado ────────
-  //    Historia: `setInterval(400ms)` sobre progressRef (que solo se
-  //    actualiza con `timeupdate`, ~250ms) llegaba hasta ~0.65s tarde ("el
-  //    karaoke va lento"). El rAF a 60 Hz lo arregló, pero un rAF encadenado
-  //    es una PETICIÓN DE FOTOGRAMA PERMANENTE: mientras la pantalla de
-  //    letras estaba abierta el compositor producía 60 fotogramas/s aunque
-  //    entre palabra y palabra no cambiara absolutamente nada. Eso es justo
-  //    lo que NO hace un navegador: Chromium «aborta el fotograma si no hay
-  //    damage» (`--check-damage-early`) y una página quieta no produce
-  //    frames. Ahora el reloj es el propio `<audio>`: sus eventos
-  //    (`timeupdate` ~4 Hz y SOLO con el medio en marcha, más `seeked`,
-  //    `play`, `pause`…) re-sincronizan, y entre medias un `setTimeout`
-  //    despierta en el instante exacto del próximo cambio (palabra o línea,
-  //    que es cuando el resaltado cambia de verdad). Entre despertar y
-  //    despertar no se pide ni un fotograma y con el audio en pausa no queda
-  //    ni un temporizador. `progressRef` sigue siendo el reloj de respaldo.
+  // Reloj de letras: despierta SOLO cuando cambia el resaltado. Los eventos del
+  // `<audio>` re-sincronizan y un `setTimeout` apunta al próximo cambio, así
+  // que entre despertar y despertar no se pide ni un fotograma; `progressRef`
+  // sigue siendo el reloj de respaldo.
 
   useEffect(() => {
     // Con un overlay a pantalla completa montado (modal "Buscar letras",
@@ -2074,7 +2001,7 @@ export function LyricsView({
     // Aplica el estado de karaoke para `t` y devuelve el instante (reloj del
     // audio) del PRÓXIMO cambio de resaltado, o `null` si no hay ninguno.
     const apply = (t) => {
-      // ── Línea activa: búsqueda binaria (~8 comparaciones) ──
+      // Línea activa: búsqueda binaria (~8 comparaciones)
       let lo = 0,
         hi = lyrics.length - 1,
         idx = -1;
@@ -2093,7 +2020,7 @@ export function LyricsView({
       }
       if (idx < 0) return null; // antes de la primera línea no cambia nada
 
-      // ── Palabra activa (cambia ~1-6 veces por segundo) ──
+      // Palabra activa (cambia ~1-6 veces por segundo)
       if (wordLineRef.current !== idx) {
         wordLineRef.current = idx;
         wordListRef.current = lyrics[idx].text.split(/\s+/).filter((x) => x.length > 0);
@@ -2110,7 +2037,7 @@ export function LyricsView({
         return lineEnd;
       }
       const progressInLine = Math.min(Math.max((t - lineStart) / lineDuration, 0), 1);
-      // ⭐ Resaltado proporcional a CARACTERES (no uniforme por palabra):
+      // Resaltado proporcional a CARACTERES (no uniforme por palabra):
       //    el karaoke avanza según la longitud real de cada palabra.
       const totalChars = words.reduce((s, x) => s + x.length, 0) || 1;
       const targetChars = progressInLine * totalChars;
@@ -2203,14 +2130,14 @@ export function LyricsView({
     };
   }, [open, isSynced, visible, overlayOpen, lyrics, progressRef, audioRef]);
 
-  // ── Auto-scroll to current synced line ─────────────────────────────────────
+  // Auto-scroll to current synced line
 
   useEffect(() => {
     if (!isSynced || !Array.isArray(lyrics) || lyrics.length === 0) return;
     if (!autoScroll || currentLine < 0 || !lyricsContainerRef.current) return;
     if (currentLine === lastScrolledLineRef.current) return;
 
-    // ⭐ Solo hacer scroll cuando cambia la línea activa (no cada frame):
+    // Solo hacer scroll cuando cambia la línea activa (no cada frame):
     //    evita "saltos" constantes y micro-jitter del smooth scroll.
     lastScrolledLineRef.current = currentLine;
     const el = lineRefs.current[currentLine];
@@ -2235,11 +2162,11 @@ export function LyricsView({
     el.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [currentLine, lyrics, isSynced, autoScroll]);
 
-  // ── Reset scroll timer when user scrolls manually ──────────────────────────
+  // Reset scroll timer when user scrolls manually
 
   const handleManualScroll = useCallback(() => {
     if (!isSynced) return;
-    // ⭐ Ignorar scrolls disparados por nuestro propio scrollIntoView
+    // Ignorar scrolls disparados por nuestro propio scrollIntoView
     //    (la animación smooth dispara onScroll de forma continua).
     if (performance.now() - scrollLatchRef.current < SCROLL_LATCH_MS) return;
     setAutoScroll(false);
@@ -2261,18 +2188,18 @@ export function LyricsView({
         if (swipeCleanupRef.current.timer) clearTimeout(swipeCleanupRef.current.timer);
         if (swipeCleanupRef.current.rafId) cancelAnimationFrame(swipeCleanupRef.current.rafId);
       }
-      // ⭐ Restaurar selección de texto si el componente se desmonta durante un swipe activo
+      // Restaurar selección de texto si el componente se desmonta durante un swipe activo
       document.body.style.userSelect = "";
       document.body.style.webkitUserSelect = "";
     };
   }, []);
 
-  // ── Click on line to seek ─────────────────────────────────────────────────
+  // Click on line to seek
 
   const handleLineClick = useCallback(
     (time) => {
       if (!settings.lyricsClickSeek) return;
-      // ⭐ Pintado optimista: el reloj de letras relee audio.currentTime en
+      // Pintado optimista: el reloj de letras relee audio.currentTime en
       //    cuanto llega `seeked` (o progressRef si el audio aún no existe).
       if (progressRef && typeof time === "number") progressRef.current = time;
       if (onSeek && typeof time === "number") {
@@ -2284,7 +2211,7 @@ export function LyricsView({
     [settings.lyricsClickSeek, onSeek, playSong, song, progressRef],
   );
 
-  // ── Thumbnail para fondo — usar la más grande disponible para blur HD ────
+  // Thumbnail para fondo — usar la más grande disponible para blur HD
   //    Referencia cruda como dep: estable mientras la canción no cambie (un
   //    `? : []` aquí recrearía el array en cada render y anularía el memo).
   const thumbs = song?.thumbnails;
@@ -2303,7 +2230,7 @@ export function LyricsView({
   // imagen grande con el filtro CSS de siempre (fallback con coste de GPU)
   const bgLayerSrc = bgBlurUrl || bgSrc;
 
-  // ── Pre-cargar la imagen de fondo para evitar latencia ────────────────
+  // Pre-cargar la imagen de fondo para evitar latencia
   //    Estrategia optimizada: proxy primero (ya pre-cachado en usePlayer),
   //    luego URL directa como fallback. El browser cache hace que sea
   //    instantáneo si la imagen ya fue precargada.
@@ -2379,7 +2306,7 @@ export function LyricsView({
     };
   }, [open, bgThumb]);
 
-  // ── Edit Mode: Lock/Unlock toggle para drag & drop + swipe-to-delete ──
+  // Edit Mode: Lock/Unlock toggle para drag & drop + swipe-to-delete
   const [editMode, setEditMode] = useState(false);
 
   // ── dnd-kit sensors (solo pointer para desktop, touch se maneja igual) ─
@@ -2392,7 +2319,7 @@ export function LyricsView({
     }),
   );
 
-  // ── Drag & Drop end handler ────────────────────────────────────────────
+  // Drag & Drop end handler
   const handleDragEnd = useCallback(
     (event) => {
       const { active, over } = event;
@@ -2407,7 +2334,7 @@ export function LyricsView({
     [queue, onMoveInQueue],
   );
 
-  // ── Swipe-to-delete (pointer events) — con React state ──────────────
+  // Swipe-to-delete (pointer events) — con React state
   //    Usamos React state (swipeData) en vez de DOM mutations para:
   //    1. Evitar conflictos con dnd-kit (ambos usan pointer events)
   //    2. React reconcilia el style inline -> sin overwrites entre sistemas
@@ -2416,7 +2343,7 @@ export function LyricsView({
   const [swipeData, setSwipeData] = useState({ index: -1, delta: 0, exiting: false });
   const swipeCleanupRef = useRef(null); // cleanup de rAF/setTimeout en unmount
 
-  // ⭐ Constantes de swipe: límites MUCHO más ajustados
+  // Constantes de swipe: límites MUCHO más ajustados
   const SWIPE_MAX_NO_RESIST = 80; // Hasta aquí sin resistencia
   const SWIPE_MAX_DISPLAY = 140; // Tope asintótico absoluto (nunca se supera)
   const SWIPE_EXIT_THRESHOLD = 70; // Mínimo para considerar "eliminar"
@@ -2426,7 +2353,7 @@ export function LyricsView({
       if (!editMode) return;
       if (e.target.closest(".sw-drag-handle")) return;
 
-      // ⭐ Prevenir selección de texto durante el swipe
+      // Prevenir selección de texto durante el swipe
       document.body.style.userSelect = "none";
       document.body.style.webkitUserSelect = "none";
 
@@ -2438,11 +2365,11 @@ export function LyricsView({
       let lastDelta = 0;
 
       const onMove = (me) => {
-        // ⭐ Prevenir selección de texto en las letras durante el swipe
+        // Prevenir selección de texto en las letras durante el swipe
         me.preventDefault();
 
         const rawDelta = Math.max(0, me.clientX - startX);
-        // ⭐ Resistencia asintótica MUCHO más agresiva (rubber-band):
+        // Resistencia asintótica MUCHO más agresiva (rubber-band):
         //    - Hasta SWIPE_MAX_NO_RESIST: sin resistencia
         //    - Después: se acerca a SWIPE_MAX_DISPLAY con exponencial agresiva
         //    El denominador pequeño (30) hace que la resistencia se sienta INMEDIATA
@@ -2462,7 +2389,7 @@ export function LyricsView({
       };
 
       const onUp = (ue) => {
-        // ⭐ Restaurar selección de texto
+        // Restaurar selección de texto
         document.body.style.userSelect = "";
         document.body.style.webkitUserSelect = "";
 
@@ -2478,7 +2405,7 @@ export function LyricsView({
 
         const isExit = lastDelta > SWIPE_EXIT_THRESHOLD;
         const exitTarget = Math.min(lastDelta + 40, SWIPE_MAX_DISPLAY);
-        // ⭐ 3-step transition via React state (no DOM mutations):
+        // 3-step transition via React state (no DOM mutations):
         //    1. Activar TRANSITION en el style (pero mantener el mismo transform)
         //    2. Siguiente frame: cambiar el delta (0 para snap, 400 para exit)
         //       CSS transition anima el cambio suavemente
@@ -2503,7 +2430,7 @@ export function LyricsView({
             timer: setTimeout(() => {
               if (swipeCleanupRef.current?.cancelled) return;
               if (isExit) onRemoveFromQueue?.(index);
-              // ⭐ Reset completo
+              // Reset completo
               setSwipeData({ index: -1, delta: 0, exiting: false });
             }, delay),
           };
@@ -2530,7 +2457,7 @@ export function LyricsView({
   // fuera del área del vídeo. Ver `videoActivo` y `encaje`.
   const videoGlass = videoActivo;
 
-  // ── Estilo glass compartido para botones superiores ──────────────────
+  // Estilo glass compartido para botones superiores
   // Sin contorno (igual que los botones del player bar): el material —
   // gradiente, brillo interior y sombra — da la jerarquía; el aro de 1px
   // sobraba sobre el vídeo y la portada.
@@ -2576,13 +2503,8 @@ export function LyricsView({
         animation: "sw-fade-slide-up .25s cubic-bezier(.16,1,.3,1) both",
       }}
     >
-      {/* ═══════════════════════════════════════════════════════════════════════
-          BACKGROUND: Estilo Apple Music
-          Capa 1: Portada con blur EXTREMO (100px) + saturación + brillo
-          Capa 2: Gradiente oscuro overlay
-          Capa 3: Gradiente de color extraído
-          Capa 4: Textura noise
-          ════════════════════════════════════════════════════════════════════ */}
+      {/* Fondo: portada con blur extremo (100px) + saturación, gradiente oscuro,
+          gradiente del color extraído y textura de noise. */}
       <div
         style={{
           position: "absolute",
@@ -2747,7 +2669,7 @@ export function LyricsView({
         />
       </div>
 
-      {/* ── Botones superiores: 3-puntitos (config) + Cerrar ───────────── */}
+      {/* Botones superiores: 3-puntitos (config) + Cerrar */}
       <div
         style={{
           position: "absolute",
@@ -2861,7 +2783,7 @@ export function LyricsView({
         </div>
       )}
 
-      {/* ── Modal de configuración de letras ───────────────────────────── */}
+      {/* Modal de configuración de letras */}
       {showLyricsSettings && (
         <LyricsSettingsModal
           accentColor={accentColor}
@@ -2916,9 +2838,7 @@ export function LyricsView({
         />
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          PANEL IZQUIERDO: Portada grande + Cola + Relacionadas
-          ════════════════════════════════════════════════════════════════════ */}
+      {/* Panel izquierdo: portada grande, cola y relacionadas. */}
       <div
         data-testid="lyrics-panel"
         style={{
@@ -3131,10 +3051,10 @@ export function LyricsView({
                           position: "relative",
                           zIndex: 1,
                           touchAction: editMode ? "pan-y" : "auto",
-                          // ⭐ Prevenir selección de texto durante swipe activo
+                          // Prevenir selección de texto durante swipe activo
                           userSelect: swipeData.index === i ? "none" : "",
                           WebkitUserSelect: swipeData.index === i ? "none" : "",
-                          // ⭐ Swipe transform via React state (no DOM mutation)
+                          // Swipe transform via React state (no DOM mutation)
                           //    Así React reconcilia sin conflicto con dnd-kit
                           transform:
                             swipeData.index === i && swipeData.exiting
@@ -3195,9 +3115,7 @@ export function LyricsView({
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          PANEL DERECHO: Letras con word-wrap
-          ════════════════════════════════════════════════════════════════════ */}
+      {/* Panel derecho: letras con word-wrap. */}
       <div
         ref={lyricsContainerRef}
         data-testid="lyrics-scroll"
@@ -3217,14 +3135,14 @@ export function LyricsView({
           // mientras dura el desplazamiento—. No cambia ni un píxel: el
           // karaoke sigue repintando sus propias teselas cuando cambia.
           willChange: "scroll-position",
-          // ⭐ Las letras sincronizadas no deben poder seleccionarse: al
+          // Las letras sincronizadas no deben poder seleccionarse: al
           //    mantener el clic y arrastrar salía el subrayado azul.
           userSelect: "none",
         }}
       >
         <div
           style={{
-            // ⭐ Izquierda: el texto aprovecha más rango a la derecha.
+            // Izquierda: el texto aprovecha más rango a la derecha.
             //    Centrado: mantiene su ancho actual (hasta 960px).
             maxWidth: textAlign === "center" ? "min(100%, 960px)" : "min(100%, 1200px)",
             width: "100%",
@@ -3269,11 +3187,11 @@ export function LyricsView({
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {lyrics.map((line, i) => {
                 const isActive = i === currentLine;
-                // ⭐ Estado inicial (currentLine === -1, antes del 1er timestamp):
+                // Estado inicial (currentLine === -1, antes del 1er timestamp):
                 //    primeras líneas visibles con estilo "cerca" en vez de todo apagado.
                 const isNearActive = currentLine >= 0 ? Math.abs(i - currentLine) <= 2 : i <= 2;
 
-                // ── Distancia al activo (para efecto lente / profundidad) ──
+                // Distancia al activo (para efecto lente / profundidad)
                 //    Clamp en 10: TODAS las fórmulas de estilo de LyricLine
                 //    (sizeFactor, scaleX, scaleY, opacity) saturan en d≥10,
                 //    así que el valor es pixel-idéntico más allá de ahí y el
@@ -3288,7 +3206,7 @@ export function LyricsView({
                 //    la línea activa la recibe (el resto, -1 = apagado) ──
                 const activeWordIdx = isActive ? wordIdx : -1;
 
-                // ⭐ LyricLine memoizada: con props primitivas y handlers
+                // LyricLine memoizada: con props primitivas y handlers
                 //    estables, en cada frame SOLO cambia la línea activa.
                 return (
                   <LyricLine
@@ -3349,14 +3267,9 @@ export function LyricsView({
         </div>
       </div>
 
-      {/* ── Keyframes (sw-modal-in / sw-bg-spin) → index.html ─────────────
-          ANTES vivían aquí en un elemento style de React. La CSP de Tauri
-          añade un nonce aleatorio por carga a `style-src` (y con nonce se
-          anula 'unsafe-inline'), así que un style runtime quedaba BLOQUEADO
-          con `sheet: null`: sw-bg-spin nunca se parseaba y «el fondo de
-          Letras no giraba» aunque el toggle estuviera activo. Las keyframes
-          están en el bloque de estilos de index.html, que sí recibe el nonce
-          al servirse. Regresión vigilada por LyricsView.test.jsx. */}
+      {/* Keyframes (sw-modal-in / sw-bg-spin) en index.html: con el nonce de
+          la CSP de Tauri, un <style> de React queda bloqueado (`sheet: null`).
+          Regresión vigilada por LyricsView.test.jsx. */}
     </div>
   );
 }

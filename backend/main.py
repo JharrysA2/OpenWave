@@ -13,26 +13,14 @@ import sys
 import threading
 import time
 
-# ── Bootstrap de sys.path ────────────────────────────────────────────────────
-# El Python embebido de Windows lleva un `python314._pth` que SUSTITUYE la
-# inicialización normal de sys.path: solo quedan `python314.zip`, la carpeta
-# del runtime y `Lib\site-packages`. Ni la carpeta del script (`sys.path[0]`)
-# ni el cwd entran, así que estos imports planos de abajo morirían con
-# `ModuleNotFoundError: No module named 'cache'` en la app instalada: era el
-# bug que dejaba el backend del MSI muerto. Se añade la carpeta de este
-# fichero antes de cualquier import: sirve para el runtime embebido (app
-# instalada y `tauri dev`), para el venv de desarrollo y con cualquier cwd;
-# Tauri lanza esto con rutas `\\?\` y también funcionan.
+# Bootstrap de sys.path: el Python embebido de Windows (`python314._pth`)
+# ignora la carpeta del script y el cwd, así que los imports planos de abajo
+# fallan con ModuleNotFoundError en la app instalada.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# stdio: en la app instalada Tauri redirige stdout/stderr del backend a
-# backend.err.log, y Python abre esos flujos con la codificación de la locale
-# (cp1252 en Windows), que no sabe escribir el '→' del formato de logging.
-# El error saltaba DENTRO del handler y ensuciaba backend.err.log con un
-# "Logging error" por cada registro nuestro (la app funcionaba, pero el
-# fichero que sirve para diagnosticar quedaba inutilizable). UTF-8 con
-# errors="replace" hace ese fallo imposible; en consola interactiva el flujo
-# ya es UTF-8 y no cambia nada.
+# stdio: Tauri redirige stdout/stderr a backend.err.log y Python abre esos
+# flujos con la locale de Windows (cp1252), que no puede escribir el '→' del
+# logging y ensuciaba el log con un "Logging error" por registro.
 for _stream in (sys.stdout, sys.stderr):
     _reconf = getattr(_stream, "reconfigure", None)
     if callable(_reconf):
@@ -79,11 +67,11 @@ _ORIGENES_CORS = (
     "http://127.0.0.1:1420",
 )
 
-# ── Inicialización de la app ──────────────────────────────────────────────────
+# Inicialización de la app
 app = FastAPI(title="OpenWave")
 app.state.limiter = limiter
 
-# ── Errores con código para el frontend ───────────────────────────────────────
+# Errores con código para el frontend
 # Todo error que sale del backend lleva además un `code` estable (p. ej.
 # E-INT-00) que el frontend muestra y el usuario puede citar al reportar el
 # problema: sin él hay que copiar mensajes y estados HTTP a mano.
@@ -195,12 +183,10 @@ app.add_middleware(
 app.add_middleware(SlowAPIMiddleware)
 
 
-# ── Guardia local: Origin y Host ──────────────────────────────────────────────
-# El middleware CORS de Starlette solo decide si el NAVEGADOR puede LEER la
-# respuesta; las peticiones «simple» (POST con JSON o text/plain, sin
-# preflight) de una web maliciosa llegan al backend IGUAL y ejecutarían
-# efectos: borrar descargas, limpiar caché, forzar descargas, crear
-# playlists… (CSRF sobre la API local). Aquí se rechaza con 403 cualquier
+# Guardia local: Origin y Host. El CORS de Starlette solo decide si el
+# navegador puede LEER la respuesta; un POST «simple» sin preflight llega igual
+# y ejecutaría efectos (CSRF sobre la API local), así que aquí se rechaza con
+# 403 cualquier
 # Origin que no sea el de la webview de Tauri o el dev server de Vite.
 # Sin cabecera Origin = cliente nativo (fetch de la app, curl, TestClient)
 # → permitido. El check de Host cierra además el DNS rebinding: una web
@@ -259,7 +245,7 @@ app.include_router(api_router)
 app.mount("/music", StaticFiles(directory=str(MUSIC_DIR)), name="music")
 
 
-# ── Endpoints adicionales inline ──────────────────────────────────────────────
+# Endpoints adicionales inline
 
 
 @app.get("/health")
@@ -269,7 +255,7 @@ async def health(request: Request):
     return {"status": "ok", "service": "OpenWave"}
 
 
-# ── Caché en memoria para thumbnail-proxy (TTL 10 min) ────────────────
+# Caché en memoria para thumbnail-proxy (TTL 10 min)
 #    Evita consumir el presupuesto de rate-limit con URLs repetidas.
 #    Cuando el frontend abre una vista (álbum, artista), múltiples
 #    componentes pueden solicitar el mismo thumbnail simultáneamente.
@@ -334,7 +320,7 @@ async def thumbnail_proxy(request: Request, url: str):
             content={"error": "URL no permitida"},
         )
 
-    # ── Verificar caché en memoria ───────────────────────────────────────
+    # Verificar caché en memoria
     cached = _THUMB_CACHE.get(url)
     if cached and (time.time() - cached["ts"]) < _THUMB_CACHE_TTL:
         return Response(
@@ -435,7 +421,7 @@ threading.Thread(target=_startup_warmup, daemon=True).start()
 threading.Thread(target=avisar_si_falta_identidad, daemon=True).start()
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
+# Entry point
 
 if __name__ == "__main__":
     import uvicorn

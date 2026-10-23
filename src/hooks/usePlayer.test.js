@@ -120,7 +120,7 @@ function mockFetchCaptureFeedback() {
 }
 
 describe("usePlayer", () => {
-  // ── Estado inicial ────────────────────────────────────────────────────────
+  // Estado inicial
 
   it("should start with default state", () => {
     const { result } = renderHook(() => usePlayer());
@@ -141,7 +141,7 @@ describe("usePlayer", () => {
     expect(result.current.crossfadeDuration).toBe(7);
   });
 
-  // ── Volumen ───────────────────────────────────────────────────────────────
+  // Volumen
 
   it("should clamp volume between 0 and 1", () => {
     const { result } = renderHook(() => usePlayer());
@@ -164,7 +164,7 @@ describe("usePlayer", () => {
     expect(localStorage.getItem("sw_volume")).toBe("0.3");
   });
 
-  // ── Cola ──────────────────────────────────────────────────────────────────
+  // Cola
 
   it("should add songs to queue", () => {
     const { result } = renderHook(() => usePlayer());
@@ -200,7 +200,7 @@ describe("usePlayer", () => {
     expect(matches).toHaveLength(1);
   });
 
-  // ── Repeat mode ───────────────────────────────────────────────────────────
+  // Repeat mode
 
   it("should cycle repeatMode: off → all → one → off", () => {
     const { result } = renderHook(() => usePlayer());
@@ -213,7 +213,7 @@ describe("usePlayer", () => {
     expect(result.current.repeatMode).toBe("off");
   });
 
-  // ── Toggle play ───────────────────────────────────────────────────────────
+  // Toggle play
 
   it("should do nothing on togglePlay when no song is loaded", () => {
     const { result } = renderHook(() => usePlayer());
@@ -247,7 +247,7 @@ describe("usePlayer", () => {
     expect(result.current.isPlaying).toBe(true);
   });
 
-  // ── Seek ──────────────────────────────────────────────────────────────────
+  // Seek
 
   it("should update audio currentTime on seek", () => {
     const audio = createMockAudio();
@@ -258,7 +258,7 @@ describe("usePlayer", () => {
     expect(result.current.progressRef.current).toBe(42);
   });
 
-  // ── Next / Prev con cola ──────────────────────────────────────────────────
+  // Next / Prev con cola
 
   it("should advance queueIndex on handleNext (queue stays intact)", async () => {
     const mockFetch = vi
@@ -323,7 +323,7 @@ describe("usePlayer", () => {
     expect(result.current.streamLoading).toBe(true);
   });
 
-  // ── playSong ──────────────────────────────────────────────────────────────
+  // playSong
 
   it("playSong should return early if no videoId", async () => {
     const { result } = renderHook(() => usePlayer());
@@ -342,9 +342,7 @@ describe("usePlayer", () => {
     expect(result.current.streamLoading).toBe(false);
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  B2: el crossfade debe usar la canción REAL, no un closure stale
-  // ═══════════════════════════════════════════════════════════════════════════
 
   it("crossfade should advance to the next song (B2)", async () => {
     // Verifica que el crossfade completa la transición a la siguiente
@@ -438,9 +436,7 @@ describe("usePlayer", () => {
     mockFetch.mockRestore();
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  B3: abortar crossfade al saltar manualmente
-  // ═══════════════════════════════════════════════════════════════════════════
 
   it("handleNext should abort an active crossfade and play the next song (B3)", async () => {
     // Con un crossfade de duración larga (12s) el fade no termina dentro
@@ -487,14 +483,12 @@ describe("usePlayer", () => {
     expect(result.current.currentSong?.videoId).toBe("s2");
     expect(result.current.queueIndex).toBe(1);
     expect(result.current.streamLoading).toBe(false);
-    // ⭐ El fade-in llegó a ARRANCAR (play llamado sobre el audio siguiente)
+    // El fade-in llegó a ARRANCAR (play llamado sobre el audio siguiente)
     expect(audio2.play).toHaveBeenCalled();
     mockFetch.mockRestore();
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  Correcciones del crossfade: cancelación, volumen, repeat-one y feedback
-  // ═══════════════════════════════════════════════════════════════════════════
 
   it("cancelCrossfade should restore volume and clear the fade-in audio", async () => {
     // Antes: al saltar en medio de un crossfade, el audio quedaba a mitad del
@@ -796,7 +790,7 @@ describe("usePlayer", () => {
 
     const complete = feedbackBodies.filter((b) => b.action === "complete");
     expect(complete.length).toBeGreaterThan(0);
-    // ⭐ El feedback es para la canción que TERMINÓ, no para la nueva
+    // El feedback es para la canción que TERMINÓ, no para la nueva
     expect(complete[0].videoId).toBe("songA");
     expect(complete.some((b) => b.videoId === "songB")).toBe(false);
 
@@ -847,9 +841,7 @@ describe("usePlayer", () => {
     mockFetch.mockRestore();
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  handleSongEnded + repeat mode
-  // ═══════════════════════════════════════════════════════════════════════════
 
   it("handleSongEnded should replay the same song in repeat-one mode", async () => {
     const { result } = renderHook(() => usePlayer());
@@ -1001,9 +993,7 @@ describe("usePlayer", () => {
     mockFetch.mockRestore();
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  Manejo de cola: reorder / remove
-  // ═══════════════════════════════════════════════════════════════════════════
 
   it("moveInQueue should reorder the queue and keep queueIndex in sync", () => {
     const { result } = renderHook(() => usePlayer());
@@ -1034,9 +1024,7 @@ describe("usePlayer", () => {
     expect(result.current.queueIndex).toBe(1);
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  Shuffle
-  // ═══════════════════════════════════════════════════════════════════════════
 
   it("should toggle shuffleActive", () => {
     const { result } = renderHook(() => usePlayer());
@@ -1103,11 +1091,9 @@ describe("usePlayer", () => {
     expect(pickNextIdx(q, 3, true)).toBe(-1); // última: nada por reproducir
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════
   //  Regresión UI: la barra de progreso NO debe retroceder durante el crossfade
   //  Simula los eventos REALES del DOM (timeupdate/durationchange) con los
   //  dos <audio> del DOM y rAF real, como en la app.
-  // ═══════════════════════════════════════════════════════════════════════════
 
   it("crossfade progress: display holds A during the fade and snaps to B's real time at swap", async () => {
     vi.useRealTimers();
@@ -1163,7 +1149,7 @@ describe("usePlayer", () => {
     };
     let rafId = requestAnimationFrame(rafLoop);
 
-    // ── Simulación en tiempo real ──
+    // Simulación en tiempo real
     // t=0: A suena a 198 (le quedan 3.0s ≤ crossfade+0.2 = 3.2 → dispara)
     audioA.src = "https://stream.example.com/audio.mp4";
     audioA.currentTime = 198;
@@ -1208,7 +1194,7 @@ describe("usePlayer", () => {
     state.duration = DUR_B;
     paintProgress();
 
-    // ── ASSERTIONS CLAVE ──
+    // ASSERTIONS CLAVE
     // 1. DURANTE el fade la barra NO retrocede: el display se mantiene en la
     //    posición de A (≈198s, sin saltar a la escala de B que recién entra).
     expect(displayMidFade).toBeGreaterThan(0);
@@ -1229,7 +1215,7 @@ describe("usePlayer", () => {
     mockFetch.mockRestore();
   });
 
-  // ── Reglas de cola: contexto vs canción dentro/fuera de la cola ──────────
+  // Reglas de cola: contexto vs canción dentro/fuera de la cola
 
   it("browse click on a song already in the queue REBUILDS a fresh radio queue", async () => {
     const mockFetch = mockStreamFetch([
@@ -1582,7 +1568,7 @@ describe("usePlayer", () => {
     mockFetch.mockRestore();
   });
 
-  // ── RADIO: canción jugada fuera de la cola → [canción] + relacionadas ──
+  // RADIO: canción jugada fuera de la cola → [canción] + relacionadas
 
   it("fuera de la cola → RADIO siempre: [canción] + relacionadas aunque el ajuste esté OFF", async () => {
     const mockFetch = mockStreamFetch([

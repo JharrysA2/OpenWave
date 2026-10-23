@@ -15,13 +15,13 @@ import { expectOverlayGlassBudget, inlineBlurred } from "../test-utils";
 // JSDOM no implementa scrollIntoView; los synced lyrics lo necesitan
 Element.prototype.scrollIntoView = vi.fn();
 
-// ── Test helper: wrap in SettingsProvider (component uses useSettings) ──────
+// Test helper: wrap in SettingsProvider (component uses useSettings)
 
 function renderWithSettings(component) {
   return render(<SettingsProvider>{component}</SettingsProvider>);
 }
 
-// ── Mocks ──────────────────────────────────────────────────────────────────
+// Mocks
 
 vi.mock("./MusicCover", () => ({
   MusicCover: ({ alt, style }) => <div data-testid="music-cover" aria-label={alt} style={style} />,
@@ -46,7 +46,7 @@ vi.mock("../utils/api", () => ({
   },
 }));
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// Helpers
 
 function song(id, overrides = {}) {
   return {
@@ -80,7 +80,7 @@ function renderLyrics(props = {}) {
   );
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// Tests
 
 // Estado persistente limpio en CADA test: tanto la caché de letras
 // persistidas (sw_lyrics_cache_v1, nueva) como los overrides y ajustes no
@@ -103,7 +103,7 @@ describe("LyricsView", () => {
     });
   });
 
-  // ── Render null ─────────────────────────────────────────────────────────
+  // Render null
 
   it("should return null when open is false", () => {
     const { container } = renderLyrics({ open: false });
@@ -115,7 +115,7 @@ describe("LyricsView", () => {
     expect(container.innerHTML).toBe("");
   });
 
-  // ── Header / song info ──────────────────────────────────────────────────
+  // Header / song info
 
   it("should render the song title and artist", () => {
     renderLyrics();
@@ -123,7 +123,7 @@ describe("LyricsView", () => {
     expect(screen.getByText("Artist 1")).toBeInTheDocument();
   });
 
-  // ── Close button ─────────────────────────────────────────────────────────
+  // Close button
 
   it("should render a close button", () => {
     renderLyrics();
@@ -138,7 +138,7 @@ describe("LyricsView", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  // ── Queue ────────────────────────────────────────────────────────────────
+  // Queue
 
   it("should render songs in the queue", () => {
     const queue = [song("q1"), song("q2")];
@@ -169,7 +169,7 @@ describe("LyricsView", () => {
     expect(screen.getByText("Song q3")).toBeInTheDocument();
   });
 
-  // ── Lyric states ────────────────────────────────────────────────────────
+  // Lyric states
 
   it("should show loading state while fetching lyrics", async () => {
     mockApiGet.mockImplementation((path) => {
@@ -266,7 +266,7 @@ describe("LyricsView", () => {
     expect(screen.queryByText("Letras no encontradas para esta canción")).not.toBeInTheDocument();
   });
 
-  // ── Queue (la cola viene del prop, no de API en LyricsView) ────────────
+  // Queue (la cola viene del prop, no de API en LyricsView)
 
   it("should render queue songs passed as prop", () => {
     const queue = [
@@ -288,7 +288,7 @@ describe("LyricsView", () => {
     expect(setQueueIndex).toHaveBeenCalledWith(1);
   });
 
-  // ── Empty state ────────────────────────────────────────────────────────
+  // Empty state
 
   it("should show empty queue message when queue is empty", async () => {
     renderLyrics({ queue: [] });
@@ -324,7 +324,7 @@ describe("LyricsView", () => {
     expect(screen.getByTestId("lyrics-scroll").style.userSelect).toBe("none");
   });
 
-  // ── Edge cases ─────────────────────────────────────────────────────────
+  // Edge cases
 
   it("should handle songs without thumbnails", () => {
     const noThumbSong = song("1", { thumbnails: undefined, thumbnail: undefined });
@@ -344,7 +344,7 @@ describe("LyricsView", () => {
     expect(covers.length).toBeGreaterThan(0);
   });
 
-  // ── Estado inicial (antes del primer timestamp) ─────────────────────────
+  // Estado inicial (antes del primer timestamp)
 
   it("keeps the first lines visible before the first timestamp is reached", async () => {
     const lyricsLines = ["[00:05.00]Line one", "[00:10.00]Line two"];
@@ -367,7 +367,7 @@ describe("LyricsView", () => {
     expect(row.style.opacity).toBe("0.64");
   });
 
-  // ── Karaoke: resaltado palabra por palabra ───────────────────────────────
+  // Karaoke: resaltado palabra por palabra
 
   it("highlights words progressively with karaoke timing", async () => {
     const lrcLines = ["[00:01.00]Hello beautiful world", "[00:30.00]Second line"];
@@ -535,7 +535,7 @@ describe("LyricsView", () => {
     expect(new Set([3, 4, 5].map(pxAt)).size).toBe(1);
   });
 
-  // ── Recargar letras nunca re-usa el cache viejo ni hace doble fetch ──────
+  // Recargar letras nunca re-usa el cache viejo ni hace doble fetch
 
   it("reload forces a fresh fetch and never falls back to the stale cache", async () => {
     const cached = { lyrics: ["[00:01.00]Old version"], source: "cache" };
@@ -997,7 +997,7 @@ describe("LyricsView — app-sleep (≥15 s con la ventana oculta)", () => {
   });
 });
 
-// ── Regresión: la letra elegida (Buscar/Editar) debe sobrevivir al cierre ──
+// Regresión: la letra elegida (Buscar/Editar) debe sobrevivir al cierre
 //  El overlay de letras se DESMONTA al cerrarlo, así que el estado local se
 //  pierde: la elección vive en localStorage (sw_lyrics_overrides_v1).
 
@@ -1170,16 +1170,10 @@ describe("LyricsView — letras elegidas persisten al salir de la pantalla", () 
   });
 });
 
-// ── Regresión: presupuesto de GPU de los overlays de letras ────────────────
-//  Abrir cualquier modal de la pantalla de letras subía el uso de iGPU del
-//  33 % al 76 % mientras estaba montado: scrim full-screen con blur(8px),
-//  cada resultado de búsqueda con su propia capa blur y las hojas a 10px
-//  con saturate, todo repintándose detrás (shimmer, pulse, progreso a 5 Hz).
-//  Bajarlo a 6px no bastó MIENTRAS ese detrás seguía vivo (>70 %). Con
-//  `overlay-open` + `useOverlayActive` congelándolo, la hoja difumina con el
-//  cristal de modal `blur(40px)`: solo en la superficie de cristal, sin
-//  saturate y sin capas por fila. Reglas completas en docs/PERFORMANCE.md §7
-//  y en expectOverlayGlassBudget.
+// Regresión: presupuesto de GPU de los overlays de letras. Un modal subía la
+// iGPU del 33 % al 76 % por los blur apilados repintándose detrás; con
+// `overlay-open` congelando el fondo basta el cristal de modal `blur(40px)`.
+// Reglas en docs/PERFORMANCE.md §7 y expectOverlayGlassBudget.
 
 describe("LyricsView — presupuesto de glass en sus modales", () => {
   beforeEach(() => {
@@ -1251,7 +1245,7 @@ describe("LyricsView — presupuesto de glass en sus modales", () => {
   });
 });
 
-// ── Regresión: reloj de karaoke congelado bajo un overlay ──────────────────
+// Regresión: reloj de karaoke congelado bajo un overlay
 //  Con un modal a pantalla completa las letras quedan DETRÁS del scrim:
 //  seguir haciendo setState de línea/palabra repintaba un fondo invisible y
 //  re-ejecutaba los backdrop-filter de detrás en cada frame (iGPU). Lo
@@ -1345,7 +1339,7 @@ describe("LyricsView — reloj de karaoke con overlay", () => {
   });
 });
 
-// ── ESC = atrás (pila de overlays: primero lo de arriba) ─────────────────
+// ESC = atrás (pila de overlays: primero lo de arriba)
 
 describe("LyricsView — ESC = atrás", () => {
   beforeEach(() => {
@@ -1374,23 +1368,11 @@ describe("LyricsView — ESC = atrás", () => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  CSP con nonce de Tauri — las keyframes SOLO pueden vivir en index.html.
-//
-//  La CSP efectiva de la app empaquetada es
-//      style-src 'self' 'unsafe-inline' 'nonce-<aleatorio por carga>'
-//  (Tauri/wry inyecta el nonce al servir la página y se lo pone a las
-//  etiquetas del HTML original). Con un nonce presente, 'unsafe-inline'
-//  queda ANULADO según la spec: cualquier <style> creado en runtime por
-//  React no lleva el nonce y el navegador lo bloquea → su `style.sheet` es
-//  null y sus reglas NUNCA se aplican (sin error visible en la UI).
-//
-//  Bug real (2026-10-01): sw-bg-spin y sw-modal-in vivían en un <style> de
-//  LyricsView → «el botón de girar el fondo no funciona, no se mueve el
-//  fondo» en la app instalada, con lyricsRotateBg: true y reduced-motion
-//  desactivado. Diagnóstico: CDP mostraba animationName: sw-bg-spin con el
-//  transform congelado porque las keyframes no existían en el CSSOM.
-// ═══════════════════════════════════════════════════════════════════════════════
+//  CSP con nonce de Tauri: las keyframes SOLO pueden vivir en index.html.
+//  Con un nonce presente, 'unsafe-inline' queda anulado y un <style> creado
+//  en runtime se bloquea sin error visible en la UI. Regresión real:
+//  sw-bg-spin vivía en un <style> de LyricsView y «girar el fondo» no hacía
+//  nada en la app instalada.
 
 const readProjectFile = (rel) => readFileSync(join(process.cwd(), rel), "utf8");
 
@@ -1422,7 +1404,7 @@ describe("CSP con nonce — keyframes solo en index.html", () => {
   });
 });
 
-// ── B6: letras persistidas en localStorage + fondo local (offline) ──────────
+// B6: letras persistidas en localStorage + fondo local (offline)
 
 describe("LyricsView — letras persistidas (sobreviven recargas sin internet)", () => {
   beforeEach(() => {
@@ -1547,7 +1529,7 @@ describe("LyricsView — letras persistidas (sobreviven recargas sin internet)",
     });
   });
 
-  // ── Reset de vista al cambiar de canción ──────────────────────────────────
+  // Reset de vista al cambiar de canción
 
   it("al cambiar de canción, la vista de letras vuelve al inicio", () => {
     // El contenedor de scroll es el mismo (sin key): conservaba el
@@ -1568,7 +1550,7 @@ describe("LyricsView — letras persistidas (sobreviven recargas sin internet)",
   });
 });
 
-// ── Vídeo de fondo (ajuste «Vídeo de fondo» de ⋮ → Apariencia) ──────────────
+// Vídeo de fondo (ajuste «Vídeo de fondo» de ⋮ → Apariencia)
 
 describe("LyricsView — vídeo de fondo", () => {
   beforeEach(() => {
@@ -1760,7 +1742,7 @@ describe("LyricsView — vídeo de fondo", () => {
     expect(guardado.lyricsVideoBg).toBe(true);
   });
 
-  // ── Cristal local con el vídeo de fondo (⋮ → Apariencia) ──────────────────
+  // Cristal local con el vídeo de fondo (⋮ → Apariencia)
 
   it("con el vídeo de fondo solo los botones de arriba llevan cristal", async () => {
     conAjuste();
@@ -1788,7 +1770,7 @@ describe("LyricsView — vídeo de fondo", () => {
     expect(screen.getByTestId("lyrics-dim").style.backgroundImage).toMatch(/rgba\(5,5,10,\.36\)/);
   });
 
-  // ── Encuadre del clip en el área de letras ───────────────────────────────
+  // Encuadre del clip en el área de letras
 
   /** Coloca la columna de letras donde estaría en la app real. */
   async function medirArea(left, anchoArea, altoArea) {

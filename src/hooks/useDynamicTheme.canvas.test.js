@@ -7,9 +7,7 @@ import { deriveTheme } from "../utils/colorTheme";
 // elegido por el usuario → única fuente de verdad del acento aplicado.
 const DEFAULT_APPLIED = deriveTheme(DEFAULT_ACCENT).accent;
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  Extracción de colores: vía canvas (con Image + canvas mockeados)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 const SETTINGS = {
   dynamicTheme: true,
@@ -31,7 +29,7 @@ const songB = {
   thumbnail: "https://i.ytimg.com/vi/vidBBB/hqdefault.jpg",
 };
 
-// ── Helpers de color ─────────────────────────────────────────────────────────
+// Helpers de color
 
 /** Pinta un canvas 64x64 repitiendo el patrón de píxeles dado. */
 function makePixels(pattern) {
@@ -69,7 +67,7 @@ function hueDistance(a, b) {
   return diff > 180 ? 360 - diff : diff;
 }
 
-// ── Mocks de Image / canvas ──────────────────────────────────────────────────
+// Mocks de Image / canvas
 
 let createdImages = [];
 let pixelPattern = [];
@@ -140,8 +138,6 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe("useDynamicTheme — extracción por canvas", () => {
   it("sin canción usa el acento por defecto", () => {

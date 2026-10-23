@@ -102,7 +102,7 @@ export const Sidebar = React.memo(function Sidebar({
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
-            {/* ── Retraer barra lateral («) ── */}
+            {/* Retraer barra lateral («) */}
             <button
               data-testid="sidebar-collapse-btn"
               onClick={onToggle}
@@ -152,7 +152,7 @@ export const Sidebar = React.memo(function Sidebar({
                 <path d="M14.5 6 L8.5 12 L14.5 18" />
               </svg>
             </button>
-            {/* ── Settings button — Apple-style: circle with subtle glass ── */}
+            {/* Settings button — Apple-style: circle with subtle glass */}
             <button
               data-testid="settings-btn"
               onClick={onOpenSettings}
@@ -257,7 +257,7 @@ export const Sidebar = React.memo(function Sidebar({
           ))}
         </nav>
 
-        {/* ── Playlists section ── */}
+        {/* Playlists section */}
         <div style={{ padding: "8px 10px", marginTop: "8px" }}>
           <div
             style={{

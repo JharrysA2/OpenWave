@@ -10,7 +10,7 @@ import React from "react";
  *   <SkeletonGrid count={6} /> — for card grids
  */
 
-// ── Base skeleton block ─────────────────────────────────────────────────────
+// Base skeleton block
 function Bone({ width, height, borderRadius, style }) {
   return (
     <div
@@ -26,7 +26,7 @@ function Bone({ width, height, borderRadius, style }) {
   );
 }
 
-// ── Song row skeleton — matches the real song row layout ────────────────────
+// Song row skeleton — matches the real song row layout
 export function SkeletonSongRow() {
   return (
     <div
@@ -51,7 +51,7 @@ export function SkeletonSongRow() {
   );
 }
 
-// ── Album/Artist card skeleton — matches the real card layout ───────────────
+// Album/Artist card skeleton — matches the real card layout
 export function SkeletonCard() {
   return (
     <div
@@ -80,7 +80,7 @@ export function SkeletonCard() {
   );
 }
 
-// ── Grid of card skeletons ──────────────────────────────────────────────────
+// Grid of card skeletons
 export function SkeletonGrid({ count = 6 }) {
   return (
     <div
@@ -97,7 +97,7 @@ export function SkeletonGrid({ count = 6 }) {
   );
 }
 
-// ── Horizontal scroll skeleton (for artist/album rows) ──────────────────────
+// Horizontal scroll skeleton (for artist/album rows)
 export function SkeletonHorizontalRow({ count = 5 }) {
   return (
     <div style={{ display: "flex", gap: "12px", overflowX: "hidden" }}>
@@ -108,7 +108,7 @@ export function SkeletonHorizontalRow({ count = 5 }) {
   );
 }
 
-// ── Section header skeleton ─────────────────────────────────────────────────
+// Section header skeleton
 export function SkeletonSection() {
   return (
     <div style={{ marginBottom: "24px" }}>
@@ -118,7 +118,7 @@ export function SkeletonSection() {
   );
 }
 
-// ── Full page skeleton for search/home ──────────────────────────────────────
+// Full page skeleton for search/home
 export function SkeletonPage() {
   return (
     <div style={{ padding: "16px 20px" }}>
@@ -134,7 +134,7 @@ export function SkeletonPage() {
   );
 }
 
-// ── Album page skeleton — hero banner + overlapping cover + track list ──────
+// Album page skeleton — hero banner + overlapping cover + track list
 export function SkeletonAlbumView() {
   return (
     <div style={{ fontFamily: "inherit", height: "100%", overflowY: "auto" }}>
@@ -195,7 +195,7 @@ export function SkeletonAlbumView() {
   );
 }
 
-// ── Artist page skeleton — hero banner + circular photo + songs + albums ──
+// Artist page skeleton — hero banner + circular photo + songs + albums
 export function SkeletonArtistView() {
   return (
     <div style={{ fontFamily: "inherit", height: "100%", overflowY: "auto" }}>
@@ -263,7 +263,7 @@ export function SkeletonArtistView() {
   );
 }
 
-// ── Lyrics skeleton — mimics synced lyric lines with varying widths ───────
+// Lyrics skeleton — mimics synced lyric lines with varying widths
 export function SkeletonLyrics({ fontSize = "34px", _accentColor = "#a78bfa" }) {
   // Simulated lyric lines with natural-looking width variation
   const linePatterns = [

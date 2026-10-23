@@ -19,7 +19,7 @@ const DEFAULT_TIMEOUT = 10_000;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
-// ── Tipos de error ────────────────────────────────────────────────────────────
+// Tipos de error
 
 /**
  * Error de la API con `status` (HTTP, 0 si es de red) y `code`
@@ -35,9 +35,7 @@ export class ApiError extends Error {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════
 //  CACHÉ EN MEMORIA CON TTL
-// ═══════════════════════════════════════════════════════════════════════════════════
 //
 // Guarda TODAS las respuestas GET (JSON) en un Map.
 // Cada entrada tiene timestamp; expira después de 5 minutos (CACHE_TTL).
@@ -90,9 +88,7 @@ function invalidatePrefix(prefix) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════
 //  NORMALIZACIÓN DE THUMBNAILS HD
-// ═══════════════════════════════════════════════════════════════════════════════════
 //
 // Convierte URLs individuales de thumbnail en arrays thumbnails[] con 5
 // resoluciones HD (Google) o 4 resoluciones (YouTube). Esto se aplica
@@ -120,9 +116,7 @@ function normalizeThumbsHD(data) {
   return data;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════
 //  UTILIDAD: fetch con timeout
-// ═══════════════════════════════════════════════════════════════════════════════════
 
 async function _fetch(path, options = {}) {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOpts } = options;
@@ -169,7 +163,7 @@ async function _fetch(path, options = {}) {
   }
 }
 
-// ── Toast helper ──────────────────────────────────────────────────────────────
+// Toast helper
 
 function _handleError(err, toast) {
   const code = formatErrorCode(err?.code);
@@ -180,7 +174,7 @@ function _handleError(err, toast) {
   console.warn("[API]", err.message, err.code ? `[${err.code}]` : "");
 }
 
-// ── API Pública ───────────────────────────────────────────────────────────────
+// API Pública
 
 export const api = {
   /** URL base (para casos especiales como EventSource) */
@@ -193,7 +187,7 @@ export const api = {
     apiCache.clear();
   },
 
-  // ── GET (con caché automática + normalización de thumbnails HD) ────────────
+  // GET (con caché automática + normalización de thumbnails HD)
 
   async get(path, options = {}) {
     // Verificar caché primero
@@ -220,7 +214,7 @@ export const api = {
 
     // Cachear + normalizar thumbnails (solo respuestas JSON con objetos)
     if (data && typeof data === "object" && !Array.isArray(data)) {
-      // ⭐ No cachear respuestas de error: un fallo transitorio del servidor
+      // No cachear respuestas de error: un fallo transitorio del servidor
       //    no debe quedarse pegado en caché hasta que expire el TTL.
       if (data.error) return data;
       const normalized = normalizeThumbsHD(data);
@@ -237,7 +231,7 @@ export const api = {
     return data;
   },
 
-  // ── POST ───────────────────────────────────────────────────────────────────
+  // POST
 
   async post(path, body = {}, options = {}) {
     const result = await _fetch(path, {
@@ -251,7 +245,7 @@ export const api = {
     return result;
   },
 
-  // ── PUT ─────────────────────────────────────────────────────────────────────
+  // PUT
 
   async put(path, body = {}, options = {}) {
     const result = await _fetch(path, {
@@ -264,7 +258,7 @@ export const api = {
     return result;
   },
 
-  // ── DELETE ──────────────────────────────────────────────────────────────────
+  // DELETE
 
   async del(path, body = null) {
     const opts = { method: "DELETE" };
@@ -278,7 +272,7 @@ export const api = {
     return result;
   },
 
-  // ── Historial ───────────────────────────────────────────────────────────────
+  // Historial
 
   async logHistory(song, toast) {
     if (!song?.videoId) return;
@@ -289,7 +283,7 @@ export const api = {
     }
   },
 
-  // ── Copias de seguridad (fusión idempotente en el backend) ─────────────────
+  // Copias de seguridad (fusión idempotente en el backend)
 
   /**
    * Restaurar historial desde una copia. POST /history/import hace merge
@@ -311,7 +305,7 @@ export const api = {
     return r;
   },
 
-  // ── Playlists ───────────────────────────────────────────────────────────────
+  // Playlists
 
   fetchPlaylists: (toast) =>
     api
@@ -458,7 +452,7 @@ export const api = {
         return [];
       }),
 
-  // ── Error handler exportado ─────────────────────────────────────────────────
+  // Error handler exportado
 
   handleError: _handleError,
 };

@@ -58,7 +58,7 @@ export function useMediaSession({
     audioRef,
   };
 
-  // ── Metadatos: la canción actual → SMTC ──────────────────────────────────
+  // Metadatos: la canción actual → SMTC
   useEffect(() => {
     const ms = navigator.mediaSession;
     if (!ms || typeof MediaMetadata === "undefined") return undefined;
@@ -93,7 +93,7 @@ export function useMediaSession({
     };
   }, [currentSong]);
 
-  // ── Estado de reproducción (play/pausa en la tarjeta) ────────────────────
+  // Estado de reproducción (play/pausa en la tarjeta)
   useEffect(() => {
     const ms = navigator.mediaSession;
     if (!ms) return;
@@ -104,7 +104,7 @@ export function useMediaSession({
     }
   }, [isPlaying]);
 
-  // ── Acciones del sistema → reproductor de la app ─────────────────────────
+  // Acciones del sistema → reproductor de la app
   useEffect(() => {
     const ms = navigator.mediaSession;
     if (!ms || typeof ms.setActionHandler !== "function") return undefined;
@@ -168,7 +168,7 @@ export function useMediaSession({
     };
   }, []);
 
-  // ── Línea de tiempo (posición/duración para el SO) ───────────────────────
+  // Línea de tiempo (posición/duración para el SO)
   useEffect(() => {
     const ms = navigator.mediaSession;
     if (!ms || typeof ms.setPositionState !== "function") return undefined;

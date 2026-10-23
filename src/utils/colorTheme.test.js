@@ -21,7 +21,7 @@ import { APP_COLORS } from "./appPalette";
 
 const HEX_RE = /^#[0-9a-f]{6}$/;
 
-// ── PRNG determinista (mulberry32) para el test de propiedad ─────────────────
+// PRNG determinista (mulberry32) para el test de propiedad
 
 function mulberry32(seed) {
   let a = seed >>> 0;

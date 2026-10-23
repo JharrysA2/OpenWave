@@ -7,7 +7,7 @@ beforeEach(() => {
 });
 
 describe("useSavedEntities", () => {
-  // ── Estado inicial ────────────────────────────────────────────────────────
+  // Estado inicial
 
   it("should start with empty lists when localStorage is empty", () => {
     const { result } = renderHook(() => useSavedEntities());
@@ -39,7 +39,7 @@ describe("useSavedEntities", () => {
     expect(result.current.followedArtists).toEqual([]);
   });
 
-  // ── toggleAlbumLike ───────────────────────────────────────────────────────
+  // toggleAlbumLike
 
   it("should add an album with metadata on toggle", () => {
     const { result } = renderHook(() => useSavedEntities());
@@ -96,7 +96,7 @@ describe("useSavedEntities", () => {
     expect(result.current.likedAlbums).toHaveLength(0);
   });
 
-  // ── toggleFollow ──────────────────────────────────────────────────────────
+  // toggleFollow
 
   it("should add an artist with metadata on toggle", () => {
     const { result } = renderHook(() => useSavedEntities());

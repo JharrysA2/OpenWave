@@ -58,7 +58,7 @@ describe("ConfirmModal", () => {
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
-  // ── Contraste: pista de acento → fg derivado (regresión portada blanca) ───
+  // Contraste: pista de acento → fg derivado (regresión portada blanca)
   it("el botón confirmar (pista de acento) usa --neon-fg, nunca blanco fijo", () => {
     render(<ConfirmModal {...defaultProps} danger={false} confirmLabel="Aceptar" />);
     const btn = screen.getByText("Aceptar").closest("button");

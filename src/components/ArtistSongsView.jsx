@@ -64,7 +64,7 @@ export default function ArtistSongsView({
         paddingBottom: "90px",
       }}
     >
-      {/* ── Cabecera: volver + título (sticky, sin backdrop-filter) ──── */}
+      {/* Cabecera: volver + título (sticky, sin backdrop-filter) */}
       <div
         style={{
           display: "flex",
@@ -137,7 +137,7 @@ export default function ArtistSongsView({
         </div>
       </div>
 
-      {/* ── Contenido ─────────────────────────────────────────────────── */}
+      {/* Contenido */}
       <div style={{ padding: "4px 12px 0" }}>
         {loading && (
           <div

@@ -40,7 +40,7 @@ export default function PlaylistView({
   const downloadedIdsRef = useRef(downloadedIds);
   downloadedIdsRef.current = downloadedIds;
 
-  // ── Multi-select mode ──
+  // Multi-select mode
   const {
     selectMode,
     selected,
@@ -50,10 +50,10 @@ export default function PlaylistView({
     resetSelect,
   } = useMultiSelect();
 
-  // ── Transfer modal ──
+  // Transfer modal
   const [showTransferModal, setShowTransferModal] = useState(false);
 
-  // ── Load songs ──
+  // Load songs
   //  Exponido como retry: un fallo de red muestra estado de error con
   //  «Reintentar», NUNCA «Esta playlist está vacía» (bug: el error se
   //  tragaba y se pintaba como vacío).
@@ -103,7 +103,7 @@ export default function PlaylistView({
   const filteredSongs = filterSongs(songs, songQuery);
   const isFiltering = !!songQuery.trim();
 
-  // ── Save edited name ──
+  // Save edited name
   const saveName = async () => {
     if (editName.trim() && editName.trim() !== playlist.name) {
       await api.renamePlaylist(playlist.id, editName.trim(), toast);
@@ -113,7 +113,7 @@ export default function PlaylistView({
     setEditing(false);
   };
 
-  // ── Delete entire playlist ──
+  // Delete entire playlist
   const handleDeletePlaylist = async () => {
     await api.deletePlaylist(playlist.id, toast);
     setShowDeleteModal(false);
@@ -121,7 +121,7 @@ export default function PlaylistView({
     if (onBack) onBack();
   };
 
-  // ── Remove a single song ──
+  // Remove a single song
   const handleRemoveSong = async (videoId, e) => {
     if (e) e.stopPropagation();
     setSongs((prev) => prev.filter((s) => s.videoId !== videoId));
@@ -129,7 +129,7 @@ export default function PlaylistView({
     if (onPlaylistUpdated) onPlaylistUpdated();
   };
 
-  // ── Remove selected songs ──
+  // Remove selected songs
   const handleRemoveSelected = async () => {
     if (selected.size === 0) return;
     const toRemove = [...selected];
@@ -141,7 +141,7 @@ export default function PlaylistView({
     if (onPlaylistUpdated) onPlaylistUpdated();
   };
 
-  // ── Transfer selected songs to another playlist ──
+  // Transfer selected songs to another playlist
   const handleTransferSelected = async (targetPlaylistId) => {
     if (selected.size === 0) return;
     const songsToTransfer = songs.filter((s) => selected.has(s.videoId));
@@ -155,7 +155,7 @@ export default function PlaylistView({
     if (refreshPlaylists) await refreshPlaylists();
   };
 
-  // ── Play all songs ──
+  // Play all songs
   const playAll = useCallback(
     (shuffle = false) => {
       if (songs.length === 0) return;
@@ -165,7 +165,7 @@ export default function PlaylistView({
     [songs, playSong],
   );
 
-  // ── Drag & drop ──
+  // Drag & drop
   const dragIdxRef = useRef(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
 
@@ -216,13 +216,13 @@ export default function PlaylistView({
     setDragOverIdx(null);
   }, []);
 
-  // ── Cover resolution ──
+  // Cover resolution
   const coverSong = songs[0];
   const songCoverUrl =
     coverSong?.thumbnails?.[coverSong.thumbnails.length - 1]?.url || coverSong?.thumbnail;
   const coverUrl = playlist.cover || playlist.first_cover || songCoverUrl;
 
-  // ── Other playlists for transfer ──
+  // Other playlists for transfer
   const otherPlaylists = (playlists || []).filter((p) => p.id !== playlist?.id);
 
   return (
@@ -235,7 +235,7 @@ export default function PlaylistView({
         paddingBottom: "90px",
       }}
     >
-      {/* ── Hero ──────────────────────────────────────── */}
+      {/* Hero */}
       <div
         style={{
           display: "flex",
@@ -634,7 +634,7 @@ export default function PlaylistView({
         </div>
       </div>
 
-      {/* ── Song list ──────────────────────────────────── */}
+      {/* Song list */}
       {loading ? (
         <div
           style={{
@@ -716,7 +716,7 @@ export default function PlaylistView({
         </>
       )}
 
-      {/* ── Transfer Modal ─────────────────────────── */}
+      {/* Transfer Modal */}
       <TransferModal
         open={showTransferModal}
         onClose={() => setShowTransferModal(false)}

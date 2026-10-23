@@ -29,26 +29,12 @@ export function mockApiResponse(data, status = 200) {
   });
 }
 
-// ── Presupuesto de GPU de overlays (docs/PERFORMANCE.md §7) ────────────────
-//
-// Medido en iGPU: con un modal abierto el uso subía del 33 % al 76 % mientras
-// estaba montado, y a 11 % con el modo Rendimiento (blur/anim off). Bajar el
-// blur de las hojas de 10px+saturate a 6px sin saturate NO bastó: seguía por
-// encima del 70 % — el coste era el filtro en sí (full-screen, backdrop que se
-// repinta con el modal abierto), no su radio. Reglas:
-//
-//   1. Un scrim (capa full-screen de atenuación: fondo plano, no degradado)
-//      NUNCA lleva backdrop-filter: se re-ejecuta en cada repintado de detrás
-//      (progreso del player a 5 Hz, shimmer de skeletons, hovers) y, además,
-//      `html.perf-solid [style*="backdrop-filter"]` lo pintaría entero en
-//      modo Rendimiento.
-//   2. NINGÚN elemento de un overlay lleva backdrop-filter inline: la hoja es
-//      full-screen y su backdrop cambia mientras está montado, así que un
-//      filtro = un pase de Gauss de iGPU por frame. El "frosted" lo dan el
-//      degradado, la sombra y el rim light.
-//      (Las superficies de la shell —sidebar/titlebar/searchbar/player— sí
-//      difuminan fuera de un overlay; `html.overlay-open` las apaga mientras
-//      dure, por eso aquí solo se inspecciona el subárbol de las capas.)
+// Presupuesto de GPU de overlays (docs/PERFORMANCE.md §7). Medido en iGPU: el
+// coste es el filtro full-screen en sí, no su radio. Reglas:
+//   1. Un scrim (capa de atenuación full-screen) NUNCA lleva backdrop-filter.
+//   2. Ningún elemento de un overlay lleva backdrop-filter inline.
+// La shell (sidebar/titlebar/player) sí difumina fuera de un overlay;
+// `html.overlay-open` la apaga, por eso aquí solo se inspecciona el subárbol.
 
 function isZeroPx(v) {
   return v === "0" || v === "0px";

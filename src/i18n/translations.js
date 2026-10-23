@@ -124,7 +124,7 @@ export const TRANSLATIONS = {
     slow: "Slow",
     serverOffline: "No connection to the server",
     reconnecting: "Reconnecting…",
-    // ── Estados de error / arranque (StatusState + BootScreen) ──────────────
+    // Estados de error / arranque (StatusState + BootScreen)
     retry: "Retry",
     errorCode: "Error code",
     errorCodeHint: "Include this code if you report the issue",
@@ -151,7 +151,7 @@ export const TRANSLATIONS = {
     perfSolidDesc: "Solid colors, no dynamic background",
     perfHiddenNote:
       "When the window is minimized, covered or in background, all effects pause automatically while music keeps playing.",
-    // ── Personalización añadida ────────────────────────────────────────────
+    // Personalización añadida
     showProgressTimeDesc: "Shows 0:00 at both sides of the bar",
     searchDefaults: "Search",
     defaultSearchTab: "Default search tab",
@@ -318,7 +318,7 @@ export const TRANSLATIONS = {
     slow: "Lento",
     serverOffline: "Sin conexión con el servidor",
     reconnecting: "Reconectando…",
-    // ── Estados de error / arranque (StatusState + BootScreen) ──────────────
+    // Estados de error / arranque (StatusState + BootScreen)
     retry: "Reintentar",
     errorCode: "Código de error",
     errorCodeHint: "Indica este código si reportas el error",
@@ -345,7 +345,7 @@ export const TRANSLATIONS = {
     perfSolidDesc: "Colores sólidos, sin fondo de canción",
     perfHiddenNote:
       "Cuando la ventana está minimizada, cubierta o en segundo plano, todos los efectos se pausan automáticamente mientras la música sigue sonando.",
-    // ── Personalización añadida ────────────────────────────────────────────
+    // Personalización añadida
     showProgressTimeDesc: "Muestra 0:00 a los lados de la barra",
     searchDefaults: "Búsqueda",
     defaultSearchTab: "Pestaña de búsqueda por defecto",

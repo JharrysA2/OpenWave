@@ -15,7 +15,7 @@ import {
 import { contrastRatio, deriveTheme } from "./utils/colorTheme";
 import App from "./App";
 
-// ── Mock hooks ──────────────────────────────────────────────────────────────────
+// Mock hooks
 
 const mockToast = vi.fn();
 const mockToggleLike = vi.fn();
@@ -139,7 +139,7 @@ vi.mock("./hooks/usePlayer", () => ({
   usePlayer: () => mockPlayer,
 }));
 
-// ── Mock windowControls (factory inline por hoisting de vi.mock) ────────────────
+// Mock windowControls (factory inline por hoisting de vi.mock)
 
 vi.mock("./utils/windowControls", () => ({
   winCtrl: {
@@ -149,7 +149,7 @@ vi.mock("./utils/windowControls", () => ({
   },
 }));
 
-// ── Mock child components ─────────────────────────────────────────────────────────
+// Mock child components
 
 vi.mock("./components/SongOptionsSheet", () => ({
   SongOptionsSheet: ({ open, onClose, song, onGoToAlbum, onGoToArtist }) =>
@@ -257,7 +257,7 @@ vi.mock("./components/ErrorBoundary", () => ({
   ErrorBoundary: ({ children }) => <div data-testid="error-boundary">{children}</div>,
 }));
 
-// ── Mock Icons ────────────────────────────────────────────────────────────────────
+// Mock Icons
 
 vi.mock("./icons/Icons", () => ({
   Ic: {
@@ -273,7 +273,7 @@ vi.mock("./icons/Icons", () => ({
   },
 }));
 
-// ── Mock constants (API) ──────────────────────────────────────────────────────────
+// Mock constants (API)
 
 vi.mock("./constants", () => ({
   API: "http://127.0.0.1:8765",
@@ -289,7 +289,7 @@ vi.mock("./constants", () => ({
   },
 }));
 
-// ── Mock localStorage ────────────────────────────────────────────────────────────
+// Mock localStorage
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -308,12 +308,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════════
 //  Tests
-// ═══════════════════════════════════════════════════════════════════════════════════
 
 describe("App — Componente principal", () => {
-  // ── Render básico ────────────────────────────────────────────────────────────
+  // Render básico
 
   it("should render without crashing", () => {
     const { container } = render(<App />);
@@ -331,7 +329,7 @@ describe("App — Componente principal", () => {
     expect(found.length).toBeGreaterThanOrEqual(1);
   });
 
-  // ── Navegación ───────────────────────────────────────────────────────────────
+  // Navegación
 
   it("should render all 5 navigation buttons", () => {
     render(<App />);
@@ -372,7 +370,7 @@ describe("App — Componente principal", () => {
     expect(await screen.findByTestId("downloads-view")).toBeInTheDocument();
   });
 
-  // ── Settings Panel ──────────────────────────────────────────────────────────
+  // Settings Panel
 
   it("should have a settings button with data-testid and title", () => {
     render(<App />);
@@ -397,7 +395,7 @@ describe("App — Componente principal", () => {
     expect(screen.queryByTestId("settings-panel")).not.toBeInTheDocument();
   });
 
-  // ── ESC = atrás ────────────────────────────────────────────────────────────
+  // ESC = atrás
 
   it("ESC desde Historial vuelve a Inicio", async () => {
     render(<App />);
@@ -463,7 +461,7 @@ describe("App — Componente principal", () => {
     expect(screen.getByTestId("settings-panel")).toBeInTheDocument();
   });
 
-  // ── Player Bar ──────────────────────────────────────────────────────────────
+  // Player Bar
 
   it("should render the PlayerBar with no song by default", () => {
     render(<App />);
@@ -475,7 +473,7 @@ describe("App — Componente principal", () => {
     expect(screen.getByTestId("player-bar")).toHaveTextContent("Paused");
   });
 
-  // ── Audio elements ──────────────────────────────────────────────────────────
+  // Audio elements
 
   it("should render two hidden audio elements", () => {
     const { container } = render(<App />);
@@ -483,21 +481,21 @@ describe("App — Componente principal", () => {
     expect(audios).toHaveLength(2);
   });
 
-  // ── Toasts ──────────────────────────────────────────────────────────────────
+  // Toasts
 
   it("should render the Toasts container with zero messages", () => {
     render(<App />);
     expect(screen.getByTestId("toasts")).toHaveTextContent("Toasts - 0");
   });
 
-  // ── Modals (initially hidden) ──────────────────────────────────────────────
+  // Modals (initially hidden)
 
   it("should not show SongOptionsSheet initially", () => {
     render(<App />);
     expect(screen.queryByTestId("song-options-sheet")).not.toBeInTheDocument();
   });
 
-  // ── Custom Title Bar ─────────────────────────────────────────────────────────
+  // Custom Title Bar
 
   it("should render the custom title bar with data-tauri-drag-region", () => {
     const { container } = render(<App />);
@@ -543,7 +541,7 @@ describe("App — Componente principal", () => {
     expect(z).toBeGreaterThan(2147483000);
   });
 
-  // ── 3 puntitos → Ir a álbum/artista desde cualquier pantalla ──────────────────
+  // 3 puntitos → Ir a álbum/artista desde cualquier pantalla
 
   it("3 puntitos → Ir al álbum navega aunque Ajustes esté abierto (cierra Ajustes/letras)", async () => {
     const fetchMock = vi.fn((input) => {
@@ -617,7 +615,7 @@ describe("App — Componente principal", () => {
     expect(html).toMatch(/input,[\s\S]*?textarea,[\s\S]*?-webkit-user-select: text;/);
   });
 
-  // ── Icons ───────────────────────────────────────────────────────────────────
+  // Icons
 
   it("should render the OpenWave logo (public/logo-*.png)", () => {
     render(<App />);
@@ -633,7 +631,7 @@ describe("App — Componente principal", () => {
     expect(screen.getByTestId("icon-heart")).toBeInTheDocument();
   });
 
-  // ── CSS variables ──────────────────────────────────────────────────────────────
+  // CSS variables
 
   it("should set the neon CSS variable on mount", () => {
     render(<App />);
@@ -643,7 +641,7 @@ describe("App — Componente principal", () => {
     expect(root.style.getPropertyValue("--neon")).toBe(deriveTheme("#a78bfa").accent);
   });
 
-  // ── SettingsPanel props ────────────────────────────────────────────────────
+  // SettingsPanel props
 
   it("should pass downloads and history counts to SettingsPanel", () => {
     render(<App />);
@@ -651,7 +649,7 @@ describe("App — Componente principal", () => {
     expect(screen.getByTestId("settings-panel")).toHaveTextContent("0 downloads - 0 history");
   });
 
-  // ── LikedSongs computed from useLibrary ───────────────────────────────────
+  // LikedSongs computed from useLibrary
 
   it("should compute likedSongs from results and liked Set", () => {
     render(<App />);
@@ -659,7 +657,7 @@ describe("App — Componente principal", () => {
     expect(screen.getByTestId("liked-view")).toHaveTextContent("0 songs");
   });
 
-  // ── SearchView gets results from useSearch ─────────────────────────────────
+  // SearchView gets results from useSearch
 
   it("should pass search results count to SearchView", () => {
     render(<App />);
@@ -667,7 +665,7 @@ describe("App — Componente principal", () => {
     expect(screen.getByTestId("search-view")).toHaveTextContent("1 results");
   });
 
-  // ── All initial components mount together ─────────────────────────────────
+  // All initial components mount together
 
   it("should mount with HomeView, PlayerBar, Toasts, and ErrorBoundary", () => {
     render(<App />);
@@ -678,9 +676,7 @@ describe("App — Componente principal", () => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  Tests de conexión con el backend (heartbeat + banner + reconexión)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe("App — conexión con el backend", () => {
   beforeEach(() => {
@@ -760,9 +756,7 @@ describe("App — conexión con el backend", () => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  Tests de overlay opacity y colores de contraste
-// ═══════════════════════════════════════════════════════════════════════════════
 
 /**
  * Mockea Image + canvas para inyectar una portada de un color uniforme y
@@ -891,7 +885,7 @@ describe("App — Contraste y overlayOpacity", () => {
   });
 });
 
-// ── Barra lateral retráctil ────────────────────────────────────────────────────
+// Barra lateral retráctil
 
 describe("Barra lateral retráctil", () => {
   it("el botón « la retrae y el botón » flotante la vuelve a mostrar", () => {

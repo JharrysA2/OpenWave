@@ -22,7 +22,7 @@ export function PageReproductor({
   const accent = neonColor || "#a78bfa";
   const [localCf, setLocalCf] = useState(crossfadeDuration);
 
-  // ── Temporizador de apagado ──────────────────────────────────────────────
+  // Temporizador de apagado
   // `sleep` vive en App ({ at, minutes }) → sigue corriendo aunque esta
   // página se desmonte. Aquí solo se refresca el contador cada segundo.
   const [now, setNow] = useState(() => Date.now());

@@ -58,7 +58,7 @@ function renderBar(props = {}) {
 }
 
 describe("PlayerBar", () => {
-  // ── Render states ──────────────────────────────────────────────────
+  // Render states
 
   it("should show default title when no song", () => {
     renderBar();
@@ -135,7 +135,7 @@ describe("PlayerBar", () => {
     expect(btns[2].style.color).toContain("var(--neon-fg)");
   });
 
-  // ── Progress bar ──────────────────────────────────────────────────
+  // Progress bar
 
   it("should render current and total time", async () => {
     renderBar({ song, duration: 200, progressRef: { current: 40 } });
@@ -150,7 +150,7 @@ describe("PlayerBar", () => {
     expect(screen.getByText("0:00")).toBeInTheDocument();
   });
 
-  // ── Volume ────────────────────────────────────────────────────────
+  // Volume
 
   it("should render volume button at correct index", () => {
     renderBar({ song, volume: 0.7 });
@@ -160,7 +160,7 @@ describe("PlayerBar", () => {
     expect(volBtn).toBeTruthy();
   });
 
-  // ── Crossfade ─────────────────────────────────────────────────────
+  // Crossfade
 
   it("should show crossfade duration span when active", () => {
     renderBar({ crossfadeDuration: 5 });
@@ -193,7 +193,7 @@ describe("PlayerBar", () => {
     expect(onCrossfadeDuration).toHaveBeenCalledWith(0);
   });
 
-  // ── Lyrics ────────────────────────────────────────────────────────
+  // Lyrics
 
   it("should call onLyrics when lyrics button is clicked with song", () => {
     const onLyrics = vi.fn();
@@ -211,7 +211,7 @@ describe("PlayerBar", () => {
     expect(onLyrics).not.toHaveBeenCalled();
   });
 
-  // ── Shuffle & Repeat ─────────────────────────────────────────────
+  // Shuffle & Repeat
 
   it("should call onPlayModeToggle with shuffle when shuffle clicked", () => {
     const onPlayModeToggle = vi.fn();
@@ -244,7 +244,7 @@ describe("PlayerBar", () => {
     expect(screen.getByTitle(title)).toBeInTheDocument();
   });
 
-  // ── Button count ──────────────────────────────────────────────────
+  // Button count
 
   it("should render 9 buttons with a song present (includes dots)", () => {
     renderBar({ song });
@@ -256,7 +256,7 @@ describe("PlayerBar", () => {
     expect(screen.getAllByRole("button")).toHaveLength(8);
   });
 
-  // ── Seek ────────────────────────────────────────────────────────────
+  // Seek
 
   it("should call onSeek when progress bar is clicked", () => {
     const onSeek = vi.fn();
@@ -268,7 +268,7 @@ describe("PlayerBar", () => {
     expect(onSeek).toHaveBeenCalled();
   });
 
-  // ── Open options ──────────────────────────────────────────────────
+  // Open options
 
   it("should call onOpenOptions when song info is clicked", () => {
     const onOpenOptions = vi.fn();
@@ -278,11 +278,9 @@ describe("PlayerBar", () => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  VolSlider (popup de volumen) — portal a <body> con color EXPLÍCITO
 //  El popup se monta con createPortal en <body>, FUERA del árbol del botón:
 //  sin color propio el mini icono heredaba el inicial de <body> (negro).
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe("VolSlider — popup de volumen", () => {
   // Abre el popup: onMouseEnter vive en el contenedor del botón (volume[5]);
@@ -316,11 +314,9 @@ describe("VolSlider — popup de volumen", () => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  Arrastres sin selección de texto + sincronía bolita/relleno del volumen
 //  (bug: arrastrar la barra dejaba subrayado azul; la bolita y la barra de
 //  volumen no se movían al unísono durante el drag)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe("PlayerBar — arrastres sin selección y volumen sincronizado", () => {
   // Abre el popup y devuelve la pista vertical:
@@ -366,9 +362,7 @@ describe("PlayerBar — arrastres sin selección y volumen sincronizado", () => 
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  Progreso imperativo — sin setInterval de 200ms ni re-renders
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe("PlayerBar — progreso imperativo", () => {
   const progressBarOf = (container) => container.querySelector("div[style*='height: 26px']");

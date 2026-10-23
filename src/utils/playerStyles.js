@@ -1,4 +1,4 @@
-// ── Botones de reproducción ──────────────────────────────────────────────────
+// Botones de reproducción
 export const BTN_SHAPES = [
   { id: "circle", label: "Círculo", style: { borderRadius: "50%", width: "44px", height: "44px" } },
   {
@@ -18,7 +18,7 @@ export function getBtnShapeStyle(id) {
   return BTN_SHAPES.find((b) => b.id === id)?.style || BTN_SHAPES[0].style;
 }
 
-// ── Estilos de barra de progreso ─────────────────────────────────────────────
+// Estilos de barra de progreso
 export const BAR_STYLES = [
   { id: "thin", label: "Delgada", desc: "Sutil, 2px" },
   { id: "line", label: "Línea", desc: "Estándar, 4px" },

@@ -14,7 +14,7 @@ from utils import (
     upgrade_goog_url,
 )
 
-# ── parse_duration ────────────────────────────────────────────────────────────────
+# parse_duration
 
 
 class TestParseDuration:
@@ -37,7 +37,7 @@ class TestParseDuration:
         assert parse_duration("abc") == 0
 
 
-# ── clean_artist_name ─────────────────────────────────────────────────────────────
+# clean_artist_name
 
 
 class TestCleanArtistName:
@@ -63,7 +63,7 @@ class TestCleanArtistName:
         assert clean_artist_name("12.5K") is False
 
 
-# ── fmt_num ───────────────────────────────────────────────────────────────────────
+# fmt_num
 
 
 class TestFmtNum:
@@ -89,7 +89,7 @@ class TestFmtNum:
         assert fmt_num("1,234,567") == "1.2M"
 
 
-# ── upgrade_goog_url ──────────────────────────────────────────────────────────────
+# upgrade_goog_url
 
 
 class TestUpgradeGoogUrl:
@@ -112,7 +112,7 @@ class TestUpgradeGoogUrl:
         assert "=w1200-h1200-l90-rj" in result
 
 
-# ── best_thumb ────────────────────────────────────────────────────────────────────
+# best_thumb
 
 
 class TestBestThumb:
@@ -145,7 +145,7 @@ class TestBestThumb:
         assert "googleusercontent" in result
 
 
-# ── fmt_thumbs ────────────────────────────────────────────────────────────────────
+# fmt_thumbs
 
 
 class TestFmtThumbs:
@@ -238,7 +238,7 @@ class TestFmtThumbs:
         assert fmt_thumbs(thumbs) == []
 
 
-# ── fmt_song ──────────────────────────────────────────────────────────────────────
+# fmt_song
 
 
 class TestFmtSong:
@@ -277,7 +277,7 @@ class TestFmtSong:
         assert result["artist"] == "Desconocido"
 
 
-# ── extract_chart_items (trending) ─────────────────────────────────────────────
+# extract_chart_items (trending)
 
 
 class TestExtractChartItems:
@@ -358,7 +358,7 @@ class TestExtractChartItems:
         assert extract_chart_items(None) == []
 
 
-# ── Assets locales (offline): downloaded / coverLocal ──────────────────────────
+# Assets locales (offline): downloaded / coverLocal
 
 
 class TestLocalAssets:

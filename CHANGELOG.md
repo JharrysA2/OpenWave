@@ -6,6 +6,16 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **Higiene de comentarios en todo el código** (frontend, backend y Tauri):
+  fuera los banners decorativos (`// ─── Título ───`, bloques `═══`) y los
+  emoji de adorno (⭐, ⚠️, ⚡, 🔄), y los comentarios que contaban la historia
+  de un bug en 12 líneas quedan en 2-4 con la restricción que importa
+  (radio/scaleX, CSP con nonce, lock por vídeo, escritura atómica del MP3,
+  AUMID, presupuesto de GPU). No cambia ninguna línea de código ni el
+  comportamiento de la app.
+
 ## [1.1.9] - 2026-10-22
 
 ### Changed

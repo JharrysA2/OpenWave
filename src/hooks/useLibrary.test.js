@@ -12,7 +12,7 @@ beforeEach(() => {
 });
 
 describe("useLibrary", () => {
-  // ── Estado inicial ────────────────────────────────────────────────────────
+  // Estado inicial
 
   it("should start with empty liked Set and empty arrays", () => {
     const { result } = renderHook(() => useLibrary());
@@ -23,7 +23,7 @@ describe("useLibrary", () => {
     expect(result.current.playlists).toEqual([]);
   });
 
-  // ── toggleLike ────────────────────────────────────────────────────────────
+  // toggleLike
 
   it("should add a videoId to liked", () => {
     const { result } = renderHook(() => useLibrary());
@@ -69,7 +69,7 @@ describe("useLibrary", () => {
     expect(result.current.liked.size).toBe(2);
   });
 
-  // ── likedMeta (sw_liked_meta_v1) ──────────────────────────────────────────
+  // likedMeta (sw_liked_meta_v1)
 
   it("should start with empty likedMeta", () => {
     const { result } = renderHook(() => useLibrary());
@@ -174,7 +174,7 @@ describe("useLibrary", () => {
     mockFetch.mockRestore();
   });
 
-  // ── mostPlayed ────────────────────────────────────────────────────────────
+  // mostPlayed
 
   it("mostPlayed should return empty array when history is empty", () => {
     const { result } = renderHook(() => useLibrary());
@@ -223,7 +223,7 @@ describe("useLibrary", () => {
     expect(result.current.mostPlayed[1].videoId).toBe("a");
   });
 
-  // ── API data loading ──────────────────────────────────────────────────────
+  // API data loading
 
   it("should fetch playlists, downloads, and history on mount", async () => {
     const mockPlaylists = [{ id: 1, name: "Favorites" }];
@@ -287,7 +287,7 @@ describe("useLibrary", () => {
     mockFetch.mockRestore();
   });
 
-  // ── setLiked direct ───────────────────────────────────────────────────────
+  // setLiked direct
 
   it("should allow direct setLiked", () => {
     const { result } = renderHook(() => useLibrary());
@@ -303,7 +303,7 @@ describe("useLibrary", () => {
   });
 });
 
-// ── status / error / refreshLibrary ────────────────────────────────────────
+// status / error / refreshLibrary
 //  Sin esto la Home no distingue "cargando" de "vacío": los skeletons se
 //  quedaban eternos con el backend caído.
 

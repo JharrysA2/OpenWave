@@ -109,7 +109,7 @@ export const MainRouter = React.memo(function MainRouter({
     );
   }
 
-  // ── Vistas de detalle (álbum / artista) ────────────────────────────
+  // Vistas de detalle (álbum / artista)
   if (albumBrowseId) {
     const handleGoToArtist = (param) => {
       // Si ya tenemos el browseId, navegar directamente
@@ -151,7 +151,7 @@ export const MainRouter = React.memo(function MainRouter({
     );
   }
 
-  // ── «Todas las canciones del artista» (pantalla dedicada) ──────────
+  // «Todas las canciones del artista» (pantalla dedicada)
   //    Va DESPUÉS del álbum (si desde aquí se navega a un álbum manda
   //    ese) pero ANTES que la página del artista, que queda debajo como
   //    «atrás» (ESC/back cierra solo este estado). Si esta rama va después

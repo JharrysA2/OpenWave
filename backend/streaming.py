@@ -27,7 +27,7 @@ from ytdlp_auth import auth_variants
 
 logger = get_logger(__name__)
 
-# ── Calidad de reproducción ─────────────────────────────────────────────────
+# Calidad de reproducción
 # Escalera de formatos de yt-dlp por calidad de streaming. TODAS terminan en
 # "18/bestaudio" (itag 18 del client android: mp4 progresivo con rangos
 # completos) para que si un formato superior no existe para el vídeo, la
@@ -55,7 +55,7 @@ def _stream_key(video_id: str, quality: str) -> str:
     return video_id if quality == "standard" else f"{video_id}@{quality}"
 
 
-# ── Calidad "Baja": re-codificado local a ~64 kb/s ──────────────────────────
+# Calidad "Baja": re-codificado local a ~64 kb/s
 # YouTube (sin PO token) solo sirve con rangos completos el itag 18 (~128 kb/s);
 # los formatos de audio puro (249/251) rechazan con 403 cualquier rango más
 # allá de ~0.9 MB, así que no se pueden reproducir enteros desde el navegador.
@@ -514,7 +514,7 @@ def _extract_audio_url_sync(video_id: str, quality: str = "standard") -> tuple:
     try:
         errors = []
 
-        # ═══ 1. Default — client "android" (itag 18) ═══
+        # 1. Default — client "android" (itag 18)
         #    Funciona anónimamente, no requiere cookies ni JS runtime, y sus
         #    URLs aceptan rangos completos (los demás clients dan 403).
         try:
@@ -526,7 +526,7 @@ def _extract_audio_url_sync(video_id: str, quality: str = "standard") -> tuple:
             logger.warning("default falló para %s: %s", video_id, e)
             errors.append(f"default: {e}")
 
-        # ═══ 2. tv_embedded (rápido, fallback) ═══
+        # 2. tv_embedded (rápido, fallback)
         try:
             url, headers = _intento_url(video_id, "tv_embedded", quality)
             cache_url(key, url, headers)
@@ -536,7 +536,7 @@ def _extract_audio_url_sync(video_id: str, quality: str = "standard") -> tuple:
             logger.warning("tv_embedded falló para %s: %s", video_id, e)
             errors.append(f"tv_embedded: {e}")
 
-        # ═══ 3. Cookies del navegador (último recurso) ═══
+        # 3. Cookies del navegador (último recurso)
         try:
             url, headers = _ydl_get_url_with_cookies(video_id)
             cache_url(key, url, headers)
@@ -742,7 +742,7 @@ async def stream_audio_generator(video_id: str, quality: str = "standard"):
                 continue
             break
 
-    # ═══ Fallback: httpx con URL extraída ═══
+    # Fallback: httpx con URL extraída
     try:
         url, headers = await get_audio_url(video_id, quality)
         if url:
@@ -758,7 +758,7 @@ async def stream_audio_generator(video_id: str, quality: str = "standard"):
     except Exception as e:
         logger.warning("stream %s: httpx falló: %s", video_id, e)
 
-    # ═══ Último recurso: cookies del navegador ═══
+    # Último recurso: cookies del navegador
     try:
         url, headers = await _get_url_with_cookies_async(video_id)
         if url:

@@ -14,9 +14,7 @@
  * propiedad con miles de colores aleatorios.
  */
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  CONSTANTES DE DERIVACIÓN
-// ═══════════════════════════════════════════════════════════════════════════════
 
 /** Fondo oscuro fijo de la app (contraste objetivo del acento). */
 export const BASE = "#0a0a0f";
@@ -41,9 +39,7 @@ export const ON_ACCENT_MIN_CONTRAST = 4.5;
 export const AMBIENT_L = 0.5;
 export const AMBIENT_C_MAX = 0.12;
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  CONVERSIONES sRGB ↔ OKLab / OKLCH  (Björn Ottosson, matrices estándar)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 const toEncoded = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
@@ -207,9 +203,7 @@ export const oklchFromHex = (hex) => {
   return srgbToOklch(r, g, b);
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  CONTRASTE WCAG (ratio real, no un umbral de luminancia)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 /** Luminancia relativa WCAG (0 = negro, 1 = blanco). */
 export const getLuminance = (hex) => {
@@ -225,9 +219,7 @@ export const contrastRatio = (hexA, hexB) => {
   return (hi + 0.05) / (lo + 0.05);
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  DERIVACIÓN DEL TEMA
-// ═══════════════════════════════════════════════════════════════════════════════
 
 /** Soft-knee del croma: conserva por debajo, satura suavemente hacia el techo. */
 const softKneeC = (c) =>
@@ -322,9 +314,7 @@ export const deriveTheme = (hex) => {
   return { accent, onAccent, ambient };
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
 //  EXTRACTOR DE PORTADA — píxeles RGBA → tono dominante en OKLCH
-// ═══════════════════════════════════════════════════════════════════════════════
 
 /** Nº de bins de tono (cada uno = 15°). */
 export const HUE_BIN_COUNT = 24;

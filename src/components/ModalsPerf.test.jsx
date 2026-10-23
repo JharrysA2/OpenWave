@@ -46,7 +46,7 @@ const song = {
 const noop = () => {};
 const overlayOpen = () => document.documentElement.classList.contains("overlay-open");
 
-// ── Overlays a pantalla completa ───────────────────────────────────────────
+// Overlays a pantalla completa
 
 const overlays = [
   ["ConfirmModal", <ConfirmModal key="a" open title="Borrar" message="¿Seguro?" onCancel={noop} />],

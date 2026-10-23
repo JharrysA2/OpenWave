@@ -62,7 +62,7 @@ function renderSearch(props = {}) {
 }
 
 describe("SearchView", () => {
-  // ── Search bar ──────────────────────────────────────────────────────
+  // Search bar
 
   it("should render search input with placeholder", () => {
     renderSearch();
@@ -123,7 +123,7 @@ describe("SearchView", () => {
     expect(onQueryChange).toHaveBeenCalledWith("");
   });
 
-  // ── Tabs ──────────────────────────────────────────────────────────────
+  // Tabs
 
   it("should render both tabs", () => {
     renderSearch();
@@ -145,7 +145,7 @@ describe("SearchView", () => {
     expect(onSearchTabChange).toHaveBeenCalledWith("videos");
   });
 
-  // ── Music tab: empty query → no results ────────────────────────────
+  // Music tab: empty query → no results
 
   it("should not show no-results message when query is empty", () => {
     renderSearch({ query: "", results: [] });
@@ -157,7 +157,7 @@ describe("SearchView", () => {
     expect(screen.getByText(/Sin resultados/)).toBeInTheDocument();
   });
 
-  // ── Music tab: results with songs ───────────────────────────────────
+  // Music tab: results with songs
 
   it("should show songs section with results", () => {
     const results = [song("1"), song("2")];
@@ -233,7 +233,7 @@ describe("SearchView", () => {
     expect(screen.getByText("Song 2")).toBeInTheDocument();
   });
 
-  // ── Music tab: show more ─────────────────────────────────────────
+  // Music tab: show more
 
   it("should show 'Mostrar más' button when results exceed songsVisible", () => {
     const results = Array.from({ length: 15 }, (_, i) => song(`${i}`));
@@ -255,7 +255,7 @@ describe("SearchView", () => {
     expect(screen.queryByText(/restantes/)).not.toBeInTheDocument();
   });
 
-  // ── Music tab: artists ──────────────────────────────────────────────
+  // Music tab: artists
 
   it("should show artists section when searchArtists is provided", () => {
     const searchArtists = [artist("1"), artist("2")];
@@ -273,7 +273,7 @@ describe("SearchView", () => {
     expect(onSelectArtist).toHaveBeenCalledWith(expect.objectContaining({ browseId: "artist_1" }));
   });
 
-  // ── Music tab: albums ───────────────────────────────────────────────
+  // Music tab: albums
 
   it("should show albums section when searchAlbums is provided", () => {
     const searchAlbums = [album("1"), album("2")];
@@ -291,7 +291,7 @@ describe("SearchView", () => {
     expect(onSelectAlbum).toHaveBeenCalledWith(expect.objectContaining({ browseId: "album_1" }));
   });
 
-  // ── Videos tab ─────────────────────────────────────────────────────
+  // Videos tab
 
   it("should show video results when on videos tab", () => {
     const videoResults = [song("v1"), song("v2")];
@@ -318,7 +318,7 @@ describe("SearchView", () => {
     expect(playSong).toHaveBeenCalledWith(expect.objectContaining({ videoId: "v1" }));
   });
 
-  // ── Estados de error con código reportable ────────────────────────────
+  // Estados de error con código reportable
 
   it("un fallo de búsqueda NO muestra 'Sin resultados' sino el estado de error", () => {
     const onRetrySearch = vi.fn();

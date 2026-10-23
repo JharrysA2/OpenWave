@@ -6,7 +6,7 @@ import { renderWithSettings } from "../test-utils";
 import { DEFAULT_ERROR_CODE, ERROR_CODES } from "../utils/errorCodes";
 
 describe("StatusState", () => {
-  // ── Textos del catálogo (es) ───────────────────────────────────────────
+  // Textos del catálogo (es)
 
   it("muestra título y mensaje del código recibido", () => {
     render(<StatusState code="E-CNX-02" />);
@@ -40,7 +40,7 @@ describe("StatusState", () => {
     localStorage.clear();
   });
 
-  // ── Acciones ───────────────────────────────────────────────────────────
+  // Acciones
 
   it("el botón Reintentar llama a onRetry", () => {
     const onRetry = vi.fn();

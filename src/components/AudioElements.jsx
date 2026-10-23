@@ -34,7 +34,7 @@ export function AudioElements({
     },
     onEnded: handleSongEnded,
     onDurationChange: (e) => {
-      // ⭐ Fix barra de progreso en crossfade: SOLO el audio ACTUAL puede
+      // Fix barra de progreso en crossfade: SOLO el audio ACTUAL puede
       //    cambiar la duración visible. Sin este guard, la metadata del
       //    audio ENTRANTE (que ya cargó durante el fade) pisa `duration`
       //    con la duración de la SIGUIENTE canción → la barra y los

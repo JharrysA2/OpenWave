@@ -43,7 +43,7 @@ class TestThumbnailProxy:
         resp = client.get("/thumbnail-proxy?url=https://yt3.googleusercontent.com/test")
         assert resp.status_code != 403
 
-    # ── Seguridad: loopback solo covers, sin escapes (audoría pre-1.0.0) ──
+    # Seguridad: loopback solo covers, sin escapes (audoría pre-1.0.0)
 
     def test_local_traversal_blocked(self, client):
         """`.../music/covers/../../history` NO pasa: httpx normaliza `..`

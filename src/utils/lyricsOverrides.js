@@ -1,16 +1,7 @@
-// ═══════════════════════════════════════════════════════════════════════════
-//  lyricsOverrides — Letras elegidas por el usuario (Buscar / Editar letras)
-//
-//  El overlay de letras se DESMONTA al cerrarlo (montaje condicional en
-//  App.jsx), así que el estado local de LyricsView se pierde: sin este mapa,
-//  la letra buscada/editada se descartaba y volvía la automática. La clave es
-//  por `videoId`, por lo que la elección sobrevive a cerrar/reabrir e incluso
-//  a reiniciar la app.
-//
-//  Se guardan las líneas CRUDAS (con tags LRC si las hay), no los objetos
-//  parseados: en la carga se reutiliza `processLyricsData`, que ya detecta los
-//  tags de tiempo y parsea con `parseLrc`.
-// ═══════════════════════════════════════════════════════════════════════════
+//  lyricsOverrides — letras elegidas por el usuario (Buscar / Editar letras).
+//  El overlay se desmonta al cerrarlo, así que el estado de LyricsView se
+//  pierde: este mapa por `videoId` hace que la elección sobreviva.
+//  Se guardan las líneas CRUDAS (con tags LRC) y se reparsen al cargar.
 
 const OVERRIDES_KEY = "sw_lyrics_overrides_v1";
 

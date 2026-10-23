@@ -24,7 +24,7 @@ function renderPanel(props = {}) {
 }
 
 describe("SettingsPanel", () => {
-  // ── Open/Close ──────────────────────────────────────────────────────────
+  // Open/Close
 
   it("should render null when open is false", () => {
     const { container } = renderPanel({ open: false });
@@ -43,7 +43,7 @@ describe("SettingsPanel", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  // ── ESC = atrás ────────────────────────────────────────────────────────
+  // ESC = atrás
 
   it("ESC en el menú principal cierra el panel", () => {
     const onClose = vi.fn();
@@ -87,7 +87,7 @@ describe("SettingsPanel", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  // ── Main sections ──────────────────────────────────────────────────────
+  // Main sections
 
   it("should render main menu sections", () => {
     renderPanel();
@@ -108,7 +108,7 @@ describe("SettingsPanel", () => {
     expect(screen.getByText("Copias de seguridad")).toBeInTheDocument();
   });
 
-  // ── Page navigation ────────────────────────────────────────────────────
+  // Page navigation
 
   it("should navigate to appearance page when clicked", () => {
     renderPanel();
@@ -143,7 +143,7 @@ describe("SettingsPanel", () => {
     expect(screen.getByText("Idioma")).toBeInTheDocument();
   });
 
-  // ── Back navigation ────────────────────────────────────────────────────
+  // Back navigation
 
   it("should go back to main menu when back button is clicked", () => {
     renderPanel();
@@ -156,7 +156,7 @@ describe("SettingsPanel", () => {
     expect(screen.queryByText("Versión")).not.toBeInTheDocument();
   });
 
-  // ── Storage page with downloads ────────────────────────────────────────
+  // Storage page with downloads
 
   it("should show storage page with download info", () => {
     renderPanel({

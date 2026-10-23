@@ -35,7 +35,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { api } from "../utils/api";
 
-// ── PageAcercaDe ───────────────────────────────────────────────────────────
+// PageAcercaDe
 
 describe("PageAcercaDe", () => {
   it("should render version number", () => {
@@ -91,7 +91,7 @@ describe("PageAcercaDe", () => {
   });
 });
 
-// ── PageTraduccion ─────────────────────────────────────────────────────────
+// PageTraduccion
 
 describe("PageTraduccion", () => {
   it("should render language section", () => {
@@ -111,7 +111,7 @@ describe("PageTraduccion", () => {
   });
 });
 
-// ── PageReproductor ────────────────────────────────────────────────────────
+// PageReproductor
 
 describe("PageReproductor", () => {
   it("should render crossfade section", () => {
@@ -177,7 +177,7 @@ describe("PageReproductor", () => {
   });
 });
 
-// ── PageAlmacenamiento ─────────────────────────────────────────────────────
+// PageAlmacenamiento
 
 describe("PageAlmacenamiento", () => {
   it("should show 0 canciones when empty", () => {
@@ -256,7 +256,7 @@ describe("PageAlmacenamiento", () => {
   });
 });
 
-// ── PagePrivacidad ─────────────────────────────────────────────────────────
+// PagePrivacidad
 
 describe("PagePrivacidad", () => {
   it("should render privacy section", () => {
@@ -315,7 +315,7 @@ describe("PagePrivacidad", () => {
   });
 });
 
-// ── PageApariencia ──────────────────────────────────────────────────────
+// PageApariencia
 
 describe("PageApariencia", () => {
   it("should render the app color row that opens the palette modal", () => {
@@ -442,7 +442,7 @@ describe("PageApariencia", () => {
   });
 });
 
-// ── PageContenido ───────────────────────────────────────────────────────
+// PageContenido
 
 describe("PageContenido", () => {
   it("should render default search tab SegBtn", () => {
@@ -463,7 +463,7 @@ describe("PageContenido", () => {
   });
 });
 
-// ── PageContenido: cookies de YouTube ──────────────────────────────────────
+// PageContenido: cookies de YouTube
 
 describe("PageContenido — cookies de YouTube", () => {
   const COOKIES =
@@ -615,7 +615,7 @@ describe("PageContenido — cookies de YouTube", () => {
   });
 });
 
-// ── PageCopias ──────────────────────────────────────────────────────────────
+// PageCopias
 
 describe("PageCopias", () => {
   beforeEach(() => {
@@ -660,7 +660,7 @@ describe("PageCopias", () => {
     expect(api.fetchPlaylistSongs).toHaveBeenCalledWith("pl1");
   });
 
-  // ── Importar con plugin-dialog (sustituye al <input type="file">) ─────────
+  // Importar con plugin-dialog (sustituye al <input type="file">)
 
   describe("importar con plugin-dialog", () => {
     afterEach(() => {
@@ -772,7 +772,7 @@ describe("PageCopias", () => {
   });
 });
 
-// ── PageRendimiento ──────────────────────────────────────────────────────
+// PageRendimiento
 
 describe("PageRendimiento", () => {
   it("should render performance mode section", () => {
@@ -789,7 +789,7 @@ describe("PageRendimiento", () => {
   });
 });
 
-// ── Barra lateral (Apariencia → General) ──────────────────────────────────
+// Barra lateral (Apariencia → General)
 
 describe("PageApariencia — barra lateral", () => {
   it("muestra el toggle de la barra lateral y persiste el cambio", () => {

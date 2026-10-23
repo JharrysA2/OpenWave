@@ -11,7 +11,7 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-// ── Tests que NO necesitan fake timers ─────────────────────────────────────
+// Tests que NO necesitan fake timers
 
 describe("useSearch - initial state", () => {
   it("should start with default state", () => {
@@ -146,7 +146,7 @@ describe("useSearch - doSearchVideos", () => {
   });
 });
 
-// ── Tests del handleSearchChange (debounce de 300 ms) ─────────────────────
+// Tests del handleSearchChange (debounce de 300 ms)
 //    La búsqueda NO es inmediata: handleSearchChange aplica un debounce de
 //    300 ms que cancela la ventana anterior, así que solo corre la última.
 
@@ -225,7 +225,7 @@ describe("useSearch - handleSearchChange (debounce 300ms)", () => {
   });
 });
 
-// ── Errores con código reportable ──────────────────────────────────────────
+// Errores con código reportable
 
 describe("useSearch — searchError (búsqueda de canciones)", () => {
   it("should start with searchError null", () => {

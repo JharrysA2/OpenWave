@@ -94,7 +94,7 @@ let bootStartedAt = 0;
 /** Timer de reintento dentro de la ventana de gracia. */
 let bootRetryTimer = null;
 
-// ── Suscripción ──────────────────────────────────────────────────────────────
+// Suscripción
 
 function emit() {
   for (const listener of statusListeners) listener(state);
@@ -121,7 +121,7 @@ export function subscribeReconnect(listener) {
   return () => reconnectListeners.delete(listener);
 }
 
-// ── Transiciones ─────────────────────────────────────────────────────────────
+// Transiciones
 
 /**
  * Marca el backend como caído. Lo llaman tanto `api.js` (error de red) como
@@ -177,7 +177,7 @@ export function markOnline() {
   return recovered;
 }
 
-// ── Health-check ─────────────────────────────────────────────────────────────
+// Health-check
 
 /**
  * Consulta `GET /health`. Actualiza el estado y devuelve si el backend vive.
@@ -225,7 +225,7 @@ export async function checkHealth({ timeout = HEALTH_TIMEOUT_MS } = {}) {
   }
 }
 
-// ── Heartbeat ────────────────────────────────────────────────────────────────
+// Heartbeat
 
 /**
  * Programa el siguiente intento dentro de la ventana de gracia del arranque

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-# ── Forzar rutas temporales antes de importar config ──────────────────────────
+# Forzar rutas temporales antes de importar config
 TMP_DIR = Path(tempfile.mkdtemp(prefix="sw_test_"))
 
 # Los datos (downloads, db, log, stream_cache) van a un dir temporal ANTES de

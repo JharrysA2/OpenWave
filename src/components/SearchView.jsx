@@ -52,9 +52,9 @@ export default function SearchView({
   onSelectAlbum,
   openEntityOptions,
 }) {
-  // ── Estado local del input (solo se busca en Enter/click lupa) ─────────
+  // Estado local del input (solo se busca en Enter/click lupa)
   const [localQuery, setLocalQuery] = React.useState(query || "");
-  // ⭐ "Buscando" viene del estado REAL del hook (searchLoading), no se
+  // "Buscando" viene del estado REAL del hook (searchLoading), no se
   //    deduce de "results vacíos" — eso confundía "sin resultados" con
   //    "cargando" y mostraba un spinner eterno cuando no había matches.
   const searching = searchLoading;

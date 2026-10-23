@@ -15,7 +15,7 @@
  *   import { getCoverSources } from "../utils/thumbnails";    // pintar un <img srcSet>
  */
 
-// ── Patrones / resoluciones ──────────────────────────────────────────────────
+// Patrones / resoluciones
 
 import { API } from "../constants";
 
@@ -54,7 +54,7 @@ export const GOOGLE_THUMB_SIZES = [
   { suffix: "=w2048-h2048-l90-rj", width: 2048, height: 2048 },
 ];
 
-// ── Helpers de detección ─────────────────────────────────────────────────────
+// Helpers de detección
 
 /** ¿Es una URL de googleusercontent? */
 export function isGoogleThumbUrl(url) {
@@ -108,7 +108,7 @@ export function withLocalCover(song) {
   };
 }
 
-// ── Generadores ──────────────────────────────────────────────────────────────
+// Generadores
 
 /**
  * URL de YouTube para una resolución concreta.
@@ -196,7 +196,7 @@ export function withHDThumbnails(song) {
   });
 }
 
-// ── Consumo en UI (MusicCover) ───────────────────────────────────────────────
+// Consumo en UI (MusicCover)
 
 /**
  * Calcula las fuentes de una portada para pintar <img srcSet> con blur

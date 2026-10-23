@@ -119,9 +119,7 @@ describe("useOverlayLayer — pausa de animaciones detrás de un overlay", () =>
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
 //  useOverlayActive — congela los repaints programados bajo el overlay
-// ═══════════════════════════════════════════════════════════════════════════
 
 describe("useOverlayActive — estado React del overlay", () => {
   beforeEach(() => {

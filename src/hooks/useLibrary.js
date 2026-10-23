@@ -49,7 +49,7 @@ export function useLibrary() {
   const [history, setHistory] = useState([]);
   const [downloads, setDownloads] = useState([]);
   const [playlists, setPlaylists] = useState([]);
-  // ── Estado de carga ─────────────────────────────────────────────────────
+  // Estado de carga
   // Sin esto la Home no distinguía "cargando" de "vacío": el backend caído
   // dejaba los skeletons para siempre. `error` lleva { message, code } con el
   // código reportable (utils/errorCodes) para poder mostrarlo al usuario.
@@ -66,7 +66,7 @@ export function useLibrary() {
     likedMetaRef.current = likedMeta;
   }, [likedMeta]);
 
-  // ── Carga de la biblioteca (montaje + refresco) ──────────────────────────
+  // Carga de la biblioteca (montaje + refresco)
   //    `silent` = refresco en caliente (reconexión): NO vuelve a "loading"
   //    para no vaciar la UI con skeletons mientras ya hay datos.
   const loadLibrary = useCallback(async (silent = false) => {
@@ -158,7 +158,7 @@ export function useLibrary() {
     writeJson(LIKED_META_KEY, meta);
   }, []);
 
-  // ── Función para refrescar playlists desde cualquier componente ──
+  // Función para refrescar playlists desde cualquier componente
   const refreshPlaylists = useCallback(async () => {
     try {
       const fresh = await api.fetchPlaylists(); // _skipCache: true interno

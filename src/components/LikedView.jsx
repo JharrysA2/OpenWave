@@ -46,7 +46,7 @@ export default function LikedView({
   // Buscador local de la pestaña Canciones (filtra la lista en memoria).
   const [songQuery, setSongQuery] = useState("");
 
-  // ── Selección múltiple (solo pestaña Canciones, estilo PlaylistView) ──
+  // Selección múltiple (solo pestaña Canciones, estilo PlaylistView)
   const {
     selectMode,
     selected,
@@ -65,7 +65,7 @@ export default function LikedView({
   // Lista de canciones filtrada por el buscador local (vacío = todo).
   const filteredSongs = filterSongs(likedSongs, songQuery);
 
-  // ── Reproducción por pestaña ─────────────────────────────────────
+  // Reproducción por pestaña
   // Canciones: Reproducir = primera canción, Aleatorio = cola barajada.
   // Álbumes: Reproducir = pistas del PRIMER álbum; Aleatorio = mezcla de
   // TODOS los álbumes (carga las pistas al vuelo, 1 petición por álbum).
@@ -112,7 +112,7 @@ export default function LikedView({
     else playAll(true);
   };
 
-  // ── Acciones sobre la selección ──────────────────────────────────
+  // Acciones sobre la selección
   const handleRemoveSelected = () => {
     if (selected.size === 0) return;
     // Los "me gusta" viven en localStorage: quitarlos es inmediato y reversible
@@ -178,7 +178,7 @@ export default function LikedView({
         paddingBottom: "90px",
       }}
     >
-      {/* ── Hero Section ─────────────────────────── */}
+      {/* Hero Section */}
       <div
         style={{
           display: "flex",
@@ -296,7 +296,7 @@ export default function LikedView({
         </div>
       </div>
 
-      {/* ── Pestañas: Canciones / Álbumes / Artistas ────────── */}
+      {/* Pestañas: Canciones / Álbumes / Artistas */}
       <LibraryTabs
         accentColor={accentColor}
         value={tab}
@@ -308,7 +308,7 @@ export default function LikedView({
         ]}
       />
 
-      {/* ── Contenido por pestaña ────────────────── */}
+      {/* Contenido por pestaña */}
       {tab === "songs" &&
         (likedSongs.length === 0 ? (
           <div style={EMPTY_STYLE}>Dale me gusta a canciones para verlas aquí</div>
@@ -386,7 +386,7 @@ export default function LikedView({
           </div>
         ))}
 
-      {/* ── Mover selección a playlist ─────────────────── */}
+      {/* Mover selección a playlist */}
       <TransferModal
         open={showTransferModal}
         onClose={() => setShowTransferModal(false)}

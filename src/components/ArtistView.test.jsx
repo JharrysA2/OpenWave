@@ -127,7 +127,7 @@ describe("ArtistView", () => {
     expect(follow.style.color).toContain("var(--neon-fg)");
   });
 
-  // ── Rendimiento: blur moderado en el banner (regresión de raster GPU) ──
+  // Rendimiento: blur moderado en el banner (regresión de raster GPU)
   it("el banner del artista usa blur(8px), no blur(12px)", async () => {
     const { container } = render(<ArtistView {...defaultProps} />);
     await waitFor(() => {

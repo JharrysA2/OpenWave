@@ -61,7 +61,7 @@ COOKIES_AUTH = frozenset(
 _lock = threading.Lock()
 
 
-# ── Formato Netscape ─────────────────────────────────────────────────────────
+# Formato Netscape
 
 
 def _error(mensaje: str) -> dict:
@@ -156,7 +156,7 @@ def analizar_cookies(texto: str) -> dict:
     return {"ok": True, "cookies": total, "auth": len(auth)}
 
 
-# ── Verificación real contra YouTube ────────────────────────────────────────
+# Verificación real contra YouTube
 
 
 def _limpiar_error(mensaje: str) -> str:
@@ -292,7 +292,7 @@ def verificar_cookies(texto: str) -> dict:
     return resultado
 
 
-# ── Guardado / consulta / borrado ────────────────────────────────────────────
+# Guardado / consulta / borrado
 
 
 def guardar_cookies(texto: str) -> dict:

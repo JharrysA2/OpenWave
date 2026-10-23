@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// ── Mock api ──────────────────────────────────────────────────────────────────
+// Mock api
 
 vi.mock("../utils/api", () => ({
   api: {
@@ -110,7 +110,7 @@ describe("CreatePlaylistModal", () => {
   });
 });
 
-// ── Portada con plugin-dialog (sustituye al <input type="file">) ─────────────
+// Portada con plugin-dialog (sustituye al <input type="file">)
 
 describe("CreatePlaylistModal — portada con plugin-dialog", () => {
   it("cancelar el selector no cambia nada ni avisa (bug: cerraba la app)", async () => {

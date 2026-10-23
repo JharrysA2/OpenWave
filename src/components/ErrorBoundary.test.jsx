@@ -3,13 +3,13 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ErrorBoundary } from "./ErrorBoundary";
 
-// ── Helper: componente que lanza error ────────────────────────────────────────
+// Helper: componente que lanza error
 
 const ThrowError = ({ message = "Test error" }) => {
   throw new Error(message);
 };
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// Tests
 
 describe("ErrorBoundary", () => {
   beforeEach(() => {
@@ -21,7 +21,7 @@ describe("ErrorBoundary", () => {
     vi.restoreAllMocks();
   });
 
-  // ── Render normal ────────────────────────────────────────────────────────────
+  // Render normal
 
   it("should render children when there is no error", () => {
     render(
@@ -44,7 +44,7 @@ describe("ErrorBoundary", () => {
     expect(screen.getByTestId("child-2")).toBeInTheDocument();
   });
 
-  // ── Captura de errores → fallback amigable (sin stacks rojos) ───────────────
+  // Captura de errores → fallback amigable (sin stacks rojos)
 
   it("should catch errors and display the friendly fallback", () => {
     render(
@@ -108,7 +108,7 @@ describe("ErrorBoundary", () => {
     });
   });
 
-  // ── Sin error después de error ──────────────────────────────────────────────
+  // Sin error después de error
 
   it("should maintain error state after catching (no recovery)", () => {
     const { rerender } = render(
@@ -130,7 +130,7 @@ describe("ErrorBoundary", () => {
     expect(screen.getByTestId("error-boundary-fallback")).toBeInTheDocument();
   });
 
-  // ── Nested ErrorBoundary ──────────────────────────────────────────────────
+  // Nested ErrorBoundary
 
   it("should not interfere with nested error boundaries", () => {
     render(

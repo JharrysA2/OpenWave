@@ -21,7 +21,7 @@ _db_lock = threading.Lock()
 #    vez al actualizar; el resolver ya no los crea en ese caso.
 _ESQUEMA_VERSION = 3
 
-# ── Pool de conexiones SQLite ──────────────────────────────────────────────
+# Pool de conexiones SQLite
 # Antes se abría/cerraba UNA conexión por operación (más las PRAGMA de
 # configuración), lo que volvía lentos cada /history, /playlists, /downloads
 # y /home/*. Ahora se reutilizan hasta _POOL_SIZE conexiones: la config se
@@ -526,7 +526,7 @@ def _parse_thumbs_json(raw) -> list:
     return []
 
 
-# ── Feedback (entrenar recomendaciones) ─────────────────────────────────────────
+# Feedback (entrenar recomendaciones)
 
 
 def db_record_feedback(
@@ -591,7 +591,7 @@ def db_get_artist_feedback_scores(artist_names: list[str]) -> dict:
     return scores
 
 
-# ── Vídeo de fondo: videoclip oficial (caché de la resolución) ───────────────────────
+# Vídeo de fondo: videoclip oficial (caché de la resolución)
 
 
 def _resuelto_caducado(marca: str | None, vigencia: float) -> bool:

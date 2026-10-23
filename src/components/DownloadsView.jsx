@@ -66,7 +66,7 @@ export default function DownloadsView({
   // Buscador local de la pestaña Canciones (filtra la lista en memoria).
   const [songQuery, setSongQuery] = useState("");
 
-  // ── Selección múltiple (solo pestaña Canciones, estilo PlaylistView) ──
+  // Selección múltiple (solo pestaña Canciones, estilo PlaylistView)
   const {
     selectMode,
     selected,
@@ -106,7 +106,7 @@ export default function DownloadsView({
   // Lista de canciones filtrada por el buscador local (vacío = todo).
   const filteredSongs = filterSongs(songs, songQuery);
 
-  // ── Confirmaciones: "Eliminar todo" o solo la selección ──
+  // Confirmaciones: "Eliminar todo" o solo la selección
   const handleConfirm = async () => {
     if (confirmAction === "all") {
       await api.deleteDownloads(toast);
@@ -149,7 +149,7 @@ export default function DownloadsView({
     if (refreshPlaylists) await refreshPlaylists();
   };
 
-  // ── Reproducción por pestaña ─────────────────────────────────────
+  // Reproducción por pestaña
   // Canciones: primera descarga + cola completa. Álbumes: pistas del
   // PRIMER álbum agrupado; Aleatorio = mezcla de TODOS los álbumes.
   const playAll = (shuffle = false) => {
@@ -253,7 +253,7 @@ export default function DownloadsView({
         paddingBottom: "90px",
       }}
     >
-      {/* ── Hero Section ─────────────────────────── */}
+      {/* Hero Section */}
       <div
         style={{
           display: "flex",
@@ -394,7 +394,7 @@ export default function DownloadsView({
         </div>
       </div>
 
-      {/* ── Pestañas: Canciones / Álbumes ────────── */}
+      {/* Pestañas: Canciones / Álbumes */}
       <LibraryTabs
         accentColor={accentColor}
         value={tab}
@@ -405,7 +405,7 @@ export default function DownloadsView({
         ]}
       />
 
-      {/* ── Contenido por pestaña ────────────────── */}
+      {/* Contenido por pestaña */}
       {tab === "songs" &&
         (songs.length === 0 ? (
           <div style={EMPTY_STYLE}>Descarga canciones para escucharlas sin conexión</div>

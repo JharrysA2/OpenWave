@@ -137,7 +137,7 @@ describe("PerformanceProvider — modo auto con detección de GPU", () => {
   });
 });
 
-// ── Minimizado: la senal que visibilityState NO da (IsIconic de Win32) ───────
+// Minimizado: la senal que visibilityState NO da (IsIconic de Win32)
 //  Verificado en vivo el 2026-10-02: con ShowWindow(SW_MINIMIZE) el documento
 //  seguia "visible" (focus=false) -> con solo visibilitychange la app nunca se
 //  congelaria. Senales: blur/focus (DOM) + onResized/onFocusChanged (Tauri).
@@ -248,7 +248,7 @@ describe("minimizar (IsIconic) — congelado sin visibilityState", () => {
   });
 });
 
-// ── Congelado por visibilidad REAL (spec §4): foco irrelevante ──────────────
+// Congelado por visibilidad REAL (spec §4): foco irrelevante
 //  t=0 oculta  → app-hidden (pausa; música sigue)
 //  t=15 s      → app-sleep (animaciones apagadas + componentes liberan RAM)
 //  restaurar   → ambas fuera al instante

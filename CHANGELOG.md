@@ -477,6 +477,18 @@ Cambios de infraestructura, empaquetado y publicación. Son para el flujo de
 trabajo del proyecto y **no forman parte de las notas de una versión de la app**
 (esas van en las secciones `## [X.Y.Z]`).
 
+### Added
+
+- **Plan de soporte nativo de Linux** (`docs/linux.md`): cómo repartir la
+  separación entre configuración por plataforma, staging del runtime y CI sin
+  bifurcar el código, con cinco fases, un gate por fase y los riesgos de
+  WebKitGTK. Incluye una grieta ya localizada: `_es_instalado` devuelve
+  `False` fuera de Windows (`backend/config.py:39`, `src-tauri/src/lib.rs:204`),
+  así que en una instalación Linux la decisión de dónde viven los datos queda
+  en manos de si el directorio del código es escribible. El arreglo es aceptar
+  la marca `runtime/` (ya presente en el layout empaquetado) también en Linux,
+  en los dos sitios.
+
 ### Fixed
 
 - **Verificación de la regla de videoclips de la 1.1.5 y del reintento IPv4 de

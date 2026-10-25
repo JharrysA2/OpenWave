@@ -52,6 +52,20 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
   `utils/colorTheme` y `utils/formatTime`; el resultado en pantalla es el
   mismo.
 
+### Fixed
+
+- **El fondo de la pantalla de letras vuelve a salir difuminado con el vídeo
+  de fondo apagado.** En Linux, WebKitGTK acepta `ctx.filter` y lo devuelve
+  intacto al leerlo, pero lo ignora al rasterizar: la portada pre-difuminada
+  en canvas salía NÍTIDA y, al tener valor `bgBlurUrl`, la capa retiraba su
+  `filter` CSS de respaldo. Ahora `filtroCanvasSoportado()` mide si el motor
+  aplica el filtro de verdad (dibuja un borde duro con blur y comprueba si el
+  píxel del borde queda entremezclado); si no lo hace, el pre-difuminado
+  resuelve `null` —sin ni siquiera descargar la miniatura— y la capa vuelve a
+  la cadena `blur(12px) saturate(1.2) brightness(0.7)`, que sí se desenfoca en
+  ese motor. Donde la medición no es posible se sigue usando el camino rápido
+  de siempre.
+
 ## [1.1.9] - 2026-10-22
 
 ### Changed

@@ -32,7 +32,9 @@
  *   r_canvas = 12 px × (anchoCanvas / anchoViewport)
  *
  * Resuelve a null si la imagen no tiene dimensiones, el canvas no está
- * disponible o el canvas queda contaminado (tainted) por CORS.
+ * disponible o el canvas queda contaminado (tainted) por CORS, o si el motor
+ * no aplica `ctx.filter` (ver `filtroCanvasSoportado`): mejor el `filter`
+ * CSS de respaldo —que sí desenfoca— que entregar una textura nítida.
  */
 function defaultCanvasWidth() {
   try {
@@ -58,12 +60,52 @@ function blobToDataUrl(blob) {
   });
 }
 
+/**
+ * ¿Aplica este motor `ctx.filter` al dibujar?
+ *
+ * Medido en WebKitGTK 2.54 (Linux, 2026-10-24): la propiedad SÍ se lee de
+ * vuelta —`ctx.filter` devuelve "blur(10px)"— pero se IGNORA al rasterizar,
+ * tanto en `<canvas>` como en OffscreenCanvas y tanto con `fillRect` como
+ * con `drawImage`. El pre-difuminado salía NÍTIDO, `bgBlurUrl` quedaba con
+ * valor y la capa de Letras retiraba su `filter` CSS de respaldo: portada del
+ * fondo sin desenfoque con el vídeo apagado.
+ *
+ * Se comprueba dibujando un borde duro (negro | blanco) con blur encima: si
+ * el píxel del borde sigue en blanco o negro puro, el filtro no ha hecho nada
+ * (con blur operativo queda entremezclado, ~128). Si no se puede medir
+ * (jsdom, mocks, sin contexto 2d) se asume que funciona: el pre-difuminado es
+ * el camino barato y solo se abandona con la certeza de que no sirve. La
+ * prueba es un trazo de 64² con un `getImageData` de 1 píxel: cabe en el
+ * margen de cualquier llamada.
+ */
+export function filtroCanvasSoportado() {
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    if (!ctx || typeof ctx.getImageData !== "function") return true;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, 32, 64);
+    ctx.filter = "blur(10px)";
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(32, 0, 32, 64);
+    const v = ctx.getImageData(32, 32, 1, 1).data[0];
+    return v > 24 && v < 231;
+  } catch {
+    return true;
+  }
+}
+
 export async function preblurToDataUrl(img, opts = {}) {
   try {
     // vale una <img> (naturalWidth) o un ImageBitmap (width)
     const nw = img?.naturalWidth || img?.width || 0;
     const nh = img?.naturalHeight || img?.height || 0;
     if (!nw || !nh) return null;
+    // Sin filtro operativo no hay pre-difuminado posible: null para que la
+    // capa de Letras mantenga su `filter` CSS de respaldo.
+    if (!filtroCanvasSoportado()) return null;
 
     const viewportW = opts.viewportWidth ?? (window.innerWidth || 1920);
     const width = opts.width ?? defaultCanvasWidth();
@@ -142,6 +184,8 @@ function loadImage(url) {
  */
 export async function preblurUrlToDataUrl(url, opts = {}) {
   if (!url) return null;
+  // Antes de descargar: sin filtro operativo la miniatura no sirve para nada.
+  if (!filtroCanvasSoportado()) return null;
   try {
     const res = await fetch(url, { mode: "cors", credentials: "omit" });
     if (!res.ok) return null;

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { preblurToDataUrl, preblurUrlToDataUrl } from "./imageBlur";
+import { preblurToDataUrl, preblurUrlToDataUrl, filtroCanvasSoportado } from "./imageBlur";
 import tauriConf from "../../src-tauri/tauri.conf.json";
 
 describe("CSP de producción — cadena del pre-difuminado de Letras", () => {
@@ -216,5 +216,51 @@ describe("preblurUrlToDataUrl — descarga por blob (nunca contamina el canvas)"
     expect(ctx.drawImage).toHaveBeenCalledWith(bitmap, 0, 0, 960, 540);
     expect(ctx.filter).toContain("blur(");
     expect(bitmap.close).toHaveBeenCalled();
+  });
+});
+
+describe("filtroCanvasSoportado — WebKitGTK ignora ctx.filter al rasterizar", () => {
+  // Regresión real (CachyOS, 2026-10-24): el motor devuelve el filtro que se
+  // le asigna —`ctx.filter` lee "blur(10px)"— pero NO lo aplica al dibujar
+  // (tira del borde [0,…,0,255,…,255] probada en `<canvas>` y en
+  // OffscreenCanvas, con fillRect y con drawImage). El pre-difuminado salía
+  // NÍTIDO, `bgBlurUrl` quedaba con valor y la capa de Letras retiraba su
+  // `filter` CSS de respaldo: el fondo de la pantalla de letras se veía sin
+  // desenfoque con el vídeo apagado. El filtro CSS sí funciona en ese motor
+  // (rampa 22→254 medida con snapshot del WebView).
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  /** Contexto cuyo píxel de borde queda en `valor` tras dibujar con filtro. */
+  const ctxMedible = (valor) => ({
+    fillStyle: "",
+    filter: "",
+    fillRect: vi.fn(),
+    getImageData: () => ({ data: new Uint8ClampedArray([valor, valor, valor, 255]) }),
+  });
+
+  it("devuelve false si el filtro no entremezcla el borde, y nada de pre-difuminado", async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctxMedible(255));
+
+    expect(filtroCanvasSoportado()).toBe(false);
+    // Una data URL nítida taparía el respaldo CSS y dejaría la portada a vista.
+    expect(await preblurToDataUrl({ naturalWidth: 640, naturalHeight: 360 })).toBeNull();
+    // …y ni siquiera merece la descarga de la miniatura.
+    expect(await preblurUrlToDataUrl("http://127.0.0.1:8765/thumbnail-proxy?url=x")).toBeNull();
+  });
+
+  it("devuelve true si el borde queda entremezclado (motor con filtro operativo)", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(ctxMedible(128));
+    expect(filtroCanvasSoportado()).toBe(true);
+  });
+
+  it("asume que funciona cuando no se puede medir (motores sin getImageData)", () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      filter: "",
+      drawImage: vi.fn(),
+    });
+    expect(filtroCanvasSoportado()).toBe(true);
   });
 });

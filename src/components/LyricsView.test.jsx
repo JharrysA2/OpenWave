@@ -899,6 +899,39 @@ describe("LyricsView — rendimiento del fondo", () => {
     expect(bg.style.willChange).toBe("");
   });
 
+  afterEach(() => {
+    // Los stubs de Image/fetch del test de abajo no deben filtrarse.
+    vi.unstubAllGlobals();
+  });
+
+  it("sin filtro de canvas operativo, la capa conserva el filter CSS blur(12px)", async () => {
+    // WebKitGTK (Linux) acepta `ctx.filter` pero no lo aplica al rasterizar:
+    // preblurUrlToDataUrl resuelve null y la capa vuelve a su respaldo CSS.
+    // Si el respaldo no estuviera, la portada del fondo se vería NÍTIDA
+    // (regresión del 24/10/2026 con «Vídeo de fondo» apagado).
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("sin red");
+      }),
+    );
+    class FakeImage {
+      set src(v) {
+        this._src = v;
+        queueMicrotask(() => this.onload && this.onload());
+      }
+      get src() {
+        return this._src;
+      }
+    }
+    vi.stubGlobal("Image", FakeImage);
+
+    const { container } = renderLyrics();
+    const bg = container.querySelector('[data-testid="lyrics-bg"]');
+    expect(bg).toBeTruthy();
+    await waitFor(() => expect(bg.style.filter).toContain("blur(12px)"));
+  });
+
   it("«Girar el fondo» usa steps(720) y capa diagonal hypot(): continuo caro y360 se veía en pausas", () => {
     // Medido en vivo 2026-10-03 (Radeon 740M). La rotación CONTINUA
     // repinta la capa en cada vsync (+14–37 pts de GPU 3D). A/B pareado:

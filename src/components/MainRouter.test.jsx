@@ -75,8 +75,11 @@ describe("MainRouter — pantalla «Todas las canciones»", () => {
     );
     await waitFor(() => {
       expect(screen.getByText("Todas las canciones")).toBeInTheDocument();
+      // ArtistSongsView es lazy: el chunk y el efecto de carga llegan en un
+      // tick posterior al primer render, así que la llamada se espera aquí
+      // mismo y el test no depende de los tiempos de la máquina.
+      expect(api.get).toHaveBeenCalledWith("/artist/art1/songs");
     });
-    expect(api.get).toHaveBeenCalledWith("/artist/art1/songs");
   });
 
   it("el botón Volver cierra solo esta pantalla (closeArtistSongs)", async () => {

@@ -538,6 +538,13 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
   la marca `runtime/` (ya presente en el layout empaquetado) también en Linux,
   en los dos sitios.
 
+### Changed
+
+- **`packaging/arch/PKGBUILD` sube a `pkgrel=3`**: el frontend va embebido en
+  el binario, así que el paquete `1.1.9` se vuelve a generar con el arreglo
+  del fondo de Letras; sin ese incremento pacman no distingue el artefacto
+  nuevo del `openwave-1.1.9-2` anterior.
+
 ### Fixed
 
 - **El barrido de CSP de `LyricsView.test.jsx` volvía a la carga**: el comentario

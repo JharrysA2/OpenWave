@@ -543,6 +543,19 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 
 ### Changed
 
+- **`scripts/prepare-runtime.sh` recorta el Tcl/Tk completo**: además de
+  `libtcl*`/`libtk*` y el paquete `tkinter`, se van `_tkinter.so` y las
+  extensiones Tcl (`tcl9*`, `tk9.0`, `itcl*`, `thread3*`). Ese módulo enlaza
+  contra `libtcl9tk9.0.so`, que el Python portátil no trae, y `linuxdeploy`
+  persigue la dependencia al construir el `.AppImage` →
+  `Could not find dependency: libtcl9tk9.0.so`. El staging queda en 264 MB y
+  el `.deb`/`.pkg.tar.zst` bajan unos 1000 ficheros.
+- **`docs/linux.md` documenta los dos escollos del AppImage en Arch/CachyOS**:
+  `NO_STRIP=1` (el `strip` de 2024 que trae linuxdeploy no lee las secciones
+  `.relr.dyn` de las librerías actuales y aborta) y el `AppDir` y la copia
+  `target/release/_up_/` que no se limpian entre pasadas y arrastran staging
+  obsoleto. Con esto el `.AppImage` se genera en local: `OpenWave_1.2.0_amd64
+  .AppImage` (241 MB).
 - **`packaging/arch/PKGBUILD` sube a `pkgrel=3`**: el frontend va embebido en
   el binario, así que el paquete `1.1.9` se vuelve a generar con el arreglo
   del fondo de Letras; sin ese incremento pacman no distingue el artefacto

@@ -110,11 +110,18 @@ PY="$RUNTIME/bin/python3"
   || die "al intérprete portable le faltan módulos nativos"
 
 # Recorte del intérprete: sin Tcl/Tk (la app no usa tkinter) y sin bibliotecas
-# estáticas de compilación. Los símbolos de libpython también se van.
+# estáticas de compilación. Los símbolos de libpython también se van. El módulo
+# `_tkinter` y las extensiones Tcl se van con ellas: enlazan contra
+# libtcl9*/libtk9*, que desaparecen arriba, y linuxdeploy persigue esas
+# dependencias al construir el AppImage («Could not find dependency:
+# libtcl9tk9.0.so» → «failed to run linuxdeploy»).
 rm -rf "$RUNTIME"/lib/libtcl* "$RUNTIME"/lib/libtk* \
+       "$RUNTIME"/lib/tcl* "$RUNTIME"/lib/tk* "$RUNTIME"/lib/itcl* \
+       "$RUNTIME"/lib/thread3* \
        "$RUNTIME"/lib/python3.14/tkinter "$RUNTIME"/lib/python3.14/idlelib \
        "$RUNTIME"/lib/python3.14/turtledemo "$RUNTIME"/lib/python3.14/ensurepip \
-       "$RUNTIME"/lib/python3.14/config-* "$RUNTIME"/lib/python3.14/lib-dynload/*.a
+       "$RUNTIME"/lib/python3.14/config-* "$RUNTIME"/lib/python3.14/lib-dynload/*.a \
+       "$RUNTIME"/lib/python3.14/lib-dynload/_tkinter*.so
 if command -v strip >/dev/null 2>&1; then
   find "$RUNTIME"/lib -maxdepth 1 -name 'libpython*.so*' -exec strip --strip-unneeded {} + 2>/dev/null || true
 fi

@@ -5,8 +5,9 @@ desde este mismo repo, sin romper el MSI de Windows ni bifurcar el código.
 
 Estado: **fases 1 y 2 ejecutadas**. El `.deb` se compila en Linux y arranca con
 su propio intérprete (`runtime/bin/python3`), con backend, descarga y ffmpeg
-propios. Pendiente: paridad visual medida, AppImage, CI y recorte de tamaño
-(ver §12).
+propios; el `.AppImage` también se genera en local (§12) y los tres artefactos
+Linux + el MSI conviven en la misma release. Pendiente: paridad visual medida,
+CI de Linux y recorte de tamaño (ver §12).
 
 ---
 
@@ -355,10 +356,28 @@ Hecho y verificado en Linux (x86_64, sin tocar el flujo de Windows):
       `depends` de GStreamer.
 - [x] `scripts/prepare-runtime.sh`: CPython 3.14.9 portable (hash pineado),
       `requirements-runtime.txt`, ffmpeg 8.1 estático pineado, staging
-      idempotente con marcador.
+      idempotente con marcador. El recorte incluye `tkinter`, `_tkinter.so` y
+      las extensiones Tcl (`tcl9*`, `tk9.0`, `itcl*`, `thread3*`): la app no
+      usa Tk y `linuxdeploy` persigue esas dependencias al hacer el AppImage
+      (`Could not find dependency: libtcl9tk9.0.so`, porque el portátil no
+      trae `libtcl9*.so`).
 - [x] `_es_instalado` acepta la marca `runtime/` fuera de Windows
       (`config.py`, `lib.rs`) con tres tests nuevos (682 pasan).
-- [x] `.deb` de 219 MB compilado, con `usr/lib/OpenWave/{backend,runtime,ffmpeg}`.
+- [x] `.deb` de 218 MB compilado, con `usr/lib/OpenWave/{backend,runtime,ffmpeg}`.
+- [x] `.AppImage` de 241 MB compilado en local (mismo AppDir que el `.deb`).
+  Dos particularidades al construirlo en Arch/CachyOS:
+  - **`NO_STRIP=1`**: `linuxdeploy` usa el `strip` de su propio payload
+    (binutils de 2024) que no entiende las secciones `.relr.dyn`
+    (`SHT_RELR`) que llevan las librerías actuales del sistema
+    (`libxml2.so.16`, `libzstd.so.1`…), y aborta con `Strip call failed:
+    unknown type [0x13]`. La variable `NO_STRIP` (reconocida por linuxdeploy,
+    ver `src/core/appdir.cpp`) desactiva ese paso; el precio es un binario
+    algo más gordo.
+  - **El `AppDir` no se limpia entre pasadas**: si quedó de un intento
+    anterior (`target/release/bundle/appimage/`, y la copia obsoleta de
+    `target/release/_up_/` que alimenta el `.deb` intermedio), sigue
+    arrastrando los ficheros que ya se recortaron del staging. Borra esos
+    directorios antes de reintentar.
 - [x] App instalada desde ese layout: backend levantado por la app con
       `OpenWave/runtime/bin/python3`, `/health` ok, 56 rutas, warmup real.
 - [x] Descarga completa con el runtime empaquetado: MP3 192 kb/s válido, portada
@@ -392,9 +411,14 @@ Pendiente, en este orden:
 
 - [ ] Fase 0 con ventana real: cristal, `color-mix`, vídeo de fondo, letras y
       arrastre en X11 y Wayland (requiere sesión gráfica).
-- [ ] AppImage (`AppRun`, FUSE) y su prueba en contenedor limpio.
+- [ ] Prueba del `.deb` y del `.AppImage` en contenedor limpio (el AppImage ya
+      se genera y extrae con su `AppRun`, su `.desktop` y el binario con el
+      bundle embebido; falta verificarlo en un sistema sin nuestras
+      dependencias y con `--appimage-extract-and-run` si no hay FUSE).
 - [ ] `verify-linux.sh` como gate de CI y `build-linux.yml` en `ubuntu-22.04`.
-- [ ] Publicar el `.deb` en `release.yml` junto al MSI.
+- [ ] Subir los tres artefactos de Linux desde `release.yml` (hoy la release
+      sale con el MSI y los de Linux se adjuntan a mano con `gh release upload`,
+      probado en la v1.2.0).
 - [ ] Recorte de tamaño: el runtime quedó en 269 MB (libpython sin símbolos) y
       ffmpeg en 165 MB (ya sin símbolos; es el build estático completo).
       Alternativas: build de ffmpeg con solo los códecs que usa la app, o el

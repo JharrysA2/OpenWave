@@ -11,7 +11,7 @@
 
 pkgname=openwave
 pkgver=1.1.9
-pkgrel=1
+pkgrel=2
 pkgdesc="Reproductor de música de YouTube Music para el escritorio"
 arch=(x86_64)
 url="https://github.com/JharrysA2/OpenWave"

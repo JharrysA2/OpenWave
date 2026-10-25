@@ -175,13 +175,14 @@ def main() -> int:
     write("src-tauri/Cargo.lock", text, args.dry_run)
     print("  src-tauri/Cargo.lock")
 
-    # packaging/arch/PKGBUILD: pkgver (paquete nativo de Arch).
+    # packaging/arch/PKGBUILD: pkgver; cada versión nueva empieza en r1.
     text = sub_once(
         read("packaging/arch/PKGBUILD"),
         r"(?m)^(pkgver=)[0-9][0-9a-zA-Z.]*$",
         rf"\g<1>{version}",
         "packaging/arch/PKGBUILD",
     )
+    text = sub_once(text, r"(?m)^(pkgrel=)[0-9]+$", r"\g<1>1", "packaging/arch/PKGBUILD")
     write("packaging/arch/PKGBUILD", text, args.dry_run)
     print("  packaging/arch/PKGBUILD")
 

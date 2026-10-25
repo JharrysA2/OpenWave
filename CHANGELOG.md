@@ -21,13 +21,16 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 - **En Linux aparece en el buscador de aplicaciones y se lanza con `openwave`.**
   `packaging/linux/openwave.desktop` (categorías `Audio`/`Music`, keywords y
   textos en español) es ahora el `desktopTemplate` del `.deb`, y el paquete
-  instala `packaging/linux/openwave` como `/usr/bin/openwave`: arranca el
-  binario con `setsid` en su propia sesión, devuelve el control al terminal en
-  menos de 10 ms (cerrar la ventana de la terminal no mata la app) y guarda lo
-  que la app imprima al arrancar en `<datos>/app.err.log`. Para Arch y
-  derivadas hay además `packaging/arch/PKGBUILD` con `scripts/package-arch.sh`,
-  que genera `openwave-<versión>-x86_64.pkg.tar.zst` (132 MB, mismo payload
-  que el `.deb`) para instalar con `pacman -U`.
+  instala `packaging/linux/openwave` como `/usr/bin/openwave`: se escribe
+  `openwave`, la app arranca con `setsid` en su propia sesión y **la terminal
+  se cierra sola** al ver que el proceso existe (no se cierra nada si arranca
+  mal: salen las últimas líneas de `<datos>/app.err.log`). Si la app ya está
+  abierta no abre una segunda ventana (compartirían backend y cerrar una
+  mataría la otra), solo trae la existente al frente con `hyprctl`; `--keep`
+  deja la terminal abierta. Para Arch y derivadas hay además
+  `packaging/arch/PKGBUILD` con `scripts/package-arch.sh`, que genera
+  `openwave-<versión>-x86_64.pkg.tar.zst` (132 MB, mismo payload que el
+  `.deb`) para instalar con `pacman -U`.
 
 ### Changed
 
@@ -509,7 +512,8 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 
 - **`scripts/bump-version.py` sube la versión en un fichero más**:
   `packaging/arch/PKGBUILD` (`pkgver`), que ahora es el séptimo sitio donde
-  vive la versión. El resto del flujo de release no cambia.
+  vive la versión, y de paso deja `pkgrel=1` en cada versión nueva (el `r2`
+  solo lo toca el empaquetado). El resto del flujo de release no cambia.
 - **Plan de soporte nativo de Linux** (`docs/linux.md`): cómo repartir la
   separación entre configuración por plataforma, staging del runtime y CI sin
   bifurcar el código, con cinco fases, un gate por fase y los riesgos de

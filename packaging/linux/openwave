@@ -1,30 +1,89 @@
 #!/bin/sh
-# Lanza OpenWave sin bloquear la terminal.
+# Lanza OpenWave y cierra la terminal de la que se lanza.
 #
-# El binario arranca en su propia sesión (setsid) y con stdout/stderr fuera
-# del terminal: el comando vuelve al prompt al instante y cerrar la ventana de
-# la terminal no mata la app. Lo que la app imprima al arrancar (avisos y
-# errores de Rust y del backend) queda en app.err.log, junto al resto de datos.
+#   openwave            abre la app y cierra la ventana de la terminal
+#   openwave --keep     lo mismo, pero dejando la terminal abierta
+#
+# La app se suelta con `setsid -f` en su propia sesión, así que morir la
+# terminal no la arrastra. Si ya está abierta no se abre otra (dos ventanas
+# compartirían el mismo backend y cerrar una mataría la otra): se trae al
+# frente la que existe.
+#
+# Solo se cierra la terminal si el arranque ha ido bien. Si la app no llega
+# a aparecer, el aviso de fallo sale por aquí y se enseñan las últimas
+# líneas de <datos>/app.err.log.
 
-BIN="$(dirname "$0")/OpenWave"
+mantener=0
+case "${1-}" in
+  "") ;;
+  --keep) mantener=1 ;;
+  -h|--help)
+    sed -n '2,13p' "$0"
+    exit 0
+    ;;
+  *)
+    printf 'Opción desconocida: %s (solo se admite --keep)\n' "$1" >&2
+    exit 2
+    ;;
+esac
 
-if [ ! -x "$BIN" ]; then
-    printf 'openwave: no se encuentra el binario %s\n' "$BIN" >&2
-    exit 1
+app="$(dirname "$0")/OpenWave"
+if [ ! -x "$app" ]; then
+  printf 'No está el binario de la app: %s\n' "$app" >&2
+  exit 1
 fi
 
-command -v setsid >/dev/null 2>&1 || {
-    printf 'openwave: falta «setsid» (util-linux)\n' >&2
-    exit 1
+# Mismo orden de directorio de datos que backend/config.py.
+datos="${OPENWAVE_DATA_DIR:-${XDG_DATA_HOME:-"$HOME/.local/share"}/OpenWave}"
+mkdir -p "$datos" 2>/dev/null || true
+log="$datos/app.err.log"
+
+# Traer al frente la ventana que ya existe. Sin hyprctl (otros escritorios)
+# no pasa nada: la ventana sigue ahí, debajo de las demás.
+enfocar() {
+  if command -v hyprctl >/dev/null 2>&1; then
+    hyprctl dispatch focuswindow class:OpenWave >/dev/null 2>&1 || true
+  fi
 }
 
-# Directorio de datos — el mismo criterio y orden que backend/config.py:
-# OPENWAVE_DATA_DIR manda, luego XDG_DATA_HOME, luego ~/.local/share.
-DATA_DIR="${OPENWAVE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/OpenWave}"
-ERR_LOG="$DATA_DIR/app.err.log"
-mkdir -p "$DATA_DIR" 2>/dev/null || ERR_LOG="/tmp/openwave-app.err.log"
-# Se trunca en cada arranque, igual que backend.err.log en Windows.
-: >"$ERR_LOG" 2>/dev/null || ERR_LOG="/tmp/openwave-app.err.log"
+# La terminal se cierra matando el shell que pidió el comando: la emuladora
+# cierra su ventana en cuanto muere su hijo. Solo se toca al padre si es un
+# shell (nunca a un lanzador, a systemd ni a un proceso con otra cosa
+# encima que no sea este comando).
+cerrar_terminal() {
+  padre=$PPID
+  [ -n "$padre" ] && [ "$padre" -gt 1 ] || return 0
+  nombre=$(ps -o comm= -p "$padre" 2>/dev/null) || return 0
+  case "$nombre" in
+    fish|bash|zsh|dash|sh|ksh|tcsh|csh|nu|ash|elvish) ;;
+    *) return 0 ;;
+  esac
+  kill -TERM "$padre" 2>/dev/null
+  kill -HUP "$padre" 2>/dev/null
+  return 0
+}
 
-setsid -f "$BIN" "$@" </dev/null >/dev/null 2>>"$ERR_LOG"
-exit 0
+if pgrep -x OpenWave >/dev/null 2>&1; then
+  enfocar
+  [ "$mantener" -eq 1 ] && printf 'OpenWave ya está abierta.\n'
+else
+  setsid -f "$app" </dev/null >>"$log" 2>&1
+
+  # El proceso tiene que existir antes de cerrar la terminal: 3 s de margen.
+  n=0
+  while [ "$n" -lt 30 ]; do
+    pgrep -x OpenWave >/dev/null 2>&1 && break
+    n=$((n + 1))
+    sleep 0.1
+  done
+
+  if ! pgrep -x OpenWave >/dev/null 2>&1; then
+    printf 'OpenWave no ha arrancado. Últimas líneas de %s:\n' "$log" >&2
+    tail -n 8 "$log" >&2
+    exit 1
+  fi
+fi
+
+[ "$mantener" -eq 1 ] && exit 0
+
+cerrar_terminal

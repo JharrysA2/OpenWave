@@ -185,7 +185,7 @@ scripts/
   verify-linux.sh                 NUEVO: gate del payload (par de verify-msi.ps1)
   lib/runtime-common.sh           NUEVO: descargas pinadas, hash, limpieza
 packaging/linux/
-  openwave                NUEVO: mando `openwave` (arranque desprendido)
+  openwave                NUEVO: mando `openwave` (arranque + cierre de terminal)
   openwave.desktop        NUEVO: plantilla de escritorio (Handlebars)
 packaging/arch/
   PKGBUILD                NUEVO: paquete nativo de Arch (.pkg.tar.zst)
@@ -367,12 +367,18 @@ Hecho y verificado en Linux (x86_64, sin tocar el flujo de Windows):
       `desktopTemplate` del `.deb` (categorías `Audio;AudioVideo;Music;Player;`,
       keywords y textos en español; `desktop-file-validate` limpio) y también
       dentro del paquete de Arch.
-- [x] Mando `openwave` en `/usr/bin/openwave`: `setsid -f` en sesión propia,
-      devuelve el control al terminal en ~10 ms y guarda el arranque en
-      `<datos>/app.err.log` (mismo orden de directorio de datos que
-      `backend/config.py`: `OPENWAVE_DATA_DIR`, `XDG_DATA_HOME`, `~/.local/share`).
-      Verificado con el payload del `.deb` y con el `.pkg.tar.zst` desempaquetados:
-      `/health` ok, backend con el `runtime/bin/python3` empaquetado y app sin TTY.
+- [x] Mando `openwave` en `/usr/bin/openwave`: arranca con `setsid -f` en
+      sesión propia, comprueba que el proceso existe (si no, no cierra nada y
+      enseña las últimas líneas de `<datos>/app.err.log`) y entonces **cierra
+      la terminal** que lo pidió, matando el shell que la mandaba si es un
+      shell (nunca a un lanzador ni a systemd). Con la app ya abierta no
+      abre otra ventana: la trae al frente con
+      `hyprctl dispatch focuswindow class:OpenWave`. `--keep` deja la
+      terminal abierta. El log de arranque sigue en `<datos>/app.err.log`
+      (mismo orden de directorio de datos que `backend/config.py`:
+      `OPENWAVE_DATA_DIR`, `XDG_DATA_HOME`, `~/.local/share`). Verificado con
+      el payload del `.pkg.tar.zst` desempaquetado: arranque + cierre, enfoque
+      de la ventana abierta, fallo de arranque sin cerrar y `/health` ok.
 - [x] Paquete nativo de Arch: `packaging/arch/PKGBUILD` +
       `scripts/package-arch.sh` → `openwave-<versión>-x86_64.pkg.tar.zst`
       (132 MB) con dependencias en nombres de Arch (`webkit2gtk-4.1`,

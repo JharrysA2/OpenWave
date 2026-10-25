@@ -10,8 +10,8 @@
 # solo se ordena qué acaba en cada ruta del sistema.
 
 pkgname=openwave
-pkgver=1.1.9
-pkgrel=3
+pkgver=1.2.0
+pkgrel=1
 pkgdesc="Reproductor de música de YouTube Music para el escritorio"
 arch=(x86_64)
 url="https://github.com/JharrysA2/OpenWave"

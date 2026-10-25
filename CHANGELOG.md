@@ -6,6 +6,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-25
+
 ### Added
 
 - **Primer paquete nativo de Linux (`.deb`), desde el mismo repo y el mismo
@@ -502,7 +504,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.1.9...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.0
 [1.1.9]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.9
 [1.1.8]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.8
 [1.1.7]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.7

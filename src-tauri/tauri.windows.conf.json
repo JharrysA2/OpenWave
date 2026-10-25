@@ -1,0 +1,40 @@
+{
+  "bundle": {
+    "targets": [
+      "msi"
+    ],
+    "licenseFile": "../build/windows/licencia.txt",
+    "resources": {
+      "../build/staging/backend": "backend",
+      "../build/staging/runtime": "runtime",
+      "../build/staging/ffmpeg": "ffmpeg",
+      "../LICENSE": "LICENSE",
+      "../build/windows/openwave-identity.msix": "openwave-identity.msix",
+      "../build/windows/openwave-identity.cer": "openwave-identity.cer",
+      "../packaging/appx/openwave-identity-ca.ps1": "openwave-identity-ca.ps1",
+      "../packaging/appx/openwave-identity-cert.ps1": "openwave-identity-cert.ps1",
+      "../build/windows/appx-staging/Assets": "Assets",
+      "../build/windows/appx-staging/resources.pri": "resources.pri",
+      "../build/windows/appx-staging/resources.scale-125.pri": "resources.scale-125.pri",
+      "../build/windows/appx-staging/resources.scale-150.pri": "resources.scale-150.pri",
+      "../build/windows/appx-staging/resources.scale-200.pri": "resources.scale-200.pri",
+      "../build/windows/appx-staging/resources.scale-400.pri": "resources.scale-400.pri"
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
+      "wix": {
+        "template": "windows/main.wxs",
+        "upgradeCode": "25B18CFC-CFEF-5B7B-B931-92523BC6F856",
+        "bannerPath": "../build/windows/banner.bmp",
+        "dialogImagePath": "../build/windows/dialog.bmp",
+        "language": {
+          "es-ES": {
+            "localePath": "windows/es-ES.wxl"
+          }
+        }
+      }
+    }
+  }
+}

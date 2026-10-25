@@ -1,0 +1,30 @@
+#!/bin/sh
+# Lanza OpenWave sin bloquear la terminal.
+#
+# El binario arranca en su propia sesión (setsid) y con stdout/stderr fuera
+# del terminal: el comando vuelve al prompt al instante y cerrar la ventana de
+# la terminal no mata la app. Lo que la app imprima al arrancar (avisos y
+# errores de Rust y del backend) queda en app.err.log, junto al resto de datos.
+
+BIN="$(dirname "$0")/OpenWave"
+
+if [ ! -x "$BIN" ]; then
+    printf 'openwave: no se encuentra el binario %s\n' "$BIN" >&2
+    exit 1
+fi
+
+command -v setsid >/dev/null 2>&1 || {
+    printf 'openwave: falta «setsid» (util-linux)\n' >&2
+    exit 1
+}
+
+# Directorio de datos — el mismo criterio y orden que backend/config.py:
+# OPENWAVE_DATA_DIR manda, luego XDG_DATA_HOME, luego ~/.local/share.
+DATA_DIR="${OPENWAVE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/OpenWave}"
+ERR_LOG="$DATA_DIR/app.err.log"
+mkdir -p "$DATA_DIR" 2>/dev/null || ERR_LOG="/tmp/openwave-app.err.log"
+# Se trunca en cada arranque, igual que backend.err.log en Windows.
+: >"$ERR_LOG" 2>/dev/null || ERR_LOG="/tmp/openwave-app.err.log"
+
+setsid -f "$BIN" "$@" </dev/null >/dev/null 2>>"$ERR_LOG"
+exit 0

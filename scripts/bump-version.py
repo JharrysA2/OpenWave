@@ -17,7 +17,8 @@ Uso:
 
 Ficheros que toca:
     package.json, package-lock.json (x2), src-tauri/tauri.conf.json,
-    src-tauri/Cargo.toml, src-tauri/Cargo.lock y CHANGELOG.md.
+    src-tauri/Cargo.toml, src-tauri/Cargo.lock, packaging/arch/PKGBUILD
+    y CHANGELOG.md.
 """
 from __future__ import annotations
 
@@ -173,6 +174,16 @@ def main() -> int:
     )
     write("src-tauri/Cargo.lock", text, args.dry_run)
     print("  src-tauri/Cargo.lock")
+
+    # packaging/arch/PKGBUILD: pkgver (paquete nativo de Arch).
+    text = sub_once(
+        read("packaging/arch/PKGBUILD"),
+        r"(?m)^(pkgver=)[0-9][0-9a-zA-Z.]*$",
+        rf"\g<1>{version}",
+        "packaging/arch/PKGBUILD",
+    )
+    write("packaging/arch/PKGBUILD", text, args.dry_run)
+    print("  packaging/arch/PKGBUILD")
 
     # CHANGELOG.md.
     if not args.no_changelog:

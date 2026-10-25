@@ -201,13 +201,14 @@ fn resolver_data_dir(backend_dir: &std::path::Path, env: &EntornoDatos) -> PathB
 ///     tiene `backend\` + `runtime\` + `ffmpeg\`; el repo tiene
 ///     `backend\venv` y ningún `runtime` en la raíz).
 fn es_instalado(backend_dir: &std::path::Path, es_windows: bool) -> bool {
-    if !es_windows {
-        return false;
+    if es_windows {
+        let ruta = backend_dir.to_string_lossy().to_lowercase();
+        if ruta.contains("\\program files\\") || ruta.contains("\\program files (x86)\\") {
+            return true;
+        }
     }
-    let ruta = backend_dir.to_string_lossy().to_lowercase();
-    if ruta.contains("\\program files\\") || ruta.contains("\\program files (x86)\\") {
-        return true;
-    }
+    // Marca común a los dos empaquetados: el hermano `runtime/` junto a
+    // `backend/`. En Linux distingue la app instalada del repo.
     backend_dir
         .parent()
         .map(|raiz| raiz.join("runtime").exists())

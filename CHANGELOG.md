@@ -6,8 +6,36 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Added
+
+- **Primer paquete nativo de Linux (`.deb`), desde el mismo repo y el mismo
+  código.** `tauri.linux.conf.json` declara `targets`, el mapa de `resources` y
+  las dependencias de GStreamer; `scripts/prepare-runtime.sh` arma
+  `build/staging-linux` con CPython 3.14.9 portable (hash pineado),
+  `requirements-runtime.txt` y ffmpeg estático, cumpliendo el mismo contrato de
+  layout que Windows (`backend/`, `runtime/`, `ffmpeg/`). El paquete arranca el
+  backend con `runtime/bin/python3`, descarga y convierte MP3 con el ffmpeg
+  empaquetado, y guarda los datos en XDG. Los arrays de plataforma salieron del
+  config base a `tauri.windows.conf.json`: la configuración resuelta de Windows
+  es idéntica a la anterior.
+- **En Linux aparece en el buscador de aplicaciones y se lanza con `openwave`.**
+  `packaging/linux/openwave.desktop` (categorías `Audio`/`Music`, keywords y
+  textos en español) es ahora el `desktopTemplate` del `.deb`, y el paquete
+  instala `packaging/linux/openwave` como `/usr/bin/openwave`: arranca el
+  binario con `setsid` en su propia sesión, devuelve el control al terminal en
+  menos de 10 ms (cerrar la ventana de la terminal no mata la app) y guarda lo
+  que la app imprima al arrancar en `<datos>/app.err.log`. Para Arch y
+  derivadas hay además `packaging/arch/PKGBUILD` con `scripts/package-arch.sh`,
+  que genera `openwave-<versión>-x86_64.pkg.tar.zst` (132 MB, mismo payload
+  que el `.deb`) para instalar con `pacman -U`.
+
 ### Changed
 
+- **Datos fuera del directorio del código también en Linux**: `_es_instalado`
+  solo reconocía instalaciones de Windows, así que un AppImage extraído o una
+  instalación escribible habrían dejado base de datos y descargas junto al
+  binario. Ahora la marca `runtime/` hermano de `backend/` vale en las dos
+  plataformas (`backend/config.py`, `src-tauri/src/lib.rs`), con tests.
 - **Higiene de comentarios en todo el código** (frontend, backend y Tauri):
   fuera los banners decorativos (`// ─── Título ───`, bloques `═══`) y los
   emoji de adorno (⭐, ⚠️, ⚡, 🔄), y los comentarios que contaban la historia
@@ -479,6 +507,9 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 
 ### Added
 
+- **`scripts/bump-version.py` sube la versión en un fichero más**:
+  `packaging/arch/PKGBUILD` (`pkgver`), que ahora es el séptimo sitio donde
+  vive la versión. El resto del flujo de release no cambia.
 - **Plan de soporte nativo de Linux** (`docs/linux.md`): cómo repartir la
   separación entre configuración por plataforma, staging del runtime y CI sin
   bifurcar el código, con cinco fases, un gate por fase y los riesgos de
@@ -491,6 +522,10 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 
 ### Fixed
 
+- **El barrido de CSP de `LyricsView.test.jsx` volvía a la carga**: el comentario
+  de `LyricsView.jsx` citaba literalmente `<style`, que el test detecta como
+  inyección de estilos en runtime (2 tests en rojo desde `89e6fd9`). El
+  comentario habla ahora de «hoja de estilos que React inyecta».
 - **Verificación de la regla de videoclips de la 1.1.5 y del reintento IPv4 de
   la 1.1.6** en `docs/PERFORMANCE.md`: resolver por canal del catálogo con el
   catálogo real (3/3 clips de MDBCrew), migración de la caché («sin videoclip»

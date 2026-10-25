@@ -1,0 +1,21 @@
+{
+  "bundle": {
+    "targets": ["deb", "appimage"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png"],
+    "resources": {
+      "../build/staging-linux/backend": "backend",
+      "../build/staging-linux/runtime": "runtime",
+      "../build/staging-linux/ffmpeg": "ffmpeg",
+      "../LICENSE": "LICENSE"
+    },
+    "linux": {
+      "deb": {
+        "depends": ["gstreamer1.0-plugins-good", "gstreamer1.0-libav"],
+        "desktopTemplate": "../packaging/linux/openwave.desktop",
+        "files": {
+          "usr/bin/openwave": "../packaging/linux/openwave"
+        }
+      }
+    }
+  }
+}

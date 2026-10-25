@@ -3,7 +3,10 @@
 Plan de trabajo para publicar OpenWave también para Linux (`.deb` y `.AppImage`)
 desde este mismo repo, sin romper el MSI de Windows ni bifurcar el código.
 
-Estado: **propuesta**, aprobada la fase 0 en adelante por orden.
+Estado: **fases 1 y 2 ejecutadas**. El `.deb` se compila en Linux y arranca con
+su propio intérprete (`runtime/bin/python3`), con backend, descarga y ffmpeg
+propios. Pendiente: paridad visual medida, AppImage, CI y recorte de tamaño
+(ver §12).
 
 ---
 
@@ -182,8 +185,11 @@ scripts/
   verify-linux.sh                 NUEVO: gate del payload (par de verify-msi.ps1)
   lib/runtime-common.sh           NUEVO: descargas pinadas, hash, limpieza
 packaging/linux/
-  openwave.desktop                NUEVO: plantilla de escritorio
-  postinst.sh                     NUEVO (si hace falta: iconos, MIME)
+  openwave                NUEVO: mando `openwave` (arranque desprendido)
+  openwave.desktop        NUEVO: plantilla de escritorio (Handlebars)
+packaging/arch/
+  PKGBUILD                NUEVO: paquete nativo de Arch (.pkg.tar.zst)
+  openwave.install        NUEVO: actualiza la caché de iconos de hicolor
 .github/workflows/
   build-msi.yml                   intacto
   build-linux.yml                 NUEVO: deb + AppImage en ubuntu-22.04
@@ -304,6 +310,10 @@ máquina limpia y la app funciona.
    capa equivocada.
 7. **Commits pequeños por fase** con su gate, para poder revertir una fase sin
    arrastrar las demás.
+8. **`resources` con mapa explícito**, nunca lista. Con una lista, Tauri aplanó
+   `../build/staging-linux/backend` en `_up_/build/staging-linux/backend` y el
+   arranque no encontraba `backend/`. La forma `{"origen": "destino"}` fija el
+   layout, que es justo el contrato de §4.
 
 ---
 
@@ -331,3 +341,55 @@ máquina limpia y la app funciona.
 
 El rango lo decide la fase 0: si el cristal y el vídeo se comportan, es un
 empaquetado; si no, hay trabajo de render.
+
+---
+
+## 12. Estado de ejecución
+
+Hecho y verificado en Linux (x86_64, sin tocar el flujo de Windows):
+
+- [x] `tauri.conf.json` sin arrays de plataforma; `tauri.windows.conf.json` con
+      `targets`, `licenseFile`, `resources` y `windows` (config resuelta de
+      Windows idéntica a la anterior, comparada con el merge de RFC 7396).
+- [x] `tauri.linux.conf.json` con `deb`/`appimage`, mapa de `resources` y
+      `depends` de GStreamer.
+- [x] `scripts/prepare-runtime.sh`: CPython 3.14.9 portable (hash pineado),
+      `requirements-runtime.txt`, ffmpeg 8.1 estático pineado, staging
+      idempotente con marcador.
+- [x] `_es_instalado` acepta la marca `runtime/` fuera de Windows
+      (`config.py`, `lib.rs`) con tres tests nuevos (682 pasan).
+- [x] `.deb` de 219 MB compilado, con `usr/lib/OpenWave/{backend,runtime,ffmpeg}`.
+- [x] App instalada desde ese layout: backend levantado por la app con
+      `OpenWave/runtime/bin/python3`, `/health` ok, 56 rutas, warmup real.
+- [x] Descarga completa con el runtime empaquetado: MP3 192 kb/s válido, portada
+      y `.lrc` guardados, ffmpeg del paquete.
+- [x] Entrada de escritorio: `packaging/linux/openwave.desktop` como
+      `desktopTemplate` del `.deb` (categorías `Audio;AudioVideo;Music;Player;`,
+      keywords y textos en español; `desktop-file-validate` limpio) y también
+      dentro del paquete de Arch.
+- [x] Mando `openwave` en `/usr/bin/openwave`: `setsid -f` en sesión propia,
+      devuelve el control al terminal en ~10 ms y guarda el arranque en
+      `<datos>/app.err.log` (mismo orden de directorio de datos que
+      `backend/config.py`: `OPENWAVE_DATA_DIR`, `XDG_DATA_HOME`, `~/.local/share`).
+      Verificado con el payload del `.deb` y con el `.pkg.tar.zst` desempaquetados:
+      `/health` ok, backend con el `runtime/bin/python3` empaquetado y app sin TTY.
+- [x] Paquete nativo de Arch: `packaging/arch/PKGBUILD` +
+      `scripts/package-arch.sh` → `openwave-<versión>-x86_64.pkg.tar.zst`
+      (132 MB) con dependencias en nombres de Arch (`webkit2gtk-4.1`,
+      `gst-plugins-good`, `gst-libav`…), `.install` que refresca la caché de
+      iconos y `pkgver` enganchado a `scripts/bump-version.py`. Va con
+      `options=(!strip)`: el `strip` de makepkg rompe el Python pineado
+      (aviso `.dynstr` y después `symbol lookup error`), así que el payload
+      es el mismo que el del `.deb`, que ya funciona.
+
+Pendiente, en este orden:
+
+- [ ] Fase 0 con ventana real: cristal, `color-mix`, vídeo de fondo, letras y
+      arrastre en X11 y Wayland (requiere sesión gráfica).
+- [ ] AppImage (`AppRun`, FUSE) y su prueba en contenedor limpio.
+- [ ] `verify-linux.sh` como gate de CI y `build-linux.yml` en `ubuntu-22.04`.
+- [ ] Publicar el `.deb` en `release.yml` junto al MSI.
+- [ ] Recorte de tamaño: el runtime quedó en 269 MB (libpython sin símbolos) y
+      ffmpeg en 165 MB (ya sin símbolos; es el build estático completo).
+      Alternativas: build de ffmpeg con solo los códecs que usa la app, o el
+      paquete `-shared` con sus `.so`.

@@ -106,6 +106,38 @@ def test_en_linux_programdata_no_manda(tmp_path):
     assert ruta == tmp_path / "xdg" / "OpenWave"
 
 
+def test_linux_instalado_usa_xdg_aunque_el_codigo_sea_escribible(tmp_path):
+    """Un .deb o un AppImage llevan `runtime/` junto a `backend/`.
+
+    Ahí los datos van a XDG aunque el directorio del código se pueda
+    escribir: si no, un AppImage extraído los dejaría dentro de la app.
+    """
+    backend = tmp_path / "app" / "backend"
+    backend.mkdir(parents=True)
+    (backend.parent / "runtime").mkdir()
+    entorno = {"XDG_DATA_HOME": str(tmp_path / "xdg")}
+    ruta = config._resolver_datos_dir(backend, entorno, es_windows=False)
+    assert ruta == tmp_path / "xdg" / "OpenWave"
+
+
+def test_repo_sin_runtime_no_es_instalado(tmp_path):
+    """El repo no tiene `runtime/` hermano: los datos siguen junto al código."""
+    backend = tmp_path / "backend"
+    backend.mkdir()
+    assert config._es_instalado(backend, es_windows=False) is False
+
+
+def test_windows_runtime_hermano_sigue_contando(tmp_path):
+    """La marca no depende de la ruta: también vale fuera de Program Files."""
+    backend = tmp_path / "OpenWave" / "backend"
+    backend.mkdir(parents=True)
+    (backend.parent / "runtime").mkdir()
+    assert config._es_instalado(backend, es_windows=True) is True
+    entorno = {"LOCALAPPDATA": str(tmp_path / "Local")}
+    ruta = config._resolver_datos_dir(backend, entorno, es_windows=True)
+    assert ruta == tmp_path / "Local" / "OpenWave"
+
+
 def test_import_sobrevive_si_no_puede_crear_los_dirs(tmp_path):
     """Un DATA_DIR imposible no debe tumbar el import de config (degradar)."""
     import subprocess

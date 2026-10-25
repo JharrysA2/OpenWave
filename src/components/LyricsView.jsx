@@ -3268,7 +3268,8 @@ export function LyricsView({
       </div>
 
       {/* Keyframes (sw-modal-in / sw-bg-spin) en index.html: con el nonce de
-          la CSP de Tauri, un <style> de React queda bloqueado (`sheet: null`).
+          la CSP de Tauri, la hoja de estilos que React inyecta en runtime
+          queda bloqueada (`sheet: null`).
           Regresión vigilada por LyricsView.test.jsx. */}
     </div>
   );

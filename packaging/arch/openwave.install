@@ -1,0 +1,18 @@
+# Mantiene al día la caché de iconos de hicolor: sin ella, los launchers que
+# la consultan (GNOME, walker…) no ven OpenWave nada más instalar.
+
+_actualizar_cach() {
+  gtk-update-icon-cache -q -t /usr/share/icons/hicolor 2>/dev/null || true
+}
+
+post_install() {
+  _actualizar_cach
+}
+
+post_upgrade() {
+  _actualizar_cach
+}
+
+post_remove() {
+  _actualizar_cach
+}

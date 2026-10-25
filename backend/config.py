@@ -37,25 +37,21 @@ def _dir_escribible(path: Path) -> bool:
 
 
 def _es_instalado(base_dir: Path, es_windows: bool) -> bool:
-    """¿`base_dir` pertenece a una INSTALACIÓN de Windows (no al repo)?
+    """¿`base_dir` pertenece a una INSTALACIÓN (no al repo)?
 
-    Solo en Windows deciden estas marcas (el repo jamás las cumple):
+    La marca común a los dos empaquetados es el hermano `runtime/` junto a
+    `backend/`: solo el staging tiene `backend/` + `runtime/` + `ffmpeg/`.
 
-    * la ruta contiene `Program Files` / `Program Files (x86)`;
-    * hay un hermano `runtime\\` junto a `backend\\` (solo el empaquetado
-      tiene `backend\\` + `runtime\\` + `ffmpeg\\`).
-
-    Por qué no basta con «no escribible»: al arrancar la app desde la
-    última página del instalador el proceso hereda token elevado y la
-    carpeta del código SÍ resulta escribible, con lo que la base de datos
-    y las descargas acababan en «Archivos de programa» (espejo de
-    `lib.rs::es_instalado`).
+    En Windows cuenta además la ruta en `Program Files`: al arrancar la app
+    desde la última página del instalador el proceso hereda token elevado y
+    la carpeta del código SÍ resulta escribible, con lo que la base de datos
+    y las descargas acababan en «Archivos de programa». (Espejo de
+    `lib.rs::es_instalado`.)
     """
-    if not es_windows:
-        return False
-    ruta = str(base_dir).lower()
-    if "\\program files\\" in ruta or "\\program files (x86)\\" in ruta:
-        return True
+    if es_windows:
+        ruta = str(base_dir).lower()
+        if "\\program files\\" in ruta or "\\program files (x86)\\" in ruta:
+            return True
     return (base_dir.parent / "runtime").exists()
 
 

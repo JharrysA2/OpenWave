@@ -22,7 +22,8 @@ Versionado semántico (`MAJOR.MINOR.PATCH`), adaptado al ritmo del proyecto.
 - La versión se sube **solo** con `scripts/bump-version.py patch|minor|major`
   (o `... X.Y.Z`). Nunca a mano.
 - El script actualiza: `package.json`, `package-lock.json` (x2),
-  `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` y
+  `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`,
+  `packaging/arch/PKGBUILD` y
   `CHANGELOG.md` (mueve `[Unreleased]` a `[X.Y.Z] - fecha` y ajusta enlaces).
 - El commit del corte es `chore(release): vX.Y.Z`.
 - El tag es `vX.Y.Z` (anotado). Un tag solo se re-corta si la versión **nunca**

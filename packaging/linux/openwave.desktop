@@ -1,0 +1,16 @@
+[Desktop Entry]
+Categories=Audio;AudioVideo;Music;Player;
+Comment=Reproductor de música de YouTube Music
+Comment[es]=Reproductor de música de YouTube Music
+Exec={{exec}}
+GenericName=Reproductor de música
+GenericName[es]=Reproductor de música
+Icon={{icon}}
+Keywords=musica;youtube;reproductor;letras;descarga;cola;
+Keywords[es]=música;youtube;reproductor;letras;descarga;cola;
+Name={{name}}
+Name[es]={{name}}
+StartupNotify=true
+StartupWMClass={{name}}
+Terminal=false
+Type=Application

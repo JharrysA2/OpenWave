@@ -100,7 +100,7 @@ gh release create vX.Y.Z "build/windows/OpenWave-X.Y.Z-x64-es-ES.msi" \
 - **`prepare-runtime` aborta**: el puerto **8765** está ocupado; cierra la app
   (`OpenWave.exe` y su `python.exe`) antes de compilar.
 - **Version desincronizada**: no edites versiones a mano; usa
-  `scripts/bump-version.py` (toca los 6 ficheros + CHANGELOG).
+  `scripts/bump-version.py` (toca los 7 ficheros + CHANGELOG).
 - **Nunca edites** `C:\Users\jharrys\Desktop\OpenWave`: es solo build; los
   cambios van a este repo y se sincronizan con `scripts/sync-windows`.
 

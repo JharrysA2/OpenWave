@@ -46,7 +46,8 @@ Deja **todos** los gates en verde antes de dar un cambio por terminado.
   documentación** **no** suben versión: van a `## Interno` del `CHANGELOG` y se
   publican cuando toque un cambio real de la app.
 - La versión está en `package.json`, `package-lock.json` (x2),
-  `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` y `src-tauri/Cargo.lock`.
+  `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`,
+  `src-tauri/Cargo.lock` y `packaging/arch/PKGBUILD`.
   Súbela **siempre** con `scripts/bump-version.py` (nunca a mano).
 
 ## Flujo de release
@@ -99,6 +100,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File \
 - Puerto del backend local: **8765**.
 - Scripts de release: `scripts/bump-version.py`, `scripts/install-msi.ps1`,
   `scripts/package-windows.ps1`, `scripts/verify-msi.ps1`, `scripts/sync-windows`.
+- Paquetes de Linux: `.deb` con `npx tauri build --bundles deb` (staging con
+  `scripts/prepare-runtime.sh`) y `.pkg.tar.zst` de Arch con
+  `scripts/package-arch.sh` (`packaging/arch/PKGBUILD`). El mando `openwave` y
+  la entrada de escritorio salen de `packaging/linux/`.
 - Workflows: `.github/workflows/ci.yml` (PR/push), `release.yml` (versión),
   `build-msi.yml` (solo compila el MSI, reutilizable).
 - Al escribir PowerShell desde WSL: usa un `.ps1` en

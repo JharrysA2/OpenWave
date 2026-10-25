@@ -1,0 +1,64 @@
+# OpenWave — paquete nativo de Arch Linux y derivadas (CachyOS, Manjaro…).
+#
+# No recompila nada: empaqueta los artefactos del propio repo.
+#   src-tauri/target/release/OpenWave            npx tauri build --no-bundle
+#   build/staging-linux/{backend,runtime,ffmpeg} scripts/prepare-runtime.sh
+#   packaging/linux/openwave                     lanzador de terminal
+#   packaging/linux/openwave.desktop             plantilla de escritorio
+#
+# El montaje y la llamada a makepkg viven en scripts/package-arch.sh; aquí
+# solo se ordena qué acaba en cada ruta del sistema.
+
+pkgname=openwave
+pkgver=1.1.9
+pkgrel=1
+pkgdesc="Reproductor de música de YouTube Music para el escritorio"
+arch=(x86_64)
+url="https://github.com/JharrysA2/OpenWave"
+license=(GPL-3.0-or-later)
+# webkit2gtk-4.1 y gtk3: ventana Tauri. gst-*: vídeo de fondo (H.264).
+depends=(gtk3 webkit2gtk-4.1 gstreamer gst-plugins-good gst-libav hicolor-icon-theme util-linux)
+install=openwave.install
+# El strip de makepkg depura TODO lo que encuentra en $pkgdir y rompe el
+# intérprete de python-build-standalone («.dynstr no está en el segmento» →
+# «symbol lookup error» al ejecutar python3). El paquete se queda con el
+# mismo payload que el .deb, que ya es el que funciona.
+options=(!strip)
+source=()
+sha256sums=()
+
+_raiz="$startdir/../.."
+
+build() {
+  # El .desktop es plantilla de Handlebars: se resuelven sus variables igual
+  # que hace el empaquetado .deb de Tauri (Exec, Icon y Name = OpenWave).
+  sed -e 's/{{exec}}/OpenWave/g' \
+      -e 's/{{icon}}/OpenWave/g' \
+      -e 's/{{name}}/OpenWave/g' \
+      "$_raiz/packaging/linux/openwave.desktop" >"$srcdir/OpenWave.desktop"
+}
+
+package() {
+  # El binario localiza sus recursos en ../lib/OpenWave, el mismo layout que
+  # en el .deb: backend/, runtime/ (intérprete) y ffmpeg/ empaquetados.
+  install -Dm755 "$_raiz/src-tauri/target/release/OpenWave" \
+    "$pkgdir/usr/bin/OpenWave"
+  install -Dm755 "$_raiz/packaging/linux/openwave" "$pkgdir/usr/bin/openwave"
+  install -Dm644 "$srcdir/OpenWave.desktop" \
+    "$pkgdir/usr/share/applications/OpenWave.desktop"
+
+  local lado
+  for lado in 16x16 32x32 128x128; do
+    install -Dm644 "$_raiz/src-tauri/icons/$lado.png" \
+      "$pkgdir/usr/share/icons/hicolor/$lado/apps/OpenWave.png"
+  done
+  # 128x128@2x.png son 256×256 píxeles reales: va al directorio que le toca.
+  install -Dm644 "$_raiz/src-tauri/icons/128x128@2x.png" \
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps/OpenWave.png"
+
+  install -d "$pkgdir/usr/lib/OpenWave"
+  cp -a "$_raiz/build/staging-linux/backend" "$pkgdir/usr/lib/OpenWave/backend"
+  cp -a "$_raiz/build/staging-linux/runtime" "$pkgdir/usr/lib/OpenWave/runtime"
+  cp -a "$_raiz/build/staging-linux/ffmpeg" "$pkgdir/usr/lib/OpenWave/ffmpeg"
+  install -Dm644 "$_raiz/LICENSE" "$pkgdir/usr/lib/OpenWave/LICENSE"
+}

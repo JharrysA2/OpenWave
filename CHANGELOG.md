@@ -7,7 +7,7 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 ## [Unreleased]
 
 ### Corregido
-- Parpadeo, frames negros y superposición de Inicio sobre Letras/modales en Linux con gráfica NVIDIA: el binario detecta NVIDIA y el tipo de sesión y aplica los workarounds de WebKitGTK (`WEBKIT_DISABLE_DMABUF_RENDERER=1` y, en Wayland, `__NV_DISABLE_EXPLICIT_SYNC=1`) antes de crear la ventana. Si el usuario ya fijó alguna variable, se respeta. Documentado en `docs/linux.md` (§13), con `WEBKIT_DISABLE_COMPOSITING_MODE=1` como paliativo opcional.
+- Parpadeo al abrir Letras o un modal en Linux («Inicio se superpone un instante»): era una regresión del compositor Skia de WebKitGTK 2.54 (bug upstream 327524) y no de la app; el binario fija `WEBKIT_USE_SKIA_FOR_COMPOSITION=0` para cualquier GPU, lo que elimina el parpadeo sin perder aceleración por hardware. Además, con GPU NVIDIA en Wayland aplica `__NV_DISABLE_EXPLICIT_SYNC=1` (frames negros o con basura al cambiar de pantalla, 311 → 0) y en X11 `WEBKIT_DISABLE_DMABUF_RENDERER=1` (ventana en blanco). Si el usuario ya fijó alguna variable, se respeta. Documentado en `docs/linux.md` (§13).
 
 ## Interno
 

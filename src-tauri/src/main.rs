@@ -84,22 +84,31 @@ fn sesion_wayland() -> Option<bool> {
     None
 }
 
-/// Workarounds de WebKitGTK para el driver NVIDIA, ANTES de crear la ventana:
-/// el proceso de UI y el `WebKitWebProcess` hijo heredan el entorno.
+/// Workarounds de WebKitGTK, ANTES de crear la ventana: el proceso de UI y el
+/// `WebKitWebProcess` hijo heredan el entorno.
 ///
-///  - **X11**: el renderer DMABUF deja la ventana en blanco → se desactiva.
-///  - **Wayland**: el DMABUF incumple la regla de acquire-point de los
-///    composidores (Hyprland responde matando al cliente con «Error 71») y su
-///    ruta EGL/GBM con NVIDIA puede hacer SIGSEGV; el sync explícito
-///    intermitente, además, presenta buffers sin inicializar (frames negros o
-///    basura al cambiar de pantalla). Por eso se apagan DMABUF y el sync
-///    explícito de NVIDIA.
+///  - **Todas las GPUs**: regresión del compositor Skia de WebKitGTK 2.54
+///    (bugs WebKit 327524/326841): al montar un overlay con transiciones de
+///    opacidad (Letras, modales) pierde frames y se ve el contenido de detrás
+///    un instante. Volver al compositor anterior con
+///    `WEBKIT_USE_SKIA_FOR_COMPOSITION=0` lo elimina SIN perder aceleración
+///    por hardware (probado con el mismo paquete Arch 2.54.1). En versiones
+///    anteriores la variable no existe y se ignora.
+///  - **NVIDIA + X11**: el renderer DMABUF deja la ventana en blanco → se
+///    desactiva.
+///  - **NVIDIA + Wayland**: solo se apaga el sync explícito de NVIDIA, que
+///    presenta buffers sin inicializar (frames negros o basura al cambiar de
+///    pantalla). El renderer DMABUF **se mantiene**: desactivarlo
+///    (`WEBKIT_DISABLE_DMABUF_RENDERER=1`) obliga a WebKit a la ruta sin
+///    aceleración y la app va a cuenta gotas.
 ///
 /// Si la persona ya fijó alguna de las variables, no se toca nada (su
-/// configuración manda). Si aun así parpadean los overlays de Letras/modales,
-/// queda el paliativo `WEBKIT_DISABLE_COMPOSITING_MODE=1` (docs/linux.md).
+/// configuración manda).
 #[cfg(target_os = "linux")]
 fn aplicar_workarounds_webkit() {
+    if std::env::var_os("WEBKIT_USE_SKIA_FOR_COMPOSITION").is_none() {
+        std::env::set_var("WEBKIT_USE_SKIA_FOR_COMPOSITION", "0");
+    }
     if !hay_gpu_nvidia() {
         return;
     }
@@ -110,7 +119,6 @@ fn aplicar_workarounds_webkit() {
     }
     match sesion_wayland() {
         Some(true) => {
-            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
             std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
         }
         Some(false) => {

@@ -426,42 +426,80 @@ Pendiente, en este orden:
 
 ---
 
-## 13. Parpadeo, frames negros y «Inicio encima de Letras» (NVIDIA)
+## 13. Parpadeo, frames negros y «Inicio encima de Letras» (Linux)
 
-Síntomas vistos en Linux con gráfica NVIDIA: al abrir la pantalla de Letras o
-cualquier modal, el contenido de Inicio se superpone por encima un instante
-(como si se recargara todo), y en los cambios de pantalla aparecen frames
-negros o con basura de memoria.
+Síntomas vistos en Linux: al abrir la pantalla de Letras o cualquier modal, el
+contenido de Inicio se superpone por encima un instante (como si se recargara
+todo), y en los cambios de pantalla aparecen frames negros o con basura de
+memoria. Son **dos problemas distintos** con causas distintas.
 
-**Causa**: no es el CSS de la app, es la presentación de WebKitGTK con el
-driver NVIDIA. El renderer DMABUF incumple la regla de acquire-point de los
-compositores Wayland (Hyprland mata al cliente con «Error 71») y su ruta
-EGL/GBM con NVIDIA puede hacer SIGSEGV; el sync explícito intermitente deja
-buffers sin inicializar o stale, que el compositor muestra tal cual (frames
-negros, basura o el contenido anterior ahí donde aún no se repintó). Fuentes:
+### A. «Inicio encima de Letras» → regresión del compositor Skia (WebKIT 2.54)
+
+**Causa raíz**: regresión upstream de WebKitGTK 2.52.6 → 2.54.1 en el compositor
+de capas Skia: al montar un overlay con transiciones de opacidad pierde frames
+y muestra el contenido de detrás (los frames glitchados muestran el valor
+INICIAL de la transición, con lo que se ve la pantalla de antes de abrir el
+overlay). No es el CSS de la app (el stacking está correcto: Letras `z-index:
+200`, player por encima por diseño) ni Hyprland.
+
+Fuentes: WebKit **#327524** (REGRESSION 2.52.6→2.54.1, con vídeo del diálogo
+parpadeando) y **#326841**; un usuario con **el mismo paquete Arch
+`webkit2gtk-4.1 2.54.1-1` + Hyprland 0.56.2 + Tauri** documentó el síntoma
+«el scrim desaparece 1-2 frames justo al terminar la transición y se ve el
+brillo de ANTES de abrir» y confirmó la solución; también issue Handy #2166
+(matriz de configs NVIDIA 615.78.08 + webkit 2.54.1).
+
+Evidencia propia: captura de la ventana con `grim` a ~55 fps mientras la persona
+abre/cierra Letras; los frames glitchados son **mixtos** (cola de Letras a la
+izquierda + contenido de Inicio a la derecha), es decir, el compositor de
+WebKit monta un frame con actualizaciones parciales y antigua.
+
+**Fix**: `WEBKIT_USE_SKIA_FOR_COMPOSITION=0` — vuelve al compositor anterior
+**sin perder aceleración por hardware** (reportes: «flicker completely gone»).
+Aplica a **cualquier GPU** (la regresión no es de NVIDIA); en WebKitGTK
+anteriores la variable no existe y se ignora.
+
+Alternativas documentadas si alguna vez no bastara: `WEBKIT_DISABLE_DMABUF_ATLAS=1`
+y desactualizar a webkit 2.52.6. `WEBKIT_DISABLE_COMPOSITING_MODE=1` es el
+último recurso: en 2.54 ya no aporta (un usuario con NVIDIA reportó «nothing
+changed») y quita la ruta rápida de blur.
+
+**Lo que NO funciona** (medido): `WEBKIT_DISABLE_DMABUF_RENDERER=1` quita el
+parpadeo pero obliga a WebKit a la ruta sin aceleración y la app va lenta —
+así lo reportan el propio bug #327524 y las pruebas en este equipo. Por eso en
+Wayland **nunca se desactiva el renderer DMABUF**.
+
+### B. Frames negros o con basura al cambiar de pantalla (solo NVIDIA)
+
+**Causa**: la presentación de WebKitGTK con el driver NVIDIA. El renderer
+DMABUF incumple la regla de acquire-point de los compositores Wayland
+(Hyprland mata al cliente con «Error 71») y su ruta EGL/GBM con NVIDIA puede
+hacer SIGSEGV; el sync explícito intermitente deja buffers sin inicializar,
+que el compositor muestra tal cual (frames negros o basura). Fuentes:
 `webkit2gtk-nvidia-quirk`, tauri-apps/tauri#10702 y #9304, WebKit #280210 y la
 documentación de Yaak.
 
-**Fix automático** (en `src-tauri/src/main.rs`, antes de crear la ventana, para
-que el `WebKitWebProcess` herede el entorno):
+**Fix**: `__NV_DISABLE_EXPLICIT_SYNC=1` solo con GPU NVIDIA + Wayland — mató
+los frames negros (311 → 0 en pruebas de 150–200 s) sin tocar el rendimiento.
+En X11 con NVIDIA, `WEBKIT_DISABLE_DMABUF_RENDERER=1` (ventana en blanco,
+orden oficial de Tauri).
 
-| Entorno (solo con GPU NVIDIA) | Variables aplicadas |
+### Variables aplicadas por `main.rs`
+
+Se fijan antes de crear la ventana, para que el `WebKitWebProcess` herede el
+entorno, **solo si la persona no ha fijado ya la variable** (su configuración
+manda):
+
+| Entorno | Variables aplicadas |
 |:--|:--|
-| Wayland | `WEBKIT_DISABLE_DMABUF_RENDERER=1` + `__NV_DISABLE_EXPLICIT_SYNC=1` |
-| X11 | `WEBKIT_DISABLE_DMABUF_RENDERER=1` |
+| Linux (cualquier GPU) | `WEBKIT_USE_SKIA_FOR_COMPOSITION=0` |
+| NVIDIA + Wayland | + `__NV_DISABLE_EXPLICIT_SYNC=1` |
+| NVIDIA + X11 | + `WEBKIT_DISABLE_DMABUF_RENDERER=1` |
 
-La detección lee `/sys/class/drm` (vendor `0x10de` o driver `nvidia`) y el
-backend de sesión (`GDK_BACKEND` → `XDG_SESSION_TYPE` → `WAYLAND_DISPLAY` /
-`DISPLAY`). Si la persona ya fijó `WEBKIT_DISABLE_DMABUF_RENDERER` o
-`__NV_DISABLE_EXPLICIT_SYNC`, no se toca nada: su configuración manda.
+La detección de NVIDIA lee `/sys/class/drm` (vendor `0x10de` o driver `nvidia`)
+y el backend de sesión (`GDK_BACKEND` → `XDG_SESSION_TYPE` → `WAYLAND_DISPLAY` /
+`DISPLAY`).
 
-**Paliativo si aún parpadean los overlays**: lanzar con
-`WEBKIT_DISABLE_COMPOSITING_MODE=1` (desactiva la composición acelerada de
-WebKit; es la opción 2 del orden oficial de Yaak). Tiene coste: las animaciones
-y los `backdrop-filter` van por la ruta lenta y en algunas versiones el blur
-se degrada (WebKit #303811), así que solo si hace falta.
-
-**Verificación**: capturas con `grim` a ~12 fps sobre la ventana y análisis de
-frames (negros = brillo medio < 2; overlays stale = barra lateral de Inicio
-visible tras la animación de entrada de Letras). Con los workarounds, los
-frames negros pasaron de 311 a 0 en pruebas de 150–200 s.
+**Verificación**: capturas con `grim` a ~55 fps sobre la ventana y análisis de
+frames (negros = brillo medio < 2; «Inicio encima de Letras» = frames mixtos
+con la barra lateral/contenido de Inicio dentro del overlay de Letras).

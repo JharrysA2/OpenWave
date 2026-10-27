@@ -6,6 +6,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-27
+
 ### Corregido
 - Parpadeo al abrir Letras o un modal en Linux («Inicio se superpone un instante»): era una regresión del compositor Skia de WebKitGTK 2.54 (bug upstream 327524) y no de la app; el binario fija `WEBKIT_USE_SKIA_FOR_COMPOSITION=0` para cualquier GPU, lo que elimina el parpadeo sin perder aceleración por hardware. Además, con GPU NVIDIA en Wayland aplica `__NV_DISABLE_EXPLICIT_SYNC=1` (frames negros o con basura al cambiar de pantalla, 311 → 0) y en X11 `WEBKIT_DISABLE_DMABUF_RENDERER=1` (ventana en blanco). Si el usuario ya fijó alguna variable, se respeta. Documentado en `docs/linux.md` (§13).
 
@@ -512,7 +514,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.1
 [1.2.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.0
 [1.1.9]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.9
 [1.1.8]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.8

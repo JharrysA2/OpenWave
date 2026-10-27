@@ -1,6 +1,6 @@
 [package]
 name = "openwave"
-version = "1.2.0"
+version = "1.2.1"
 description = "OpenWave Music App"
 authors = []
 edition = "2021"

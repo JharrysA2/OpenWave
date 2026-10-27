@@ -38,6 +38,10 @@ datos="${OPENWAVE_DATA_DIR:-${XDG_DATA_HOME:-"$HOME/.local/share"}/OpenWave}"
 mkdir -p "$datos" 2>/dev/null || true
 log="$datos/app.err.log"
 
+# Evitar parpadeo/corrupción con WebKitGTK en Wayland + NVIDIA
+export WEBKIT_DISABLE_DMABUF_RENDERER="${WEBKIT_DISABLE_DMABUF_RENDERER:-0}"
+export __NV_DISABLE_EXPLICIT_SYNC="${__NV_DISABLE_EXPLICIT_SYNC:-1}"
+
 # Traer al frente la ventana que ya existe. Sin hyprctl (otros escritorios)
 # no pasa nada: la ventana sigue ahí, debajo de las demás.
 enfocar() {
@@ -67,7 +71,7 @@ if pgrep -x OpenWave >/dev/null 2>&1; then
   enfocar
   [ "$mantener" -eq 1 ] && printf 'OpenWave ya está abierta.\n'
 else
-  setsid -f "$app" </dev/null >>"$log" 2>&1
+  setsid -f env WEBKIT_DISABLE_DMABUF_RENDERER="${WEBKIT_DISABLE_DMABUF_RENDERER:-0}" __NV_DISABLE_EXPLICIT_SYNC="${__NV_DISABLE_EXPLICIT_SYNC:-1}" "$app" </dev/null >>"$log" 2>&1
 
   # El proceso tiene que existir antes de cerrar la terminal: 3 s de margen.
   n=0

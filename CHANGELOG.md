@@ -6,6 +6,9 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Corregido
+- Parpadeo, frames negros o corrupción en Wayland con gráficas NVIDIA: el lanzador de Linux `packaging/linux/openwave` inyecta `__NV_DISABLE_EXPLICIT_SYNC=1` por defecto para evitar el bug de WebKitGTK. Documentado en `docs/linux.md`.
+
 ## [1.2.0] - 2026-10-25
 
 ### Added

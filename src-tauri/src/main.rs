@@ -19,5 +19,14 @@ fn set_appusermodel_id() {
 fn main() {
     #[cfg(windows)]
     set_appusermodel_id();
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var_os("__NV_DISABLE_EXPLICIT_SYNC").is_none() {
+            std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
+        }
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "0");
+        }
+    }
     app_lib::run();
 }

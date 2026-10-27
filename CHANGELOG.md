@@ -14,6 +14,7 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 ## Interno
 
 ### Corregido
+- Los paquetes de Linux de una release ya no dependen de la memoria: `scripts/package-linux.sh` construye `.deb`, `.AppImage` y `.pkg.tar.zst` de una vez (con el workaround del `strip` embebido en linuxdeploy, que no sabe tratar las secciones `.relr.dyn` de las libs actuales y abortaba el AppImage), y `AGENTS.md`, `docs/release.md` y la skill de release incluyen el paso de `gh release upload` — el workflow solo sube el MSI.
 - Tests en verde con Node ≥ 25: el `localStorage` nativo experimental de Node devolvía `undefined` y tapaba el de jsdom en vitest (300 tests fallaban con «Cannot read properties of undefined»). `src/test-setup.js` instala un almacén equivalente cuando el nativo no está disponible.
 
 ## [1.2.0] - 2026-10-25

@@ -48,6 +48,15 @@ cambio real de la app.
    gh run watch                                    # seguir el build
    git pull --ff-only                              # traer el commit chore(release)
    ```
+   **Los paquetes de Linux NO los sube el workflow**: se construyen aquí y se
+   adjuntan a mano (el `.AppImage` tarda unos minutos):
+   ```bash
+   scripts/package-linux.sh                        # .deb + .AppImage + .pkg.tar.zst
+   gh release upload vX.Y.Z \
+     src-tauri/target/release/bundle/deb/OpenWave_X.Y.Z_amd64.deb \
+     src-tauri/target/release/bundle/appimage/OpenWave_X.Y.Z_amd64.AppImage \
+     packaging/arch/openwave-X.Y.Z-1-x86_64.pkg.tar.zst
+   ```
    Luego instala el MSI publicado y verifica:
    ```bash
    powershell.exe -File scripts/install-msi.ps1 -Version X.Y.Z -Launch
@@ -64,7 +73,8 @@ cambio real de la app.
    Para construir el MSI en local: `scripts/sync-windows` y después
    `package-windows.ps1 -NoOpen` en la copia Windows (ver más abajo).
 
-5. **Verifica**: release con el MSI adjunto, tag en el remoto, `/health` → 200
+5. **Verifica**: release con los **cuatro** artefactos (MSI, `.deb`,
+   `.AppImage` y `.pkg.tar.zst`), tag en el remoto, `/health` → 200
    y `/home/for-you` respondiendo tras instalar.
 
 ## Compilar el MSI en local (copia Windows)
@@ -95,6 +105,10 @@ gh release create vX.Y.Z "build/windows/OpenWave-X.Y.Z-x64-es-ES.msi" \
 
 ## Errores frecuentes
 
+- **AppImage: «failed to run linuxdeploy»**: el `strip` embebido en
+  linuxdeploy no entiende las secciones `.relr.dyn` de las libs del sistema.
+  No lo arregles a mano: `scripts/package-linux.sh` ya lo esuelve (extrae
+  linuxdeploy en `build/cache` con el strip del sistema).
 - **MSI viejo tras el build**: faltó reconstruir el staging; no uses
   `-SkipRuntime` cuando cambie `backend/`.
 - **`prepare-runtime` aborta**: el puerto **8765** está ocupado; cierra la app

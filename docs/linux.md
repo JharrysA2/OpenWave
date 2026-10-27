@@ -416,9 +416,11 @@ Pendiente, en este orden:
       bundle embebido; falta verificarlo en un sistema sin nuestras
       dependencias y con `--appimage-extract-and-run` si no hay FUSE).
 - [ ] `verify-linux.sh` como gate de CI y `build-linux.yml` en `ubuntu-22.04`.
-- [ ] Subir los tres artefactos de Linux desde `release.yml` (hoy la release
-      sale con el MSI y los de Linux se adjuntan a mano con `gh release upload`,
-      probado en la v1.2.0).
+- [x] Subir los tres artefactos de Linux a cada release: `scripts/package-linux.sh`
+      construye los tres (incluye el workaround del `strip` de linuxdeploy) y se
+      adjuntan a mano con `gh release upload` (probado en la v1.2.1; en la
+      v1.2.0 fue a mano sin script). Queda pendiente subirlos desde
+      `release.yml` en lugar de a mano.
 - [ ] Recorte de tamaño: el runtime quedó en 269 MB (libpython sin símbolos) y
       ffmpeg en 165 MB (ya sin símbolos; es el build estático completo).
       Alternativas: build de ffmpeg con solo los códecs que usa la app, o el

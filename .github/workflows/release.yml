@@ -136,7 +136,7 @@ jobs:
           version, sha, size = sys.argv[1], sys.argv[2], sys.argv[3]
           text = open("CHANGELOG.md", encoding="utf-8").read()
           m = re.search(
-              rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)",
+              rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## |\Z)",
               text,
               re.M | re.S,
           )

@@ -25,6 +25,9 @@ cambio real de la app.
       `chore(release): vX.Y.Z`, empuja el tag, **compila el MSI en Windows**
       (`build-msi.yml`) y **publica la release** con el MSI y las notas.
 - [ ] `git pull --ff-only` para traer el commit de versión.
+- [ ] Paquetes de Linux: el workflow **solo sube el MSI**. Construir los tres
+      con `scripts/package-linux.sh` y adjuntarlos a mano:
+      `gh release upload vX.Y.Z <deb> <AppImage> <pkg.tar.zst>`.
 - [ ] Instalar el MSI publicado y verificar:
       `powershell.exe -File scripts/install-msi.ps1 -Version X.Y.Z -Launch`.
 
@@ -75,8 +78,9 @@ Se ejecuta desde WSL; la app empaquetada vive en
 
 - [ ] Vía A: la crea el workflow. Vía B: `gh release create vX.Y.Z
       "build/windows/OpenWave-*.msi" --title "..." --notes-file <notas>`.
-- [ ] Comprobar que la release aparece con el MSI adjunto y que el tag está
-      en el remoto (`git ls-remote --tags origin`).
+- [ ] Comprobar que la release aparece con los **cuatro** artefactos (MSI,
+      `.deb`, `.AppImage` y `.pkg.tar.zst`) y que el tag está en el remoto
+      (`git ls-remote --tags origin`).
 
 ## Decisiones ya tomadas (no re-abrir sin motivo)
 

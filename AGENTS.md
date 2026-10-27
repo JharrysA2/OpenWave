@@ -66,7 +66,13 @@ gh workflow run release.yml -f bump=patch     # o minor/major, o -f version=1.2.
 #    Windows -> publica la release con el MSI y las notas del CHANGELOG.
 # 3. Trae el commit de versión que hizo el workflow:
 git pull --ff-only
-# 4. Instala el MSI publicado y verifica:
+# 4. Paquetes de Linux (el workflow NO los sube; van a mano):
+scripts/package-linux.sh                      # .deb + .AppImage + .pkg.tar.zst
+gh release upload vX.Y.Z \
+  src-tauri/target/release/bundle/deb/OpenWave_X.Y.Z_amd64.deb \
+  src-tauri/target/release/bundle/appimage/OpenWave_X.Y.Z_amd64.AppImage \
+  packaging/arch/openwave-X.Y.Z-1-x86_64.pkg.tar.zst
+# 5. Instala el MSI publicado y verifica:
 powershell.exe -File scripts/install-msi.ps1 -Version X.Y.Z -Launch
 ```
 

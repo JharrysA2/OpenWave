@@ -423,3 +423,45 @@ Pendiente, en este orden:
       ffmpeg en 165 MB (ya sin símbolos; es el build estático completo).
       Alternativas: build de ffmpeg con solo los códecs que usa la app, o el
       paquete `-shared` con sus `.so`.
+
+---
+
+## 13. Parpadeo, frames negros y «Inicio encima de Letras» (NVIDIA)
+
+Síntomas vistos en Linux con gráfica NVIDIA: al abrir la pantalla de Letras o
+cualquier modal, el contenido de Inicio se superpone por encima un instante
+(como si se recargara todo), y en los cambios de pantalla aparecen frames
+negros o con basura de memoria.
+
+**Causa**: no es el CSS de la app, es la presentación de WebKitGTK con el
+driver NVIDIA. El renderer DMABUF incumple la regla de acquire-point de los
+compositores Wayland (Hyprland mata al cliente con «Error 71») y su ruta
+EGL/GBM con NVIDIA puede hacer SIGSEGV; el sync explícito intermitente deja
+buffers sin inicializar o stale, que el compositor muestra tal cual (frames
+negros, basura o el contenido anterior ahí donde aún no se repintó). Fuentes:
+`webkit2gtk-nvidia-quirk`, tauri-apps/tauri#10702 y #9304, WebKit #280210 y la
+documentación de Yaak.
+
+**Fix automático** (en `src-tauri/src/main.rs`, antes de crear la ventana, para
+que el `WebKitWebProcess` herede el entorno):
+
+| Entorno (solo con GPU NVIDIA) | Variables aplicadas |
+|:--|:--|
+| Wayland | `WEBKIT_DISABLE_DMABUF_RENDERER=1` + `__NV_DISABLE_EXPLICIT_SYNC=1` |
+| X11 | `WEBKIT_DISABLE_DMABUF_RENDERER=1` |
+
+La detección lee `/sys/class/drm` (vendor `0x10de` o driver `nvidia`) y el
+backend de sesión (`GDK_BACKEND` → `XDG_SESSION_TYPE` → `WAYLAND_DISPLAY` /
+`DISPLAY`). Si la persona ya fijó `WEBKIT_DISABLE_DMABUF_RENDERER` o
+`__NV_DISABLE_EXPLICIT_SYNC`, no se toca nada: su configuración manda.
+
+**Paliativo si aún parpadean los overlays**: lanzar con
+`WEBKIT_DISABLE_COMPOSITING_MODE=1` (desactiva la composición acelerada de
+WebKit; es la opción 2 del orden oficial de Yaak). Tiene coste: las animaciones
+y los `backdrop-filter` van por la ruta lenta y en algunas versiones el blur
+se degrada (WebKit #303811), así que solo si hace falta.
+
+**Verificación**: capturas con `grim` a ~12 fps sobre la ventana y análisis de
+frames (negros = brillo medio < 2; overlays stale = barra lateral de Inicio
+visible tras la animación de entrada de Letras). Con los workarounds, los
+frames negros pasaron de 311 a 0 en pruebas de 150–200 s.

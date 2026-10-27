@@ -7,7 +7,12 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 ## [Unreleased]
 
 ### Corregido
-- Parpadeo, frames negros o corrupción en Wayland con gráficas NVIDIA: el lanzador de Linux `packaging/linux/openwave` inyecta `__NV_DISABLE_EXPLICIT_SYNC=1` por defecto para evitar el bug de WebKitGTK. Documentado en `docs/linux.md`.
+- Parpadeo, frames negros y superposición de Inicio sobre Letras/modales en Linux con gráfica NVIDIA: el binario detecta NVIDIA y el tipo de sesión y aplica los workarounds de WebKitGTK (`WEBKIT_DISABLE_DMABUF_RENDERER=1` y, en Wayland, `__NV_DISABLE_EXPLICIT_SYNC=1`) antes de crear la ventana. Si el usuario ya fijó alguna variable, se respeta. Documentado en `docs/linux.md` (§13), con `WEBKIT_DISABLE_COMPOSITING_MODE=1` como paliativo opcional.
+
+## Interno
+
+### Corregido
+- Tests en verde con Node ≥ 25: el `localStorage` nativo experimental de Node devolvía `undefined` y tapaba el de jsdom en vitest (300 tests fallaban con «Cannot read properties of undefined»). `src/test-setup.js` instala un almacén equivalente cuando el nativo no está disponible.
 
 ## [1.2.0] - 2026-10-25
 

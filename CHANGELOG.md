@@ -14,6 +14,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 - **Fase 3: panel opcional «Ahora suena» y shell adaptable.** En ventanas de 1280 px o más aparece un panel lateral plano con la portada, la reproducción actual y las próximas canciones de la cola; su visibilidad se controla desde la sidebar y se desactiva automáticamente en ventanas estrechas. El player bar mantiene intacta su pastilla centrada y flotante.
 
+- **Ventana nativa en instalaciones Linux.** En paquetes Linux se detecta el escritorio y la app deja de pintar su barra de título personalizada. Con Hyprland la ventana queda sin marco, gestionada por el compositor; en GNOME, KDE u otros escritorios se activa la barra nativa con minimizar, maximizar y cerrar. El desarrollo local y Windows conservan la barra personalizada actual. Letras ajusta su altura al espacio realmente ocupado por la ventana.
+
 ## [1.2.1] - 2026-10-27
 
 ### Corregido

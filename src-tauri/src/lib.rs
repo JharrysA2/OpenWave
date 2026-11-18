@@ -368,8 +368,8 @@ fn create_err_log(data_dir: &std::path::Path) -> Option<std::fs::File> {
 fn set_taskbar_icon(window: &tauri::WebviewWindow) {
     use windows::Win32::Foundation::{HANDLE, LPARAM, WPARAM};
     use windows::Win32::UI::WindowsAndMessaging::{
-        CopyImage, GCLP_HICON, ICON_BIG, ICON_SMALL, IMAGE_FLAGS, IMAGE_ICON,
-        SendMessageW, SetClassLongPtrW, WM_GETICON, WM_SETICON,
+        CopyImage, SendMessageW, SetClassLongPtrW, GCLP_HICON, ICON_BIG, ICON_SMALL, IMAGE_FLAGS,
+        IMAGE_ICON, WM_GETICON, WM_SETICON,
     };
 
     let hwnd = match window.hwnd() {
@@ -410,9 +410,79 @@ fn set_taskbar_icon(window: &tauri::WebviewWindow) {
     }
 }
 
+/// Entorno de ventana que el frontend usa para decidir si pinta la barra
+/// personalizada. En Windows se mantiene siempre.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WindowEnvironment {
+    linux: bool,
+    installed: bool,
+    hyprland: bool,
+    desktop: String,
+    custom_title_bar: bool,
+}
+
+#[cfg(target_os = "linux")]
+fn es_hyprland(hyprland_signature: Option<&str>, current_desktop: Option<&str>) -> bool {
+    hyprland_signature.is_some_and(|v| !v.trim().is_empty())
+        || current_desktop.is_some_and(|v| v.to_lowercase().contains("hyprland"))
+}
+
+#[cfg(target_os = "linux")]
+fn escritorio_linux() -> (bool, String) {
+    let signature = std::env::var("HYPRLAND_INSTANCE_SIGNATURE").ok();
+    let current = std::env::var("XDG_CURRENT_DESKTOP").ok();
+    let session = std::env::var("XDG_SESSION_DESKTOP").ok();
+    let classic = std::env::var("DESKTOP_SESSION").ok();
+    let desktop = current
+        .clone()
+        .or(session)
+        .or(classic)
+        .unwrap_or_else(|| "desconocido".to_string());
+    (
+        es_hyprland(signature.as_deref(), current.as_deref()),
+        desktop,
+    )
+}
+
+#[cfg(target_os = "linux")]
+fn linux_instalado(app: &tauri::AppHandle) -> bool {
+    app.path()
+        .resource_dir()
+        .ok()
+        .map(|dir| dir.join("runtime").is_dir())
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+fn window_environment(app: tauri::AppHandle) -> WindowEnvironment {
+    #[cfg(target_os = "linux")]
+    {
+        let installed = linux_instalado(&app);
+        let (hyprland, desktop) = escritorio_linux();
+        return WindowEnvironment {
+            linux: true,
+            installed,
+            hyprland,
+            desktop,
+            custom_title_bar: !installed,
+        };
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    WindowEnvironment {
+        linux: false,
+        installed: false,
+        hyprland: false,
+        desktop: String::new(),
+        custom_title_bar: true,
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![window_environment])
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
         // Selector nativo de archivos (rfd) + lectura: sustituyen a los
@@ -429,6 +499,35 @@ pub fn run() {
                     return Ok(());
                 }
             };
+
+            #[cfg(target_os = "linux")]
+            {
+                // Solo en paquetes instalados: Hyprland no necesita marco y
+                // el resto de escritorios recuperan su barra nativa. La
+                // barra personalizada la oculta el frontend con el mismo dato.
+                let installed = app
+                    .handle()
+                    .path()
+                    .resource_dir()
+                    .ok()
+                    .map(|dir| dir.join("runtime").is_dir())
+                    .unwrap_or(false);
+                if installed {
+                    let (hyprland, desktop) = escritorio_linux();
+                    if let Err(e) = window.set_decorations(!hyprland) {
+                        eprintln!("[openwave] No se pudo ajustar el marco nativo: {e}");
+                    } else {
+                        eprintln!(
+                            "[openwave] Linux instalado ({desktop}): barra {}",
+                            if hyprland {
+                                "personalizada oculta y sin marco nativo"
+                            } else {
+                                "personalizada oculta, marco nativo activo"
+                            }
+                        );
+                    }
+                }
+            }
 
             #[cfg(target_os = "windows")]
             {
@@ -712,6 +811,17 @@ mod tests {
             }
         });
         addr
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn detecta_hyprland_por_firma_o_escritorio() {
+        use super::es_hyprland;
+        assert!(es_hyprland(Some("abc123"), None));
+        assert!(es_hyprland(None, Some("Hyprland")));
+        assert!(es_hyprland(None, Some("hyprland")));
+        assert!(!es_hyprland(None, Some("GNOME")));
+        assert!(!es_hyprland(None, None));
     }
 
     // El caso real que motivó el bucle: un /health sano llega en dos paquetes

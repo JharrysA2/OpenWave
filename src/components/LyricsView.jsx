@@ -1452,6 +1452,7 @@ export function LyricsView({
   onRemoveFromQueue,
   onMoveInQueue,
   streamCacheRef,
+  topOffset = 32,
 }) {
   const { settings, updateSetting } = useSettings();
   const { visible, solidOn, sleeping } = usePerformance();
@@ -2469,7 +2470,7 @@ export function LyricsView({
       style={{
         position: "fixed",
         inset: 0,
-        top: "32px",
+        top: `${topOffset}px`,
         zIndex: 200,
         display: "flex",
         fontFamily: FONT,

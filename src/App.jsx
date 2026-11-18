@@ -9,6 +9,7 @@ import { PerformanceProvider } from "./contexts/PerformanceContext";
 import { useSettings } from "./contexts/useSettings";
 import { usePlayer } from "./hooks/usePlayer";
 import { useDynamicTheme } from "./hooks/useDynamicTheme";
+import { useWindowChrome } from "./hooks/useWindowChrome";
 import { useSearch } from "./hooks/useSearch";
 import { useLibrary } from "./hooks/useLibrary";
 import { useToast } from "./hooks/useToast";
@@ -42,6 +43,7 @@ const LyricsView = React.memo(
 
 function AppInner() {
   const { settings, updateSetting } = useSettings();
+  const customTitleBar = useWindowChrome();
 
   // Hooks personalizados
   const { toasts, show: toast } = useToast();
@@ -674,8 +676,7 @@ function AppInner() {
       {/* Pantalla de arranque: logo → primer health-check → lista */}
       <BootScreen />
 
-      {/* Custom Title Bar — glassmorphism */}
-      <TitleBar />
+      {customTitleBar && <TitleBar />}
 
       {/* Sidebar + Main area — fills entire height below title bar */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
@@ -924,6 +925,7 @@ function AppInner() {
             onMoveDown={moveDown}
             onMoveInQueue={moveInQueue}
             streamCacheRef={streamCacheRef}
+            topOffset={customTitleBar ? 32 : 0}
           />
         </Suspense>
       )}

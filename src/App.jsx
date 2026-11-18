@@ -838,11 +838,9 @@ function AppInner() {
         {nowPlayingOpen && (
           <NowPlayingPanel
             song={currentSong}
-            isPlaying={isPlaying}
             queue={queue}
             queueIndex={queueIndex}
             accentColor={neonColor}
-            onTogglePlay={togglePlay}
             onPlaySong={playSong}
             onClose={closeNowPlaying}
           />

@@ -387,7 +387,7 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
             position: "relative",
             zIndex: 1,
             scrollbarWidth: "thin",
-            scrollbarColor: `${accentColor}33 transparent`,
+            scrollbarColor: "rgba(255,255,255,.18) transparent",
           }}
         >
           {children}

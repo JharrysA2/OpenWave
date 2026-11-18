@@ -12,11 +12,9 @@ import { COLORS, GLASS, RADIUS, SPACING, TRANSITIONS, safeAccentText } from "../
  */
 export function NowPlayingPanel({
   song,
-  isPlaying,
   queue = [],
   queueIndex = -1,
   accentColor = "#a78bfa",
-  onTogglePlay,
   onPlaySong,
   onClose,
 }) {
@@ -135,25 +133,6 @@ export function NowPlayingPanel({
               {song.artist || "OpenWave"}
             </div>
           </div>
-
-          <button
-            onClick={onTogglePlay}
-            aria-label={isPlaying ? "Pausar" : "Reproducir"}
-            style={{
-              ...GLASS.playBtn(accentColor),
-              width: "44px",
-              height: "44px",
-              borderRadius: RADIUS.default,
-              color: "var(--neon-fg)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginTop: "16px",
-            }}
-          >
-            {isPlaying ? Ic.pause(18) : Ic.play(18)}
-          </button>
 
           <div style={{ marginTop: "24px" }}>
             <div

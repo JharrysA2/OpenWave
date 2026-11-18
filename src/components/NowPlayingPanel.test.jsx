@@ -12,11 +12,9 @@ const song = (id) => ({
 
 const baseProps = {
   song: song("a"),
-  isPlaying: true,
   queue: [song("a"), song("b"), song("c")],
   queueIndex: 0,
   accentColor: "#a78bfa",
-  onTogglePlay: vi.fn(),
   onPlaySong: vi.fn(),
   onClose: vi.fn(),
 };
@@ -35,11 +33,11 @@ describe("NowPlayingPanel", () => {
     expect(baseProps.onPlaySong).toHaveBeenCalledWith(song("c"), 2, false, baseProps.queue);
   });
 
-  it("permite pausar y cerrar el panel", () => {
+  it("no repite el control de reproducción y permite cerrar el panel", () => {
     render(<NowPlayingPanel {...baseProps} />);
-    fireEvent.click(screen.getByLabelText("Pausar"));
+    expect(screen.queryByLabelText("Pausar")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Reproducir")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Ocultar ahora suena"));
-    expect(baseProps.onTogglePlay).toHaveBeenCalled();
     expect(baseProps.onClose).toHaveBeenCalled();
   });
 

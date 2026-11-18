@@ -123,6 +123,18 @@ describe("SettingsPanel", () => {
     expect(screen.getByText("Crossfade")).toBeInTheDocument();
   });
 
+  it("separa el estilo del reproductor y las letras en páginas propias", () => {
+    renderPanel();
+    fireEvent.click(screen.getByText("Estilo del reproductor"));
+    expect(screen.getByText("Forma del botón de play")).toBeInTheDocument();
+    expect(screen.queryByText("Tema")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Atrás"));
+    fireEvent.click(screen.getByText("Letras"));
+    expect(screen.getByText("Tamaño de letra de las letras")).toBeInTheDocument();
+    expect(screen.queryByText("Forma del botón de play")).not.toBeInTheDocument();
+  });
+
   it("should navigate to privacy page when clicked", () => {
     renderPanel();
     fireEvent.click(screen.getByText("Privacidad"));

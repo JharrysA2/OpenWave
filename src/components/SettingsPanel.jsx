@@ -27,6 +27,8 @@ import {
   Info,
   Globe,
   Lightning,
+  SlidersHorizontal,
+  Microphone,
 } from "@phosphor-icons/react";
 
 export default function SettingsPanel({
@@ -66,7 +68,17 @@ export default function SettingsPanel({
     appearance: {
       label: t.appearance,
       icon: <PaintBrush style={iconStyle} weight="fill" />,
-      comp: <PageApariencia neonColor={neonColor} />,
+      comp: <PageApariencia neonColor={neonColor} section="theme" />,
+    },
+    playerStyle: {
+      label: t.playerStyle,
+      icon: <SlidersHorizontal style={iconStyle} />,
+      comp: <PageApariencia neonColor={neonColor} section="player" />,
+    },
+    lyrics: {
+      label: t.lyrics,
+      icon: <Microphone style={iconStyle} />,
+      comp: <PageApariencia neonColor={neonColor} section="lyrics" />,
     },
     player: {
       label: t.playerSound,
@@ -290,6 +302,12 @@ export default function SettingsPanel({
                   <MusicNote key="player" style={iconStyle} weight="fill" />,
                   t.playerSound,
                 ],
+                [
+                  "playerStyle",
+                  <SlidersHorizontal key="playerStyle" style={iconStyle} />,
+                  t.playerStyle,
+                ],
+                ["lyrics", <Microphone key="lyrics" style={iconStyle} />, t.lyrics],
                 ["content", <BookOpen key="content" style={iconStyle} />, t.content],
                 [
                   "translation",

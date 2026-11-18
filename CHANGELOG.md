@@ -10,6 +10,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 - **Fase 1 del rediseño visual: superficies planas y Liquid Glass reservado a la reproducción y los overlays.** Fuera todos los degradados decorativos, incluidos Inicio, biblioteca, álbumes, artistas, playlists, modales y la pantalla de Letras; también se retiran glows, halos de texto y sombras de tarjetas. El acento dinámico deja de teñir el fondo y se limita a progreso, Play, pestañas y estados activos. La tipografía se reduce a cuatro tamaños base (28, 18, 14 y 12 px), los controles principales ganan altura de 44 px y los textos secundarios suben de contraste. El cristal se conserva únicamente donde hay contenido en movimiento detrás o una capa flotante real, lo que reduce el ruido visual y el número de superficies que la GPU debe repintar. Solo permanecen los degradados funcionales del selector de color.
 
+- **Fase 2: jerarquía de pantallas y ajustes divididos.** La cabecera de playlist coloca «Volver» como navegación independiente, compacta la portada y agrupa reproducción, aleatorio, selección y borrado en una sola barra, con Reproducir como única acción sólida y Eliminar playlist al final como acción terciaria. El player conserva su posición centrada y su pastilla flotante, pero sus controles secundarios pierden el relleno para dejar a Play como único foco visual. Apariencia se divide en tres páginas: Tema, Estilo del reproductor y Letras, evitando una única pantalla monolítica.
+
 ## [1.2.1] - 2026-10-27
 
 ### Corregido

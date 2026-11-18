@@ -235,30 +235,22 @@ export default function PlaylistView({
         paddingBottom: "90px",
       }}
     >
-      {/* Hero */}
-      <div
-        style={{
-          display: "flex",
-          gap: "24px",
-          marginBottom: "24px",
-          alignItems: "flex-end",
-          ...ANIMATIONS.fadeIn(0),
-        }}
-      >
-        {/* Back button */}
+      <div style={{ marginBottom: "16px" }}>
         <button
           onClick={onBack}
           style={{
             ...GLASS.control,
             borderRadius: RADIUS.default,
-            width: "44px",
-            height: "44px",
+            minHeight: "44px",
+            padding: "0 14px 0 10px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            gap: "6px",
             cursor: "pointer",
             color: COLORS.textSecondary,
-            flexShrink: 0,
+            fontFamily: FONT,
+            fontSize: "14px",
+            fontWeight: "500",
             transition: TRANSITIONS.fast,
           }}
           onMouseEnter={(e) => {
@@ -276,19 +268,31 @@ export default function PlaylistView({
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2.5"
+            strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
+          Volver
         </button>
+      </div>
 
+      {/* Hero */}
+      <div
+        style={{
+          display: "flex",
+          gap: "24px",
+          marginBottom: "24px",
+          alignItems: "flex-end",
+          ...ANIMATIONS.fadeIn(0),
+        }}
+      >
         {/* Cover */}
         <div
           style={{
-            width: "160px",
-            height: "160px",
+            width: "144px",
+            height: "144px",
             borderRadius: RADIUS.default,
             overflow: "hidden",
             flexShrink: 0,
@@ -298,9 +302,9 @@ export default function PlaylistView({
           {coverUrl ? (
             <MusicCover
               src={coverUrl}
-              displaySize={160}
+              displaySize={144}
               alt=""
-              style={{ width: "160px", height: "160px" }}
+              style={{ width: "144px", height: "144px" }}
             />
           ) : (
             <div
@@ -336,6 +340,9 @@ export default function PlaylistView({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
               fontSize: "12px",
               fontWeight: "600",
               color: COLORS.textTertiary,
@@ -344,7 +351,11 @@ export default function PlaylistView({
               marginBottom: "4px",
             }}
           >
-            Playlist
+            <span>Playlist</span>
+            <span aria-hidden="true">·</span>
+            <span style={{ textTransform: "none", letterSpacing: 0 }}>
+              {songs.length} {songs.length === 1 ? "canción" : "canciones"}
+            </span>
           </div>
           {editing ? (
             <input
@@ -388,17 +399,6 @@ export default function PlaylistView({
               {playlist.name}
             </h1>
           )}
-          <div
-            style={{
-              fontSize: "14px",
-              color: COLORS.textTertiary,
-              fontWeight: "500",
-              marginTop: "4px",
-            }}
-          >
-            {songs.length} {songs.length === 1 ? "canción" : "canciones"}
-          </div>
-
           {/* Action buttons */}
           <div
             style={{
@@ -409,42 +409,6 @@ export default function PlaylistView({
               alignItems: "center",
             }}
           >
-            {/* Shuffle */}
-            <button
-              onClick={() => playAll(true)}
-              disabled={songs.length === 0}
-              style={{
-                ...GLASS.control,
-                borderRadius: RADIUS.default,
-                minHeight: "44px",
-                padding: "0 16px",
-                fontSize: "14px",
-                fontWeight: "600",
-                color: COLORS.textPrimary,
-                fontFamily: FONT,
-                cursor: songs.length === 0 ? "not-allowed" : "pointer",
-                opacity: songs.length === 0 ? 0.4 : 1,
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                transition: "background .12s, opacity .12s",
-              }}
-              onMouseEnter={(e) => {
-                if (songs.length > 0) {
-                  // Material del player bar: el hover realza el cristal.
-                  e.currentTarget.style.background = GLASS.controlHover.background;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (songs.length > 0) {
-                  e.currentTarget.style.background = GLASS.control.background;
-                }
-              }}
-            >
-              {Ic.shuffle(16)}
-              Aleatorio
-            </button>
-
             {/* Play All */}
             <button
               onClick={() => playAll(false)}
@@ -476,6 +440,40 @@ export default function PlaylistView({
             >
               {Ic.play(16)}
               Reproducir
+            </button>
+
+            <button
+              onClick={() => playAll(true)}
+              disabled={songs.length === 0}
+              style={{
+                ...GLASS.control,
+                borderRadius: RADIUS.default,
+                minHeight: "44px",
+                padding: "0 16px",
+                fontSize: "14px",
+                fontWeight: "600",
+                color: COLORS.textPrimary,
+                fontFamily: FONT,
+                cursor: songs.length === 0 ? "not-allowed" : "pointer",
+                opacity: songs.length === 0 ? 0.4 : 1,
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                transition: "background .12s, opacity .12s",
+              }}
+              onMouseEnter={(e) => {
+                if (songs.length > 0) {
+                  e.currentTarget.style.background = GLASS.controlHover.background;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (songs.length > 0) {
+                  e.currentTarget.style.background = GLASS.control.background;
+                }
+              }}
+            >
+              {Ic.shuffle(16)}
+              Aleatorio
             </button>
 
             {/* Select mode toggle */}
@@ -607,28 +605,26 @@ export default function PlaylistView({
             <button
               onClick={() => setShowDeleteModal(true)}
               style={{
-                ...GLASS.control,
+                marginLeft: "auto",
+                background: "transparent",
+                border: "none",
                 borderRadius: RADIUS.default,
                 minHeight: "44px",
-                padding: "0 16px",
+                padding: "0 8px",
                 fontSize: "14px",
-                fontWeight: "600",
+                fontWeight: "500",
                 color: COLORS.textTertiary,
                 fontFamily: FONT,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                transition: "background .12s, color .12s",
+                transition: "color .12s",
               }}
               onMouseEnter={(e) => {
-                // Sin contorno ni rojo: el hover realza el cristal y aclara el
-                // texto, como el resto de acciones de la barra.
-                e.currentTarget.style.background = GLASS.controlHover.background;
                 e.currentTarget.style.color = COLORS.textPrimary;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = GLASS.control.background;
                 e.currentTarget.style.color = COLORS.textTertiary;
               }}
             >

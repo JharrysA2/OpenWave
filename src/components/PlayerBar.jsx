@@ -11,10 +11,12 @@ import { getBtnShapeStyle } from "../utils/playerStyles";
 import { Slider } from "./SettingsComponents";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, safeAccentText } from "../utils/theme";
 
-/* Botones del player: superficie plana, sin blur ni degradado. El vidrio
-   queda en la barra que los contiene. */
+/* Controles secundarios sin relleno: el único botón con masa visual es Play.
+   La barra conserva su pastilla flotante y el blur como capa funcional. */
 const BAR_BTN = {
-  ...GLASS.control,
+  background: "transparent",
+  border: "none",
+  boxShadow: "none",
   backdropFilter: "none",
   WebkitBackdropFilter: "none",
 };
@@ -544,7 +546,7 @@ export const PlayerBar = memo(function PlayerBar({
                   e.currentTarget.style.transform = "scale(1.08)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = GLASS.control.background;
+                  e.currentTarget.style.background = BAR_BTN.background;
                   e.currentTarget.style.color = btn.color;
                   e.currentTarget.style.transform = "scale(1)";
                 }}
@@ -654,7 +656,7 @@ export const PlayerBar = memo(function PlayerBar({
                   e.currentTarget.style.transform = "scale(1.08)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = GLASS.control.background;
+                  e.currentTarget.style.background = BAR_BTN.background;
                   e.currentTarget.style.color = btn.color;
                   e.currentTarget.style.transform = "scale(1)";
                 }}
@@ -704,7 +706,7 @@ export const PlayerBar = memo(function PlayerBar({
                 e.currentTarget.style.transform = "scale(1.08)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = GLASS.control.background;
+                e.currentTarget.style.background = BAR_BTN.background;
                 e.currentTarget.style.color = volume > 0 ? COLORS.iconActive : COLORS.iconDimmer;
                 e.currentTarget.style.transform = "scale(1)";
               }}
@@ -755,7 +757,7 @@ export const PlayerBar = memo(function PlayerBar({
                 e.currentTarget.style.transform = "scale(1.08)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = GLASS.control.background;
+                e.currentTarget.style.background = BAR_BTN.background;
                 e.currentTarget.style.color =
                   crossfadeDuration > 0 ? safeAccentText(accentColor) : COLORS.iconDim;
                 e.currentTarget.style.transform = "scale(1)";
@@ -869,7 +871,7 @@ export const PlayerBar = memo(function PlayerBar({
                 e.currentTarget.style.transform = "scale(1.08)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = GLASS.control.background;
+                e.currentTarget.style.background = BAR_BTN.background;
                 e.currentTarget.style.color = COLORS.iconActive;
                 e.currentTarget.style.transform = "scale(1)";
               }}
@@ -904,7 +906,7 @@ export const PlayerBar = memo(function PlayerBar({
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = GLASS.control.background;
+              e.currentTarget.style.background = BAR_BTN.background;
               e.currentTarget.style.color = lyricsOpen
                 ? accentColor
                 : song

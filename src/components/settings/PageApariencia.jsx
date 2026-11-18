@@ -17,337 +17,369 @@ import { BtnShapeModal } from "./BtnShapeModal";
 import { BarStyleModal } from "./BarStyleModal";
 import { AppColorModal } from "./AppColorModal";
 
-export function PageApariencia({ neonColor }) {
+export function PageApariencia({ neonColor, section = "all" }) {
   const { settings, updateSetting, t } = useSettings();
   const [showBtnModal, setShowBtnModal] = useState(false);
   const [showBarModal, setShowBarModal] = useState(false);
   const [showColorModal, setShowColorModal] = useState(false);
   const accent = neonColor || "#a78bfa";
   const appColor = settings.appColor || "#a78bfa";
+  const showTheme = section === "all" || section === "theme";
+  const showPlayer = section === "all" || section === "player";
+  const showLyrics = section === "all" || section === "lyrics";
 
   return (
-    <div style={{ padding: "20px 16px" }}>
-      <SettingsSection title="Tema">
-        <SettingRow
-          icon={Ic.paintBrush}
-          label={t.appColor}
-          desc={t.appColorDesc}
-          onClick={() => setShowColorModal(true)}
-          right={
-            <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              {/* Vista previa: el color APLICADO (acento derivado) */}
-              <span
-                style={{
-                  width: "16px",
-                  height: "16px",
-                  borderRadius: "50%",
-                  background: deriveTheme(appColor).accent,
-                  boxShadow: "0 0 0 1.5px rgba(255,255,255,.25)",
-                }}
+    <div style={{ padding: "24px" }}>
+      {showTheme && (
+        <>
+          <SettingsSection title="Tema">
+            <SettingRow
+              icon={Ic.paintBrush}
+              label={t.appColor}
+              desc={t.appColorDesc}
+              onClick={() => setShowColorModal(true)}
+              right={
+                <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {/* Vista previa: el color APLICADO (acento derivado) */}
+                  <span
+                    style={{
+                      width: "16px",
+                      height: "16px",
+                      borderRadius: "50%",
+                      background: deriveTheme(appColor).accent,
+                      boxShadow: "0 0 0 1.5px rgba(255,255,255,.25)",
+                    }}
+                  />
+                  <SettingsChevron />
+                </span>
+              }
+            />
+            <SettingRow
+              icon={Ic.sun(16)}
+              label={t.dynamicTheme}
+              desc={t.dynamicThemeDesc}
+              right={
+                <SettingsToggle
+                  value={settings.dynamicTheme}
+                  onChange={(v) => updateSetting("dynamicTheme", v)}
+                  accent={accent}
+                />
+              }
+            />
+            {settings.dynamicTheme && (
+              <SettingRow
+                icon={Ic.reload}
+                label={t.colorTransitionSpeed}
+                desc={`${t.colorTransitionSpeedDesc} (${
+                  (settings.colorTransitionSpeed ?? 0.5) === 0
+                    ? t.instant
+                    : (settings.colorTransitionSpeed ?? 0.5) >= 1.5
+                      ? t.slow
+                      : `${(settings.colorTransitionSpeed ?? 0.5).toFixed(1)}s`
+                })`}
+                border
               />
-              <SettingsChevron />
-            </span>
-          }
-        />
-        <SettingRow
-          icon={Ic.sun(16)}
-          label={t.dynamicTheme}
-          desc={t.dynamicThemeDesc}
-          right={
-            <SettingsToggle
-              value={settings.dynamicTheme}
-              onChange={(v) => updateSetting("dynamicTheme", v)}
-              accent={accent}
+            )}
+            {settings.dynamicTheme && (
+              <div
+                style={{
+                  padding: "4px 18px 14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                }}
+              >
+                <Slider
+                  min={0}
+                  max={2}
+                  step={0.2}
+                  value={settings.colorTransitionSpeed ?? 0.5}
+                  onChange={(v) => updateSetting("colorTransitionSpeed", v)}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span
+                    style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}
+                  >
+                    {t.instant}
+                  </span>
+                  <span
+                    style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}
+                  >
+                    {t.slow}
+                  </span>
+                </div>
+              </div>
+            )}
+            <SettingRow
+              icon={Svg.circle}
+              label={t.pureBlack}
+              desc={t.pureBlackDesc}
+              right={
+                <SettingsToggle
+                  value={settings.pureBlack}
+                  onChange={(v) => updateSetting("pureBlack", v)}
+                  accent={accent}
+                />
+              }
             />
-          }
-        />
-        {settings.dynamicTheme && (
-          <SettingRow
-            icon={Ic.reload}
-            label={t.colorTransitionSpeed}
-            desc={`${t.colorTransitionSpeedDesc} (${
-              (settings.colorTransitionSpeed ?? 0.5) === 0
-                ? t.instant
-                : (settings.colorTransitionSpeed ?? 0.5) >= 1.5
-                  ? t.slow
-                  : `${(settings.colorTransitionSpeed ?? 0.5).toFixed(1)}s`
-            })`}
-            border
-          />
-        )}
-        {settings.dynamicTheme && (
-          <div
-            style={{
-              padding: "4px 18px 14px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-            }}
-          >
-            <Slider
-              min={0}
-              max={2}
-              step={0.2}
-              value={settings.colorTransitionSpeed ?? 0.5}
-              onChange={(v) => updateSetting("colorTransitionSpeed", v)}
+            <SettingRow
+              border={false}
+              icon={Svg.rectangle}
+              label={t.blurStyle}
+              desc={t.blurStyleDesc}
+              right={
+                <SegBtn
+                  options={[
+                    ["blur", t.blur],
+                    ["solid", t.solid],
+                    ["none", t.none],
+                  ]}
+                  settingKey="blurStyle"
+                  current={settings.blurStyle}
+                />
+              }
             />
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}>
-                {t.instant}
-              </span>
-              <span style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}>
-                {t.slow}
-              </span>
+          </SettingsSection>
+
+          <SettingsSection title={t.defaultTab}>
+            <div
+              style={{
+                fontSize: "12px",
+                color: "rgba(255,255,255,.62)",
+                fontWeight: "400",
+                padding: "12px 16px 4px",
+              }}
+            >
+              {t.defaultTabDesc}
             </div>
-          </div>
-        )}
-        <SettingRow
-          icon={Svg.circle}
-          label={t.pureBlack}
-          desc={t.pureBlackDesc}
-          right={
-            <SettingsToggle
-              value={settings.pureBlack}
-              onChange={(v) => updateSetting("pureBlack", v)}
-              accent={accent}
-            />
-          }
-        />
-        <SettingRow
-          border={false}
-          icon={Svg.rectangle}
-          label={t.blurStyle}
-          desc={t.blurStyleDesc}
-          right={
-            <SegBtn
-              options={[
-                ["blur", t.blur],
-                ["solid", t.solid],
-                ["none", t.none],
-              ]}
-              settingKey="blurStyle"
-              current={settings.blurStyle}
-            />
-          }
-        />
-      </SettingsSection>
+            {[
+              ["home", "Inicio"],
+              ["search", "Búsqueda"],
+              ["liked", "Me gustas"],
+              ["history", "Historial"],
+              ["downloads", "Descargas"],
+            ].map(([k, label], i, arr) => (
+              <SettingRow
+                key={k}
+                label={label}
+                border={i < arr.length - 1}
+                right={
+                  settings.defaultTab === k ? (
+                    <span style={{ color: accent, display: "flex" }}>{Ic.check}</span>
+                  ) : null
+                }
+                onClick={() => updateSetting("defaultTab", k)}
+              />
+            ))}
+          </SettingsSection>
+        </>
+      )}
 
-      <SettingsSection title={t.defaultTab}>
-        <div
-          style={{
-            fontSize: "12px",
-            color: "rgba(255,255,255,.62)",
-            fontWeight: "400",
-            padding: "12px 16px 4px",
-          }}
-        >
-          {t.defaultTabDesc}
-        </div>
-        {[
-          ["home", "Inicio"],
-          ["search", "Búsqueda"],
-          ["liked", "Me gustas"],
-          ["history", "Historial"],
-          ["downloads", "Descargas"],
-        ].map(([k, label], i, arr) => (
+      {showPlayer && (
+        <>
+          <SettingsSection title={section === "player" ? t.playerStyle : "Reproductor"}>
+            <SettingRow
+              icon={Svg.circle2}
+              label="Forma del botón de play"
+              desc={
+                BTN_SHAPES.find((b) => b.id === (settings.playerBtnShape || "circle"))?.label ||
+                "Círculo"
+              }
+              onClick={() => setShowBtnModal(true)}
+              right={<SettingsChevron />}
+            />
+            <SettingRow
+              icon={Svg.line}
+              label="Estilo de la barra de progreso"
+              desc={
+                BAR_STYLES.find((b) => b.id === (settings.playerBarStyle || "line"))?.label ||
+                "Línea"
+              }
+              onClick={() => setShowBarModal(true)}
+              right={<SettingsChevron />}
+            />
+            <SettingRow
+              icon={Ic.play(16)}
+              label={t.playerBtnStyle}
+              right={
+                <SegBtn
+                  options={[
+                    ["color", t.playerBtnColor],
+                    ["white", t.playerBtnWhite],
+                  ]}
+                  settingKey="playerBtnTone"
+                  current={settings.playerBtnTone || "color"}
+                />
+              }
+            />
+            <SettingRow
+              border={false}
+              icon={Svg.lines}
+              label={t.playerTextAlign}
+              right={
+                <SegBtn
+                  options={[
+                    ["left", t.alignLeft],
+                    ["center", t.alignCenter],
+                  ]}
+                  settingKey="playerTextAlign"
+                  current={settings.playerTextAlign || "left"}
+                />
+              }
+            />
+          </SettingsSection>
+        </>
+      )}
+
+      {showLyrics && (
+        <>
+          <SettingsSection title={t.lyrics}>
+            <SettingRow
+              icon={Svg.clock}
+              label={t.lyricsRotateBg}
+              desc={t.lyricsRotateBgDesc}
+              right={
+                <SettingsToggle
+                  value={settings.lyricsRotateBg || false}
+                  onChange={(v) => updateSetting("lyricsRotateBg", v)}
+                  accent={accent}
+                />
+              }
+            />
+            <SettingRow
+              icon={Svg.lines}
+              label={t.lyricsTextPos}
+              right={
+                <SegBtn
+                  options={[
+                    ["left", t.alignLeft],
+                    ["center", t.alignCenter],
+                  ]}
+                  settingKey="lyricsTextPos"
+                  current={settings.lyricsTextPos}
+                />
+              }
+            />
+            <SettingRow
+              icon={Ic.img}
+              label={t.lyricsVideoBg}
+              desc={t.lyricsVideoBgDesc}
+              right={
+                <SettingsToggle
+                  value={settings.lyricsVideoBg || false}
+                  onChange={(v) => updateSetting("lyricsVideoBg", v)}
+                  accent={accent}
+                />
+              }
+            />
+            <SettingRow
+              icon={Ic.music}
+              label={t.lyricsAnimate}
+              desc={t.lyricsAnimateDesc}
+              right={
+                <SettingsToggle
+                  value={settings.lyricsAnimate ?? true}
+                  onChange={(v) => updateSetting("lyricsAnimate", v)}
+                  accent={accent}
+                />
+              }
+            />
+            <SettingRow
+              icon={Svg.expand}
+              label={t.lyricsClickSeek}
+              desc={t.lyricsClickSeekDesc}
+              right={
+                <SettingsToggle
+                  value={settings.lyricsClickSeek ?? true}
+                  onChange={(v) => updateSetting("lyricsClickSeek", v)}
+                  accent={accent}
+                />
+              }
+            />
+            <SettingRow
+              icon={Ic.edit}
+              label={t.lyricsFontSize}
+              right={
+                <SegBtn
+                  options={[
+                    ["small", t.small],
+                    ["medium", t.medium],
+                    ["large", t.large],
+                  ]}
+                  settingKey="lyricsFontSize"
+                  current={settings.lyricsFontSize || "medium"}
+                />
+              }
+            />
+            <SettingRow
+              border={false}
+              icon={Svg.clock2}
+              label={t.lyricsScrollResume}
+              desc={`${t.lyricsScrollResumeDesc} (${settings.lyricsScrollResume ?? 3}s)`}
+            />
+            <div
+              style={{
+                padding: "4px 18px 14px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              <Slider
+                min={1}
+                max={10}
+                value={settings.lyricsScrollResume ?? 3}
+                onChange={(v) => updateSetting("lyricsScrollResume", v)}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span
+                  style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}
+                >
+                  1s
+                </span>
+                <span
+                  style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}
+                >
+                  10s
+                </span>
+              </div>
+            </div>
+          </SettingsSection>
+        </>
+      )}
+
+      {showTheme && (
+        <SettingsSection title={t.general}>
           <SettingRow
-            key={k}
-            label={label}
-            border={i < arr.length - 1}
+            icon={Svg.rectangle}
+            label={t.sidebarVisible}
+            desc={t.sidebarVisibleDesc}
             right={
-              settings.defaultTab === k ? (
-                <span style={{ color: accent, display: "flex" }}>{Ic.check}</span>
-              ) : null
+              <SettingsToggle
+                aria-label={t.sidebarVisible}
+                value={settings.sidebarVisible !== false}
+                onChange={(v) => updateSetting("sidebarVisible", v)}
+                accent={accent}
+              />
             }
-            onClick={() => updateSetting("defaultTab", k)}
           />
-        ))}
-      </SettingsSection>
-
-      <SettingsSection title="Reproductor">
-        <SettingRow
-          icon={Svg.circle2}
-          label="Forma del botón de play"
-          desc={
-            BTN_SHAPES.find((b) => b.id === (settings.playerBtnShape || "circle"))?.label ||
-            "Círculo"
-          }
-          onClick={() => setShowBtnModal(true)}
-          right={<SettingsChevron />}
-        />
-        <SettingRow
-          icon={Svg.line}
-          label="Estilo de la barra de progreso"
-          desc={
-            BAR_STYLES.find((b) => b.id === (settings.playerBarStyle || "line"))?.label || "Línea"
-          }
-          onClick={() => setShowBarModal(true)}
-          right={<SettingsChevron />}
-        />
-        <SettingRow
-          icon={Ic.play(16)}
-          label={t.playerBtnStyle}
-          right={
-            <SegBtn
-              options={[
-                ["color", t.playerBtnColor],
-                ["white", t.playerBtnWhite],
-              ]}
-              settingKey="playerBtnTone"
-              current={settings.playerBtnTone || "color"}
-            />
-          }
-        />
-        <SettingRow
-          border={false}
-          icon={Svg.lines}
-          label={t.playerTextAlign}
-          right={
-            <SegBtn
-              options={[
-                ["left", t.alignLeft],
-                ["center", t.alignCenter],
-              ]}
-              settingKey="playerTextAlign"
-              current={settings.playerTextAlign || "left"}
-            />
-          }
-        />
-      </SettingsSection>
-
-      <SettingsSection title="Letras">
-        <SettingRow
-          icon={Svg.clock}
-          label={t.lyricsRotateBg}
-          desc={t.lyricsRotateBgDesc}
-          right={
-            <SettingsToggle
-              value={settings.lyricsRotateBg || false}
-              onChange={(v) => updateSetting("lyricsRotateBg", v)}
-              accent={accent}
-            />
-          }
-        />
-        <SettingRow
-          icon={Svg.lines}
-          label={t.lyricsTextPos}
-          right={
-            <SegBtn
-              options={[
-                ["left", t.alignLeft],
-                ["center", t.alignCenter],
-              ]}
-              settingKey="lyricsTextPos"
-              current={settings.lyricsTextPos}
-            />
-          }
-        />
-        <SettingRow
-          icon={Ic.img}
-          label={t.lyricsVideoBg}
-          desc={t.lyricsVideoBgDesc}
-          right={
-            <SettingsToggle
-              value={settings.lyricsVideoBg || false}
-              onChange={(v) => updateSetting("lyricsVideoBg", v)}
-              accent={accent}
-            />
-          }
-        />
-        <SettingRow
-          icon={Ic.music}
-          label={t.lyricsAnimate}
-          desc={t.lyricsAnimateDesc}
-          right={
-            <SettingsToggle
-              value={settings.lyricsAnimate ?? true}
-              onChange={(v) => updateSetting("lyricsAnimate", v)}
-              accent={accent}
-            />
-          }
-        />
-        <SettingRow
-          icon={Svg.expand}
-          label={t.lyricsClickSeek}
-          desc={t.lyricsClickSeekDesc}
-          right={
-            <SettingsToggle
-              value={settings.lyricsClickSeek ?? true}
-              onChange={(v) => updateSetting("lyricsClickSeek", v)}
-              accent={accent}
-            />
-          }
-        />
-        <SettingRow
-          icon={Ic.edit}
-          label={t.lyricsFontSize}
-          right={
-            <SegBtn
-              options={[
-                ["small", t.small],
-                ["medium", t.medium],
-                ["large", t.large],
-              ]}
-              settingKey="lyricsFontSize"
-              current={settings.lyricsFontSize || "medium"}
-            />
-          }
-        />
-        <SettingRow
-          border={false}
-          icon={Svg.clock2}
-          label={t.lyricsScrollResume}
-          desc={`${t.lyricsScrollResumeDesc} (${settings.lyricsScrollResume ?? 3}s)`}
-        />
-        <div
-          style={{ padding: "4px 18px 14px", display: "flex", flexDirection: "column", gap: "8px" }}
-        >
-          <Slider
-            min={1}
-            max={10}
-            value={settings.lyricsScrollResume ?? 3}
-            onChange={(v) => updateSetting("lyricsScrollResume", v)}
+          <SettingRow
+            icon={Svg.clock}
+            label={t.showProgressTime}
+            desc={t.showProgressTimeDesc}
+            right={
+              <SettingsToggle
+                value={settings.showProgressTime ?? true}
+                onChange={(v) => updateSetting("showProgressTime", v)}
+                accent={accent}
+              />
+            }
           />
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}>
-              1s
-            </span>
-            <span style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}>
-              10s
-            </span>
-          </div>
-        </div>
-      </SettingsSection>
+        </SettingsSection>
+      )}
 
-      <SettingsSection title="General">
-        <SettingRow
-          icon={Svg.rectangle}
-          label={t.sidebarVisible}
-          desc={t.sidebarVisibleDesc}
-          right={
-            <SettingsToggle
-              aria-label={t.sidebarVisible}
-              value={settings.sidebarVisible !== false}
-              onChange={(v) => updateSetting("sidebarVisible", v)}
-              accent={accent}
-            />
-          }
-        />
-        <SettingRow
-          icon={Svg.clock}
-          label={t.showProgressTime}
-          desc={t.showProgressTimeDesc}
-          right={
-            <SettingsToggle
-              value={settings.showProgressTime ?? true}
-              onChange={(v) => updateSetting("showProgressTime", v)}
-              accent={accent}
-            />
-          }
-        />
-      </SettingsSection>
-
-      {showBtnModal &&
+      {showPlayer &&
+        showBtnModal &&
         createPortal(
           <BtnShapeModal
             accent={accent}
@@ -357,7 +389,8 @@ export function PageApariencia({ neonColor }) {
           />,
           document.body,
         )}
-      {showBarModal &&
+      {showPlayer &&
+        showBarModal &&
         createPortal(
           <BarStyleModal
             accent={accent}
@@ -367,7 +400,8 @@ export function PageApariencia({ neonColor }) {
           />,
           document.body,
         )}
-      {showColorModal &&
+      {showTheme &&
+        showColorModal &&
         createPortal(
           <AppColorModal accent={accent} onClose={() => setShowColorModal(false)} />,
           document.body,

@@ -6,6 +6,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-11-18
+
 ### Cambiado
 
 - **Fase 1 del rediseño visual: superficies planas y Liquid Glass reservado a la reproducción y los overlays.** Fuera todos los degradados decorativos, incluidos Inicio, biblioteca, álbumes, artistas, playlists, modales y la pantalla de Letras; también se retiran glows, halos de texto y sombras de tarjetas. El acento dinámico deja de teñir el fondo y se limita a progreso, Play, pestañas y estados activos. La tipografía se reduce a cuatro tamaños base (28, 18, 14 y 12 px), los controles principales ganan altura de 44 px y los textos secundarios suben de contraste. El cristal se conserva únicamente donde hay contenido en movimiento detrás o una capa flotante real, lo que reduce el ruido visual y el número de superficies que la GPU debe repintar. Solo permanecen los degradados funcionales del selector de color.
@@ -15,6 +17,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 - **Fase 3: panel opcional «Ahora suena» y shell adaptable.** En ventanas de 1280 px o más aparece un panel lateral plano con la portada, la reproducción actual y las próximas canciones de la cola; su visibilidad se controla desde la sidebar y se desactiva automáticamente en ventanas estrechas. El player bar mantiene intacta su pastilla centrada y flotante.
 
 - **Ventana nativa en instalaciones Linux.** En paquetes Linux se detecta el escritorio y la app deja de pintar su barra de título personalizada. Con Hyprland la ventana queda sin marco, gestionada por el compositor; en GNOME, KDE u otros escritorios se activa la barra nativa con minimizar, maximizar y cerrar. El desarrollo local y Windows conservan la barra personalizada actual. Letras ajusta su altura al espacio realmente ocupado por la ventana.
+
+- **«Ahora suena» sin botón de reproducción y scroll más limpio.** El panel lateral deja de duplicar el Play del player bar, que ya queda siempre visible encima de cualquier pantalla. Las barras de desplazamiento pierden el borde blanco: el pulgar es semitransparente y se aclara solo al pasar el cursor, con la pista totalmente transparente.
 
 ## [1.2.1] - 2026-10-27
 
@@ -525,7 +529,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.2
 [1.2.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.1
 [1.2.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.0
 [1.1.9]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.1.9

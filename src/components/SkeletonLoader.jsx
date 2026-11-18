@@ -150,7 +150,7 @@ export function SkeletonAlbumView() {
           style={{
             position: "absolute",
             inset: 0,
-            background: "linear-gradient(180deg, rgba(0,0,0,.3) 0%, rgba(0,0,0,.85) 100%)",
+            background: "rgba(0,0,0,.55)",
           }}
         />
       </div>
@@ -211,7 +211,7 @@ export function SkeletonArtistView() {
           style={{
             position: "absolute",
             inset: 0,
-            background: "linear-gradient(180deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,.85) 100%)",
+            background: "rgba(0,0,0,.50)",
           }}
         />
       </div>

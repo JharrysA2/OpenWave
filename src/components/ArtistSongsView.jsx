@@ -74,7 +74,8 @@ export default function ArtistSongsView({
           position: "sticky",
           top: 0,
           zIndex: 2,
-          background: "linear-gradient(180deg, rgba(10,10,14,.94) 65%, rgba(10,10,14,0) 100%)",
+          background: "rgba(10,10,14,.96)",
+          borderBottom: "1px solid rgba(255,255,255,.06)",
         }}
       >
         <button

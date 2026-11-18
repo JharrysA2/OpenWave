@@ -188,29 +188,25 @@ describe("LikedView", () => {
 
   // Hover del hero (glass sutil, sin estados "pegados")
 
-  it("should apply soft glass hover on Aleatorio and restore it on leave", () => {
+  it("cambia el tono de Aleatorio al pasar y lo restaura al salir", () => {
     renderLiked({ likedSongs: [song("1")] });
     const shuffle = screen.getByRole("button", { name: /Aleatorio/ });
     const baseBg = shuffle.style.background;
     fireEvent.mouseEnter(shuffle);
-    expect(shuffle.style.background).toContain("linear-gradient");
     expect(shuffle.style.background).not.toBe(baseBg);
+    expect(shuffle.style.background).not.toContain("gradient");
     fireEvent.mouseLeave(shuffle);
     expect(shuffle.style.background).toBe(baseBg);
   });
 
-  it("should glow the primary Reproducir button on hover without a contour", () => {
+  it("el botón Reproducir conserva el acento sin glow en hover", () => {
     renderLiked({ likedSongs: [song("1")] });
     const play = screen.getByRole("button", { name: /Reproducir/ });
     const baseBg = play.style.background;
     fireEvent.mouseEnter(play);
-    // El acento no se pisa con blanco: el hover es un glow del propio acento,
-    // sin aro (un `0 0 0 Npx` se veía como contorno pegado al botón).
     expect(play.style.background).toBe(baseBg);
-    expect(play.style.boxShadow).toContain("#a78bfa");
-    expect(play.style.boxShadow).not.toContain("0 0 0 ");
-    fireEvent.mouseLeave(play);
     expect(play.style.boxShadow).toBe("");
+    fireEvent.mouseLeave(play);
     expect(play.style.background).toBe(baseBg);
   });
 

@@ -980,24 +980,14 @@ export const PlayerBar = memo(function PlayerBar({
               applyFillRadius();
             }}
           >
-            {/* Filled portion — paintProgress escribe scaleX (imperativo, capa
-                propia; width:100% fijo → cero layout futuro).
-                Glow en un wrapper ESTÁTICO: el box-shadow dentro del relleno
-                vivía en el espacio del elemento y scaleX lo aplastaba
-                (10 px de blur → ~2,5 px horizontales a progreso bajo →
-                «corte vertical brusco» en la punta; el neon no seguía el
-                borde). drop-shadow se rasteriza en espacio de pantalla:
-                sigue la silueta redondeada (ya compensada) sin deformarse,
-                y al ser el wrapper estático solo se repinta si cambia la
-                forma — la misma cadencia que el radio, no cada tick. El halo
-                se conserva hasta poder retirarlo junto con su test. */}
+            {/* Filled portion — paintProgress escribe scaleX sobre una capa
+                estable, sin filtros ni halos que repintar en cada tick. */}
             <div
               data-testid="progress-fill-glow"
               style={{
                 position: "absolute",
                 inset: 0,
                 pointerEvents: "none",
-                filter: `drop-shadow(0 0 10px color-mix(in srgb, ${neon} 40%, transparent))`,
               }}
             >
               <div

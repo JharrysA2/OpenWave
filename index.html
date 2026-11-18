@@ -121,36 +121,22 @@
       /* ═══════════════════════════════════════════════════════════════════════
          SKELETON SHIMMER — Loading placeholder animation
          ═══════════════════════════════════════════════════════════════════════ */
-      @keyframes skeleton-shimmer {
-        0% {
-          background-position: -200% 0;
-        }
+      @keyframes skeleton-pulse {
+        0%,
         100% {
-          background-position: 200% 0;
+          opacity: 0.62;
+        }
+        50% {
+          opacity: 1;
         }
       }
       @keyframes pulse {
         0%,
         100% {
           opacity: 1;
-          transform: scale(1);
         }
         50% {
           opacity: 0.7;
-          transform: scale(1.08);
-        }
-      }
-      @keyframes glow-pulse {
-        0%,
-        100% {
-          box-shadow:
-            0 0 12px var(--accent-color, #a78bfa) 55,
-            0 0 24px var(--accent-color, #a78bfa) 33;
-        }
-        50% {
-          box-shadow:
-            0 0 20px var(--accent-color, #a78bfa) 77,
-            0 0 40px var(--accent-color, #a78bfa) 44;
         }
       }
       /* ═══════════════════════════════════════════════════════════════════════
@@ -167,20 +153,13 @@
       }
 
       .skeleton {
-        background: linear-gradient(
-          90deg,
-          rgba(255, 255, 255, 0.04) 0%,
-          rgba(255, 255, 255, 0.08) 50%,
-          rgba(255, 255, 255, 0.04) 100%
-        );
-        background-size: 200% 100%;
-        animation: skeleton-shimmer 1.8s ease-in-out infinite;
+        background: rgba(255, 255, 255, 0.06);
+        animation: skeleton-pulse 1.8s ease-in-out infinite;
         border-radius: 8px;
       }
       @media (prefers-reduced-motion: reduce) {
         .skeleton {
           animation: none !important;
-          background: rgba(255, 255, 255, 0.06) !important;
         }
       }
 
@@ -197,23 +176,8 @@
         cursor: grabbing !important;
       }
 
-      /* ═══════════════════════════════════════════════════════════════════════
-         LIQUID GLASS — Player Bar pseudo-element for subtle shine
-         ════════════════════════════════════════════════════════════════════ */
       .player-bar {
         position: relative;
-      }
-      .player-bar::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 40%;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, transparent 100%);
-        border-radius: 20px 20px 0 0;
-        pointer-events: none;
-        z-index: 0;
       }
 
       /* ═══════════════════════════════════════════════════════════════════════
@@ -408,7 +372,7 @@
         align-items: center;
         justify-content: center;
         gap: 14px;
-        background: radial-gradient(900px 480px at 50% 28%, #12101d, #050508 70%);
+        background: #08080c;
         color: #fff;
         opacity: 1;
         transition: opacity 0.32s ease;

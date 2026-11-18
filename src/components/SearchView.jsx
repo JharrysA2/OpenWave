@@ -6,7 +6,6 @@ import {
   COLORS,
   GLASS,
   RADIUS,
-  SHADOWS,
   SPACING,
   TRANSITIONS,
   TYPOGRAPHY,
@@ -104,11 +103,11 @@ export default function SearchView({
       <div
         style={{
           display: "flex",
-          gap: "6px",
-          marginBottom: "18px",
-          padding: "3px",
-          background: GLASS.btn.background,
-          boxShadow: SHADOWS.closeBtn,
+          gap: "4px",
+          marginBottom: "16px",
+          padding: "4px",
+          background: GLASS.control.background,
+          border: `1px solid ${COLORS.borderSubtle}`,
           borderRadius: RADIUS.pill,
           width: "fit-content",
         }}
@@ -121,18 +120,17 @@ export default function SearchView({
             key={k}
             onClick={() => onSearchTabChange(k)}
             style={{
-              padding: "7px 18px",
+              minHeight: "36px",
+              padding: "0 16px",
               borderRadius: RADIUS.pill,
               border: "none",
               background: searchTab === k ? accentColor : "transparent",
               color: searchTab === k ? "var(--neon-fg)" : COLORS.textSecondary,
-              fontWeight: searchTab === k ? "700" : "600",
-              fontSize: "12.5px",
+              fontWeight: "600",
+              fontSize: "14px",
               cursor: "pointer",
               fontFamily: FONT,
-              transition:
-                "background .2s cubic-bezier(.16,1,.3,1), color .2s cubic-bezier(.16,1,.3,1), font-weight .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
-              boxShadow: searchTab === k ? `0 2px 8px ${withAlpha(accentColor, "44")}` : "none",
+              transition: "background .16s ease, color .16s ease",
             }}
           >
             {label}
@@ -458,11 +456,8 @@ export default function SearchView({
                     padding: SPACING.row.pad,
                     borderRadius: RADIUS.default,
                     cursor: "pointer",
-                    background: isActive
-                      ? `linear-gradient(90deg, ${withAlpha(accentColor, "15")}, transparent)`
-                      : "transparent",
-                    transition:
-                      "background .15s cubic-bezier(.16,1,.3,1), border-color .15s cubic-bezier(.16,1,.3,1)",
+                    background: isActive ? withAlpha(accentColor, "16") : "transparent",
+                    transition: "background .15s ease",
                     borderLeft: isActive ? `2px solid ${accentColor}` : "2px solid transparent",
                   }}
                   onMouseEnter={(e) => {

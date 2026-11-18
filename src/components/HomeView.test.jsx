@@ -310,14 +310,11 @@ describe("HomeView", () => {
     expect(icon.getAttribute("fill")).toBe("currentColor");
   });
 
-  it("las tarjetas no llevan backdrop-filter (regresión de GPU por tarjeta)", () => {
+  it("las tarjetas son planas, sin blur ni degradado", () => {
     renderHome({ history: [song("a")] });
-    const title = screen.getAllByText("Song a")[0];
-    let card = title;
-    while (card && !((card.style && card.style.background) || "").includes("linear-gradient")) {
-      card = card.parentElement;
-    }
+    const card = screen.getAllByTestId("feed-card")[0];
     expect(card).toBeTruthy();
+    expect(card.style.background).not.toContain("gradient");
     expect(card.style.backdropFilter ?? "").toBe("");
   });
 });

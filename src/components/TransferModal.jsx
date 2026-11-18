@@ -1,6 +1,6 @@
 import React from "react";
 import { FONT } from "../constants";
-import { COLORS, GLASS, SHADOWS, TRANSITIONS, RADIUS } from "../utils/theme";
+import { COLORS, GLASS, TRANSITIONS, RADIUS } from "../utils/theme";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { useEscClose } from "../hooks/useEscape";
 
@@ -52,7 +52,7 @@ export function TransferModal({ open, onClose, title, emptyMessage, playlists = 
             justifyContent: "space-between",
             padding: "18px 20px 14px",
             // Sin línea de contorno: la separación con el cuerpo es sombra.
-            boxShadow: SHADOWS.sepZone,
+            borderBottom: `1px solid ${COLORS.borderSubtle}`,
           }}
         >
           <span
@@ -68,7 +68,7 @@ export function TransferModal({ open, onClose, title, emptyMessage, playlists = 
           <button
             onClick={onClose}
             style={{
-              ...GLASS.btn,
+              ...GLASS.control,
               borderRadius: RADIUS.full,
               width: "30px",
               height: "30px",
@@ -152,8 +152,8 @@ export function TransferModal({ open, onClose, title, emptyMessage, playlists = 
                     borderRadius: "8px",
                     flexShrink: 0,
                     background: pl.color
-                      ? `linear-gradient(135deg, ${pl.color}55, ${pl.color}11)`
-                      : GLASS.card.background,
+                      ? `color-mix(in srgb, ${pl.color} 18%, transparent)`
+                      : COLORS.surfaceCard,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",

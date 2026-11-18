@@ -415,7 +415,7 @@ describe("LyricsView", () => {
     );
   });
 
-  it("las palabras iluminadas llevan fade de color/peso SIN transición de sombra y glow de un solo radio (16px)", async () => {
+  it("las palabras iluminadas llevan fade de color y peso, sin sombra", async () => {
     // Medido 2026-10-03: la transición de text-shadow re-rasterizaba el
     // doble glow en cada frame por palabra (pareja K: −10,7 pts quitando
     // la sombra; el radio de32px, −4 pts solo — PD/PE), PERO el snap total
@@ -450,8 +450,8 @@ describe("LyricsView", () => {
         ),
       { timeout: 3000 },
     );
-    const spans = Array.from(row.querySelectorAll("span")).filter(
-      (s) => s.style.textShadow !== "", // solo spans de palabra (el wrapper no)
+    const spans = Array.from(row.querySelectorAll("span")).filter((s) =>
+      s.style.transition.includes("color .5s"),
     );
     expect(spans.length).toBeGreaterThan(2);
     spans.forEach((s) => {
@@ -464,8 +464,7 @@ describe("LyricsView", () => {
     });
     const lit = spans.find((s) => s.style.color && s.style.color !== unlitColor);
     expect(lit).toBeTruthy();
-    expect(lit.style.textShadow).toContain("16px");
-    expect(lit.style.textShadow).not.toContain("32px");
+    expect(lit.style.textShadow).toBe("");
     // Un solo escalón de peso: DM Sans se declara 400–700, así que el 900 de
     // la palabra activa se recortaba a 700 (glifos idénticos) pero su
     // interpolación 700↔900 seguía marcando la línea como sucia al apagarse
@@ -832,9 +831,7 @@ describe("LyricsView — contraste dinámico sobre acento", () => {
     openSettingsPanel("Buscar letras");
     const btn = screen.getByText("Buscar").closest("button");
     expect(btn).toBeTruthy();
-    // Cristal del player bar (degradado .14→.04) con texto de acento
-    // legible: sin halo glow ni blanco fijo.
-    expect(btn.style.background).toContain("rgba(255,255,255,.14)");
+    expect(btn.style.background).toBe("rgba(255, 255, 255, 0.06)");
     expect(btn.style.color).toBe(rgbOf(safeAccentText(defaultProps.accentColor)));
     expect(btn.style.color).not.toBe("white");
   });
@@ -863,7 +860,7 @@ describe("LyricsView — contraste dinámico sobre acento", () => {
     openSettingsPanel("Editar letras");
     const btn = screen.getByText("Guardar cambios").closest("button");
     expect(btn).toBeTruthy();
-    expect(btn.style.background).toContain("rgba(255,255,255,.14)");
+    expect(btn.style.background).toBe("rgba(255, 255, 255, 0.06)");
     expect(btn.style.color).toBe(rgbOf(safeAccentText(defaultProps.accentColor)));
     expect(btn.style.color).not.toBe("white");
   });
@@ -1793,14 +1790,14 @@ describe("LyricsView — vídeo de fondo", () => {
     // fotograma del clip y era el pase caro de la pantalla).
     const panel = screen.getByTestId("lyrics-panel");
     expect(panel.style.backdropFilter ?? "").toBe("");
-    expect(panel.style.background).toContain("gradient");
+    expect(panel.style.background).not.toContain("gradient");
 
     // Los dos botones de arriba (⋮ y X) sí flotan sobre el clip → cristal
     expect(screen.getByTitle("Cerrar letras").style.backdropFilter).toBe("blur(6px)");
     expect(screen.getByTitle("Configuración de letras").style.backdropFilter).toBe("blur(6px)");
 
-    // El clip va un punto más atenuado para que la letra gane contraste
-    expect(screen.getByTestId("lyrics-dim").style.backgroundImage).toMatch(/rgba\(5,5,10,\.36\)/);
+    // El clip lleva un velo plano para que la letra gane contraste
+    expect(screen.getByTestId("lyrics-dim").style.background).toContain("rgba(5, 5, 10");
   });
 
   // Encuadre del clip en el área de letras

@@ -1,14 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as theme from "./theme";
-import {
-  GLASS,
-  COLORS,
-  RADIUS,
-  withAlpha,
-  getLuminance,
-  safeAccentText,
-  sidebarBgGradient,
-} from "./theme";
+import { GLASS, COLORS, RADIUS, withAlpha, getLuminance, safeAccentText } from "./theme";
 
 describe("theme — materiales translúcidos", () => {
   it("exporta UN solo sistema de materiales: GLASS", () => {
@@ -42,24 +34,16 @@ describe("theme — materiales translúcidos", () => {
     expect(GLASS.playBtn("#00ff00").background).toContain("#00ff00");
   });
 
-  it("la escalera tonal M3 está cableada: superficies planas sin blanco translúcido", () => {
-    // Los roles surfaceContainer* YA existían en PALETTE (DESIGN.md), pero
-    // estaban dormidos: los fills usaban blanco 4/5/8%. Desde la ronda M3
-    // van por tono (profundidad sin blur, PERFORMANCE.md §1/§7).
-    expect(COLORS.surfaceCard).toBe("#1a1c1c"); // Low — reposo
-    expect(COLORS.surfaceNav).toBe("#1e2020"); // Container — hover de filas
-    expect(COLORS.surfaceCardHover).toBe("#282a2b"); // High — hover de tarjetas
-    expect(COLORS.surfaceCard).not.toContain("rgba");
-    expect(COLORS.surfaceNav).not.toContain("rgba");
-    expect(COLORS.surfaceCardHover).not.toContain("rgba");
-
-    // GLASS.card / cardHover: degradado por tonos de la escalera, sin blur
-    expect(GLASS.card.background).toContain("#1e2020");
-    expect(GLASS.card.background).toContain("#0c0f0f");
-    expect(GLASS.cardHover.background).toContain("#333535");
-    expect(GLASS.cardHover.background).toContain("#1e2020");
-    expect(GLASS.card.background).not.toContain("rgba(255,255,255");
-    expect(GLASS.cardHover.background).not.toContain("rgba(255,255,255");
+  it("las tarjetas usan tonos planos, sin degradados ni sombra", () => {
+    expect(COLORS.surfaceCard).toBe("#1a1c1c");
+    expect(COLORS.surfaceNav).toBe("#1e2020");
+    expect(COLORS.surfaceCardHover).toBe("#282a2b");
+    expect(GLASS.card.background).toBe(COLORS.surfaceCard);
+    expect(GLASS.cardHover.background).toBe(COLORS.surfaceCardHover);
+    expect(GLASS.card.background).not.toContain("gradient");
+    expect(GLASS.cardHover.background).not.toContain("gradient");
+    expect(GLASS.card.boxShadow).toBe("none");
+    expect(GLASS.cardHover.boxShadow).toBe("none");
     expect(GLASS.card.backdropFilter).toBeUndefined();
     expect(GLASS.cardHover.backdropFilter).toBeUndefined();
   });
@@ -150,7 +134,11 @@ describe("theme — helpers de color", () => {
     expect(safeAccentText("no-hex")).toBe("no-hex");
   });
 
-  it("los gradientes usan la CSS var --neon (tema dinámico)", () => {
-    expect(sidebarBgGradient()).toContain("--neon");
+  it("las superficies estructurales son planas", () => {
+    expect(GLASS.sidebar.background).toBe(COLORS.surfaceApp);
+    expect(GLASS.titleBar.background).toBe(COLORS.surfaceApp);
+    expect(GLASS.settings.background).toBe(COLORS.surfaceApp);
+    expect(GLASS.sheet.background).not.toContain("gradient");
+    expect(GLASS.popup.background).not.toContain("gradient");
   });
 });

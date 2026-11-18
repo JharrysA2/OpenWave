@@ -208,7 +208,6 @@ function SortableQueueItem({
             height: "6px",
             borderRadius: "50%",
             background: "#22c55e",
-            boxShadow: "0 0 6px #22c55e88",
             flexShrink: 0,
           }}
         />
@@ -313,7 +312,7 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
           // jerarquía la dan el cristal (blur(40px)) y la sombra, con el mismo
           // brillo interior que el material del player bar.
           border: "none",
-          boxShadow: `inset 0 1px 0 rgba(255,255,255,.12), 0 24px 80px rgba(0,0,0,.7), 0 0 60px ${accentColor}18`,
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 24px 64px rgba(0,0,0,.5)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -322,20 +321,6 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Rim light shine */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: "40%",
-            background: "linear-gradient(180deg, rgba(255,255,255,.06) 0%, transparent 100%)",
-            borderRadius: "20px 20px 0 0",
-            pointerEvents: "none",
-            zIndex: 0,
-          }}
-        />
         {/* Header */}
         <div
           style={{
@@ -712,10 +697,9 @@ function SourceModal({ accentColor, settings, updateSetting, onClose }) {
             // y tinte de acento en las activas.
             border: "none",
             background: selected.includes(s.key)
-              ? `linear-gradient(135deg, ${accentColor}2e 0%, ${accentColor}10 100%)`
-              : GLASS.btn.background,
-            boxShadow: SHADOWS.closeBtn,
-            transition: "background .2s",
+              ? `color-mix(in srgb, ${accentColor} 18%, transparent)`
+              : GLASS.control.background,
+            transition: "background .16s ease",
           }}
         >
           <input
@@ -1091,9 +1075,9 @@ function LyricsSettingsModal({
         // el desenfoque no se veía. Sin contorno tampoco (el cristal de hoja
         // trae un borde blanco de 1px): la jerarquía la dan el material y la
         // sombra (nada de aros, como en el player bar).
-        background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
+        background: "rgba(18,18,24,.92)",
         border: "none",
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,.12), 0 16px 48px rgba(0,0,0,.6), 0 0 40px ${accentColor}22`,
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 16px 40px rgba(0,0,0,.45)",
         padding: "14px 16px",
         animation: "sw-fade-slide-up .2s cubic-bezier(.16,1,.3,1) both",
         overflow: "hidden",
@@ -1322,10 +1306,10 @@ function LyricsSettingsModal({
   );
 }
 
-//  KaraokeWords — Iluminación palabra por palabra con glow sutil.
-//  NO usa transform: scale() (causa overlap). Solo color + text-shadow.
+//  KaraokeWords — Iluminación palabra por palabra mediante color y peso.
+//  NO usa transform: scale() (causa overlap) ni sombras.
 const KaraokeWords = React.memo(
-  function KaraokeWords({ text, activeWordIdx, accentColor }) {
+  function KaraokeWords({ text, activeWordIdx, accentColor: _accentColor }) {
     let idx = -1;
     return text.split(/(\s+)/).map((part, pi) => {
       const isSpace = /^\s+$/.test(part);
@@ -1345,9 +1329,6 @@ const KaraokeWords = React.memo(
             // 900 se recorta a 700 y solo marcaba la línea sucia sin cambio
             // visible en los glifos.
             fontWeight: isLit ? "700" : "500",
-            // Glow de un solo radio: el 32px apenas añadía halo y costaba
-            // rendimiento; el 16px conserva el «glow sutil» del diseño.
-            textShadow: isLit ? `0 0 16px ${accentColor}88` : "none",
           }}
         >
           {part}
@@ -1443,8 +1424,7 @@ const LyricLine = React.memo(function LyricLine({
             position: "relative",
             zIndex: 1,
             transition: "color .35s ease",
-            color: isActive ? "#ffffff" : "rgba(255,255,255,.45)",
-            textShadow: isActive ? `0 0 12px ${accentColor}66` : "none",
+            color: isActive ? "#ffffff" : COLORS.textSecondary,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
           }}
@@ -2458,24 +2438,18 @@ export function LyricsView({
   const videoGlass = videoActivo;
 
   // Estilo glass compartido para botones superiores
-  // Sin contorno (igual que los botones del player bar): el material —
-  // gradiente, brillo interior y sombra — da la jerarquía; el aro de 1px
-  // sobraba sobre el vídeo y la portada.
   const btnGlass = {
     width: "44px",
     height: "44px",
     borderRadius: "50%",
-    border: "none",
-    background: `linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.04) 100%)`,
-    boxShadow: SHADOWS.closeBtn,
+    border: `1px solid ${COLORS.borderLight}`,
+    background: "rgba(255,255,255,.08)",
     color: COLORS.settingsIcon,
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    transition:
-      "background .2s cubic-bezier(.16,1,.3,1), color .2s cubic-bezier(.16,1,.3,1), " +
-      "transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
+    transition: "background .16s ease, color .16s ease",
     // Sin vídeo de fondo NO lleva backdrop-filter: el botón flota sobre la
     // portada difuminada, que es estática — medición GPU, dentro del 1.80% de
     // blur que costaban los backdrop. Con el vídeo de fondo sí hay movimiento
@@ -2511,16 +2485,14 @@ export function LyricsView({
           inset: 0,
           zIndex: -1,
           overflow: "hidden",
-          // Base sólida OPACA — nunca transparente, siempre cubre el fondo
-          background: `linear-gradient(160deg, color-mix(in srgb, ${accentColor} 50%, #08080f) 0%, #08080f 100%)`,
+          background: "#08080c",
         }}
       >
-        {/* Capa 0: Solid fallback — cubre TODO siempre, no importa si la imagen carga */}
         <div
           style={{
             position: "absolute",
             inset: 0,
-            background: `radial-gradient(ellipse at 30% 40%, ${accentColor}33 0%, #08080f 70%)`,
+            background: "#08080c",
             opacity: 1,
           }}
         />
@@ -2641,30 +2613,12 @@ export function LyricsView({
           />
         )}
 
-        {/* Capa 2: Overlay fusionado (oscuro + color) — SIEMPRE visible.
-            Con el vídeo de fondo el velo es más suave: si no, el vídeo no se
-            vería (la portada, al ser una textura fija, aguanta más oscuridad). */}
         <div
           data-testid="lyrics-dim"
           style={{
             position: "absolute",
             inset: 0,
-            // Solo capas de degradado (velo + tinte de acento): `backgroundImage`
-            // es equivalente y sí conserva la lista completa de capas.
-            backgroundImage: `
-              linear-gradient(180deg, ${
-                // Un punto más bajo que antes (.28/.44/.66): la letra gana
-                // contraste sobre el movimiento del clip.
-                videoActivo
-                  ? "rgba(5,5,10,.36) 0%, rgba(5,5,10,.55) 50%, rgba(5,5,10,.78) 100%"
-                  : "rgba(5,5,10,.5) 0%, rgba(5,5,10,.7) 50%, rgba(5,5,10,.9) 100%"
-              }),
-              radial-gradient(ellipse at 30% 40%, ${accentColor}33 0%, transparent 70%)
-            `,
-            // Igual que el fondo: sin capa propia. El velo es estático; como
-            // capa obliga a mezclar 2 Mpx cada fotograma y, sin filtros que
-            // re-ejecutar, no aporta nada. Dentro de la capa raíz solo se
-            // redibuja en las teselas que toca el karaoke.
+            background: videoActivo ? "rgba(5,5,10,.58)" : "rgba(5,5,10,.76)",
           }}
         />
       </div>
@@ -2686,15 +2640,12 @@ export function LyricsView({
           title="Configuración de letras"
           style={btnGlass}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = `linear-gradient(135deg, ${accentColor}55 0%, ${accentColor}22 100%)`;
+            e.currentTarget.style.background = `color-mix(in srgb, ${accentColor} 22%, transparent)`;
             e.currentTarget.style.color = COLORS.textPrimary;
-            e.currentTarget.style.transform = "scale(1.1)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background =
-              "linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.04) 100%)";
+            e.currentTarget.style.background = "rgba(255,255,255,.08)";
             e.currentTarget.style.color = COLORS.settingsIcon;
-            e.currentTarget.style.transform = "scale(1)";
           }}
         >
           {Ic.dots}
@@ -2705,15 +2656,12 @@ export function LyricsView({
           title="Cerrar letras"
           style={btnGlass}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = `linear-gradient(135deg, ${accentColor}55 0%, ${accentColor}22 100%)`;
+            e.currentTarget.style.background = `color-mix(in srgb, ${accentColor} 22%, transparent)`;
             e.currentTarget.style.color = COLORS.textPrimary;
-            e.currentTarget.style.transform = "scale(1.1)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background =
-              "linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.04) 100%)";
+            e.currentTarget.style.background = "rgba(255,255,255,.08)";
             e.currentTarget.style.color = COLORS.settingsIcon;
-            e.currentTarget.style.transform = "scale(1)";
           }}
         >
           {Ic.close}
@@ -2850,15 +2798,8 @@ export function LyricsView({
           gap: "20px",
           overflow: "hidden",
           zIndex: 1,
-          // Sin línea separadora: la jerarquía la da el material, como en el
-          // player bar (border none + inset highlight + sombra).
-          // El panel ya no tiene vídeo detrás (el clip se encuadra solo en el
-          // área de letras), así que no lleva cristal ni `backdrop-filter`: ese
-          // desenfoque se re-evaluaba con cada fotograma del clip y era el pase
-          // caro de la pantalla. Queda el material de siempre —tinte de acento,
-          // brillo superior y sombra— sobre el fondo de la pantalla.
-          background: `linear-gradient(180deg, ${accentColor}30 0%, transparent 100%)`,
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,.08), 0 18px 50px rgba(0,0,0,.35)",
+          background: "rgba(12,12,16,.72)",
+          borderRight: `1px solid ${COLORS.borderSubtle}`,
         }}
       >
         {/* Album art — CUADRADO completo */}
@@ -2866,12 +2807,11 @@ export function LyricsView({
           style={{
             width: "100%",
             aspectRatio: "1",
-            borderRadius: RADIUS.lyricsCover,
+            borderRadius: RADIUS.default,
             overflow: "hidden",
             background: COLORS.surfaceCoverBg,
-            boxShadow: SHADOWS.lyricsCover,
+            border: `1px solid ${COLORS.borderSubtle}`,
             flexShrink: 0,
-            transition: "box-shadow .5s",
             maxHeight: "340px",
           }}
         >
@@ -3020,7 +2960,7 @@ export function LyricsView({
                         style={{
                           position: "absolute",
                           inset: 0,
-                          background: `linear-gradient(90deg, transparent 40%, rgba(239,68,68,.88) 70%, rgba(239,68,68,.95))`,
+                          background: "rgba(239,68,68,.92)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "flex-end",

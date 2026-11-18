@@ -9,10 +9,8 @@ import {
   RADIUS,
   SPACING,
   TYPOGRAPHY,
-  SHADOWS,
   withAlpha,
   ANIMATIONS,
-  GLASS,
   safeAccentText,
 } from "../utils/theme";
 import { SkeletonGrid, SkeletonSongRow } from "./SkeletonLoader";
@@ -167,17 +165,11 @@ function FeedCard({
   openOptions,
 }) {
   const isPlaying = Boolean(item.videoId) && currentSong?.videoId === item.videoId;
-  // Material del player bar: cristal, brillo interior y sombra del botón. La
-  // tarjeta en reproducción se distingue por el tinte y el glow del acento, no
-  // por un contorno.
-  const cardShadow = isPlaying
-    ? `inset 0 1px 0 rgba(255,255,255,.12), 0 0 16px ${withAlpha(accentColor, "33")}`
-    : SHADOWS.closeBtn;
-  const cardHoverShadow = isPlaying
-    ? `inset 0 1px 0 rgba(255,255,255,.12), 0 8px 24px rgba(0,0,0,.35), 0 0 20px ${withAlpha(accentColor, "44")}`
-    : "inset 0 1px 0 rgba(255,255,255,.12), 0 8px 24px rgba(0,0,0,.35)";
+  // Superficie plana; la tarjeta en reproducción se distingue por el tinte.
+  const cardShadow = "none";
   return (
     <div
+      data-testid="feed-card"
       onClick={onClick}
       style={{
         ...ANIMATIONS.fadeSlideUp(160 + Math.min(index, 10) * 45),
@@ -187,14 +179,11 @@ function FeedCard({
         WebkitBackdropFilter: undefined,
         // Sin contorno: cristal del player bar y las esquinas redondeadas de
         // siempre.
-        background: isPlaying
-          ? `linear-gradient(135deg, ${withAlpha(accentColor, "18")}, ${withAlpha(accentColor, "08")})`
-          : GLASS.btn.background,
-        borderRadius: RADIUS.card,
+        background: isPlaying ? withAlpha(accentColor, "22") : COLORS.surfaceCard,
+        borderRadius: RADIUS.default,
         cursor: "pointer",
-        transition:
-          "background .2s cubic-bezier(.16,1,.3,1), transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
-        border: "none",
+        transition: "background .16s ease, transform .16s ease",
+        border: `1px solid ${COLORS.borderSubtle}`,
         boxShadow: cardShadow,
         position: "relative",
         // Banda horizontal: ancho fijo por tarjeta (la fila hace scroll-x).
@@ -203,25 +192,23 @@ function FeedCard({
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = isPlaying
-          ? `linear-gradient(135deg, ${withAlpha(accentColor, "22")}, ${withAlpha(accentColor, "10")})`
-          : GLASS.btnHoverSoft.background;
-        e.currentTarget.style.transform = "translateY(-3px)";
-        e.currentTarget.style.boxShadow = cardHoverShadow;
+          ? withAlpha(accentColor, "2e")
+          : COLORS.surfaceCardHover;
+        e.currentTarget.style.transform = "translateY(-2px)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = isPlaying
-          ? `linear-gradient(135deg, ${withAlpha(accentColor, "18")}, ${withAlpha(accentColor, "08")})`
-          : GLASS.btn.background;
+          ? withAlpha(accentColor, "22")
+          : COLORS.surfaceCard;
         e.currentTarget.style.transform = "translateY(0)";
         e.currentTarget.style.boxShadow = cardShadow;
       }}
     >
-      {/* Cover con overlay sutil de gradiente en la parte inferior */}
       <div
         style={{
           position: "relative",
           overflow: "hidden",
-          borderRadius: `${RADIUS.card}px ${RADIUS.card}px 0 0`,
+          borderRadius: `${RADIUS.default} ${RADIUS.default} 0 0`,
         }}
       >
         <MusicCover
@@ -230,17 +217,6 @@ function FeedCard({
           displaySize={200}
           alt={item.title}
           style={{ width: "100%", aspectRatio: "1" }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: "40%",
-            background: "linear-gradient(to top, rgba(0,0,0,.5), transparent)",
-            pointerEvents: "none",
-          }}
         />
         {/* Indicador de reproducción en esquina inferior derecha (canciones) */}
         {isPlaying && (
@@ -253,15 +229,10 @@ function FeedCard({
               height: "28px",
               borderRadius: "50%",
               background: accentColor,
-              // Icono del pulso: primer plano dinámico sobre el acento
               color: "var(--neon-fg)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              // Pausado mientras hay un modal abierto (queda tapado por el
-              // scrim): html.overlay-open (index.html)
-              boxShadow: `0 0 12px ${accentColor}88`,
-              animation: "pulse 1.5s ease infinite",
             }}
             className="now-playing-pulse"
             data-testid="now-playing-pulse"
@@ -350,10 +321,7 @@ function FeedCard({
 function PlaylistCard({ playlist, index, accentColor, onClick }) {
   const cover = playlist.cover || playlist.first_cover;
   const count = Number(playlist.song_count || 0);
-  // Mismo material que las tarjetas del inicio: cristal del player bar, sin
-  // contorno y con las esquinas redondeadas de siempre.
-  const cardShadow = SHADOWS.closeBtn;
-  const cardHoverShadow = "inset 0 1px 0 rgba(255,255,255,.12), 0 8px 24px rgba(0,0,0,.35)";
+  const cardShadow = "none";
   return (
     <div
       onClick={onClick}
@@ -361,34 +329,31 @@ function PlaylistCard({ playlist, index, accentColor, onClick }) {
         ...ANIMATIONS.fadeSlideUp(160 + Math.min(index, 10) * 45),
         backdropFilter: undefined,
         WebkitBackdropFilter: undefined,
-        background: GLASS.btn.background,
-        border: "none",
+        background: COLORS.surfaceCard,
+        border: `1px solid ${COLORS.borderSubtle}`,
         boxShadow: cardShadow,
-        borderRadius: RADIUS.card,
+        borderRadius: RADIUS.default,
         cursor: "pointer",
         position: "relative",
         // Mismo ancho fijo que FeedCard: caben en la banda con scroll-x.
         width: "180px",
         flex: SHELF_CARD,
-        transition:
-          "background .2s cubic-bezier(.16,1,.3,1), transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
+        transition: "background .16s ease, transform .16s ease",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = GLASS.btnHoverSoft.background;
-        e.currentTarget.style.transform = "translateY(-3px)";
-        e.currentTarget.style.boxShadow = cardHoverShadow;
+        e.currentTarget.style.background = COLORS.surfaceCardHover;
+        e.currentTarget.style.transform = "translateY(-2px)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = GLASS.btn.background;
+        e.currentTarget.style.background = COLORS.surfaceCard;
         e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = cardShadow;
       }}
     >
       <div
         style={{
           position: "relative",
           overflow: "hidden",
-          borderRadius: `${RADIUS.card}px ${RADIUS.card}px 0 0`,
+          borderRadius: `${RADIUS.default} ${RADIUS.default} 0 0`,
           background: COLORS.surfaceCoverBg,
           aspectRatio: "1",
         }}
@@ -410,7 +375,7 @@ function PlaylistCard({ playlist, index, accentColor, onClick }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: `linear-gradient(135deg, ${withAlpha(playlist.color || accentColor, "44")}, ${withAlpha(playlist.color || accentColor, "11")})`,
+              background: withAlpha(playlist.color || accentColor, "22"),
               color: safeAccentText(playlist.color || accentColor),
             }}
           >
@@ -721,8 +686,8 @@ export default function HomeView({
               width: "72px",
               height: "72px",
               borderRadius: "50%",
-              background: `linear-gradient(135deg, ${withAlpha(accentColor, "15")}, ${withAlpha(accentColor, "05")})`,
-              border: `1px solid ${withAlpha(accentColor, "15")}`,
+              background: withAlpha(accentColor, "16"),
+              border: `1px solid ${withAlpha(accentColor, "24")}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",

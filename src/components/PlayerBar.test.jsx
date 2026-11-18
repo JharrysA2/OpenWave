@@ -590,16 +590,11 @@ describe("PlayerBar — progreso imperativo", () => {
     }
   });
 
-  it("el glow vive en un wrapper estático (drop-shadow sin scaleX que lo aplaste)", () => {
+  it("el progreso no lleva halo ni filtros", () => {
     renderBar({ song, duration: 100, progressRef: { current: 40 } });
     const glow = screen.getByTestId("progress-fill-glow");
-    // drop-shadow en el wrapper: la silueta se rasteriza en espacio de
-    // pantalla → halo uniforme que sigue la punta redondeada.
-    expect(glow.style.filter).toContain("drop-shadow(0 0 10px");
-    // el wrapper no se transforma (por eso el halo no se deforma)
+    expect(glow.style.filter).toBe("");
     expect(glow.style.transform).toBe("");
-    // el relleno ya no lleva box-shadow: dentro del transform se aplastaba
-    // (10 px → ~2,5 px horizontales = «corte vertical brusco»)
     expect(screen.getByTestId("progress-fill").style.boxShadow).toBe("");
   });
 });

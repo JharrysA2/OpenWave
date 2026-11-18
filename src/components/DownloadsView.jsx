@@ -189,20 +189,13 @@ export default function DownloadsView({
 
   const heroButton = (primary = false, hovered = false, disabled = false) => ({
     ...(primary
-      ? {
-          background: accentColor,
-          border: "none",
-          // Hover con glow del acento, sin aro: el realce no dibuja un
-          // contorno alrededor del botón (ni claro ni oscuro).
-          ...(hovered
-            ? { boxShadow: `0 6px 22px color-mix(in srgb, ${accentColor} 55%, transparent)` }
-            : {}),
-        }
-      : { ...GLASS.btn, ...(hovered ? GLASS.btnHoverSoft : {}) }),
-    borderRadius: RADIUS.pill,
-    padding: primary ? "9px 20px" : "9px 18px",
-    fontSize: "12.5px",
-    fontWeight: "700",
+      ? { background: accentColor, border: "none" }
+      : { ...GLASS.control, ...(hovered ? GLASS.controlHover : {}) }),
+    borderRadius: RADIUS.default,
+    minHeight: "44px",
+    padding: primary ? "0 20px" : "0 16px",
+    fontSize: "14px",
+    fontWeight: "600",
     // Contraste dinámico sobre el acento (regla de theme.js): el primer plano
     // de toda superficie con el acento de fondo es --neon-fg, nunca blanco
     // fijo — con acento #ffffff el texto desaparecía.
@@ -267,11 +260,11 @@ export default function DownloadsView({
           style={{
             width: "160px",
             height: "160px",
-            borderRadius: RADIUS.card,
+            borderRadius: RADIUS.default,
             overflow: "hidden",
             flexShrink: 0,
-            background: `linear-gradient(135deg, ${SUCCESS}55, ${SUCCESS}11)`,
-            boxShadow: "0 8px 30px rgba(0,0,0,.4)",
+            background: withAlpha(SUCCESS, "22"),
+            border: `1px solid ${withAlpha(SUCCESS, "33")}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -450,7 +443,7 @@ export default function DownloadsView({
                         color: SUCCESS,
                         fontWeight: "800",
                         background: withAlpha(SUCCESS, "1a"),
-                        borderRadius: RADIUS.pill,
+                        borderRadius: RADIUS.default,
                         padding: "2px 8px",
                         letterSpacing: ".2px",
                       }}

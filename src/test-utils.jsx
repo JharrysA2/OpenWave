@@ -55,11 +55,11 @@ export function isFullScreenLayer(el) {
   );
 }
 
-/** Fondo plano de atenuación (scrim), no un cristal con degradado. */
+/** Capa a pantalla completa con fondo propio (scrim). */
 function isDimmingScrim(el) {
   if (!isFullScreenLayer(el)) return false;
   const bg = el.style.background || el.style.backgroundColor || "";
-  return bg !== "" && !bg.includes("gradient");
+  return bg !== "";
 }
 
 /** Valores de backdrop-filter inline EN SERIO (el `none` es un opt-out de
@@ -93,7 +93,7 @@ export function expectOverlayGlassBudget() {
       const blur = el.style && el.style.backdropFilter;
       if (!blur || blur === "none") continue;
       const bg = `${el.style.background || ""}${el.style.backgroundImage || ""}`;
-      const isGlassSurface = bg.includes("gradient");
+      const isGlassSurface = bg.trim() !== "";
       const isBudgetBlur = /^blur\((?:40|6)(?:\.\d+)?px\)$/.test(blur);
       if (!isGlassSurface || !isBudgetBlur) {
         const cls = el.getAttribute && el.getAttribute("class");

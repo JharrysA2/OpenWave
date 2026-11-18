@@ -616,10 +616,9 @@ export const GLASS = {
     background: "rgba(255,255,255,.10)",
   },
 
-  /** Material heredado de las superficies que aún conservan el brillo de
-   *  cristal anterior. Las pantallas de contenido usan `control`. */
+  /** Botón plano heredado; las pantallas nuevas usan `control`. */
   btn: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.04) 100%)",
+    background: "rgba(255,255,255,.06)",
     boxShadow: "none",
   },
 
@@ -628,10 +627,9 @@ export const GLASS = {
     background: "rgba(255,255,255,.10)",
   },
 
-  /** Hover sutil dentro de tarjetas y filas. Se mantiene como brillo de
-   *  material de bajo contraste, nunca como color decorativo. */
+  /** Hover sutil dentro de tarjetas y filas. */
   btnHoverSoft: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.09) 0%, rgba(255,255,255,.05) 100%)",
+    background: "rgba(255,255,255,.08)",
   },
 
   /** Botón play — color sólido del acento. La jerarquía la sostienen tamaño,
@@ -656,18 +654,18 @@ export const GLASS = {
    *  Fondo ahora por ESCALERA TONAL M3 (surfaceContainer→Lowest, opaco):
    *  profundidad sin blur y sin re-blurar en cada repintado de detrás. */
   card: {
-    background: `linear-gradient(135deg, ${PALETTE.surfaceContainer} 0%, ${PALETTE.surfaceContainerLowest} 100%)`,
+    background: COLORS.surfaceCard,
     border: "1px solid rgba(255,255,255,.08)",
     borderColor: "rgba(255,255,255,.08)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 4px 16px rgba(0,0,0,.2)",
+    boxShadow: "none",
   },
 
-  /** Card hover — Liquid Glass + escalera tonal M3 (Highest→Container) */
+  /** Card hover — un paso tonal, sin elevación ni degradado. */
   cardHover: {
-    background: `linear-gradient(135deg, ${PALETTE.surfaceContainerHighest} 0%, ${PALETTE.surfaceContainer} 100%)`,
-    border: "1px solid rgba(255,255,255,.15)",
-    borderColor: "rgba(255,255,255,.15)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), 0 8px 24px rgba(0,0,0,.3)",
+    background: COLORS.surfaceCardHover,
+    border: "1px solid rgba(255,255,255,.14)",
+    borderColor: "rgba(255,255,255,.14)",
+    boxShadow: "none",
   },
 
   /** Sheet / Modal — Liquid Glass con el desenfoque del modal DEVUELTO:
@@ -689,7 +687,7 @@ export const GLASS = {
    *  además, `html.perf-solid [style*="backdrop-filter"]` le pintaría el velo
    *  entero de color sólido en modo Rendimiento). */
   sheet: {
-    background: "linear-gradient(135deg, rgba(18,18,24,.94) 0%, rgba(16,16,21,.92) 100%)",
+    background: "rgba(18,18,24,.93)",
     border: "1px solid rgba(255,255,255,.10)",
     borderColor: "rgba(255,255,255,.10)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 24px 64px rgba(0,0,0,.5)",
@@ -704,7 +702,7 @@ export const GLASS = {
 
   /** Volume / Crossfade popup / Toast — vidrio neutro transitorio. */
   popup: {
-    background: "linear-gradient(135deg, rgba(18,18,24,.86) 0%, rgba(16,16,21,.80) 100%)",
+    background: "rgba(18,18,24,.84)",
     border: "1px solid rgba(255,255,255,.10)",
     borderColor: "rgba(255,255,255,.10)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 8px 24px rgba(0,0,0,.38)",
@@ -963,10 +961,6 @@ export const mutedAccent = (hex) => {
   }
   return hex;
 };
-
-/** Gradiente linear para fondo de sidebar — base oscura sólida para mantener legibilidad */
-export const sidebarBgGradient = () =>
-  `linear-gradient(165deg, color-mix(in srgb, var(--neon) 40%, #05050a) 0%, color-mix(in srgb, var(--neon) 18%, #05050a) 60%, color-mix(in srgb, var(--neon) 6%, #05050a) 100%)`;
 
 //  ANIMACIONES DE ENTRADA
 //

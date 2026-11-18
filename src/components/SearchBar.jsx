@@ -43,8 +43,7 @@ export function SearchBar({
           "background .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
       }}
       onMouseEnter={(e) => {
-        // Realza el cristal (sin contorno): mismo material, un paso más claro.
-        e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+        e.currentTarget.style.background = GLASS.controlHover.background;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = GLASS.searchbar.background;
@@ -99,10 +98,8 @@ export function SearchBar({
             ? (e) => {
                 const container = e.currentTarget.parentElement;
                 if (container) {
-                  // El foco realza el cristal (relleno + glow difuso), nunca
-                  // un aro: el contorno pegado al borde se veía como línea.
-                  container.style.background = GLASS.btnHoverSoft.background;
-                  container.style.boxShadow = `0 0 22px ${accentColor}30, inset 0 1px 0 rgba(255,255,255,.16)`;
+                  container.style.background = GLASS.controlHover.background;
+                  container.style.boxShadow = `inset 0 0 0 1px ${accentColor}66`;
                 }
               }
             : undefined

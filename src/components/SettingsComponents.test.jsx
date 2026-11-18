@@ -246,12 +246,13 @@ describe("BarPreview", () => {
     expect(bar).toHaveStyle("height: 8px");
   });
 
-  it("la fila clicable usa el hover glass suave (btnHoverSoft, no el plano)", () => {
+  it("la fila clicable cambia de tono al pasar, sin degradado", () => {
     const { container } = render(<SettingRow label="Etiqueta" onClick={() => {}} />);
     const row = container.firstChild;
     const baseBg = row.style.background;
     fireEvent.mouseEnter(row);
-    expect(row.style.background).toContain("linear-gradient");
+    expect(row.style.background).not.toBe(baseBg);
+    expect(row.style.background).not.toContain("gradient");
     fireEvent.mouseLeave(row);
     expect(row.style.background).toBe(baseBg);
   });

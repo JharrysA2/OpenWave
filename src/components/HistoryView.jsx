@@ -6,7 +6,7 @@ import { filterSongs } from "../utils/songFilter";
 import { ConfirmModal } from "./ConfirmModal";
 import { StatusState } from "./StatusState";
 import { SearchBar } from "./SearchBar";
-import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, ANIMATIONS } from "../utils/theme";
+import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, withAlpha, ANIMATIONS } from "../utils/theme";
 import SongRow from "./SongRow";
 
 export default function HistoryView({
@@ -85,11 +85,11 @@ export default function HistoryView({
           style={{
             width: "160px",
             height: "160px",
-            borderRadius: RADIUS.card,
+            borderRadius: RADIUS.default,
             overflow: "hidden",
             flexShrink: 0,
-            background: `linear-gradient(135deg, ${accentColor}55, ${accentColor}11)`,
-            boxShadow: "0 8px 30px rgba(0,0,0,.4)",
+            background: withAlpha(accentColor, "22"),
+            border: `1px solid ${withAlpha(accentColor, "33")}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -157,10 +157,10 @@ export default function HistoryView({
               onClick={() => playAll(true)}
               disabled={history.length === 0}
               style={{
-                ...GLASS.btn,
-                borderRadius: RADIUS.pill,
+                ...GLASS.control,
+                borderRadius: RADIUS.default,
                 padding: "9px 18px",
-                fontSize: "12.5px",
+                fontSize: "14px",
                 fontWeight: "700",
                 color: COLORS.textPrimary,
                 cursor: history.length === 0 ? "not-allowed" : "pointer",
@@ -174,11 +174,11 @@ export default function HistoryView({
                 if (history.length > 0) {
                   // Material del player bar: el hover realza el cristal y no
                   // borra el fondo al salir (antes quedaba transparente).
-                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                  e.currentTarget.style.background = GLASS.controlHover.background;
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = GLASS.btn.background;
+                e.currentTarget.style.background = GLASS.control.background;
               }}
             >
               {Ic.shuffle(16)}
@@ -191,9 +191,9 @@ export default function HistoryView({
               style={{
                 background: accentColor,
                 border: "none",
-                borderRadius: RADIUS.pill,
+                borderRadius: RADIUS.default,
                 padding: "9px 20px",
-                fontSize: "12.5px",
+                fontSize: "14px",
                 fontWeight: "700",
                 // Acento de fondo → primer plano dinámico (nunca blanco fijo)
                 color: "var(--neon-fg)",
@@ -219,10 +219,10 @@ export default function HistoryView({
               onClick={() => history.length > 0 && setShowConfirmModal(true)}
               disabled={history.length === 0}
               style={{
-                ...GLASS.btn,
-                borderRadius: RADIUS.pill,
+                ...GLASS.control,
+                borderRadius: RADIUS.default,
                 padding: "9px 16px",
-                fontSize: "12.5px",
+                fontSize: "14px",
                 fontWeight: "700",
                 color: "rgba(255,255,255,.4)",
                 cursor: history.length === 0 ? "not-allowed" : "pointer",
@@ -236,12 +236,12 @@ export default function HistoryView({
                 if (history.length > 0) {
                   // Sin rojo: el hover realza el material (y al salir no deja
                   // el botón sin fondo, como pasaba con background="").
-                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                  e.currentTarget.style.background = GLASS.controlHover.background;
                   e.currentTarget.style.color = "rgba(255,255,255,.85)";
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = GLASS.btn.background;
+                e.currentTarget.style.background = GLASS.control.background;
                 e.currentTarget.style.color = "rgba(255,255,255,.4)";
               }}
             >

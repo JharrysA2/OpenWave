@@ -42,36 +42,48 @@
    Estilos globales de sliders, scrollbars y placeholders.
 */
 
-/* Pista + relleno visible: el componente <Slider> escribe --fill (0%-100%)
-   inline y aquí se dibuja la barra recorrida en el acento y la porción
-   restante en gris. Sin --fill el slider degrada a pista gris completa
-   (nunca invisible). La pista base sube de 0.08 → 0.14 de blanco para que
-   se lea sin hover. */
-input[type="range"] {
+/* Slider: pista gris y relleno sólido en capas separadas. */
+.ow-slider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 24px;
+}
+.ow-slider-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.ow-slider-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--neon);
+}
+.ow-slider input[type="range"] {
+  position: absolute;
+  inset: 0;
   -webkit-appearance: none !important;
   appearance: none !important;
   width: 100%;
-  height: 4px;
+  height: 100%;
   border-radius: 2px;
   background: transparent !important;
   outline: none !important;
   cursor: pointer;
-  margin: 8px 0;
+  margin: 0;
   accent-color: transparent !important;
   padding: 0;
 }
-input[type="range"]::-webkit-slider-runnable-track {
+.ow-slider input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: linear-gradient(
-    to right,
-    var(--neon) 0%,
-    var(--neon) var(--fill, 0%),
-    rgba(255, 255, 255, 0.14) var(--fill, 0%),
-    rgba(255, 255, 255, 0.14) 100%
-  );
+  background: transparent;
 }
-input[type="range"]::-webkit-slider-thumb {
+.ow-slider input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none !important;
   appearance: none !important;
   width: 14px;
@@ -82,35 +94,25 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
   border: 2px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  transition:
-    transform 0.15s,
-    box-shadow 0.15s;
-  /* Siempre visible: la barra sola no dice dónde está el valor. */
+  transition: transform 0.15s ease;
   opacity: 1;
 }
-input[type="range"]::-webkit-slider-thumb:hover {
+.ow-slider input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.1) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
-input[type="range"]:focus-visible::-webkit-slider-thumb {
+.ow-slider input[type="range"]:focus-visible::-webkit-slider-thumb {
   opacity: 1;
   box-shadow:
     0 0 0 2px var(--bg-base, #0a0a0f),
     0 0 0 4px var(--neon) !important;
 }
-input[type="range"]::-moz-range-track {
+.ow-slider input[type="range"]::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: linear-gradient(
-    to right,
-    var(--neon) 0%,
-    var(--neon) var(--fill, 0%),
-    rgba(255, 255, 255, 0.14) var(--fill, 0%),
-    rgba(255, 255, 255, 0.14) 100%
-  );
+  background: transparent;
   border: none;
 }
-input[type="range"]::-moz-range-thumb {
+.ow-slider input[type="range"]::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 9999px;

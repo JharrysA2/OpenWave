@@ -211,17 +211,21 @@ export function Slider({ value, min, max, step = 1, onChange, onCommit, style })
     if (onCommit) onCommit(Number(e.target.value));
   };
   return (
-    <input
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      onMouseUp={onCommit ? commit : undefined}
-      onTouchEnd={onCommit ? commit : undefined}
-      style={{ width: "100%", cursor: "pointer", "--fill": `${pct}%`, ...style }}
-    />
+    <div className="ow-slider" style={{ width: "100%", ...style }}>
+      <div className="ow-slider-track" aria-hidden="true">
+        <div className="ow-slider-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onMouseUp={onCommit ? commit : undefined}
+        onTouchEnd={onCommit ? commit : undefined}
+      />
+    </div>
   );
 }
 

@@ -152,7 +152,7 @@ describe("presupuesto de glass en overlays", () => {
     expect(blurs.length).toBeGreaterThan(0);
     for (const el of blurs) {
       expect(el.style.backdropFilter).toBe("blur(40px)");
-      expect(el.style.background).toContain("gradient");
+      expect(el.style.background).not.toContain("gradient");
     }
     expectOverlayGlassBudget();
   });

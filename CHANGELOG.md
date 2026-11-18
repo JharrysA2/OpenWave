@@ -8,7 +8,7 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ### Cambiado
 
-- **Fase 1 del rediseño visual: superficies planas y Liquid Glass reservado a la reproducción y los overlays.** Fuera los degradados decorativos de sidebar, barra de título, botones, tarjetas, ajustes y cabeceras de listas; el acento dinámico deja de teñir el fondo y se limita a progreso, Play, pestañas y estados activos. La tipografía se reduce a cuatro tamaños base (28, 18, 14 y 12 px), los controles principales ganan altura de 44 px y los textos secundarios suben de contraste. El cristal se conserva únicamente donde hay contenido en movimiento detrás o una capa flotante real, lo que reduce el ruido visual y el número de superficies que la GPU debe repintar.
+- **Fase 1 del rediseño visual: superficies planas y Liquid Glass reservado a la reproducción y los overlays.** Fuera todos los degradados decorativos, incluidos Inicio, biblioteca, álbumes, artistas, playlists, modales y la pantalla de Letras; también se retiran glows, halos de texto y sombras de tarjetas. El acento dinámico deja de teñir el fondo y se limita a progreso, Play, pestañas y estados activos. La tipografía se reduce a cuatro tamaños base (28, 18, 14 y 12 px), los controles principales ganan altura de 44 px y los textos secundarios suben de contraste. El cristal se conserva únicamente donde hay contenido en movimiento detrás o una capa flotante real, lo que reduce el ruido visual y el número de superficies que la GPU debe repintar. Solo permanecen los degradados funcionales del selector de color.
 
 ## [1.2.1] - 2026-10-27
 

@@ -12,7 +12,6 @@ import {
   RADIUS,
   TRANSITIONS,
   GLASS,
-  SHADOWS,
   withAlpha,
   ANIMATIONS,
   safeAccentText,
@@ -186,20 +185,12 @@ export default function AlbumView({
             }}
           />
         )}
-        {/* Gradiente base oscuro */}
+        {/* Velo plano para legibilidad, sin degradado ni tinte de acento */}
         <div
           style={{
             position: "absolute",
             inset: 0,
-            background: `linear-gradient(180deg, rgba(0,0,0,.3) 0%, rgba(0,0,0,.1) 40%, rgba(0,0,0,.85) 100%)`,
-          }}
-        />
-        {/* Gradiente de acento sutil */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: `radial-gradient(ellipse at 30% 20%, ${withAlpha(accentColor, "20")} 0%, transparent 60%)`,
+            background: "rgba(5,5,10,.58)",
           }}
         />
         {/* Back button */}
@@ -262,10 +253,10 @@ export default function AlbumView({
           style={{
             width: "165px",
             height: "165px",
-            borderRadius: RADIUS.card,
+            borderRadius: RADIUS.default,
             overflow: "hidden",
             flexShrink: 0,
-            boxShadow: `0 12px 40px rgba(0,0,0,.7), 0 0 0 1px ${withAlpha(accentColor, "20")}`,
+            border: `1px solid ${COLORS.borderSubtle}`,
           }}
         >
           <MusicCover
@@ -280,10 +271,10 @@ export default function AlbumView({
         <div style={{ flex: 1, minWidth: 0, paddingBottom: "10px" }}>
           <div
             style={{
-              fontSize: "11px",
-              fontWeight: "700",
+              fontSize: "12px",
+              fontWeight: "600",
               color: COLORS.textTertiary,
-              letterSpacing: "1.5px",
+              letterSpacing: ".04em",
               textTransform: "uppercase",
               marginBottom: "6px",
             }}
@@ -378,16 +369,9 @@ export default function AlbumView({
               fontSize: "14px",
               fontFamily: FONT,
               cursor: "pointer",
-              transition:
-                "transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
-              boxShadow: `0 4px 20px ${withAlpha(accentColor, "55")}, 0 6px 24px ${withAlpha(accentColor, "20")}`,
+              transition: "background .16s ease",
               ...(hoverKey === "play"
-                ? {
-                    transform: "scale(1.04)",
-                    // Glow más ancho en hover, sin aro: el realce no dibuja
-                    // un contorno de 1px alrededor del botón.
-                    boxShadow: `0 6px 28px ${withAlpha(accentColor, "66")}, 0 10px 34px ${withAlpha(accentColor, "30")}`,
-                  }
+                ? { background: `color-mix(in srgb, ${accentColor} 88%, white)` }
                 : {}),
             }}
             {...hov("play")}
@@ -633,14 +617,13 @@ export default function AlbumView({
                 borderRadius: RADIUS.default,
                 cursor: selectMode ? "pointer" : "pointer",
                 background: isSelected
-                  ? `rgba(255,255,255,.08)`
+                  ? "rgba(255,255,255,.08)"
                   : isActive
-                    ? `linear-gradient(90deg, ${withAlpha(accentColor, "12")}, transparent)`
+                    ? withAlpha(accentColor, "16")
                     : "transparent",
-                transition: "background .15s cubic-bezier(.16,1,.3,1)",
-                // Sin hairline de contorno entre pistas: la separación es
-                // una sombra suave bajo cada fila.
-                boxShadow: i < album.tracks.length - 1 ? SHADOWS.sepRow : "none",
+                transition: "background .15s ease",
+                borderBottom:
+                  i < album.tracks.length - 1 ? `1px solid ${COLORS.borderSubtle}` : "none",
               }}
               onMouseEnter={(e) => {
                 if (!isActive && !isSelected) e.currentTarget.style.background = COLORS.surfaceNav;

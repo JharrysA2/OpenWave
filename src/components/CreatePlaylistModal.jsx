@@ -6,7 +6,7 @@ import { useEscClose } from "../hooks/useEscape";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
-import { COLORS, RADIUS, TRANSITIONS, GLASS, SHADOWS } from "../utils/theme";
+import { COLORS, RADIUS, TRANSITIONS, GLASS } from "../utils/theme";
 
 // El selector nativo (plugin-dialog/rfd) reemplaza al <input type="file">, que
 // alojaba el diálogo en el proceso WebView2 y provocaba el cierre de la app.
@@ -160,16 +160,15 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
             alignItems: "center",
             justifyContent: "space-between",
             padding: "18px 20px 14px",
-            // Sin línea de contorno: la separación con el cuerpo es sombra.
-            boxShadow: SHADOWS.sepZone,
+            borderBottom: `1px solid ${COLORS.borderSubtle}`,
           }}
         >
           <span
             style={{
-              fontSize: "16px",
-              fontWeight: "800",
+              fontSize: "18px",
+              fontWeight: "600",
               color: COLORS.textPrimary,
-              letterSpacing: "-.3px",
+              letterSpacing: "-.01em",
             }}
           >
             Nueva playlist
@@ -177,7 +176,7 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
           <button
             onClick={onClose}
             style={{
-              ...GLASS.btn,
+              ...GLASS.control,
               borderRadius: RADIUS.full,
               width: "32px",
               height: "32px",
@@ -216,8 +215,8 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
                 flexShrink: 0,
                 cursor: "pointer",
                 background: selectedColor
-                  ? `linear-gradient(135deg, ${selectedColor}44, ${selectedColor}11)`
-                  : "linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.02))",
+                  ? `color-mix(in srgb, ${selectedColor} 18%, transparent)`
+                  : "rgba(255,255,255,.06)",
                 border: "2px dashed rgba(255,255,255,.15)",
                 display: "flex",
                 alignItems: "center",
@@ -288,7 +287,7 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
                   borderRadius: "10px",
                   // Material del player bar, sin contorno: el campo se
                   // distingue por el cristal, no por un aro.
-                  ...GLASS.btn,
+                  ...GLASS.control,
                   color: COLORS.textPrimary,
                   fontSize: "14px",
                   fontWeight: "600",
@@ -298,22 +297,18 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
                   boxSizing: "border-box",
                 }}
                 onFocus={(e) => {
-                  // El foco realza el cristal (relleno + glow), sin encender
-                  // un aro de acento.
-                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
-                  e.currentTarget.style.boxShadow =
-                    "0 0 16px var(--neon)33, inset 0 1px 0 rgba(255,255,255,.16)";
+                  e.currentTarget.style.background = GLASS.controlHover.background;
+                  e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${COLORS.borderActive}`;
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.background = GLASS.btn.background;
-                  e.currentTarget.style.boxShadow = GLASS.btn.boxShadow;
+                  e.currentTarget.style.background = GLASS.control.background;
                 }}
               />
               <div
                 style={{
-                  fontSize: "10px",
-                  color: "rgba(255,255,255,.3)",
-                  fontWeight: "600",
+                  fontSize: "12px",
+                  color: COLORS.textTertiary,
+                  fontWeight: "500",
                   marginTop: "4px",
                   textAlign: "right",
                 }}
@@ -357,18 +352,14 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
                       alignItems: "center",
                       justifyContent: "center",
                       padding: 0,
-                      boxShadow: isSelected
-                        ? `0 0 12px ${color || "rgba(255,255,255,.2)"}55`
-                        : "none",
-                      transform: isSelected ? "scale(1.15)" : "scale(1)",
                     }}
                   >
                     {!color && !isSelected && (
                       <span
                         style={{
-                          fontSize: "10px",
-                          color: "rgba(255,255,255,.25)",
-                          fontWeight: "800",
+                          fontSize: "12px",
+                          color: COLORS.textTertiary,
+                          fontWeight: "600",
                         }}
                       >
                         x
@@ -388,13 +379,13 @@ export function CreatePlaylistModal({ open, onClose, onCreated, toast }) {
             justifyContent: "flex-end",
             gap: "10px",
             padding: "12px 20px 16px",
-            boxShadow: SHADOWS.sepUp,
+            borderTop: `1px solid ${COLORS.borderSubtle}`,
           }}
         >
           <button
             onClick={onClose}
             style={{
-              ...GLASS.btn,
+              ...GLASS.control,
               borderRadius: "10px",
               padding: "8px 18px",
               fontSize: "13px",

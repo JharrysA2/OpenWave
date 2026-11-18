@@ -76,7 +76,7 @@ export function BootScreen() {
         alignItems: "center",
         justifyContent: "center",
         padding: "24px",
-        background: "radial-gradient(900px 480px at 50% 28%, #12101d, #050508 70%)",
+        background: COLORS.surfaceApp,
         fontFamily: FONT,
         color: "#fff",
         opacity: done ? 0 : 1,

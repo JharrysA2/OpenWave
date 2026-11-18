@@ -184,20 +184,11 @@ export default function ArtistView({
             }}
           />
         )}
-        {/* Gradiente base oscuro */}
         <div
           style={{
             position: "absolute",
             inset: 0,
-            background: `linear-gradient(180deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,.1) 40%, rgba(0,0,0,.85) 100%)`,
-          }}
-        />
-        {/* Gradiente de acento sutil */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: `radial-gradient(ellipse at 30% 30%, ${withAlpha(accentColor, "18")} 0%, transparent 60%)`,
+            background: "rgba(5,5,10,.58)",
           }}
         />
         {/* Back button */}
@@ -261,7 +252,7 @@ export default function ArtistView({
               borderRadius: RADIUS.full,
               overflow: "hidden",
               flexShrink: 0,
-              boxShadow: `0 0 0 3px ${withAlpha(accentColor, "40")}, 0 12px 40px rgba(0,0,0,.6)`,
+              border: `1px solid ${COLORS.borderSubtle}`,
             }}
           >
             <MusicCover
@@ -276,10 +267,10 @@ export default function ArtistView({
           <div style={{ flex: 1, minWidth: 0, paddingBottom: "8px" }}>
             <h1
               style={{
-                fontSize: "26px",
-                fontWeight: "800",
+                fontSize: "28px",
+                fontWeight: "700",
                 color: "#fff",
-                letterSpacing: "-.3px",
+                letterSpacing: "-.02em",
                 marginBottom: "4px",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -312,11 +303,12 @@ export default function ArtistView({
                         ...GLASS.btn,
                         // Siguiendo: cristal del material, sin contorno
                         // (el estado lo dice el texto, no un aro).
-                        ...(hoverKey === "follow" ? GLASS.btnHoverSoft : {}),
-                        borderRadius: RADIUS.pill,
-                        padding: "7px 22px",
-                        fontSize: "12.5px",
-                        fontWeight: "700",
+                        ...(hoverKey === "follow" ? GLASS.controlHover : {}),
+                        borderRadius: RADIUS.default,
+                        minHeight: "44px",
+                        padding: "0 20px",
+                        fontSize: "14px",
+                        fontWeight: "600",
                         fontFamily: FONT,
                         cursor: "pointer",
                         color: COLORS.textPrimary,
@@ -325,21 +317,16 @@ export default function ArtistView({
                     : {
                         background: accentColor,
                         border: "none",
-                        borderRadius: RADIUS.pill,
-                        padding: "7px 22px",
-                        fontSize: "12.5px",
-                        fontWeight: "700",
+                        borderRadius: RADIUS.default,
+                        minHeight: "44px",
+                        padding: "0 20px",
+                        fontSize: "14px",
+                        fontWeight: "600",
                         fontFamily: FONT,
                         cursor: "pointer",
                         // Acento de fondo → primer plano dinámico (nunca negro fijo)
                         color: "var(--neon-fg)",
-                        boxShadow:
-                          hoverKey === "follow"
-                            ? `0 2px 10px ${withAlpha(accentColor, "44")}, 0 0 0 2px color-mix(in srgb, var(--neon-fg) 30%, transparent)`
-                            : `0 2px 10px ${withAlpha(accentColor, "44")}`,
-                        // Anillo adaptativo en vez de brightness(1.1): el brillo
-                        // no se ve sobre acentos casi blancos.
-                        transition: `${TRANSITIONS.fast}, box-shadow .12s cubic-bezier(.16,1,.3,1)`,
+                        transition: TRANSITIONS.fast,
                       }
                 }
                 {...hov("follow")}
@@ -541,7 +528,7 @@ export default function ArtistView({
                   background: "transparent",
                   color: safeAccentText(accentColor),
                   fontWeight: "700",
-                  fontSize: "12.5px",
+                  fontSize: "14px",
                   cursor: "pointer",
                   fontFamily: FONT,
                   transition: TRANSITIONS.fast,

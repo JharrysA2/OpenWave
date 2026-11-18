@@ -3,7 +3,16 @@ import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { api } from "../utils/api";
 import { filterSongs } from "../utils/songFilter";
-import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, LAYOUTS, ANIMATIONS } from "../utils/theme";
+import {
+  COLORS,
+  RADIUS,
+  SPACING,
+  TRANSITIONS,
+  GLASS,
+  LAYOUTS,
+  withAlpha,
+  ANIMATIONS,
+} from "../utils/theme";
 import LibraryTabs from "./LibraryTabs";
 import TrackList from "./TrackList";
 import { SearchBar } from "./SearchBar";
@@ -140,17 +149,13 @@ export default function LikedView({
       ? {
           background: accentColor,
           border: "none",
-          // Hover con glow del acento, sin aro: el realce no dibuja un
-          // contorno alrededor del botón (ni claro ni oscuro).
-          ...(hovered
-            ? { boxShadow: `0 6px 22px color-mix(in srgb, ${accentColor} 55%, transparent)` }
-            : {}),
         }
-      : { ...GLASS.btn, ...(hovered ? GLASS.btnHoverSoft : {}) }),
-    borderRadius: RADIUS.pill,
-    padding: primary ? "9px 20px" : "9px 18px",
-    fontSize: "12.5px",
-    fontWeight: "700",
+      : { ...GLASS.control, ...(hovered ? GLASS.controlHover : {}) }),
+    borderRadius: RADIUS.default,
+    minHeight: "44px",
+    padding: primary ? "0 20px" : "0 16px",
+    fontSize: "14px",
+    fontWeight: "600",
     // Contraste dinámico sobre el acento (regla de theme.js): el primer plano
     // de toda superficie con el acento de fondo es --neon-fg, nunca blanco
     // fijo — con acento #ffffff el texto desaparecía.
@@ -160,7 +165,7 @@ export default function LikedView({
     display: "flex",
     alignItems: "center",
     gap: "8px",
-    transition: `${TRANSITIONS.fast}, box-shadow .12s cubic-bezier(.16,1,.3,1)`,
+    transition: TRANSITIONS.fast,
   });
 
   const heroHoverProps = (key) => ({
@@ -193,11 +198,11 @@ export default function LikedView({
           style={{
             width: "160px",
             height: "160px",
-            borderRadius: RADIUS.card,
+            borderRadius: RADIUS.default,
             overflow: "hidden",
             flexShrink: 0,
-            background: `linear-gradient(135deg, ${accentColor}55, ${accentColor}11)`,
-            boxShadow: "0 8px 30px rgba(0,0,0,.4)",
+            background: withAlpha(accentColor, "22"),
+            border: `1px solid ${withAlpha(accentColor, "33")}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

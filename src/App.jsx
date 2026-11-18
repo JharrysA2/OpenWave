@@ -19,6 +19,7 @@ import { useEntityOptions } from "./hooks/useEntityOptions";
 import { useMediaSession } from "./hooks/useMediaSession";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { PlayerBar } from "./components/PlayerBar";
+import { NowPlayingPanel } from "./components/NowPlayingPanel";
 import { CreatePlaylistModal } from "./components/CreatePlaylistModal";
 import { Toasts } from "./components/Toast";
 import { ConnectionBanner } from "./components/ConnectionBanner";
@@ -180,6 +181,9 @@ function AppInner() {
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [nowPlayingOpen, setNowPlayingOpen] = useState(
+    () => typeof window !== "undefined" && window.innerWidth >= 1280,
+  );
 
   // Temporizador de apagado (Ajustes → Reproductor y sonido)
   // `sleep` = { at: timestamp (ms) en el que pausar, minutes: preset elegido };
@@ -629,6 +633,9 @@ function AppInner() {
 
   const handleToggleLyrics = useCallback(() => setLyricsOpen((v) => !v), [setLyricsOpen]);
 
+  const toggleNowPlaying = useCallback(() => setNowPlayingOpen((v) => !v), []);
+  const closeNowPlaying = useCallback(() => setNowPlayingOpen(false), []);
+
   const handleLyricsClose = useCallback(() => setLyricsOpen(false), [setLyricsOpen]);
 
   const handleOpenCurrentOptions = useCallback(
@@ -685,6 +692,8 @@ function AppInner() {
           onCreatePlaylist={onCreatePlaylist}
           visible={sidebarVisible}
           onToggle={toggleSidebar}
+          nowPlayingOpen={nowPlayingOpen}
+          onToggleNowPlaying={toggleNowPlaying}
         />
 
         {/* Mostrar barra lateral: botón » mientras esté oculta */}
@@ -748,7 +757,7 @@ function AppInner() {
         )}
 
         {/* Main content */}
-        <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: "hidden", position: "relative" }}>
           <div key={tab} style={{ height: "100%", ...ANIMATIONS.fadeIn(50) }}>
             <MainRouter
               showSettingsPanel={showSettingsPanel}
@@ -824,6 +833,19 @@ function AppInner() {
             />
           </div>
         </div>
+
+        {nowPlayingOpen && (
+          <NowPlayingPanel
+            song={currentSong}
+            isPlaying={isPlaying}
+            queue={queue}
+            queueIndex={queueIndex}
+            accentColor={neonColor}
+            onTogglePlay={togglePlay}
+            onPlaySong={playSong}
+            onClose={closeNowPlaying}
+          />
+        )}
       </div>
 
       {/* Audio elements */}

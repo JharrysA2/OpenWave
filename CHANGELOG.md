@@ -12,6 +12,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 - **Fase 2: jerarquía de pantallas y ajustes divididos.** La cabecera de playlist coloca «Volver» como navegación independiente, compacta la portada y agrupa reproducción, aleatorio, selección y borrado en una sola barra, con Reproducir como única acción sólida y Eliminar playlist al final como acción terciaria. El player conserva su posición centrada y su pastilla flotante, pero sus controles secundarios pierden el relleno para dejar a Play como único foco visual. Apariencia se divide en tres páginas: Tema, Estilo del reproductor y Letras, evitando una única pantalla monolítica.
 
+- **Fase 3: panel opcional «Ahora suena» y shell adaptable.** En ventanas de 1280 px o más aparece un panel lateral plano con la portada, la reproducción actual y las próximas canciones de la cola; su visibilidad se controla desde la sidebar y se desactiva automáticamente en ventanas estrechas. El player bar mantiene intacta su pastilla centrada y flotante.
+
 ## [1.2.1] - 2026-10-27
 
 ### Corregido

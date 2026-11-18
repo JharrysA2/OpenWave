@@ -16,6 +16,8 @@ export const Sidebar = React.memo(function Sidebar({
   onCreatePlaylist,
   visible = true,
   onToggle,
+  nowPlayingOpen = false,
+  onToggleNowPlaying,
 }) {
   const navItems = [
     ["home", Ic.home, "Inicio"],
@@ -243,6 +245,47 @@ export const Sidebar = React.memo(function Sidebar({
               {label}
             </button>
           ))}
+
+          {onToggleNowPlaying && (
+            <button
+              className="app-now-playing-toggle"
+              onClick={onToggleNowPlaying}
+              aria-pressed={nowPlayingOpen}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                width: "100%",
+                minHeight: "44px",
+                padding: "0 16px",
+                borderRadius: RADIUS.default,
+                cursor: "pointer",
+                ...(nowPlayingOpen ? GLASS.navItemActive(accentColor) : GLASS.navItem),
+                color: nowPlayingOpen ? safeAccentText(accentColor) : COLORS.textSecondary,
+                fontWeight: nowPlayingOpen ? "600" : "500",
+                fontSize: "14px",
+                fontFamily: FONT,
+                transition: "background .12s ease, color .12s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (!nowPlayingOpen) {
+                  e.currentTarget.style.background = "rgba(255,255,255,.06)";
+                  e.currentTarget.style.color = COLORS.textPrimary;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!nowPlayingOpen) {
+                  e.currentTarget.style.background = GLASS.navItem.background;
+                  e.currentTarget.style.color = COLORS.textSecondary;
+                }
+              }}
+            >
+              <span style={{ width: "18px", display: "flex", justifyContent: "center" }}>
+                {Ic.queue}
+              </span>
+              Ahora suena
+            </button>
+          )}
         </nav>
 
         {/* Playlists section */}

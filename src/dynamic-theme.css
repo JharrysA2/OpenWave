@@ -194,3 +194,10 @@ textarea {
 .ow-set-row + .ow-set-row {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
+
+@media (max-width: 1279px) {
+  .app-now-playing,
+  .app-now-playing-toggle {
+    display: none !important;
+  }
+}

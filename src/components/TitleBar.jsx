@@ -1,13 +1,12 @@
 import React from "react";
 import { winCtrl } from "../utils/windowControls";
+import { COLORS, GLASS } from "../utils/theme";
 
 /**
  * Barra de título propia (la ventana no lleva marco nativo).
  *
- * Material: el mismo vocabulario que el resto de la app —cristal estático,
- * brillo interior arriba y una sombra fina de separación—, sin
- * `backdrop-filter`: no hay movimiento detrás, así que el desenfoque sería
- * coste invisible. Los tres iconos van dibujados a trazo (1,3 px, extremos
+ * Material: superficie estructural plana, sin degradado ni blur. El vidrio
+ * queda reservado al player y a los overlays. Los tres iconos van dibujados a trazo (1,3 px, extremos
  * redondeados) en un viewBox de 16 px para que se vean nítidos a cualquier
  * escala; los botones son pastillas cuadradas con el radio de la UI, no los
  * rectángulos pegados al borde del marco de Windows.
@@ -55,14 +54,10 @@ export function TitleBar() {
         //    carga (1500000), de modales/hojas (1000000+) y de las letras
         //    (9999). Es la chrome de ventana: min/max/cerrar nunca se tapa.
         zIndex: 2147483100,
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,.075) 0%, rgba(255,255,255,.035) 55%, rgba(255,255,255,.02) 100%)",
-        // Separación por luz y sombra, no por contorno: brillo de 1 px arriba,
-        // hairline oscura abajo y la sombra de zona de siempre, más contenida.
-        boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,.07), " +
-          "inset 0 -1px 0 rgba(0,0,0,.32), " +
-          "0 10px 28px rgba(0,0,0,.30)",
+        ...GLASS.titleBar,
+        // La barra es estructura, no una tarjeta: un hairline la separa del
+        // contenido y no proyecta una sombra sobre toda la app.
+        boxShadow: `inset 0 -1px 0 ${COLORS.borderSubtle}`,
       }}
     >
       <span style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>

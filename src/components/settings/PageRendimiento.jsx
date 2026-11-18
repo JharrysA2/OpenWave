@@ -1,5 +1,4 @@
 import React from "react";
-import { createPortal } from "react-dom";
 import { useSettings } from "../../contexts/useSettings";
 import { isSoftwareRenderer } from "../../utils/softwareRenderer";
 import { SettingRow, SettingsSection, SettingsToggle } from "../SettingsComponents";
@@ -20,7 +19,6 @@ export function PageRendimiento({ neonColor }) {
             height: "7px",
             borderRadius: "50%",
             background: settings[key] !== false ? accent : "rgba(255,255,255,.2)",
-            boxShadow: settings[key] !== false ? `0 0 8px ${accent}` : "none",
           }}
         />
       }
@@ -40,9 +38,9 @@ export function PageRendimiento({ neonColor }) {
     <div style={{ padding: "20px 16px" }}>
       <div
         style={{
-          fontSize: "11.5px",
-          color: "rgba(255,255,255,.5)",
-          fontWeight: "600",
+          fontSize: "12px",
+          color: "rgba(255,255,255,.72)",
+          fontWeight: "400",
           margin: "-4px 0 16px",
           padding: "0 2px",
         }}
@@ -96,7 +94,6 @@ export function PageRendimiento({ neonColor }) {
                 height: "7px",
                 borderRadius: "50%",
                 background: settings.pauseEffectsHidden !== false ? accent : "rgba(255,255,255,.2)",
-                boxShadow: settings.pauseEffectsHidden !== false ? `0 0 8px ${accent}` : "none",
               }}
             />
           }

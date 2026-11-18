@@ -109,6 +109,9 @@ export const COLORS = {
   surfacePureBlack: "#000000",
   surfacePlayer: PALETTE.bgPlayer,
   surfaceSidebar: "rgba(0,0,0,.2)",
+  surfaceApp: "#0b0b10",
+  surfaceInset: "#121217",
+  surfaceRaised: "#191920",
   // Escalera tonal M3 cableada (roles que YA estaban en PALETTE)
   // Superficies planas (tarjetas, filas, rellenos de modal): profundidad por
   // TONO de la escalera `surfaceContainer*` en vez de blanco translúcido —
@@ -128,12 +131,12 @@ export const COLORS = {
   //    los textos permanecen blancos en todo momento. Solo elementos UI que
   //    usan el color acento como FONDO deben usar contraste dinámico (--neon-fg).
   textPrimary: "#ffffff",
-  textSecondary: "rgba(255,255,255,.6)",
-  textTertiary: "rgba(255,255,255,.46)",
-  textMuted: "rgba(255,255,255,.46)",
-  textDimmest: "rgba(255,255,255,.46)",
-  textPlayerTitle: "rgba(255,255,255,.92)",
-  textPlayerArtist: "rgba(255,255,255,.46)",
+  textSecondary: "rgba(255,255,255,.72)",
+  textTertiary: "rgba(255,255,255,.62)",
+  textMuted: "rgba(255,255,255,.58)",
+  textDimmest: "rgba(255,255,255,.55)",
+  textPlayerTitle: "rgba(255,255,255,.94)",
+  textPlayerArtist: "rgba(255,255,255,.62)",
 
   // On-surface desde paleta
   onSurface: PALETTE.onSurface,
@@ -190,8 +193,8 @@ export const COLORS = {
   // Misc
   scrollbar: "rgba(255,255,255,.12)",
   scrollbarHover: "rgba(255,255,255,.25)",
-  progressTrack: "rgba(255,255,255,.08)",
-  progressTime: "rgba(255,255,255,.35)",
+  progressTrack: "rgba(255,255,255,.10)",
+  progressTime: "rgba(255,255,255,.62)",
   cardNumber: "rgba(255,255,255,.2)",
   titleBarText: "rgba(255,255,255,.45)",
   winCtrlDefault: "rgba(255,255,255,.5)",
@@ -226,33 +229,33 @@ export const TYPOGRAPHY = {
   // Headlines — tracking negativo en texto grande, leading apretado
   h1: {
     fontFamily: FONT_FAMILY,
-    fontSize: "30px",
+    fontSize: "28px",
     fontWeight: "700",
-    lineHeight: 1.15,
-    letterSpacing: "-0.025em",
+    lineHeight: 1.2,
+    letterSpacing: "-0.02em",
   },
   h1Mobile: {
     fontFamily: FONT_FAMILY,
-    fontSize: "26px",
+    fontSize: "28px",
     fontWeight: "700",
     lineHeight: 1.2,
     letterSpacing: "-0.02em",
   },
   h2: {
     fontFamily: FONT_FAMILY,
-    fontSize: "22px",
-    fontWeight: "700",
-    lineHeight: 1.2,
-    letterSpacing: "-0.015em",
+    fontSize: "18px",
+    fontWeight: "600",
+    lineHeight: 1.3,
+    letterSpacing: "-0.01em",
   },
 
   // Subheading (upper-case, usado para etiquetas de sección tipo "RECOMENDADO")
   subheading: {
     fontFamily: FONT_FAMILY,
-    fontSize: "15px",
+    fontSize: "12px",
     fontWeight: "600",
-    lineHeight: "22px",
-    letterSpacing: "0.05em",
+    lineHeight: "16px",
+    letterSpacing: "0.04em",
   },
 
   // Label
@@ -267,17 +270,17 @@ export const TYPOGRAPHY = {
   body: {
     fontFamily: FONT_FAMILY,
     fontSize: "14px",
-    fontWeight: "500",
-    lineHeight: 1.45,
+    fontWeight: "400",
+    lineHeight: 1.43,
     letterSpacing: "0",
   },
 
   // Caption — artista, metadatos secundarios — tracking sutil positivo
   caption: {
     fontFamily: FONT_FAMILY,
-    fontSize: "12.5px",
+    fontSize: "12px",
     fontWeight: "500",
-    lineHeight: 1.4,
+    lineHeight: 1.35,
     letterSpacing: "0.01em",
   },
 
@@ -285,45 +288,45 @@ export const TYPOGRAPHY = {
   metadata: {
     fontFamily: FONT_FAMILY,
     fontSize: "12px",
-    fontWeight: "600",
+    fontWeight: "500",
     lineHeight: 1.35,
-    letterSpacing: "0.02em",
+    letterSpacing: "0.01em",
   },
 
   // Alias para compatibilidad con código existente
   h1Alias: {
     fontFamily: FONT_FAMILY,
-    fontSize: "30px",
+    fontSize: "28px",
     fontWeight: "700",
-    letterSpacing: "-.5px",
+    letterSpacing: "-0.02em",
     lineHeight: 1.2,
   },
   /** alias: subheading */
   h3: {
     fontFamily: FONT_FAMILY,
-    fontSize: "15px",
+    fontSize: "12px",
     fontWeight: "600",
-    letterSpacing: ".3px",
+    letterSpacing: ".04em",
     textTransform: "uppercase",
-    lineHeight: 1.2,
+    lineHeight: 1.3,
   },
   /** alias: label */
-  h4: { fontFamily: FONT_FAMILY, fontSize: "14px", fontWeight: "600", lineHeight: 1.2 },
+  h4: { fontFamily: FONT_FAMILY, fontSize: "14px", fontWeight: "600", lineHeight: 1.3 },
   /** alias: metadata */
-  small: { fontFamily: FONT_FAMILY, fontSize: "12px", fontWeight: "600", lineHeight: 1.3 },
+  small: { fontFamily: FONT_FAMILY, fontSize: "12px", fontWeight: "500", lineHeight: 1.35 },
   sectionTitle: {
     fontFamily: FONT_FAMILY,
-    fontSize: "14px",
+    fontSize: "12px",
     fontWeight: "600",
-    letterSpacing: ".5px",
+    letterSpacing: ".04em",
     textTransform: "uppercase",
   },
 
   // Body alias
-  bodyAlias: { fontFamily: FONT_FAMILY, fontSize: "14px", fontWeight: "500", lineHeight: 1.4 },
-  captionAlias: { fontFamily: FONT_FAMILY, fontSize: "12.5px", fontWeight: "500", lineHeight: 1.4 },
-  smallAlias: { fontFamily: FONT_FAMILY, fontSize: "12px", fontWeight: "600", lineHeight: 1.3 },
-  microAlias: { fontFamily: FONT_FAMILY, fontSize: "11px", fontWeight: "600", lineHeight: 1.3 },
+  bodyAlias: { fontFamily: FONT_FAMILY, fontSize: "14px", fontWeight: "400", lineHeight: 1.43 },
+  captionAlias: { fontFamily: FONT_FAMILY, fontSize: "12px", fontWeight: "500", lineHeight: 1.35 },
+  smallAlias: { fontFamily: FONT_FAMILY, fontSize: "12px", fontWeight: "500", lineHeight: 1.35 },
+  microAlias: { fontFamily: FONT_FAMILY, fontSize: "12px", fontWeight: "500", lineHeight: 1.35 },
 
   // Letras — tamaños configurables — tracking negativo para texto grande
   lyricsSmall: {
@@ -350,12 +353,12 @@ export const TYPOGRAPHY = {
 
   // Navegación
   nav: { fontFamily: FONT_FAMILY, fontSize: "14px", fontWeight: "500" },
-  navActive: { fontFamily: FONT_FAMILY, fontSize: "14px", fontWeight: "700" },
+  navActive: { fontFamily: FONT_FAMILY, fontSize: "14px", fontWeight: "600" },
   navInactive: { fontFamily: FONT_FAMILY, fontSize: "14px", fontWeight: "500" },
 
   // Branding
-  brand: { fontFamily: FONT_FAMILY, fontSize: "16px", fontWeight: "700", letterSpacing: "-.3px" },
-  titleBar: { fontFamily: FONT_FAMILY, fontSize: "13px", fontWeight: "600", letterSpacing: ".5px" },
+  brand: { fontFamily: FONT_FAMILY, fontSize: "14px", fontWeight: "700", letterSpacing: "-.2px" },
+  titleBar: { fontFamily: FONT_FAMILY, fontSize: "12px", fontWeight: "600", letterSpacing: ".3px" },
 };
 
 //  RADIOS DE BORDE
@@ -386,7 +389,7 @@ export const RADIUS = {
 
   // Overrides de componentes (desde prose)
   card: "14px",
-  cover: "10px",
+  cover: "12px",
   lyricsCover: "22px",
   pill: "20px",
 
@@ -414,42 +417,42 @@ export const RADIUS = {
 
 export const SPACING = {
   /** Sidebar fijo de 200px */
-  sidebar: { width: "200px", pad: "14px", navPad: "9px 12px" },
+  sidebar: { width: "200px", pad: "16px", navPad: "0 16px" },
 
   /** Filas de canciones */
-  row: { pad: "8px 10px", gap: "10px" },
+  row: { pad: "8px 16px", gap: "8px" },
 
   /** Tarjetas */
-  card: { gap: "12px", innerPad: "10px 12px 12px" },
+  card: { gap: "16px", innerPad: "16px" },
 
   /** Búsqueda */
-  search: { pad: "10px 14px" },
+  search: { pad: "8px 16px" },
 
   /** Title bar */
-  titleBar: { height: "32px", pad: "0 8px 0 14px" },
+  titleBar: { height: "32px", pad: "0 8px 0 16px" },
 
   /** Secciones (container-margin: 24px) */
-  section: { marginBottom: "24px", marginBottomSm: "20px" },
+  section: { marginBottom: "24px", marginBottomSm: "16px" },
 
   /** Player */
-  player: { pad: "4px 14px 6px" },
+  player: { pad: "8px 16px" },
 
   /** Contenido principal */
-  content: { pad: "16px 20px" },
+  content: { pad: "24px" },
 
   /** Letras */
-  lyrics: { pad: "50px 70px 100px 50px" },
+  lyrics: { pad: "48px 64px 96px 48px" },
 
   /** Settings */
-  settings: { headerPad: "16px 20px 12px", sectionPad: "16px" },
+  settings: { headerPad: "16px 24px 12px", sectionPad: "24px" },
 
-  /** Gutters (gutter-default: 12px, gutter-tight: 6px) */
+  /** Gutters (4/8/16/24) */
   gap: {
-    tight: "6px",
-    normal: "10px",
-    wide: "12px",
+    tight: "4px",
+    normal: "8px",
+    wide: "16px",
     xwide: "16px",
-    xxwide: "20px",
+    xxwide: "24px",
   },
 
   /** Tamaños de cover */
@@ -470,22 +473,22 @@ export const SPACING = {
 // (desde DESIGN.md — Glow Effects)
 
 export const SHADOWS = {
-  /** Brillo neón multicapa — BOLD */
-  neonGlow: (color) => `0 0 30px ${color}bb, 0 0 70px ${color}77, 0 0 140px ${color}44`,
+  /** Elevación contenida: el acento identifica, no ilumina. */
+  neonGlow: () => "0 8px 24px rgba(0,0,0,.28)",
 
-  /** Botón play — glow sutil */
-  playBtn: (color) => `0 0 12px ${color}66, 0 0 24px ${color}33`,
+  /** Botón play — elevación discreta dentro del player */
+  playBtn: () => "0 2px 8px rgba(0,0,0,.28)",
 
   /** Slider thumb */
-  sliderThumb: (color) => `0 0 12px ${color}ff, 0 0 28px ${color}88, 0 2px 4px rgba(0,0,0,.3)`,
-  sliderThumbHover: (color) => `0 0 24px ${color}ff, 0 0 48px ${color}aa, 0 2px 8px rgba(0,0,0,.4)`,
-  sliderThumbFocus: (color) => `0 0 0 3px ${color}bb, 0 0 20px ${color}ee`,
+  sliderThumb: () => "0 1px 3px rgba(0,0,0,.35)",
+  sliderThumbHover: () => "0 1px 3px rgba(0,0,0,.35)",
+  sliderThumbFocus: (color) => `0 0 0 2px #0a0a0f, 0 0 0 4px ${color}`,
 
   /** Popup crossfade */
-  popup: "0 8px 32px rgba(0,0,0,.5)",
+  popup: "0 8px 24px rgba(0,0,0,.38)",
 
   /** Botón cerrar (lyrics) */
-  closeBtn: "inset 0 1px 0 rgba(255,255,255,.12), 0 2px 8px rgba(0,0,0,.25)",
+  closeBtn: "inset 0 1px 0 rgba(255,255,255,.10)",
 
   /** Portada en lyrics */
   lyricsCover: "0 8px 30px rgba(0,0,0,.5)",
@@ -493,8 +496,8 @@ export const SHADOWS = {
   /** Settings close */
   settingsClose: "inset 0 1px 0 rgba(255,255,255,.1)",
 
-  /** Botón ajustes sidebar */
-  settingsBtn: (color) => `0 0 0 2px ${color}cc, 0 0 16px ${color}88`,
+  /** Botón ajustes sidebar: anillo nítido de estado, sin halo */
+  settingsBtn: (color) => `0 0 0 2px ${color}cc`,
 
   /**
    * Sombras de separación — sustituyen a las líneas de contorno de 1px
@@ -502,16 +505,16 @@ export const SHADOWS = {
    * jerarquía la da el material y la sombra, nunca un aro fino.
    */
   /** Zona alta sobre contenido (titlebar, cabeceras de panel) */
-  sepZone: "0 12px 32px rgba(0,0,0,.45)",
+  sepZone: "0 1px 0 rgba(255,255,255,.05)",
 
   /** Debajo de una fila de lista o un separador interno */
-  sepRow: "0 6px 14px -8px rgba(0,0,0,.65)",
+  sepRow: "0 1px 0 rgba(255,255,255,.04)",
 
   /** Por encima de un pie de modal/hoja */
-  sepUp: "0 -12px 32px rgba(0,0,0,.45)",
+  sepUp: "0 -1px 0 rgba(255,255,255,.05)",
 
   /** Laterales: sombra de la barra lateral sobre el contenido */
-  sepRight: "14px 0 34px rgba(0,0,0,.4)",
+  sepRight: "0 0 0 1px rgba(255,255,255,.05)",
 };
 
 //  TRANSICIONES
@@ -573,36 +576,28 @@ export const GLASS = {
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
     border: "none",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), " + "0 4px 20px rgba(0,0,0,.25)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.06), 0 4px 16px rgba(0,0,0,.22)",
   },
 
-  /** Sidebar — Liquid Glass SIN backdrop-filter.
-   *  Nada pasa ni se anima por detrás (el contenido vive al lado, nunca por
-   *  detrás) y, además, Sidebar.jsx lo tapa con la gradiente opaca
-   *  `sidebarBgGradient()` — el blur era puro coste invisible. Regla nueva:
-   *  `backdrop-filter` solo donde hay movimiento detrás (player) o en
-   *  superficies de modal (sheet/settings, §7 de docs/PERFORMANCE.md).
-   *  Sin `border`: el divisor lo aporta el `borderRight` inline de Sidebar.jsx
-   *  (color-mix con el acento). Un border de 4 lados se ve como línea blanca. */
+  /** Sidebar — superficie estructural plana. No hay contenido en movimiento
+   *  por detrás, así que no lleva blur ni un degradado que compita con la
+   *  biblioteca. El acento queda para el estado activo. */
   sidebar: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%)",
+    background: COLORS.surfaceApp,
   },
 
-  /** Nav items — material del player bar: cristal con gradiente, brillo
-   *  interior y sombra. Sin borde: el relleno y la sombra ya separan la fila
-   *  del fondo (una línea de 1px se lee como contorno, no como material). */
+  /** Nav items — fila plana; el hover es un cambio de tono, no otra capa de
+   *  cristal. */
   navItem: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
-    boxShadow: SHADOWS.closeBtn,
+    background: "transparent",
+    boxShadow: "none",
   },
 
-  /** Nav item activo — relleno del acento + brillo interior + glow, sin
-   *  contorno: el estado activo lo marca el color, no un aro. */
+  /** Nav item activo — relleno tonal discreto; el acento no pinta toda la
+   *  navegación. */
   navItemActive: (accentColor) => ({
-    background: `color-mix(in srgb, ${accentColor} 18%, rgba(12,12,20,.8))`,
-    boxShadow:
-      `inset 0 1px 0 color-mix(in srgb, ${accentColor} 25%, transparent), ` +
-      `0 0 20px color-mix(in srgb, ${accentColor} 15%, transparent)`,
+    background: `color-mix(in srgb, ${accentColor} 12%, rgba(22,22,28,.92))`,
+    boxShadow: "none",
   }),
 
   /** Botón glass genérico — estilo Liquid Glass de LyricsView.
@@ -611,44 +606,47 @@ export const GLASS = {
    *  Sin backdrop-filter: sobre las superficies donde se usa (paneles y
    *  fondos estáticos) el blur era imperceptible, y al escalar en hover
    *  re-difuminaba su región en cada frame. */
+  /** Control plano canónico para las superficies de contenido. */
+  control: {
+    background: "rgba(255,255,255,.06)",
+    boxShadow: "none",
+  },
+
+  controlHover: {
+    background: "rgba(255,255,255,.10)",
+  },
+
+  /** Material heredado de las superficies que aún conservan el brillo de
+   *  cristal anterior. Las pantallas de contenido usan `control`. */
   btn: {
     background: "linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.04) 100%)",
-    boxShadow: SHADOWS.closeBtn,
+    boxShadow: "none",
   },
 
-  /** Hover de botón glass sobre superficies NO glass (fondo opaco).
-   *  Sobre superficies ya glass usar btnHoverSoft: este salta a "blanco
-   *  plano" y se ve doblado. */
+  /** Hover de botón sobre superficie plana. */
   btnHover: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,.08) 100%)",
+    background: "rgba(255,255,255,.10)",
   },
 
-  /** Botón glass hover sutil — realza el material manteniendo el gradiente.
-   *  Usar en botones encima de superficies ya glass (tarjetas, hojas,
-   *  vistas de biblioteca): btnHover salta a "blanco plano" y se ve doblado. */
+  /** Hover sutil dentro de tarjetas y filas. Se mantiene como brillo de
+   *  material de bajo contraste, nunca como color decorativo. */
   btnHoverSoft: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.17) 0%, rgba(255,255,255,.05) 100%)",
+    background: "linear-gradient(135deg, rgba(255,255,255,.09) 0%, rgba(255,255,255,.05) 100%)",
   },
 
-  /** Botón play — degradado del acento + glow del acento. Sin blur: es el
-   *  botón principal del reproductor y su glow es box-shadow puro, así que no
-   *  re-difumina fondo en cada repintado. */
+  /** Botón play — color sólido del acento. La jerarquía la sostienen tamaño,
+   *  forma y contraste; sin degradado ni halo. */
   playBtn: (accentColor) => ({
-    background: `linear-gradient(135deg, ${accentColor}, color-mix(in srgb, ${accentColor} 80%, white))`,
+    background: accentColor,
     border: "none",
-    boxShadow:
-      `0 0 12px color-mix(in srgb, ${accentColor} 40%, transparent), ` +
-      `0 0 24px color-mix(in srgb, ${accentColor} 15%, transparent), ` +
-      `inset 0 1px 0 rgba(255,255,255,.25)`,
+    boxShadow: `inset 0 1px 0 rgba(255,255,255,.22), 0 2px 8px rgba(0,0,0,.24)`,
   }),
 
-  /** Search bar — Liquid Glass SIN backdrop-filter: va dentro del flujo de
-   *  la vista (scrollea con el contenido) y nunca pasa nada por detrás.
-   *  Sin borde: el cristal se sostiene con el gradiente, el brillo interior
-   *  y su sombra (el foco realza el material, no enciende un aro). */
+  /** Search bar — superficie plana dentro del contenido; el foco añade un
+   *  anillo de acento, no un material nuevo. */
   searchbar: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 2px 8px rgba(0,0,0,.15)",
+    background: "rgba(255,255,255,.06)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
   },
 
   /** Card / Album card — Liquid Glass SIN backdrop-filter: todos los
@@ -691,31 +689,25 @@ export const GLASS = {
    *  además, `html.perf-solid [style*="backdrop-filter"]` le pintaría el velo
    *  entero de color sólido en modo Rendimiento). */
   sheet: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
-    border: "1px solid rgba(255,255,255,.12)",
-    borderColor: "rgba(255,255,255,.12)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.15), " + "0 24px 80px rgba(0,0,0,.6)",
+    background: "linear-gradient(135deg, rgba(18,18,24,.94) 0%, rgba(16,16,21,.92) 100%)",
+    border: "1px solid rgba(255,255,255,.10)",
+    borderColor: "rgba(255,255,255,.10)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 24px 64px rgba(0,0,0,.5)",
     backdropFilter: "blur(40px)",
     WebkitBackdropFilter: "blur(40px)",
   },
 
-  /** Title bar — Liquid Glass SIN backdrop-filter: superficie estática a
-   *  ancho completo; detrás solo está el fondo de la ventana y nada pasa
-   *  por detrás, así que el blur no aportaba nada visible. Sin borde de
-   *  contorno: la separación con el contenido la da SHADOWS.sepZone. */
+  /** Title bar — superficie estructural plana, separada por un hairline. */
   titleBar: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%)",
+    background: COLORS.surfaceApp,
   },
 
-  /** Volume / Crossfade popup / Toast — Liquid Glass con blur mínimo (6px).
-   *  No es modal: superficie transitoria, translúcida, que puede flotar
-   *  sobre contenido que se mueve detrás (scroll/letras) — 6px, sin
-   *  saturate (docs/PERFORMANCE.md §7). */
+  /** Volume / Crossfade popup / Toast — vidrio neutro transitorio. */
   popup: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 100%)",
+    background: "linear-gradient(135deg, rgba(18,18,24,.86) 0%, rgba(16,16,21,.80) 100%)",
     border: "1px solid rgba(255,255,255,.10)",
     borderColor: "rgba(255,255,255,.10)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.12), " + "0 12px 40px rgba(0,0,0,.5)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.10), 0 8px 24px rgba(0,0,0,.38)",
     backdropFilter: "blur(6px)",
     WebkitBackdropFilter: "blur(6px)",
   },
@@ -745,12 +737,12 @@ export const GLASS = {
    *    La jerarquía la dan el `borderBottom` del header y los divisores de
    *    `SettingRow`. */
   settings: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
+    background: COLORS.surfaceApp,
   },
 
-  /** Window control buttons (minimize, maximize, close) — Liquid Glass */
+  /** Window control buttons (minimize, maximize, close) */
   winCtrl: {
-    background: "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)",
+    background: "rgba(255,255,255,.06)",
     border: "1px solid rgba(255,255,255,.08)",
   },
 

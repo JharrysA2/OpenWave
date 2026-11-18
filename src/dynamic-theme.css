@@ -1,15 +1,12 @@
-/* ═ */
-   dynamic-theme.css — Variables derivadas de --neon Y la transición del color.
+/*
+   dynamic-theme.css — variables derivadas de --neon.
 
-   El hook useDynamicTheme escribe SOLO estas variables inline (dependen de la
-   canción): --neon, --neon-fg, --neon-transition, --bg-base.
-
-   Aquí viven las que son FÓRMULAS ESTÁTICAS de var(--neon) vía color-mix().
-   Como --neon está registrada con @property <color> (index.html), la regla
-   `transition: --neon` la interpola suavemente y todo lo que usa var(--neon)
-   (color-mix, bordes, botones, fondo) se actualiza en sincronía, sin
-   animación JS. Acentos de portada acromática → var(--neon)=#ffffff también.
-   ═════════════════════════════════════════════════════════════════════════════ */
+   El hook useDynamicTheme escribe solo las variables que dependen de la
+   canción: --neon, --neon-fg, --neon-transition y --bg-base. Aquí viven las
+   fórmulas estáticas de var(--neon). Como la propiedad está registrada con
+   @property <color> en index.html, la transición de :root interpola el acento
+   sin animación JS.
+*/
 
 :root {
   /* Fallback de contraste para los botones con el acento de fondo: pinta
@@ -24,9 +21,10 @@
   --neon-btn-hover: color-mix(in srgb, var(--neon) 67%, transparent);
 }
 
-/* Transición del color de acento */
-   Sustituye la animación rAF del hook. La duración la controla el hook vía
-   --neon-transition ("0s" o "Ns"). 0.2s es el fallback pre-React. */
+/*
+   Transición del color de acento. La duración la controla el hook vía
+   --neon-transition ("0s" o "Ns"). 0.2s es el fallback pre-React.
+*/
 
 /* SOLO en :root. Antes era `*`, y como --neon es una custom property
    HEREDADA, cada elemento del documento arrancaba su propia transición de un
@@ -40,10 +38,9 @@
   transition: --neon var(--neon-transition, 0.2s);
 }
 
-/* ═ */
-   #sw-slider-style — estilos globales de sliders, scrollbars y placeholders
-   (migrado íntegro desde el hook useDynamicTheme).
-   ═══════════════════════════════════════════════════════════════════════════ */
+/*
+   Estilos globales de sliders, scrollbars y placeholders.
+*/
 
 /* Pista + relleno visible: el componente <Slider> escribe --fill (0%-100%)
    inline y aquí se dibuja la barra recorrida en el acento y la porción
@@ -84,10 +81,7 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: -5px;
   cursor: pointer;
   border: 2px solid rgba(255, 255, 255, 0.2);
-  box-shadow:
-    0 0 12px color-mix(in srgb, var(--neon) 93%, transparent),
-    0 0 24px color-mix(in srgb, var(--neon) 40%, transparent),
-    0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   transition:
     transform 0.15s,
     box-shadow 0.15s;
@@ -95,17 +89,14 @@ input[type="range"]::-webkit-slider-thumb {
   opacity: 1;
 }
 input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.25) !important;
-  box-shadow:
-    0 0 20px var(--neon),
-    0 0 40px color-mix(in srgb, var(--neon) 53%, transparent),
-    0 2px 8px rgba(0, 0, 0, 0.4);
+  transform: scale(1.1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 input[type="range"]:focus-visible::-webkit-slider-thumb {
   opacity: 1;
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--neon) 53%, transparent),
-    0 0 16px color-mix(in srgb, var(--neon) 80%, transparent) !important;
+    0 0 0 2px var(--bg-base, #0a0a0f),
+    0 0 0 4px var(--neon) !important;
 }
 input[type="range"]::-moz-range-track {
   height: 4px;
@@ -132,7 +123,7 @@ input[type="range"]::-moz-range-thumb {
 ::-webkit-input-placeholder,
 :-moz-placeholder,
 ::-moz-placeholder {
-  color: rgba(255, 255, 255, 0.4) !important;
+  color: rgba(255, 255, 255, 0.58) !important;
   opacity: 1 !important;
 }
 ::-webkit-scrollbar {
@@ -162,21 +153,34 @@ input[type="range"]::-moz-range-thumb {
   scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
 
-/* Tipografía consistente de la app */
-   La raíz de App declara FONT, pero cualquier contenido montado en
-   <body> por un portal (modales, mute del player) caería en la fuente
-   del sistema; body fija la misma familia que constants.FONT. */
+/*
+   Tipografía consistente de la app. El body fija la misma familia que usa
+   App para que los portales y controles nativos no caigan en la del sistema.
+*/
 body {
   font-family: "DM Sans", system-ui, sans-serif;
+  color: #fff;
 }
 
-/* Tipografía consistente en controles de formulario */
-   El UA stylesheet NO hereda la fuente en botones/inputs/selects
-   (se pintaban con la fuente del sistema —Segoe/Arial— en vez de la
-   DM Sans de la app: botones de «Reproducir todo», «Limpiar», los de
-   los modales…). Como estos elementos SÍ heredan si nadie lo impide,
-   basta devolverles font-family: inherit. Los estilos inline con
-   fontFamily propio siguen mandando por encima de esta regla. */
+/* Foco de teclado único para todos los controles interactivos. */
+:where(
+  button,
+  a,
+  [role="button"],
+  [role="switch"],
+  [role="tab"],
+  input:not([type="range"]),
+  select,
+  textarea
+):focus-visible {
+  outline: 2px solid var(--neon);
+  outline-offset: 2px;
+}
+
+/*
+   Los controles de formulario no heredan la fuente por defecto. Devolver
+   font-family: inherit mantiene DM Sans en botones, inputs y selects.
+*/
 button,
 input,
 select,
@@ -184,11 +188,7 @@ textarea {
   font-family: inherit;
 }
 
-/* Divisores de filas en Ajustes */
-   Las filas (SettingRow) se separan con una línea de pelo SOLO entre
-   hermanas: la sombra separadora anterior (SHADOWS.sepRow) dibujaba una
-   banda oscura rara bajo cada fila, incluso tras la última dentro de la
-   tarjeta. border=false omite la clase y no participa. */
+/* Divisor de filas de Ajustes: solo entre hermanas consecutivas. */
 .ow-set-row + .ow-set-row {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }

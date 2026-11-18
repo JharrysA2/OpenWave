@@ -239,7 +239,7 @@ export default function PlaylistView({
       <div
         style={{
           display: "flex",
-          gap: "20px",
+          gap: "24px",
           marginBottom: "24px",
           alignItems: "flex-end",
           ...ANIMATIONS.fadeIn(0),
@@ -249,25 +249,25 @@ export default function PlaylistView({
         <button
           onClick={onBack}
           style={{
-            ...GLASS.btn,
-            borderRadius: RADIUS.full,
-            width: "36px",
-            height: "36px",
+            ...GLASS.control,
+            borderRadius: RADIUS.default,
+            width: "44px",
+            height: "44px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            color: "rgba(255,255,255,.6)",
+            color: COLORS.textSecondary,
             flexShrink: 0,
             transition: TRANSITIONS.fast,
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = GLASS.btnHoverSoft.background;
-            e.currentTarget.style.color = "rgba(255,255,255,.9)";
+            e.currentTarget.style.background = GLASS.controlHover.background;
+            e.currentTarget.style.color = COLORS.textPrimary;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = GLASS.btn.background;
-            e.currentTarget.style.color = "rgba(255,255,255,.6)";
+            e.currentTarget.style.background = GLASS.control.background;
+            e.currentTarget.style.color = COLORS.textSecondary;
           }}
         >
           <svg
@@ -289,11 +289,10 @@ export default function PlaylistView({
           style={{
             width: "160px",
             height: "160px",
-            borderRadius: RADIUS.card,
+            borderRadius: RADIUS.default,
             overflow: "hidden",
             flexShrink: 0,
             background: COLORS.surfaceCoverBg,
-            boxShadow: "0 8px 30px rgba(0,0,0,.4)",
           }}
         >
           {coverUrl ? (
@@ -312,8 +311,8 @@ export default function PlaylistView({
                 alignItems: "center",
                 justifyContent: "center",
                 background: playlist.color
-                  ? `linear-gradient(135deg, ${playlist.color}55, ${playlist.color}11)`
-                  : `linear-gradient(135deg, ${accentColor}44, ${accentColor}11)`,
+                  ? `color-mix(in srgb, ${playlist.color} 18%, transparent)`
+                  : `color-mix(in srgb, ${accentColor} 18%, transparent)`,
               }}
             >
               <svg
@@ -337,11 +336,11 @@ export default function PlaylistView({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontSize: "11px",
-              fontWeight: "700",
-              color: "rgba(255,255,255,.5)",
+              fontSize: "12px",
+              fontWeight: "600",
+              color: COLORS.textTertiary,
               textTransform: "uppercase",
-              letterSpacing: "1px",
+              letterSpacing: ".04em",
               marginBottom: "4px",
             }}
           >
@@ -356,11 +355,11 @@ export default function PlaylistView({
               autoFocus
               style={{
                 fontSize: "28px",
-                fontWeight: "800",
+                fontWeight: "700",
                 color: COLORS.textPrimary,
                 background: "rgba(255,255,255,.06)",
                 border: `1px solid ${accentColor}66`,
-                borderRadius: "8px",
+                borderRadius: RADIUS.default,
                 padding: "2px 8px",
                 outline: "none",
                 width: "100%",
@@ -376,10 +375,10 @@ export default function PlaylistView({
               }}
               style={{
                 fontSize: "28px",
-                fontWeight: "800",
+                fontWeight: "700",
                 color: COLORS.textPrimary,
                 margin: 0,
-                letterSpacing: "-.5px",
+                letterSpacing: "-.02em",
                 cursor: "pointer",
                 transition: TRANSITIONS.fast,
               }}
@@ -391,9 +390,9 @@ export default function PlaylistView({
           )}
           <div
             style={{
-              fontSize: "13px",
+              fontSize: "14px",
               color: COLORS.textTertiary,
-              fontWeight: "600",
+              fontWeight: "500",
               marginTop: "4px",
             }}
           >
@@ -404,8 +403,8 @@ export default function PlaylistView({
           <div
             style={{
               display: "flex",
-              gap: "10px",
-              marginTop: "14px",
+              gap: "8px",
+              marginTop: "16px",
               flexWrap: "wrap",
               alignItems: "center",
             }}
@@ -415,11 +414,12 @@ export default function PlaylistView({
               onClick={() => playAll(true)}
               disabled={songs.length === 0}
               style={{
-                ...GLASS.btn,
-                borderRadius: RADIUS.pill,
-                padding: "9px 18px",
-                fontSize: "12.5px",
-                fontWeight: "700",
+                ...GLASS.control,
+                borderRadius: RADIUS.default,
+                minHeight: "44px",
+                padding: "0 16px",
+                fontSize: "14px",
+                fontWeight: "600",
                 color: COLORS.textPrimary,
                 fontFamily: FONT,
                 cursor: songs.length === 0 ? "not-allowed" : "pointer",
@@ -432,12 +432,12 @@ export default function PlaylistView({
               onMouseEnter={(e) => {
                 if (songs.length > 0) {
                   // Material del player bar: el hover realza el cristal.
-                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                  e.currentTarget.style.background = GLASS.controlHover.background;
                 }
               }}
               onMouseLeave={(e) => {
                 if (songs.length > 0) {
-                  e.currentTarget.style.background = GLASS.btn.background;
+                  e.currentTarget.style.background = GLASS.control.background;
                 }
               }}
             >
@@ -452,10 +452,11 @@ export default function PlaylistView({
               style={{
                 background: accentColor,
                 border: "none",
-                borderRadius: RADIUS.pill,
-                padding: "9px 20px",
-                fontSize: "12.5px",
-                fontWeight: "700",
+                borderRadius: RADIUS.default,
+                minHeight: "44px",
+                padding: "0 20px",
+                fontSize: "14px",
+                fontWeight: "600",
                 // Acento de fondo → primer plano dinámico (nunca blanco fijo)
                 color: "var(--neon-fg)",
                 fontFamily: FONT,
@@ -482,15 +483,16 @@ export default function PlaylistView({
               <button
                 onClick={toggleSelectMode}
                 style={{
-                  ...GLASS.btn,
+                  ...GLASS.control,
                   // Modo selección: relleno del acento, sin contorno.
                   ...(selectMode ? { background: `${accentColor}22` } : {}),
-                  borderRadius: RADIUS.pill,
-                  padding: "9px 16px",
-                  fontSize: "12.5px",
-                  fontWeight: "700",
+                  borderRadius: RADIUS.default,
+                  minHeight: "44px",
+                  padding: "0 16px",
+                  fontSize: "14px",
+                  fontWeight: "600",
                   fontFamily: FONT,
-                  color: selectMode ? accentColor : "rgba(255,255,255,.5)",
+                  color: selectMode ? accentColor : COLORS.textSecondary,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -499,12 +501,12 @@ export default function PlaylistView({
                 }}
                 onMouseEnter={(e) => {
                   if (!selectMode) {
-                    e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                    e.currentTarget.style.background = GLASS.controlHover.background;
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!selectMode) {
-                    e.currentTarget.style.background = GLASS.btn.background;
+                    e.currentTarget.style.background = GLASS.control.background;
                   }
                 }}
               >
@@ -530,14 +532,15 @@ export default function PlaylistView({
               <button
                 onClick={handleRemoveSelected}
                 style={{
-                  ...GLASS.btn,
+                  ...GLASS.control,
                   // Sin rojo: el borrado va con el material y el color neutro
                   // de la barra (la selección ya avisa de lo que se borra).
-                  borderRadius: RADIUS.pill,
-                  padding: "9px 16px",
-                  fontSize: "12.5px",
-                  fontWeight: "700",
-                  color: "rgba(255,255,255,.5)",
+                  borderRadius: RADIUS.default,
+                  minHeight: "44px",
+                  padding: "0 16px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: COLORS.textSecondary,
                   fontFamily: FONT,
                   cursor: "pointer",
                   display: "flex",
@@ -546,10 +549,10 @@ export default function PlaylistView({
                   transition: "background .12s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                  e.currentTarget.style.background = GLASS.controlHover.background;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = GLASS.btn.background;
+                  e.currentTarget.style.background = GLASS.control.background;
                 }}
               >
                 {Ic.trash}
@@ -562,12 +565,13 @@ export default function PlaylistView({
               <button
                 onClick={() => setShowTransferModal(true)}
                 style={{
-                  ...GLASS.btn,
+                  ...GLASS.control,
                   // Mover: cristal con el texto en acento, sin contorno.
-                  borderRadius: RADIUS.pill,
-                  padding: "9px 16px",
-                  fontSize: "12.5px",
-                  fontWeight: "700",
+                  borderRadius: RADIUS.default,
+                  minHeight: "44px",
+                  padding: "0 16px",
+                  fontSize: "14px",
+                  fontWeight: "600",
                   color: accentColor,
                   fontFamily: FONT,
                   cursor: "pointer",
@@ -577,10 +581,10 @@ export default function PlaylistView({
                   transition: "background .12s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                  e.currentTarget.style.background = GLASS.controlHover.background;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = GLASS.btn.background;
+                  e.currentTarget.style.background = GLASS.control.background;
                 }}
               >
                 <svg
@@ -603,12 +607,13 @@ export default function PlaylistView({
             <button
               onClick={() => setShowDeleteModal(true)}
               style={{
-                ...GLASS.btn,
-                borderRadius: RADIUS.pill,
-                padding: "9px 16px",
-                fontSize: "12.5px",
-                fontWeight: "700",
-                color: "rgba(255,255,255,.4)",
+                ...GLASS.control,
+                borderRadius: RADIUS.default,
+                minHeight: "44px",
+                padding: "0 16px",
+                fontSize: "14px",
+                fontWeight: "600",
+                color: COLORS.textTertiary,
                 fontFamily: FONT,
                 cursor: "pointer",
                 display: "flex",
@@ -619,12 +624,12 @@ export default function PlaylistView({
               onMouseEnter={(e) => {
                 // Sin contorno ni rojo: el hover realza el cristal y aclara el
                 // texto, como el resto de acciones de la barra.
-                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
-                e.currentTarget.style.color = "rgba(255,255,255,.85)";
+                e.currentTarget.style.background = GLASS.controlHover.background;
+                e.currentTarget.style.color = COLORS.textPrimary;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = GLASS.btn.background;
-                e.currentTarget.style.color = "rgba(255,255,255,.4)";
+                e.currentTarget.style.background = GLASS.control.background;
+                e.currentTarget.style.color = COLORS.textTertiary;
               }}
             >
               {Ic.trash}
@@ -638,11 +643,11 @@ export default function PlaylistView({
       {loading ? (
         <div
           style={{
-            padding: "60px 20px",
+            padding: "60px 24px",
             textAlign: "center",
-            color: "rgba(255,255,255,.3)",
+            color: COLORS.textSecondary,
             fontSize: "14px",
-            fontWeight: "600",
+            fontWeight: "400",
           }}
         >
           Cargando...
@@ -657,11 +662,11 @@ export default function PlaylistView({
       ) : songs.length === 0 ? (
         <div
           style={{
-            padding: "60px 20px",
+            padding: "60px 24px",
             textAlign: "center",
-            color: "rgba(255,255,255,.3)",
+            color: COLORS.textSecondary,
             fontSize: "14px",
-            fontWeight: "600",
+            fontWeight: "400",
           }}
         >
           Esta playlist está vacía. Agrega canciones desde el menú de opciones.
@@ -682,11 +687,11 @@ export default function PlaylistView({
           {filteredSongs.length === 0 ? (
             <div
               style={{
-                padding: "60px 20px",
+                padding: "60px 24px",
                 textAlign: "center",
-                color: "rgba(255,255,255,.3)",
+                color: COLORS.textSecondary,
                 fontSize: "14px",
-                fontWeight: "600",
+                fontWeight: "400",
               }}
             >
               Sin resultados para «{songQuery}»

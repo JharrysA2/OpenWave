@@ -1,6 +1,6 @@
 import React from "react";
 import { FONT } from "../constants";
-import { RADIUS, TRANSITIONS, GLASS, SHADOWS, sidebarBgGradient } from "../utils/theme";
+import { COLORS, RADIUS, TRANSITIONS, GLASS, safeAccentText } from "../utils/theme";
 import { Ic } from "../icons/Icons";
 import { Logo } from "./Logo";
 
@@ -42,7 +42,7 @@ export const Sidebar = React.memo(function Sidebar({
         display: "flex",
         flexDirection: "column",
         ...GLASS.sidebar,
-        background: sidebarBgGradient(),
+        borderRight: `1px solid ${COLORS.borderSubtle}`,
       }}
     >
       {/* ── Núcleo a ancho fijo (200px): el contenedor lo recorta al
@@ -57,8 +57,6 @@ export const Sidebar = React.memo(function Sidebar({
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          // Sin línea de contorno: la separación con el contenido es sombra.
-          boxShadow: SHADOWS.sepRight,
           transform: visible ? "translateX(0)" : "translateX(-16px)",
           opacity: visible ? 1 : 0,
           visibility: visible ? "visible" : "hidden",
@@ -79,9 +77,6 @@ export const Sidebar = React.memo(function Sidebar({
             alignItems: "center",
             justifyContent: "space-between",
             gap: "4px",
-            // Sin sombra de zona debajo: la mancha oscura del encabezado se
-            // leía como un degradado cortado justo bajo la marca. La
-            // jerarquía la da el propio degradado del fondo del sidebar.
             flexShrink: 0,
           }}
         >
@@ -89,10 +84,10 @@ export const Sidebar = React.memo(function Sidebar({
             <Logo size={26} />
             <span
               style={{
-                fontSize: "15px",
-                fontWeight: "800",
-                letterSpacing: "-.3px",
-                color: "rgba(255,255,255,.92)",
+                fontSize: "14px",
+                fontWeight: "700",
+                letterSpacing: "-.2px",
+                color: COLORS.textPrimary,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -162,7 +157,7 @@ export const Sidebar = React.memo(function Sidebar({
                 height: "32px",
                 borderRadius: "50%",
                 flexShrink: 0,
-                ...GLASS.btn,
+                ...GLASS.control,
                 color: "rgba(255,255,255,.55)",
                 cursor: "pointer",
                 display: "flex",
@@ -180,11 +175,11 @@ export const Sidebar = React.memo(function Sidebar({
               onMouseEnter={(e) => {
                 // Material del player bar: el hover realza el cristal, no enciende
                 // un contorno ni salta a blanco plano.
-                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
-                e.currentTarget.style.color = "rgba(255,255,255,.85)";
+                e.currentTarget.style.background = GLASS.controlHover.background;
+                e.currentTarget.style.color = COLORS.textPrimary;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = GLASS.btn.background;
+                e.currentTarget.style.background = GLASS.control.background;
                 e.currentTarget.style.color = "rgba(255,255,255,.55)";
                 e.currentTarget.style.transform = "scale(1)";
               }}
@@ -215,37 +210,30 @@ export const Sidebar = React.memo(function Sidebar({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "10px",
+                gap: "8px",
                 width: "100%",
-                padding: "9px 12px",
-                borderRadius: "12px",
+                minHeight: "44px",
+                padding: "0 16px",
+                borderRadius: RADIUS.default,
                 cursor: "pointer",
                 ...(tab === t ? GLASS.navItemActive(accentColor) : GLASS.navItem),
-                color: tab === t ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.55)",
-                fontWeight: tab === t ? "700" : "500",
-                fontSize: "13px",
+                color: tab === t ? safeAccentText(accentColor) : COLORS.textSecondary,
+                fontWeight: tab === t ? "600" : "500",
+                fontSize: "14px",
                 marginBottom: "4px",
                 fontFamily: FONT,
-                transition:
-                  "background .12s cubic-bezier(.16,1,.3,1), color .12s cubic-bezier(.16,1,.3,1), transform .12s cubic-bezier(.16,1,.3,1), font-weight .12s cubic-bezier(.16,1,.3,1)",
-              }}
-              onMouseDown={(e) => {
-                // Apple: instant feedback on pointer-down
-                e.currentTarget.style.transform = "scale(0.97)";
-              }}
-              onMouseUp={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
+                transition: "background .12s ease, color .12s ease",
               }}
               onMouseEnter={(e) => {
                 if (tab !== t) {
-                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
-                  e.currentTarget.style.color = "rgba(255,255,255,.88)";
+                  e.currentTarget.style.background = "rgba(255,255,255,.06)";
+                  e.currentTarget.style.color = COLORS.textPrimary;
                 }
               }}
               onMouseLeave={(e) => {
                 if (tab !== t) {
                   e.currentTarget.style.background = GLASS.navItem.background;
-                  e.currentTarget.style.color = "rgba(255,255,255,.55)";
+                  e.currentTarget.style.color = COLORS.textSecondary;
                 }
               }}
             >
@@ -269,11 +257,11 @@ export const Sidebar = React.memo(function Sidebar({
           >
             <span
               style={{
-                fontSize: "10px",
-                fontWeight: "800",
-                color: "rgba(255,255,255,.35)",
+                fontSize: "12px",
+                fontWeight: "600",
+                color: COLORS.textTertiary,
                 textTransform: "uppercase",
-                letterSpacing: "1px",
+                letterSpacing: ".04em",
               }}
             >
               Playlists
@@ -281,7 +269,7 @@ export const Sidebar = React.memo(function Sidebar({
             <button
               onClick={onCreatePlaylist}
               style={{
-                ...GLASS.btn,
+                ...GLASS.control,
                 borderRadius: RADIUS.full,
                 width: "24px",
                 height: "24px",
@@ -318,9 +306,9 @@ export const Sidebar = React.memo(function Sidebar({
             <div
               style={{
                 padding: "12px 12px 8px",
-                fontSize: "11px",
-                color: "rgba(255,255,255,.2)",
-                fontWeight: "600",
+                fontSize: "12px",
+                color: COLORS.textTertiary,
+                fontWeight: "500",
                 textAlign: "center",
               }}
             >
@@ -338,36 +326,28 @@ export const Sidebar = React.memo(function Sidebar({
                     alignItems: "center",
                     gap: "10px",
                     width: "100%",
-                    padding: "6px 8px",
-                    borderRadius: "12px",
+                    padding: "4px 8px",
+                    borderRadius: RADIUS.default,
                     cursor: "pointer",
-                    background: isActive
-                      ? "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.04) 100%)"
-                      : "transparent",
-                    // Sin contorno: la fila activa se marca con el relleno y la
-                    // sombra del material (el borde de 1px se veía como línea).
-                    boxShadow: isActive ? SHADOWS.closeBtn : "none",
-                    color: isActive ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.5)",
-                    fontWeight: isActive ? "700" : "500",
-                    fontSize: "12.5px",
+                    background: isActive ? "rgba(255,255,255,.08)" : "transparent",
+                    color: isActive ? COLORS.textPrimary : COLORS.textSecondary,
+                    fontWeight: isActive ? "600" : "400",
+                    fontSize: "14px",
                     fontFamily: FONT,
-                    transition:
-                      "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), box-shadow .15s cubic-bezier(.16,1,.3,1), font-weight .15s cubic-bezier(.16,1,.3,1)",
+                    transition: "background .12s ease, color .12s ease",
                     textAlign: "left",
-                    marginBottom: "3px",
+                    marginBottom: "4px",
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
-                      e.currentTarget.style.background = GLASS.btnHoverSoft.background;
-                      e.currentTarget.style.boxShadow = SHADOWS.closeBtn;
-                      e.currentTarget.style.color = "rgba(255,255,255,.85)";
+                      e.currentTarget.style.background = "rgba(255,255,255,.05)";
+                      e.currentTarget.style.color = COLORS.textPrimary;
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isActive) {
                       e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.boxShadow = "none";
-                      e.currentTarget.style.color = "rgba(255,255,255,.5)";
+                      e.currentTarget.style.color = COLORS.textSecondary;
                     }
                   }}
                 >
@@ -377,10 +357,9 @@ export const Sidebar = React.memo(function Sidebar({
                       style={{
                         width: "40px",
                         height: "40px",
-                        borderRadius: "8px",
+                        borderRadius: RADIUS.default,
                         overflow: "hidden",
                         flexShrink: 0,
-                        boxShadow: "0 2px 8px rgba(0,0,0,.3)",
                       }}
                     >
                       <img
@@ -396,17 +375,17 @@ export const Sidebar = React.memo(function Sidebar({
                       style={{
                         width: "40px",
                         height: "40px",
-                        borderRadius: "8px",
+                        borderRadius: RADIUS.default,
                         flexShrink: 0,
                         background: pl.color
-                          ? `linear-gradient(135deg, ${pl.color}44, ${pl.color}15)`
-                          : "linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.02))",
+                          ? `color-mix(in srgb, ${pl.color} 18%, transparent)`
+                          : "rgba(255,255,255,.06)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         border: pl.color
                           ? `1px solid ${pl.color}33`
-                          : "1px solid rgba(255,255,255,.06)",
+                          : `1px solid ${COLORS.borderSubtle}`,
                       }}
                     >
                       <svg
@@ -437,10 +416,10 @@ export const Sidebar = React.memo(function Sidebar({
                     </div>
                     <div
                       style={{
-                        fontSize: "10px",
-                        color: "rgba(255,255,255,.25)",
-                        fontWeight: "600",
-                        marginTop: "1px",
+                        fontSize: "12px",
+                        color: COLORS.textTertiary,
+                        fontWeight: "500",
+                        marginTop: "2px",
                       }}
                     >
                       {pl.song_count || 0} {(pl.song_count || 0) === 1 ? "canción" : "canciones"}

@@ -1,8 +1,7 @@
 import React from "react";
-import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
-import { COLORS, GLASS, LAYOUTS, RADIUS, TRANSITIONS, ANIMATIONS } from "../utils/theme";
+import { COLORS, LAYOUTS, RADIUS, TRANSITIONS, ANIMATIONS } from "../utils/theme";
 
 function CardButton({ children, onClick, title, style, hover }) {
   // Hover declarativo: los estilos se recalculan en render, así que al salir
@@ -10,28 +9,21 @@ function CardButton({ children, onClick, title, style, hover }) {
   // hardcodeado — antes el mouseleave pisaba el acento con negro fijo.
   const [hovered, setHovered] = React.useState(false);
   const base = {
-    background: "rgba(0,0,0,.55)",
-    border: "1px solid rgba(255,255,255,.18)",
-    borderRadius: RADIUS.full,
-    width: "34px",
-    height: "34px",
+    background: "rgba(10,10,14,.78)",
+    border: "1px solid rgba(255,255,255,.12)",
+    borderRadius: RADIUS.default,
+    width: "40px",
+    height: "40px",
     cursor: "pointer",
     color: "#fff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     padding: 0,
-    // Sin backdropFilter: un blur anidado aplica el cristal dos veces, se ve
-    // turbio y en render por software multiplica el coste (además las
-    // tarjetas ya no difuminan de pie — ver AlbumGridCard/ArtistGridCard).
-    // Es además la excepción documentada al liquid glass: sobre portada el
-    // opaco rgba(0,0,0,.55) garantiza legibilidad sin depender del blur.
-    transition: "background .15s ease, transform .15s ease",
+    transition: "background .12s ease",
     ...style,
   };
-  const style_ = hovered
-    ? { ...base, ...(hover || { background: "rgba(0,0,0,.78)", transform: "scale(1.08)" }) }
-    : base;
+  const style_ = hovered ? { ...base, ...(hover || { background: "rgba(20,20,26,.94)" }) } : base;
   return (
     <button
       title={title}
@@ -69,13 +61,11 @@ export const AlbumGridCard = React.memo(function AlbumGridCard({
         containIntrinsicSize: "auto 220px",
         ...ANIMATIONS.fadeSlideUp(animationDelay),
         ...LAYOUTS.albumCard,
-        // Sin backdrop-filter de pie (regresión de rendimiento): en render
-        // por software (sin GPU) cada tarjeta re-difumina todo su fondo en
-        // cada repintado y la cuadrícula congela la app. Sobre rejilla plana
-        // el blur era imperceptible; gradiente, borde y sombra se conservan.
+        background: hovered ? COLORS.surfaceCardHover : COLORS.surfaceCard,
+        border: `1px solid ${COLORS.borderSubtle}`,
+        boxShadow: "none",
         backdropFilter: undefined,
         WebkitBackdropFilter: undefined,
-        ...(hovered ? GLASS.cardHover : {}),
         transform: hovered ? "translateY(-2px)" : "translateY(0)",
         minWidth: 0,
         transition: `${TRANSITIONS.fast}, transform .12s ease`,
@@ -107,13 +97,11 @@ export const AlbumGridCard = React.memo(function AlbumGridCard({
                 color: "var(--neon-fg)",
                 width: "40px",
                 height: "40px",
-                boxShadow: `0 4px 16px ${accentColor}66`,
               }}
               hover={{
-                // Conserva el acento: escala + anillo adaptativo (--neon-fg),
-                // nunca otra capa blanca ni brightness invisible sobre blanco
+                background: `color-mix(in srgb, ${accentColor} 88%, white)`,
                 transform: "scale(1.08)",
-                boxShadow: `0 6px 20px ${accentColor}80, 0 0 0 2px color-mix(in srgb, var(--neon-fg) 30%, transparent)`,
+                boxShadow: `0 0 0 2px color-mix(in srgb, var(--neon-fg) 30%, transparent)`,
               }}
             >
               {Ic.play(18)}
@@ -131,8 +119,8 @@ export const AlbumGridCard = React.memo(function AlbumGridCard({
       <div style={{ padding: "8px 10px 10px" }}>
         <div
           style={{
-            fontSize: "12.5px",
-            fontWeight: "800",
+            fontSize: "14px",
+            fontWeight: "600",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -143,9 +131,9 @@ export const AlbumGridCard = React.memo(function AlbumGridCard({
         </div>
         <div
           style={{
-            fontSize: "10.5px",
+            fontSize: "12px",
             color: COLORS.textTertiary,
-            fontWeight: "600",
+            fontWeight: "400",
             marginTop: "2px",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -177,13 +165,13 @@ export const ArtistGridCard = React.memo(function ArtistGridCard({
         contentVisibility: "auto",
         containIntrinsicSize: "auto 200px",
         ...ANIMATIONS.fadeSlideUp(animationDelay),
-        ...GLASS.card,
-        // Sin backdrop-filter de pie — ver comentario en AlbumGridCard.
+        background: hovered ? COLORS.surfaceCardHover : COLORS.surfaceCard,
+        border: `1px solid ${COLORS.borderSubtle}`,
+        boxShadow: "none",
         backdropFilter: undefined,
         WebkitBackdropFilter: undefined,
-        ...(hovered ? GLASS.cardHover : {}),
         transform: hovered ? "translateY(-2px)" : "translateY(0)",
-        borderRadius: RADIUS.card,
+        borderRadius: RADIUS.default,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -216,8 +204,8 @@ export const ArtistGridCard = React.memo(function ArtistGridCard({
       <div style={{ textAlign: "center", minWidth: 0, width: "100%" }}>
         <div
           style={{
-            fontSize: "12.5px",
-            fontWeight: "800",
+            fontSize: "14px",
+            fontWeight: "600",
             color: COLORS.textPrimary,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -228,9 +216,9 @@ export const ArtistGridCard = React.memo(function ArtistGridCard({
         </div>
         <div
           style={{
-            fontSize: "10.5px",
+            fontSize: "12px",
             color: COLORS.textTertiary,
-            fontWeight: "600",
+            fontWeight: "400",
             marginTop: "2px",
           }}
         >

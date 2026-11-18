@@ -11,12 +11,10 @@ import { getBtnShapeStyle } from "../utils/playerStyles";
 import { Slider } from "./SettingsComponents";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, safeAccentText } from "../utils/theme";
 
-/* Botones del player — GLASS.btn SIN backdrop-filter (decisión de diseño):
-   el hover los escala y re-difuminaría su región en cada frame (6 regiones
-   en la barra); su cristal es el gradiente + highlight interior del token.
-   El bar sí difumina de nuevo (GLASS.player restaurado, medición ≈0). */
+/* Botones del player: superficie plana, sin blur ni degradado. El vidrio
+   queda en la barra que los contiene. */
 const BAR_BTN = {
-  ...GLASS.btn,
+  ...GLASS.control,
   backdropFilter: "none",
   WebkitBackdropFilter: "none",
 };
@@ -103,8 +101,8 @@ function VolSlider({ visible, volPos, volume, onVolume, accentColor, onMouseEnte
       <span
         style={{
           fontFamily: FONT,
-          fontSize: "11px",
-          fontWeight: "700",
+          fontSize: "12px",
+          fontWeight: "600",
           color: safeAccentText(accentColor),
           fontVariantNumeric: "tabular-nums",
           userSelect: "none",
@@ -139,8 +137,7 @@ function VolSlider({ visible, volPos, volume, onVolume, accentColor, onMouseEnte
             right: 0,
             height: `${Math.max(thumbPos, 3)}px`,
             borderRadius: "5px",
-            background: `linear-gradient(to top, ${accentColor}, ${accentColor}bb)`,
-            boxShadow: `0 0 8px ${accentColor}88, 0 0 16px ${accentColor}44`,
+            background: accentColor,
             transition: dragging ? "none" : "height .08s ease",
             pointerEvents: "none",
           }}
@@ -157,7 +154,7 @@ function VolSlider({ visible, volPos, volume, onVolume, accentColor, onMouseEnte
             borderRadius: "50%",
             background: accentColor,
             border: "2px solid rgba(255,255,255,.4)",
-            boxShadow: `0 0 10px ${accentColor}cc, 0 2px 4px rgba(0,0,0,.5)`,
+            boxShadow: "0 1px 3px rgba(0,0,0,.35)",
             cursor: "grab",
             pointerEvents: "none",
             opacity: showThumb ? 1 : 0,
@@ -423,18 +420,14 @@ export const PlayerBar = memo(function PlayerBar({
           "transform .35s cubic-bezier(.16,1,.3,1), background .3s, box-shadow .3s, border .3s",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-4px) scale(1.005)";
-        e.currentTarget.style.background =
-          "linear-gradient(135deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.05) 100%)";
+        e.currentTarget.style.transform = "translateY(-1px)";
+        e.currentTarget.style.background = "rgba(16,16,22,.24)";
         e.currentTarget.style.boxShadow =
-          "inset 0 1px 0 rgba(255,255,255,.18), " +
-          "inset 0 -1px 0 rgba(255,255,255,.06), " +
-          "0 12px 40px rgba(0,0,0,.4)";
+          "inset 0 1px 0 rgba(255,255,255,.10), 0 6px 18px rgba(0,0,0,.28)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0) scale(1)";
-        e.currentTarget.style.background =
-          "linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 100%)";
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.background = GLASS.player.background;
         e.currentTarget.style.boxShadow = GLASS.player.boxShadow;
       }}
     >
@@ -477,8 +470,8 @@ export const PlayerBar = memo(function PlayerBar({
           <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={onOpenOptions}>
             <div
               style={{
-                fontSize: "13.5px",
-                fontWeight: "700",
+                fontSize: "14px",
+                fontWeight: "600",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -546,12 +539,12 @@ export const PlayerBar = memo(function PlayerBar({
                     "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                  e.currentTarget.style.background = GLASS.controlHover.background;
                   e.currentTarget.style.color = accentColor;
                   e.currentTarget.style.transform = "scale(1.08)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = GLASS.btn.background;
+                  e.currentTarget.style.background = GLASS.control.background;
                   e.currentTarget.style.color = btn.color;
                   e.currentTarget.style.transform = "scale(1)";
                 }}
@@ -584,17 +577,16 @@ export const PlayerBar = memo(function PlayerBar({
                 }
               }}
               onMouseUp={(e) => {
-                e.currentTarget.style.transform = "scale(1.1)";
+                e.currentTarget.style.transform = "scale(1.04)";
               }}
               onMouseEnter={(e) => {
                 if (!streamLoading) {
-                  e.currentTarget.style.transform = "scale(1.08)";
-                  e.currentTarget.style.boxShadow = `0 0 24px color-mix(in srgb, ${neon} 93%, transparent), 0 0 48px color-mix(in srgb, ${neon} 40%, transparent)`;
+                  e.currentTarget.style.transform = "scale(1.04)";
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = `0 0 12px color-mix(in srgb, ${neon} 40%, transparent), 0 0 24px color-mix(in srgb, ${neon} 15%, transparent), inset 0 1px 0 rgba(255,255,255,.25)`;
+                e.currentTarget.style.boxShadow = GLASS.playBtn(neon).boxShadow;
               }}
             >
               {streamLoading ? (
@@ -657,12 +649,12 @@ export const PlayerBar = memo(function PlayerBar({
                     "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                  e.currentTarget.style.background = GLASS.controlHover.background;
                   e.currentTarget.style.color = accentColor;
                   e.currentTarget.style.transform = "scale(1.08)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = GLASS.btn.background;
+                  e.currentTarget.style.background = GLASS.control.background;
                   e.currentTarget.style.color = btn.color;
                   e.currentTarget.style.transform = "scale(1)";
                 }}
@@ -707,12 +699,12 @@ export const PlayerBar = memo(function PlayerBar({
                   "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                e.currentTarget.style.background = GLASS.controlHover.background;
                 e.currentTarget.style.color = accentColor;
                 e.currentTarget.style.transform = "scale(1.08)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = GLASS.btn.background;
+                e.currentTarget.style.background = GLASS.control.background;
                 e.currentTarget.style.color = volume > 0 ? COLORS.iconActive : COLORS.iconDimmer;
                 e.currentTarget.style.transform = "scale(1)";
               }}
@@ -758,19 +750,19 @@ export const PlayerBar = memo(function PlayerBar({
                   "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                e.currentTarget.style.background = GLASS.controlHover.background;
                 e.currentTarget.style.color = accentColor;
                 e.currentTarget.style.transform = "scale(1.08)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = GLASS.btn.background;
+                e.currentTarget.style.background = GLASS.control.background;
                 e.currentTarget.style.color =
                   crossfadeDuration > 0 ? safeAccentText(accentColor) : COLORS.iconDim;
                 e.currentTarget.style.transform = "scale(1)";
               }}
             >
               {cfHover ? (
-                <span style={{ fontSize: "10px", fontWeight: "800" }}>
+                <span style={{ fontSize: "12px", fontWeight: "600" }}>
                   {crossfadeDuration > 0 ? `${crossfadeDuration}s` : "Off"}
                 </span>
               ) : (
@@ -804,10 +796,10 @@ export const PlayerBar = memo(function PlayerBar({
                 >
                   <span
                     style={{
-                      fontSize: "11px",
-                      fontWeight: "700",
-                      color: COLORS.iconActive,
-                      letterSpacing: ".6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: COLORS.textTertiary,
+                      letterSpacing: ".04em",
                       textTransform: "uppercase",
                     }}
                   >
@@ -815,8 +807,8 @@ export const PlayerBar = memo(function PlayerBar({
                   </span>
                   <span
                     style={{
-                      fontSize: "13px",
-                      fontWeight: "800",
+                      fontSize: "14px",
+                      fontWeight: "600",
                       color: crossfadeDuration > 0 ? accentColor : COLORS.textMuted,
                     }}
                   >
@@ -827,18 +819,18 @@ export const PlayerBar = memo(function PlayerBar({
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span
                     style={{
-                      fontSize: "10px",
+                      fontSize: "12px",
                       color: COLORS.textMuted,
-                      fontWeight: "600",
+                      fontWeight: "500",
                     }}
                   >
                     Off
                   </span>
                   <span
                     style={{
-                      fontSize: "10px",
+                      fontSize: "12px",
                       color: COLORS.textMuted,
-                      fontWeight: "600",
+                      fontWeight: "500",
                     }}
                   >
                     12s
@@ -872,12 +864,12 @@ export const PlayerBar = memo(function PlayerBar({
                   "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                e.currentTarget.style.background = GLASS.controlHover.background;
                 e.currentTarget.style.color = accentColor;
                 e.currentTarget.style.transform = "scale(1.08)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = GLASS.btn.background;
+                e.currentTarget.style.background = GLASS.control.background;
                 e.currentTarget.style.color = COLORS.iconActive;
                 e.currentTarget.style.transform = "scale(1)";
               }}
@@ -906,13 +898,13 @@ export const PlayerBar = memo(function PlayerBar({
             }}
             onMouseEnter={(e) => {
               if (song) {
-                e.currentTarget.style.background = GLASS.btnHoverSoft.background;
+                e.currentTarget.style.background = GLASS.controlHover.background;
                 e.currentTarget.style.color = accentColor;
                 e.currentTarget.style.transform = "scale(1.08)";
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = GLASS.btn.background;
+              e.currentTarget.style.background = GLASS.control.background;
               e.currentTarget.style.color = lyricsOpen
                 ? accentColor
                 : song
@@ -932,8 +924,8 @@ export const PlayerBar = memo(function PlayerBar({
           ref={progressTimeRef}
           data-testid="progress-time"
           style={{
-            fontSize: "11px",
-            fontWeight: "600",
+            fontSize: "12px",
+            fontWeight: "500",
             color: COLORS.progressTime,
             minWidth: "32px",
             textAlign: "right",
@@ -997,7 +989,8 @@ export const PlayerBar = memo(function PlayerBar({
                 borde). drop-shadow se rasteriza en espacio de pantalla:
                 sigue la silueta redondeada (ya compensada) sin deformarse,
                 y al ser el wrapper estático solo se repinta si cambia la
-                forma — la misma cadencia que el radio, no cada tick. */}
+                forma — la misma cadencia que el radio, no cada tick. El halo
+                se conserva hasta poder retirarlo junto con su test. */}
             <div
               data-testid="progress-fill-glow"
               style={{
@@ -1016,7 +1009,7 @@ export const PlayerBar = memo(function PlayerBar({
                   // compensado (r/scaleX) según progreso y hover.
                   borderRadius: `${trackR}px`,
                   width: "100%",
-                  background: `linear-gradient(90deg, ${neon}, color-mix(in srgb, ${neon} 80%, transparent))`,
+                  background: neon,
                   transition: "transform .15s linear",
                   transformOrigin: "left center",
                   transform: "scaleX(0)",
@@ -1037,7 +1030,7 @@ export const PlayerBar = memo(function PlayerBar({
                 height: "14px",
                 borderRadius: RADIUS.full,
                 background: COLORS.white,
-                boxShadow: `0 0 8px color-mix(in srgb, ${neon} 67%, transparent), 0 2px 6px rgba(0,0,0,.4)`,
+                boxShadow: "0 1px 3px rgba(0,0,0,.35)",
                 transition:
                   "right .15s linear, transform .15s cubic-bezier(.16,1,.3,1), opacity .15s",
                 opacity: 0,
@@ -1048,8 +1041,8 @@ export const PlayerBar = memo(function PlayerBar({
         </div>
         <span
           style={{
-            fontSize: "11px",
-            fontWeight: "600",
+            fontSize: "12px",
+            fontWeight: "500",
             color: COLORS.progressTime,
             minWidth: "32px",
             fontVariantNumeric: "tabular-nums",

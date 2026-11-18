@@ -92,10 +92,10 @@ export function PageApariencia({ neonColor }) {
               onChange={(v) => updateSetting("colorTransitionSpeed", v)}
             />
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
+              <span style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}>
                 {t.instant}
               </span>
-              <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
+              <span style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}>
                 {t.slow}
               </span>
             </div>
@@ -135,10 +135,10 @@ export function PageApariencia({ neonColor }) {
       <SettingsSection title={t.defaultTab}>
         <div
           style={{
-            fontSize: "11.5px",
-            color: "rgba(255,255,255,.45)",
-            fontWeight: "600",
-            padding: "12px 18px 6px",
+            fontSize: "12px",
+            color: "rgba(255,255,255,.62)",
+            fontWeight: "400",
+            padding: "12px 16px 4px",
           }}
         >
           {t.defaultTabDesc}
@@ -309,10 +309,10 @@ export function PageApariencia({ neonColor }) {
             onChange={(v) => updateSetting("lyricsScrollResume", v)}
           />
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
+            <span style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}>
               1s
             </span>
-            <span style={{ fontSize: "10px", color: "rgba(255,255,255,.3)", fontWeight: "700" }}>
+            <span style={{ fontSize: "12px", color: "rgba(255,255,255,.62)", fontWeight: "500" }}>
               10s
             </span>
           </div>

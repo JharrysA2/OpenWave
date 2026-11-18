@@ -31,7 +31,7 @@ export function SettingRow({ icon, label, desc, right, onClick, border = true })
             height: "34px",
             borderRadius: RADIUS.cover,
             flexShrink: 0,
-            ...GLASS.btn,
+            ...GLASS.control,
             // Sin blur propio: ya está dentro del panel difuminado. Un
             // backdrop-filter de 34px no aporta nada visible pero crea otra
             // región que la GPU debe re-blurar en cada repintado (hover).
@@ -48,16 +48,16 @@ export function SettingRow({ icon, label, desc, right, onClick, border = true })
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: "13.5px", fontWeight: "700", color: "rgba(255,255,255,.9)" }}>
+        <div style={{ fontSize: "14px", fontWeight: "600", color: COLORS.textPrimary }}>
           {label}
         </div>
         {desc && (
           <div
             style={{
-              fontSize: "11.5px",
-              color: COLORS.progressTime,
-              fontWeight: "600",
-              marginTop: "1px",
+              fontSize: "12px",
+              color: COLORS.textTertiary,
+              fontWeight: "400",
+              marginTop: "2px",
             }}
           >
             {desc}
@@ -74,26 +74,21 @@ export function SettingsSection({ title, children }) {
     <div style={{ marginBottom: SPACING.section.marginBottomSm }}>
       <div
         style={{
-          fontSize: "11px",
-          fontWeight: "800",
-          color: "rgba(255,255,255,.28)",
-          letterSpacing: "1.1px",
+          fontSize: "12px",
+          fontWeight: "600",
+          color: COLORS.textTertiary,
+          letterSpacing: ".04em",
           textTransform: "uppercase",
-          padding: "0 18px 8px",
+          padding: "0 16px 8px",
         }}
       >
         {title}
       </div>
       <div
         style={{
-          ...GLASS.card,
-          // Sin blur propio: el panel (GLASS.settings) ya difumina el fondo y
-          // este backdrop-filter anidado obligaba a re-blurar toda la tarjeta
-          // (ancho completo) en cada repintado, incluido cada hover de fila.
-          // El degradado y el borde de GLASS.card se conservan intactos.
-          backdropFilter: "none",
-          WebkitBackdropFilter: "none",
-          borderRadius: RADIUS.card,
+          background: COLORS.surfaceCard,
+          border: `1px solid ${COLORS.borderSubtle}`,
+          borderRadius: RADIUS.default,
           overflow: "hidden",
         }}
       >
@@ -179,13 +174,13 @@ export function SegBtn({ options, settingKey, current, onChange }) {
           key={val}
           onClick={() => handle(val)}
           style={{
-            padding: "5px 10px",
-            borderRadius: "6px",
+            padding: "6px 12px",
+            borderRadius: RADIUS.sm,
             border: "none",
             background: current === val ? "rgba(255,255,255,.15)" : "transparent",
-            color: current === val ? "rgba(255,255,255,.9)" : COLORS.textTertiary,
-            fontWeight: "700",
-            fontSize: "11px",
+            color: current === val ? COLORS.textPrimary : COLORS.textTertiary,
+            fontWeight: "600",
+            fontSize: "12px",
             cursor: "pointer",
             fontFamily: FONT,
             transition: TRANSITIONS.fast,

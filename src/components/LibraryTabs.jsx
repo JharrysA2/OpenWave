@@ -1,6 +1,6 @@
 import React from "react";
 import { FONT } from "../constants";
-import { COLORS, GLASS, RADIUS, SHADOWS, withAlpha } from "../utils/theme";
+import { COLORS, GLASS, RADIUS } from "../utils/theme";
 
 /**
  * Píldoras segmentadas (estilo SearchView) para las pestañas de biblioteca.
@@ -20,11 +20,11 @@ export default React.memo(function LibraryTabs({ tabs, value, onChange, accentCo
       role="tablist"
       style={{
         display: "flex",
-        gap: "6px",
-        marginBottom: "18px",
-        padding: "3px",
-        background: GLASS.btn.background,
-        boxShadow: SHADOWS.closeBtn,
+        gap: "4px",
+        marginBottom: "16px",
+        padding: "4px",
+        background: GLASS.control.background,
+        border: `1px solid ${COLORS.borderSubtle}`,
         borderRadius: RADIUS.pill,
         width: "fit-content",
         fontFamily: FONT,
@@ -42,13 +42,14 @@ export default React.memo(function LibraryTabs({ tabs, value, onChange, accentCo
             onMouseEnter={() => setHoverKey(t.key)}
             onMouseLeave={() => setHoverKey((k) => (k === t.key ? null : k))}
             style={{
-              padding: "7px 18px",
+              minHeight: "44px",
+              padding: "0 16px",
               borderRadius: RADIUS.pill,
               border: "none",
               background: active
                 ? accentColor
                 : hovered
-                  ? GLASS.btnHoverSoft.background
+                  ? GLASS.controlHover.background
                   : "transparent",
               // Píldora activa = fondo acento → primer plano dinámico
               color: active
@@ -56,13 +57,14 @@ export default React.memo(function LibraryTabs({ tabs, value, onChange, accentCo
                 : hovered
                   ? COLORS.textPrimary
                   : COLORS.textSecondary,
-              fontWeight: active ? "700" : "600",
-              fontSize: "12.5px",
+              fontWeight: "600",
+              fontSize: "14px",
               cursor: "pointer",
               fontFamily: FONT,
-              transition:
-                "background .2s cubic-bezier(.16,1,.3,1), color .2s cubic-bezier(.16,1,.3,1), font-weight .2s cubic-bezier(.16,1,.3,1), box-shadow .2s cubic-bezier(.16,1,.3,1)",
-              boxShadow: active ? `0 2px 8px ${withAlpha(accentColor, "44")}` : "none",
+              transition: "background .16s ease, color .16s ease",
+              // El relleno del acento basta para marcar la pestaña activa:
+              // una sombra de color añadía glow y una elevación falsa.
+              boxShadow: "none",
               display: "flex",
               alignItems: "center",
               gap: "6px",
@@ -72,9 +74,9 @@ export default React.memo(function LibraryTabs({ tabs, value, onChange, accentCo
             {t.count !== undefined && (
               <span
                 style={{
-                  fontSize: "10.5px",
-                  fontWeight: "800",
-                  opacity: active ? 0.7 : 0.55,
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  opacity: active ? 0.75 : 0.65,
                 }}
               >
                 {t.count}

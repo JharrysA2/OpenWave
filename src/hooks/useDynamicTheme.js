@@ -108,9 +108,8 @@ export function useDynamicTheme({ settings, currentSong }) {
     [settings.dynamicTheme, extractedTheme],
   );
 
-  //  FONDO TINTADO: --bg-base usa var(--neon) para que el fondo herede la
-  //  transición CSS de --neon (no hay animación rAF: la interpolación la hace
-  //  el navegador vía @property --neon + `transition: --neon` en el CSS).
+  //  FONDO NEUTRO: la app mantiene una base estable y el acento se reserva
+  //  para controles, progreso y estados activos.
 
   const bgBase = useMemo(() => (settings.pureBlack ? "#000" : BASE), [settings.pureBlack]);
 
@@ -217,9 +216,9 @@ export function useDynamicTheme({ settings, currentSong }) {
     root.style.setProperty("--neon", neonColor);
     root.style.setProperty("--neon-fg", neonForeground);
     root.style.setProperty("--neon-transition", cfTransitionSpeed);
-    // ── Fondo tintado dinámico: usa var(--neon) como referencia para que
-    //    el fondo herede la transición CSS de --neon.
-    root.style.setProperty("--bg-base", `color-mix(in srgb, var(--neon) 6%, ${bgBase})`);
+    // El fondo es neutro: el acento identifica controles y estado, no tiñe
+    // toda la superficie de la app.
+    root.style.setProperty("--bg-base", bgBase);
   }, [neonColor, neonForeground, cfTransitionSpeed, bgBase]);
 
   return {

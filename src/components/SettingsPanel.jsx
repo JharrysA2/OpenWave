@@ -150,9 +150,9 @@ export default function SettingsPanel({
         display: "flex",
         flexDirection: "column",
         ...GLASS.settings,
-        // Pantalla sin desenfoque (GLASS.settings ya no difumina): la base
-        // opaca sostiene la lectura del panel mientras esté abierto.
-        backgroundColor: "rgba(10,10,18,.92)",
+        // Ajustes es contenido, no una capa flotante: superficie opaca y
+        // plana, sin cristal ni degradado.
+        backgroundColor: COLORS.surfaceApp,
         fontFamily: FONT,
         animation: "fadeIn .12s ease both",
       }}
@@ -164,9 +164,7 @@ export default function SettingsPanel({
           display: "flex",
           alignItems: "center",
           gap: SPACING.gap.wide,
-          // Sin línea de contorno: la separación con el contenido es una
-          // sombra ajustada (la ancha de 32px manchaba el contenido).
-          boxShadow: "0 10px 24px -14px rgba(0,0,0,.55)",
+          borderBottom: `1px solid ${COLORS.borderSubtle}`,
           flexShrink: 0,
         }}
       >
@@ -203,10 +201,10 @@ export default function SettingsPanel({
           <>
             <div
               style={{
-                width: "34px",
-                height: "34px",
-                borderRadius: RADIUS.cover,
-                ...GLASS.btn,
+                width: "40px",
+                height: "40px",
+                borderRadius: RADIUS.default,
+                ...GLASS.control,
                 // Opt-out explícito: solo la raíz del panel difumina
                 // (GLASS.settings, cristal de modal); los elementos del
                 // header no crean un segundo backdrop root (§7)
@@ -234,10 +232,10 @@ export default function SettingsPanel({
             </div>
             <div
               style={{
-                fontSize: "16px",
-                fontWeight: "900",
+                fontSize: "18px",
+                fontWeight: "600",
                 color: COLORS.textPrimary,
-                letterSpacing: "-.3px",
+                letterSpacing: "-.01em",
                 flex: 1,
               }}
             >
@@ -247,7 +245,7 @@ export default function SettingsPanel({
               data-testid="close-settings"
               onClick={onClose}
               style={{
-                ...GLASS.btn,
+                ...GLASS.control,
                 // Opt-out explícito: solo la raíz del panel difumina
                 // (GLASS.settings, cristal de modal); los elementos del
                 // header no crean un segundo backdrop root (§7)
@@ -255,9 +253,9 @@ export default function SettingsPanel({
                 WebkitBackdropFilter: "none",
                 color: "rgba(255,255,255,.55)",
                 cursor: "pointer",
-                width: "34px",
-                height: "34px",
-                borderRadius: RADIUS.settingsClose,
+                width: "40px",
+                height: "40px",
+                borderRadius: RADIUS.default,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

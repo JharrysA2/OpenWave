@@ -6,6 +6,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-19
+
 ### Corregido
 
 - **Cerrar y abrir la app rápidamente ya no deja el backend sin arrancar.** Antes, al cerrar se mataba Python sin esperar y, al reabrir, la app abandonaba el arranque si el puerto 8765 seguía ocupado (o reutilizaba un backend que estaba muriendo): la ventana salía con «sin conexión». Ahora la app avisa al backend por stdin, espera su salida ordenada, espera a que el puerto quede libre y, si encuentra un OpenWave huérfano, lo termina por PID antes de lanzar el suyo. El bind usa `SO_REUSEADDR` tras comprobar que no haya un listener activo, así las conexiones en `TIME_WAIT` ya no bloquean una reapertura inmediata.
@@ -541,7 +543,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.3.0
 [1.2.2]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.2
 [1.2.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.1
 [1.2.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.0

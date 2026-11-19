@@ -9,7 +9,6 @@ import urllib.request
 from contextlib import suppress
 from pathlib import Path
 
-import yt_dlp
 from cache import download_progress
 from config import (
     BASE_DIR,
@@ -20,12 +19,14 @@ from config import (
     YT_DLP_CACHE_DIR,
 )
 from db import _db_lock, get_db
+from lazy_imports import LazyModule
 from logging_config import get_logger
 from ytdlp_auth import auth_variants
 
 from utils import get_mp3_path
 
 logger = get_logger(__name__)
+yt_dlp = LazyModule("yt_dlp")
 
 # Lock por vídeo: dos descargas del mismo video_id escribían el mismo
 # `.part` y rompían la invariante «exists() ⇒ COMPLETO». El lock de BD se

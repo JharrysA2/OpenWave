@@ -4,11 +4,11 @@ import asyncio
 import random
 import re
 
-import yt_dlp
 from cache import api_cache_get, api_cache_set
 from config import TRENDING_TTL
 from db import get_db
 from fastapi import APIRouter, HTTPException, Query, Request
+from lazy_imports import LazyModule
 from logging_config import get_logger
 from rate_limit import limiter
 from ytmusic_client import get_ytm
@@ -22,6 +22,7 @@ from utils import (
 )
 
 logger = get_logger(__name__)
+yt_dlp = LazyModule("yt_dlp")
 
 router = APIRouter()
 

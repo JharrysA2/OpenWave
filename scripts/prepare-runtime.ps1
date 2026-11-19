@@ -48,6 +48,10 @@ $backendSrc = Join-Path $root 'backend'
 $runtime = Join-Path $stage 'runtime'
 $backendDst = Join-Path $stage 'backend'
 
+# Version del layout del staging. Subirla al cambiar como se empaqueta (p. ej.
+# al anadir los .pyc del backend) invalida los .ready antiguos.
+$LayoutVersion = 2
+
 # ── Pines (URL + SHA-256) ────────────────────────────────────────────────────
 $PyVersion = '3.14.7'
 $PyUrl = "https://www.python.org/ftp/python/$PyVersion/python-$PyVersion-embed-amd64.zip"
@@ -136,6 +140,10 @@ function Test-RequiresRebuild {
     try {
         $prev = Get-Content -Raw -LiteralPath $marker | ConvertFrom-Json
     } catch {
+        return $true
+    }
+    if ($prev.layoutVersion -ne $LayoutVersion) {
+        Write-Host '  el layout del staging ha cambiado: se reconstruye.'
         return $true
     }
     if ($prev.requirementsHash -ne $script:reqHash) {
@@ -270,6 +278,16 @@ if (-not $KeepPip) {
     if (Test-Path -LiteralPath $scriptsDir) { Remove-Item -Recurse -Force -LiteralPath $scriptsDir }
 }
 
+# Bytecode precompilado: en Program Files el directorio no es escribible, asi
+# que sin esto Python recompila el backend en cada arranque (y Defender vuelve
+# a leer cada .py). `unchecked-hash` ignora mtime/tamano: el .pyc sigue siendo
+# valido aunque el instalador renueve los ficheros.
+Write-Host '  compilando bytecode del backend'
+$null = Invoke-Checked $py @(
+    '-m', 'compileall', '-q', '-j', '0',
+    '--invalidation-mode', 'unchecked-hash', $backendDst
+) 'compileall del backend'
+
 # ── 7. Smoke test contra el staging ──────────────────────────────────────────
 Write-Host '[7/7] Smoke test (arranca el backend igual que la app instalada)'
 $smokeId = [guid]::NewGuid().ToString('N')
@@ -320,12 +338,6 @@ try {
     Remove-Item -Force -LiteralPath $smokeErr, $smokeOut -ErrorAction SilentlyContinue
 }
 
-# Los .pyc del backend apuntarian a las rutas de esta maquina y solo retrasan
-# el arranque: fuera. Los de site-packages se dejan (arranque mas rapido).
-Get-ChildItem -Path $backendDst -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue |
-    Sort-Object { $_.FullName.Length } -Descending |
-    ForEach-Object { Remove-Item -Recurse -Force -LiteralPath $_.FullName -ErrorAction SilentlyContinue }
-
 # Nada de datos de desarrollo en el paquete.
 Get-ChildItem -Path $backendDst -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -like 'url_cache.json' -or $_.Name -like '*.log' -or $_.Name -like 'openwave.db*' -or $_.Name -like '.coverage' } |
@@ -333,6 +345,7 @@ Get-ChildItem -Path $backendDst -File -ErrorAction SilentlyContinue |
 
 # ── Marcador ─────────────────────────────────────────────────────────────────
 $markerData = @{
+    layoutVersion   = $LayoutVersion
     python          = $PyVersion
     ffmpeg          = $FfmpegVersion
     requirementsHash = $script:reqHash

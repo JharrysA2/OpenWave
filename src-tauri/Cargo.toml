@@ -29,6 +29,14 @@ window-vibrancy = "0.6"
 # exigen tauri ^2.12 y arrastrarían wry/tray-icon — specs congeladas).
 tauri-plugin-dialog = "=2.7.3"
 tauri-plugin-fs = "=2.5.2"
+# Una segunda apertura enfoca la ventana existente en vez de crear otra que
+# compartiría backend (y mataría el de la primera al cerrarse). 2.4.5 es la
+# última que exige tauri ^2.10, la versión congelada del proyecto.
+tauri-plugin-single-instance = "=2.4.5"
+
+# kill(2) y grupos de procesos para limpiar ffmpeg al cerrar en Linux/macOS.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 # SetCurrentProcessExplicitAppUserModelID y el hook de la barra de título:
 # API de Win32, solo tiene sentido compilarlo en Windows (ver comentario

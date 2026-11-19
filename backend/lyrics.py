@@ -4,15 +4,16 @@ import asyncio
 import os
 import re
 
-import httpx
 from cache import api_cache_get, api_cache_set
 from config import LYRICS_DIR
+from lazy_imports import LazyModule
 from logging_config import get_logger
 from ytmusic_client import get_ytm
 
 from utils import fmt_song, is_valid_video_id
 
 logger = get_logger(__name__)
+httpx = LazyModule("httpx")
 
 
 async def get_local_lyrics(video_id: str):

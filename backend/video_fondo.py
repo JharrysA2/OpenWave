@@ -20,7 +20,6 @@ import time
 from contextlib import suppress
 from pathlib import Path
 
-import yt_dlp
 from cache import video_progress
 from config import PROJECT_DIR, VIDEO_CACHE_MAX_BYTES, VIDEO_DIR, YT_DLP_CACHE_DIR
 from db import (
@@ -30,11 +29,13 @@ from db import (
     db_get_videoclip_oficial,
     db_set_desfase_videoclip,
 )
+from lazy_imports import LazyModule
 from logging_config import get_logger
 from videoclip import DESAJUSTE_SIN_MEDIDA, VIGENCIA_SIN_CLIP, resolver_videoclip
 from ytdlp_auth import browser_cookie_opts, cookies_file_opt
 
 logger = get_logger(__name__)
+yt_dlp = LazyModule("yt_dlp")
 
 # Lock POR VÍDEO
 # Mismo patrón que downloads.py: dos «Preparar» simultáneos del mismo vídeo

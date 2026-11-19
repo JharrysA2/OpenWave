@@ -6,6 +6,18 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Corregido
+
+- **Cerrar y abrir la app rápidamente ya no deja el backend sin arrancar.** Antes, al cerrar se mataba Python sin esperar y, al reabrir, la app abandonaba el arranque si el puerto 8765 seguía ocupado (o reutilizaba un backend que estaba muriendo): la ventana salía con «sin conexión». Ahora la app avisa al backend por stdin, espera su salida ordenada, espera a que el puerto quede libre y, si encuentra un OpenWave huérfano, lo termina por PID antes de lanzar el suyo. El bind usa `SO_REUSEADDR` tras comprobar que no haya un listener activo, así las conexiones en `TIME_WAIT` ya no bloquean una reapertura inmediata.
+- **Una segunda apertura enfoca la ventana existente** en vez de crear otra ventana que compartía backend y lo mataba al cerrarse (instancia única con el plugin oficial de Tauri). Al cerrar, el candado de instancia se libera antes de apagar el backend, para que una reapertura inmediata no se quede sin ventana.
+- **El cierre deja de poder colgarse con descargas o SSE abiertos:** uvicorn usa `timeout_graceful_shutdown=2` y, en Unix, el backend corre en su propio grupo de procesos para que un ffmpeg de una descarga no quede huérfano.
+
+### Cambiado
+
+- **Arranque del backend más rápido.** `httpx` y `yt-dlp` se importan en el primer uso (y se precargan en segundo plano cuando el servidor ya escucha): el import de `main` baja de ~1,55 s a ~0,91 s. Además se registran los tiempos de import, primer `/health` y cierre en `openwave.log`, y los de lanzamiento/espera en `openwave-app.log`.
+- **La migración inicial de datos ya no bloquea la ventana.** La base de datos y la caché de URLs se copian antes de arrancar; `downloads` y `lyrics` se copian en un hilo y `stream_cache` (caché derivada) ya no se copia.
+- **`/health` informa de la versión, el PID, el instante de arranque y el uptime**, útil para diagnosticar qué instancia responde.
+
 ## [1.2.2] - 2026-11-18
 
 ### Cambiado
@@ -687,3 +699,13 @@ trabajo del proyecto y **no forman parte de las notas de una versión de la app*
 - **`build-msi.yml` (paso 8)**: `Write-Host "MSI $version: …"` se parseaba como
   la variable `$version:` (inválida); se cambió a `${version}`. Era el último
   fallo del `dry_run` una vez arreglado `verify-msi`.
+
+### Empaquetado
+
+- **El staging incluye el bytecode del backend.** `prepare-runtime.ps1` y
+  `prepare-runtime.sh` ejecutan `compileall --invalidation-mode unchecked-hash`
+  y conservan `__pycache__`; antes PowerShell los borraba a propósito. En
+  Program Files y `/usr/lib` el código no es escribible, así que sin los `.pyc`
+  Python recompilaba el backend en cada arranque (y Defender volvía a leer cada
+  `.py`). Un `layoutVersion` en el marcador fuerza a reconstruir staggings
+  antiguos.

@@ -25,11 +25,12 @@ from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 
-import yt_dlp
 from config import COOKIES_FILE, YT_DLP_CACHE_DIR
+from lazy_imports import LazyModule
 from logging_config import get_logger
 
 logger = get_logger(__name__)
+yt_dlp = LazyModule("yt_dlp")
 
 # Un cookies.txt de YouTube ocupa unos pocos KB. 512 KB deja margen para una
 # exportación completa del navegador sin aceptar un fichero gigante.

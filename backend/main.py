@@ -29,7 +29,61 @@ for _stream in (sys.stdout, sys.stderr):
         with contextlib.suppress(Exception):
             _reconf(encoding="utf-8", errors="replace")
 
-import httpx
+# Instante de referencia para medir el arranque (el log lo usa en /health y al
+# crear el servidor). Antes de importar nada pesado.
+_T0 = time.perf_counter()
+_INICIO_EPOCH = time.time()
+
+# Canal de ciclo de vida con la app Tauri: Rust abre stdin como tubería y
+# escribe «shutdown» al cerrar. Si la app muere de golpe, el pipe se cierra
+# solo y el EOF significa lo mismo. Así el cierre es ordenado (uvicorn deja de
+# aceptar, se ejecutan los atexit de SQLite) y no queda un backend huérfano
+# ocupando el puerto. Solo se activa si Tauri lo pide expresamente: ejecutar
+# `python main.py` a mano no debe cerrarse al recibir EOF de la terminal.
+_cierre_pedido = False
+_servidor_uvicorn = None
+
+
+def _pedir_cierre() -> None:
+    """Marca el cierre y avisa a uvicorn si el servidor ya existe."""
+    global _cierre_pedido
+    _cierre_pedido = True
+    servidor = _servidor_uvicorn
+    if servidor is not None:
+        servidor.should_exit = True
+    # Durante el import de `main` el logger aún no existe: ahí solo importa
+    # dejar el flag puesto y salir antes de enlazar el puerto.
+    log_cierre = globals().get("logger")
+    if log_cierre is not None:
+        log_cierre.info("cierre ordenado solicitado por la app")
+
+
+def _leer_orden_cierre(entrada) -> bool:
+    """True si la app pide cerrar o cierra el canal (EOF)."""
+    if entrada is None:
+        return False
+    try:
+        for linea in entrada:
+            if linea.strip().lower() == "shutdown":
+                return True
+    except (OSError, ValueError):
+        # Un stdin cerrado a mitad de lectura también significa «la app se fue».
+        return True
+    return True
+
+
+def _vigilar_ciclo_de_vida() -> None:
+    if _leer_orden_cierre(sys.stdin):
+        _pedir_cierre()
+
+
+if os.environ.get("OPENWAVE_LIFECYCLE_STDIN") == "1":
+    threading.Thread(
+        target=_vigilar_ciclo_de_vida,
+        name="openwave-lifecycle",
+        daemon=True,
+    ).start()
+
 from cache import api_cache_get, api_cache_set
 from config import API_HOST, API_PORT, BASE_DIR, MUSIC_DIR
 from db import init_db
@@ -40,6 +94,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.utils import is_body_allowed_for_status_code
 from identity import avisar_si_falta_identidad
+from lazy_imports import LazyModule
 from logging_config import get_logger
 from rate_limit import limiter
 from routes import api_router
@@ -49,6 +104,11 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = get_logger(__name__)
+httpx = LazyModule("httpx")
+
+# Versión de la app que lanzó el backend (Rust la pasa por entorno). En
+# desarrollo o ejecuciones manuales no existe y se anuncia como «dev».
+APP_VERSION = os.environ.get("OPENWAVE_APP_VERSION", "dev")
 
 # Orígenes permitidos (webview de Tauri + dev server de Vite). En un solo
 # sitio: lo usa el middleware CORS y el handler de errores internos (ver abajo).
@@ -248,11 +308,36 @@ app.mount("/music", StaticFiles(directory=str(MUSIC_DIR)), name="music")
 # Endpoints adicionales inline
 
 
+_primer_health_lock = threading.Lock()
+_primer_health_logueado = False
+
+
 @app.get("/health")
 @limiter.limit("120/minute")
 async def health(request: Request):
-    """Health check — 120 req/min para monitoreo."""
-    return {"status": "ok", "service": "OpenWave"}
+    """Health check — 120 req/min para monitoreo.
+
+    Además de ``status``/``service`` (que usa el sondeo de Rust), informa de
+    la versión, el PID y el tiempo de arranque: sirve para diagnosticar un
+    cierre/reapertura rápida sin adivinar qué instancia responde.
+    """
+    global _primer_health_logueado
+    with _primer_health_lock:
+        primero = not _primer_health_logueado
+        _primer_health_logueado = True
+    if primero:
+        logger.info(
+            "primer /health a los %.0f ms del arranque",
+            (time.perf_counter() - _T0) * 1000,
+        )
+    return {
+        "status": "ok",
+        "service": "OpenWave",
+        "version": APP_VERSION,
+        "pid": os.getpid(),
+        "started_at": int(_INICIO_EPOCH),
+        "uptime_ms": int((time.perf_counter() - _T0) * 1000),
+    }
 
 
 # Caché en memoria para thumbnail-proxy (TTL 10 min)
@@ -423,36 +508,111 @@ threading.Thread(target=avisar_si_falta_identidad, daemon=True).start()
 
 # Entry point
 
-if __name__ == "__main__":
+
+def _crear_socket_servidor(host: str = API_HOST, port: int = API_PORT):
+    """Socket TCP ya enlazado para pasárselo a uvicorn.
+
+    Se comprueba antes si hay un listener activo (connect): si lo hay, el
+    puerto es de otro proceso y no se toca. Si no, se enlaza con
+    ``SO_REUSEADDR``, la misma política que usa uvicorn con varios workers:
+    así reabrir justo después de cerrar no falla por conexiones en
+    ``TIME_WAIT``. El ``bind`` de comprobación anterior, sin esa opción, era
+    más estricto que uvicorn y podía abortar un arranque que habría ido bien.
+    """
+    if port:
+        try:
+            with socket.create_connection((host, port), timeout=0.25):
+                logger.error(
+                    "El puerto %s:%s ya está ocupado por otro proceso", host, port
+                )
+                return None
+        except OSError:
+            pass
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        sock.bind((host, port))
+    except OSError as exc:
+        sock.close()
+        logger.error("No se pudo abrir %s:%s: %s", host, port, exc)
+        return None
+    return sock
+
+
+def _precarga_pesada() -> None:
+    """Importa yt-dlp/httpx con el servidor ya escuchando.
+
+    Antes se pagaban en el import de ``main``, antes del bind: la app no veía
+    ``/health`` hasta terminar. Aquí el coste queda fuera del camino crítico
+    y la primera búsqueda/descarga ya los encuentra cargados.
+    """
+    time.sleep(0.4)
+    inicio = time.perf_counter()
+    try:
+        import importlib
+
+        importlib.import_module("httpx")
+        importlib.import_module("yt_dlp")
+        logger.info(
+            "precarga de httpx/yt-dlp en %.0f ms",
+            (time.perf_counter() - inicio) * 1000,
+        )
+    except Exception as exc:  # noqa: BLE001 - la precarga nunca debe tumbar nada
+        logger.warning("precarga de módulos pesados: %s", exc)
+
+
+def _arrancar_servidor() -> int:
+    """Crea el servidor, lo enlaza y espera hasta el cierre ordenado."""
+    global _servidor_uvicorn
     import uvicorn
 
-    logger.info("🎵 OpenWave Backend — http://%s:%s", API_HOST, API_PORT)
+    logger.info("OpenWave Backend %s — http://%s:%s", APP_VERSION, API_HOST, API_PORT)
+    logger.info("app importada en %.0f ms", (time.perf_counter() - _T0) * 1000)
 
-    # Una sola instancia: si el puerto ya está ocupado, avisar claro y salir
-    # (de otro modo uvicorn muere con un Errno crudo y sin contexto).
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-        try:
-            probe.bind((API_HOST, API_PORT))
-        except OSError:
-            logger.error(
-                "El puerto %s:%s ya está en uso — cierra la otra instancia de OpenWave e inténtalo de nuevo.",
-                API_HOST,
-                API_PORT,
-            )
-            sys.exit(1)
+    if _cierre_pedido:
+        logger.info("cierre pedido durante el arranque; no se abre el puerto")
+        return 0
 
-    # El objeto `app` y NO la cadena "main:app": como el script corre como
-    # `__main__`, uvicorn re-importaría `main` y arrancaría TODO dos veces
-    # (2× init_db, 2× warmup, 2× montar rutas) — el arranque lento se veía
-    # sobre todo aquí.
-    uvicorn.run(
+    sock = _crear_socket_servidor()
+    if sock is None:
+        return 1
+
+    config = uvicorn.Config(
         app,
-        host=API_HOST,
-        port=API_PORT,
         reload=False,
         log_level="info",
         # Sin access log: en la app instalada el stderr va a backend.err.log
         # y cada petición saturaría el fichero sin aportar nada (la app ya
         # loguea lo importante en openwave.log).
         access_log=False,
+        # Una descarga o un SSE abierto no puede retener el cierre para
+        # siempre: uvicorn deja de aceptar y, a los 2 s, corta lo que quede.
+        timeout_graceful_shutdown=2,
     )
+    servidor = uvicorn.Server(config)
+    _servidor_uvicorn = servidor
+    # Si el cierre llegó entre la comprobación de arriba y este punto, el
+    # hilo vigía no vio servidor todavía. Se aplica aquí.
+    if _cierre_pedido:
+        servidor.should_exit = True
+
+    threading.Thread(
+        target=_precarga_pesada, name="openwave-precarga", daemon=True
+    ).start()
+
+    try:
+        servidor.run(sockets=[sock])
+    except SystemExit as exc:
+        logger.error(
+            "El servidor no pudo arrancar (¿puerto %s ocupado?): %s", API_PORT, exc
+        )
+        return exc.code if isinstance(exc.code, int) else 1
+    finally:
+        _servidor_uvicorn = None
+    logger.info("backend detenido")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(_arrancar_servidor())

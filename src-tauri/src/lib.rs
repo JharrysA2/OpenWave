@@ -1,62 +1,163 @@
 use std::io::{Read, Write};
-use std::path::PathBuf;
-use std::process::Command;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::Duration;
-use tauri::Manager;
+use std::time::{Duration, Instant};
+use tauri::{Manager, RunEvent};
 
-struct BackendProcess(Mutex<Option<std::process::Child>>);
+/// Estado del backend y del cierre de la app.
+///
+/// `cerrando` evita que el vigilante interprete como caída el apagado normal
+/// y que el evento de salida se procese dos veces. `data_dir` se rellena en
+/// `setup`, cuando ya se conoce el directorio de datos real.
+struct BackendState {
+    child: Mutex<Option<std::process::Child>>,
+    cerrando: AtomicBool,
+    /// El candado de instancia única se suelta en cuanto el usuario pide
+    /// cerrar, no al terminar el backend: así una reapertura inmediata
+    /// arranca en vez de enfocar una ventana que ya no existe.
+    instancia_liberada: AtomicBool,
+    data_dir: Mutex<Option<PathBuf>>,
+}
+
+impl BackendState {
+    fn new() -> Self {
+        Self {
+            child: Mutex::new(None),
+            cerrando: AtomicBool::new(false),
+            instancia_liberada: AtomicBool::new(false),
+            data_dir: Mutex::new(None),
+        }
+    }
+
+    fn data_dir(&self) -> Option<PathBuf> {
+        self.data_dir.lock().ok().and_then(|guard| guard.clone())
+    }
+}
 
 const BACKEND_ADDR: &str = "127.0.0.1:8765";
+/// Plazo para que uvicorn cierre conexiones y salga tras el aviso por stdin.
+const CIERRE_ORDENADO: Duration = Duration::from_secs(3);
 
-/// true si algo en `addr` responde a GET /health identificándose como
-/// OpenWave. Un simple TCP connect no basta: cualquier proceso puede aceptar
-/// la conexión y hacernos creer que nuestro backend está sano.
+/// Datos útiles de un /health ajeno (para diagnosticar y cerrar huérfanos).
+#[derive(Clone, Debug, Default)]
+struct InfoBackend {
+    version: Option<String>,
+    pid: Option<u32>,
+}
+
+/// ¿La cabecera HTTP empieza por 200?
+fn cabecera_es_200(cabecera: &[u8]) -> bool {
+    std::str::from_utf8(cabecera)
+        .ok()
+        .and_then(|texto| texto.lines().next())
+        .is_some_and(|linea| linea.starts_with("HTTP/1.0 200") || linea.starts_with("HTTP/1.1 200"))
+}
+
+/// Cuerpo de la respuesta si ya está completo y es un 200.
 ///
-/// La respuesta se lee en BUCLE hasta encontrar el marcador (o agotar el
-/// plazo global): una única `read()` se quedaba con lo primero que llegara y
-/// un /health sano partido en dos paquetes parecía muerto — el falso negativo
-/// que imprimía «no responde a /health» con la app y el backend vivos.
-fn health_probe(addr: std::net::SocketAddr) -> bool {
+/// Un /health partido en varios paquetes era el falso negativo clásico: se
+/// lee en bucle y solo se da por bueno cuando llega el `Content-Length`
+/// completo (o el cierre del objeto JSON si no hay longitud).
+fn respuesta_completa(acc: &[u8]) -> Option<&[u8]> {
+    let pos = acc.windows(4).position(|ventana| ventana == b"\r\n\r\n")?;
+    let cabecera = &acc[..pos];
+    if !cabecera_es_200(cabecera) {
+        return None;
+    }
+    let cuerpo = &acc[pos + 4..];
+    let largo = std::str::from_utf8(cabecera)
+        .ok()?
+        .lines()
+        .skip(1)
+        .filter_map(|linea| linea.split_once(':'))
+        .find(|(clave, _)| clave.eq_ignore_ascii_case("content-length"))
+        .and_then(|(_, valor)| valor.trim().parse::<usize>().ok());
+    match largo {
+        Some(n) if cuerpo.len() >= n => Some(&cuerpo[..n]),
+        Some(_) => None,
+        None if cuerpo.last() == Some(&b'}') => Some(cuerpo),
+        None => None,
+    }
+}
+
+/// GET /health y devuelve el JSON si el puerto responde como OpenWave.
+fn leer_health(addr: std::net::SocketAddr) -> Option<serde_json::Value> {
     let Ok(mut stream) = std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(500))
     else {
-        return false;
+        return None;
     };
     if stream
         .set_read_timeout(Some(Duration::from_millis(400)))
         .is_err()
     {
-        return false;
+        return None;
     }
     if stream
         .write_all(b"GET /health HTTP/1.0\r\nHost: 127.0.0.1:8765\r\n\r\n")
         .is_err()
     {
-        return false;
+        return None;
     }
     let deadline = std::time::Instant::now() + Duration::from_millis(1500);
-    let mut acc: Vec<u8> = Vec::with_capacity(512);
-    let mut buf = [0u8; 512];
+    let mut acc: Vec<u8> = Vec::with_capacity(1024);
+    let mut buf = [0u8; 1024];
     while std::time::Instant::now() < deadline {
         match stream.read(&mut buf) {
-            // EOF sin el marcador: no es (o ya no está) nuestro backend.
             Ok(0) => break,
             Ok(n) => {
                 acc.extend_from_slice(&buf[..n]);
-                let head = String::from_utf8_lossy(&acc);
-                if head.contains("\"service\":\"OpenWave\"") {
-                    return head.starts_with("HTTP/1.0 200") || head.starts_with("HTTP/1.1 200");
+                // Error HTTP explícito: no es nuestro backend sano.
+                if let Some(pos) = acc.windows(4).position(|v| v == b"\r\n\r\n") {
+                    if !cabecera_es_200(&acc[..pos]) {
+                        return None;
+                    }
+                }
+                if respuesta_completa(&acc).is_some() {
+                    break;
                 }
             }
-            // Todavía no llega / paquete a medias: el plazo global decide.
             Err(ref e)
                 if e.kind() == std::io::ErrorKind::TimedOut
                     || e.kind() == std::io::ErrorKind::WouldBlock
                     || e.kind() == std::io::ErrorKind::Interrupted => {}
-            Err(_) => return false,
+            Err(_) => return None,
         }
     }
-    false
+    let cuerpo = respuesta_completa(&acc)?;
+    serde_json::from_slice(cuerpo).ok()
+}
+
+/// true si `valor` es la respuesta de OpenWave.
+fn es_openwave(valor: &serde_json::Value) -> bool {
+    valor.get("service").and_then(|v| v.as_str()) == Some("OpenWave")
+        && valor.get("status").and_then(|v| v.as_str()) == Some("ok")
+}
+
+/// Información del backend que responde en `addr` (si es OpenWave).
+fn info_backend(addr: std::net::SocketAddr) -> Option<InfoBackend> {
+    let valor = leer_health(addr)?;
+    if !es_openwave(&valor) {
+        return None;
+    }
+    Some(InfoBackend {
+        version: valor
+            .get("version")
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
+        pid: valor
+            .get("pid")
+            .and_then(|v| v.as_u64())
+            .map(|pid| pid as u32),
+    })
+}
+
+/// true si algo en `addr` responde a GET /health identificándose como
+/// OpenWave. Un simple TCP connect no basta: cualquier proceso puede aceptar
+/// la conexión y hacernos creer que nuestro backend está sano.
+fn health_probe(addr: std::net::SocketAddr) -> bool {
+    leer_health(addr).is_some_and(|valor| es_openwave(&valor))
 }
 
 /// true si BACKEND_ADDR responde a /health como OpenWave (ver health_probe).
@@ -67,18 +168,57 @@ fn backend_responds_as_openwave() -> bool {
     health_probe(addr)
 }
 
+/// Información del backend actual, si responde.
+fn info_backend_actual() -> Option<InfoBackend> {
+    let addr = BACKEND_ADDR.parse::<std::net::SocketAddr>().ok()?;
+    info_backend(addr)
+}
+
 /// true si algo (cualquiera) está escuchando en BACKEND_ADDR.
 fn port_in_use() -> bool {
     let Ok(addr) = BACKEND_ADDR.parse::<std::net::SocketAddr>() else {
         return false;
     };
-    std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(500)).is_ok()
+    std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok()
+}
+
+/// Pide a un proceso ajeno de OpenWave que termine (huérfano de una app
+/// anterior). En Unix es SIGTERM; en Windows `taskkill /T /F` para incluir
+/// los hijos (ffmpeg/yt-dlp).
+#[cfg(unix)]
+fn terminar_proceso(pid: u32) {
+    // SAFETY: kill(2) solo envía una señal; un PID inválido devuelve ESRCH.
+    unsafe {
+        libc::kill(pid as i32, libc::SIGTERM);
+    }
+}
+
+#[cfg(windows)]
+fn terminar_proceso(pid: u32) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let _ = Command::new("taskkill")
+        .arg("/PID")
+        .arg(pid.to_string())
+        .args(["/T", "/F"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .status();
+}
+
+/// Mata el grupo de procesos del backend (Unix). Se usa después de que el
+/// hijo salga para que un ffmpeg lanzado por una descarga no quede vivo.
+#[cfg(unix)]
+fn matar_grupo(pid: u32, senal: i32) {
+    // SAFETY: el grupo se creó con process_group(0), así que -pid es su PGID.
+    unsafe {
+        libc::kill(-(pid as i32), senal);
+    }
 }
 
 /// Poll the backend health endpoint until it responds or timeout.
-fn wait_for_backend(timeout_secs: u64) -> bool {
-    let start = std::time::Instant::now();
-    while start.elapsed().as_secs() < timeout_secs {
+fn wait_for_backend(timeout: Duration) -> bool {
+    let start = Instant::now();
+    while start.elapsed() < timeout {
         if backend_responds_as_openwave() {
             return true;
         }
@@ -112,6 +252,236 @@ fn dir_writable(path: &std::path::Path) -> bool {
     };
     let _ = std::fs::remove_file(&probe);
     ok
+}
+
+/// Escribe una línea en `<datos>/openwave-app.log` y en stderr.
+///
+/// En Windows release no hay consola: sin este fichero, un fallo de arranque
+/// (puerto ocupado, intérprete que no existe, backend que muere) no dejaba
+/// ningún rastro. Es el log de la parte Rust, separado de `openwave.log`
+/// (backend) y `backend.err.log` (stderr de Python).
+fn log_app(data_dir: &Path, mensaje: &str) {
+    use std::io::Write;
+    let ruta = data_dir.join("openwave-app.log");
+    if let Ok(mut fichero) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&ruta)
+    {
+        let ahora = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let _ = writeln!(fichero, "[{ahora}] {mensaje}");
+    }
+    eprintln!("[openwave] {mensaje}");
+}
+
+/// Trunca el log de la app al empezar cada ejecución.
+fn reiniciar_log_app(data_dir: &Path) {
+    let _ = std::fs::create_dir_all(data_dir);
+    let _ = std::fs::write(
+        data_dir.join("openwave-app.log"),
+        format!(
+            "OpenWave {} — {}\n",
+            env!("CARGO_PKG_VERSION"),
+            data_dir.display()
+        ),
+    );
+}
+
+fn log_app_state(state: &BackendState, mensaje: &str) {
+    match state.data_dir() {
+        Some(dir) => log_app(&dir, mensaje),
+        None => eprintln!("[openwave] {mensaje}"),
+    }
+}
+
+fn log_app_handle(app: &tauri::AppHandle, mensaje: &str) {
+    log_app_state(&app.state::<BackendState>(), mensaje);
+}
+
+/// `taskkill /T /F` para matar el árbol de un backend que no responde.
+#[cfg(windows)]
+fn matar_arbol_windows(pid: u32) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let _ = Command::new("taskkill")
+        .arg("/PID")
+        .arg(pid.to_string())
+        .args(["/T", "/F"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .status();
+}
+
+/// Cierra el backend: aviso por stdin, espera y, si no sale, fuerza.
+///
+/// Escribir en stdin y soltar el handle (EOF) es el protocolo normal; el
+/// backend lo traduce en `server.should_exit` y uvicorn cierra el socket con
+/// `timeout_graceful_shutdown`. Solo si no sale en `CIERRE_ORDENADO` se mata.
+fn detener_backend(state: &BackendState) {
+    let mut guard = match state.child.lock() {
+        Ok(guard) => guard,
+        Err(_) => return,
+    };
+    let Some(mut child) = guard.take() else {
+        return;
+    };
+    let pid = child.id();
+    log_app_state(state, &format!("cerrando backend (pid {pid})"));
+
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(b"shutdown\n");
+        let _ = stdin.flush();
+        // Al salir del scope se cierra el pipe: EOF si el aviso no llegó.
+    }
+
+    let inicio = Instant::now();
+    let mut salio = false;
+    while inicio.elapsed() < CIERRE_ORDENADO {
+        match child.try_wait() {
+            Ok(Some(estado)) => {
+                log_app_state(state, &format!("backend terminó ({estado})"));
+                salio = true;
+                break;
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(50)),
+            Err(exc) => {
+                log_app_state(state, &format!("error esperando al backend: {exc}"));
+                break;
+            }
+        }
+    }
+
+    if !salio {
+        log_app_state(state, "el backend no salió a tiempo; se fuerza el cierre");
+        #[cfg(windows)]
+        matar_arbol_windows(pid);
+        #[cfg(unix)]
+        matar_grupo(pid, libc::SIGKILL);
+        let _ = child.kill();
+    }
+    let _ = child.wait();
+
+    // El hijo ya no está, pero puede quedar un ffmpeg de una descarga en el
+    // mismo grupo. Se limpia sin tocar a nadie más (grupo propio).
+    #[cfg(unix)]
+    {
+        matar_grupo(pid, libc::SIGTERM);
+        std::thread::sleep(Duration::from_millis(100));
+        matar_grupo(pid, libc::SIGKILL);
+    }
+    log_app_state(state, "backend detenido");
+}
+
+/// Suelta el candado de instancia única una sola vez.
+///
+/// Se llama al pedir el cierre de la ventana (antes de destruirla) y, como
+/// respaldo, en `ExitRequested` para salidas que no pasan por la ventana.
+fn liberar_instancia(app: &tauri::AppHandle) {
+    let state = app.state::<BackendState>();
+    if state.instancia_liberada.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    tauri_plugin_single_instance::destroy(app);
+    log_app_state(
+        &state,
+        "candado de instancia liberado para una reapertura rápida",
+    );
+}
+
+/// Punto único de parada desde el evento de salida de Tauri.
+fn parar_backend(app: &tauri::AppHandle) {
+    let state = app.state::<BackendState>();
+    state.cerrando.store(true, Ordering::SeqCst);
+    detener_backend(&state);
+}
+
+/// Decide si hay que lanzar un backend nuevo o no.
+///
+/// Cerrar y abrir rápido deja durante un instante el puerto ocupado por el
+/// backend anterior. Antes se abandonaba el arranque y la app quedaba «sin
+/// conexión»; ahora se espera a que termine, se fuerza si es un huérfano con
+/// PID conocido y, en desarrollo, se reutiliza el backend de `start.bat`.
+/// Devuelve `true` cuando el puerto está libre y toca lanzar el nuestro.
+fn preparar_puerto(es_debug: bool, state: &BackendState) -> bool {
+    if !port_in_use() {
+        return true;
+    }
+    log_app_state(
+        state,
+        &format!("{BACKEND_ADDR} está ocupado; comprobando qué responde"),
+    );
+
+    let inicio = Instant::now();
+    let mut aviso_cierre = false;
+    let mut cierre_forzado = false;
+    loop {
+        if !port_in_use() {
+            log_app_state(state, "el puerto quedó libre");
+            return true;
+        }
+
+        if let Some(info) = info_backend_actual() {
+            let version = info.version.as_deref().unwrap_or("desconocida");
+            if es_debug {
+                log_app_state(
+                    state,
+                    &format!(
+                        "se reutiliza el backend de desarrollo (pid {}, versión {version})",
+                        info.pid.map_or_else(|| "?".to_string(), |p| p.to_string())
+                    ),
+                );
+                return false;
+            }
+
+            if !aviso_cierre {
+                log_app_state(
+                    state,
+                    &format!(
+                        "hay un OpenWave anterior en el puerto (pid {}, versión {version}); \
+                         esperando su cierre",
+                        info.pid.map_or_else(|| "?".to_string(), |p| p.to_string())
+                    ),
+                );
+                aviso_cierre = true;
+            }
+
+            // Si en 1,5 s sigue vivo, es un huérfano de una app que murió sin
+            // cerrar el pipe: se termina por PID (con su árbol en Windows).
+            if inicio.elapsed() >= Duration::from_millis(1500) && !cierre_forzado {
+                if let Some(pid) = info.pid {
+                    log_app_state(
+                        state,
+                        &format!("el backend anterior no se cierra solo; terminando pid {pid}"),
+                    );
+                    terminar_proceso(pid);
+                }
+                cierre_forzado = true;
+            }
+
+            // Último recurso: reutilizarlo antes que abrir la app sin backend.
+            if inicio.elapsed() >= Duration::from_secs(3) {
+                log_app_state(
+                    state,
+                    "el backend anterior sigue respondiendo; se reutiliza (aviso: no se \
+                     cerrará al cerrar esta instancia)",
+                );
+                return false;
+            }
+        } else if inicio.elapsed() >= Duration::from_millis(1500) {
+            log_app_state(
+                state,
+                &format!(
+                    "{BACKEND_ADDR} lo ocupa otro proceso que no responde como OpenWave; \
+                     la app abrirá sin backend"
+                ),
+            );
+            return false;
+        }
+
+        std::thread::sleep(Duration::from_millis(150));
+    }
 }
 
 /// Directorio de datos de la app — la ÚNICA fuente de verdad: el backend
@@ -231,8 +601,12 @@ const FICHEROS_MIGRACION: [(&str, &str); 7] = [
     ("url_cache.json", "url_cache.json"),
 ];
 
-/// Carpetas de datos que se migran enteras.
-const CARPETAS_MIGRACION: [&str; 3] = ["downloads", "lyrics", "stream_cache"];
+/// Carpetas de datos de usuario que se migran enteras.
+///
+/// `stream_cache` NO se migra: es una caché derivada (se regenera sola) y
+/// puede ocupar cientos de MB. Copiarla bloqueaba el primer arranque sin
+/// aportar nada.
+const CARPETAS_MIGRACION: [&str; 2] = ["downloads", "lyrics"];
 
 /// Copia recursiva `origen` → `destino` sin pisar lo que ya haya en destino
 /// (los datos nuevos mandan) y sin tocar el origen. Devuelve el número de
@@ -256,30 +630,14 @@ fn copiar_dir_sin_pisar(
     Ok(copiados)
 }
 
-/// Migra los datos de versiones anteriores (`origenes`) a `data_dir`.
+/// Copia los ficheros sueltos (BD, WAL/SHM y caché de URLs).
 ///
-/// Copia la base de datos (con sus `-wal`/`-shm`), la caché de URLs, las
-/// descargas, las letras y la caché de stream. NO borra el origen (por si
-/// algo sale mal se puede recuperar a mano) y NO pisa ficheros que ya estén
-/// en destino. Al terminar escribe el marcador `MARCADOR_MIGRACION`, así la
-/// siguiente arrancada no vuelve a copiar; si algo falla a mitad no se
-/// escribe y se reintenta.
-fn migrar_datos_heredados(
-    data_dir: &std::path::Path,
-    origenes: &[PathBuf],
-) -> std::io::Result<usize> {
-    let marcador = data_dir.join(MARCADOR_MIGRACION);
-    if marcador.exists() {
-        return Ok(0);
-    }
-    let con_datos: Vec<&PathBuf> = origenes.iter().filter(|o| o.is_dir()).collect();
-    if con_datos.is_empty() {
-        return Ok(0);
-    }
+/// Es lo único que el backend necesita tener antes de arrancar: sin la base
+/// de datos crearía una vacía. Por eso esta parte sigue siendo síncrona.
+fn migrar_ficheros(data_dir: &std::path::Path, origenes: &[PathBuf]) -> std::io::Result<usize> {
     std::fs::create_dir_all(data_dir)?;
-
     let mut copiados = 0usize;
-    for origen in &con_datos {
+    for origen in origenes.iter().filter(|origen| origen.is_dir()) {
         for (fuente, destino) in FICHEROS_MIGRACION {
             let fichero_origen = origen.join(fuente);
             let fichero_destino = data_dir.join(destino);
@@ -288,6 +646,14 @@ fn migrar_datos_heredados(
                 copiados += 1;
             }
         }
+    }
+    Ok(copiados)
+}
+
+/// Copia descargas y letras (sin pisar lo que ya haya en destino).
+fn migrar_carpetas(data_dir: &std::path::Path, origenes: &[PathBuf]) -> std::io::Result<usize> {
+    let mut copiados = 0usize;
+    for origen in origenes.iter().filter(|origen| origen.is_dir()) {
         for carpeta in CARPETAS_MIGRACION {
             let carpeta_origen = origen.join(carpeta);
             if carpeta_origen.is_dir() {
@@ -295,17 +661,49 @@ fn migrar_datos_heredados(
             }
         }
     }
+    Ok(copiados)
+}
 
+/// Escribe el marcador que evita repetir la migración en cada arranque.
+///
+/// Solo se escribe cuando todo ha terminado: si la app se cierra a mitad, la
+/// siguiente ejecución reintenta (copiar es idempotente y no pisa).
+fn escribir_marcador_migracion(
+    data_dir: &std::path::Path,
+    origenes: &[PathBuf],
+    copiados: usize,
+) -> std::io::Result<()> {
     let momento = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
     let marca = serde_json::json!({
-        "origenes": con_datos.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+        "origenes": origenes
+            .iter()
+            .filter(|origen| origen.is_dir())
+            .map(|p| p.display().to_string())
+            .collect::<Vec<_>>(),
         "copiados": copiados,
         "momento": momento,
     });
-    std::fs::write(&marcador, marca.to_string())?;
+    std::fs::write(data_dir.join(MARCADOR_MIGRACION), marca.to_string())
+}
+
+/// Migra TODO de golpe (solo tests). La app usa la versión en dos fases:
+/// ficheros antes del backend y carpetas en segundo plano.
+#[cfg(test)]
+fn migrar_datos_heredados(
+    data_dir: &std::path::Path,
+    origenes: &[PathBuf],
+) -> std::io::Result<usize> {
+    if data_dir.join(MARCADOR_MIGRACION).exists() {
+        return Ok(0);
+    }
+    if !origenes.iter().any(|origen| origen.is_dir()) {
+        return Ok(0);
+    }
+    let copiados = migrar_ficheros(data_dir, origenes)? + migrar_carpetas(data_dir, origenes)?;
+    escribir_marcador_migracion(data_dir, origenes, copiados)?;
     Ok(copiados)
 }
 
@@ -325,22 +723,60 @@ fn raices_datos_heredados() -> Vec<PathBuf> {
     vec![base.join("OpenWave"), base.join("SoundWave")]
 }
 
-/// Migra los datos heredados al directorio nuevo (una sola vez).
+/// Primera fase: migra la base de datos y los ficheros pequeños.
 ///
 /// Se llama ANTES de arrancar el backend: si no, éste crearía su base de
-/// datos vacía y la migración ya no tendría dónde meter los datos.
-fn migrar_si_hace_falta(data_dir: &std::path::Path) {
+/// datos vacía y la migración ya no tendría dónde meter los datos. Devuelve
+/// los orígenes para que `setup` pueda lanzar la segunda fase.
+fn migrar_si_hace_falta(data_dir: &Path) -> Vec<PathBuf> {
     let origenes = raices_datos_heredados();
-    if origenes.is_empty() {
+    if origenes.is_empty() || data_dir.join(MARCADOR_MIGRACION).exists() {
+        return origenes;
+    }
+    match migrar_ficheros(data_dir, &origenes) {
+        Ok(0) => {}
+        Ok(n) => log_app(
+            data_dir,
+            &format!(
+                "migrados {n} ficheros de datos antiguos a {}",
+                data_dir.display()
+            ),
+        ),
+        Err(e) => log_app(
+            data_dir,
+            &format!("no se pudieron migrar los datos antiguos: {e}"),
+        ),
+    }
+    origenes
+}
+
+/// Segunda fase: descargas y letras en un hilo, sin bloquear la ventana.
+///
+/// El marcador se escribe al terminar. Si la app se cierra antes, la próxima
+/// apertura vuelve a intentarlo; copiar no pisa nada ya presente.
+fn migrar_carpetas_en_segundo_plano(data_dir: PathBuf, origenes: Vec<PathBuf>) {
+    if origenes.is_empty() || data_dir.join(MARCADOR_MIGRACION).exists() {
         return;
     }
-    match migrar_datos_heredados(data_dir, &origenes) {
-        Ok(0) => {}
-        Ok(n) => eprintln!(
-            "[openwave] Migrados {n} ficheros de datos antiguos a {}",
-            data_dir.display()
+    let inicio = Instant::now();
+    match migrar_carpetas(&data_dir, &origenes) {
+        Ok(n) => match escribir_marcador_migracion(&data_dir, &origenes, n) {
+            Ok(()) => log_app(
+                &data_dir,
+                &format!(
+                    "migración en segundo plano: {n} ficheros en {} ms",
+                    inicio.elapsed().as_millis()
+                ),
+            ),
+            Err(e) => log_app(
+                &data_dir,
+                &format!("migración terminada pero no se pudo marcar: {e}"),
+            ),
+        },
+        Err(e) => log_app(
+            &data_dir,
+            &format!("migración en segundo plano falló (se reintentará): {e}"),
         ),
-        Err(e) => eprintln!("[openwave] No se pudieron migrar los datos antiguos: {e}"),
     }
 }
 
@@ -481,7 +917,18 @@ fn window_environment(app: tauri::AppHandle) -> WindowEnvironment {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        // Una segunda apertura no crea otra ventana: comparte backend con la
+        // primera y cerrar una mataría el backend de la otra. El plugin trae
+        // al frente la ventana existente.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            log_app_handle(app, "segunda instancia: se enfoca la ventana existente");
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .invoke_handler(tauri::generate_handler![window_environment])
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
@@ -489,7 +936,7 @@ pub fn run() {
         // <input type="file">, cuyo diálogo en WebView2 cerraba la app.
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .manage(BackendProcess(Mutex::new(None)))
+        .manage(BackendState::new())
         .setup(|app| {
             #[cfg_attr(not(target_os = "windows"), allow(unused_variables))]
             let window = match app.get_webview_window("main") {
@@ -542,24 +989,6 @@ pub fn run() {
             #[cfg(windows)]
             set_taskbar_icon(&window);
 
-            // Una sola instancia en BACKEND_ADDR
-            // Si ya responde OpenWave: reutilizarla (nada de dos backends).
-            // Si el puerto lo ocupa OTRO proceso: avisar claro — lanzar el
-            // nuestro solo moriría con «Errno 98 address already in use».
-            if port_in_use() {
-                if backend_responds_as_openwave() {
-                    eprintln!(
-                        "[openwave] Ya hay una instancia de OpenWave en {BACKEND_ADDR}; se reutiliza (no se lanza otra)."
-                    );
-                } else {
-                    eprintln!(
-                        "[openwave] ERROR: {BACKEND_ADDR} está ocupado por OTRO proceso y no responde a /health. \
-                         Ciérralo y vuelve a abrir OpenWave."
-                    );
-                }
-                return Ok(());
-            }
-
             let backend_path: PathBuf = if cfg!(debug_assertions) {
                 let manifest_dir = match option_env!("CARGO_MANIFEST_DIR") {
                     Some(d) => PathBuf::from(d),
@@ -595,13 +1024,30 @@ pub fn run() {
                 .map(|p| p.to_path_buf())
                 .unwrap_or_else(|| PathBuf::from("."));
             let data_dir = resolve_data_dir(&backend_dir);
+            reiniciar_log_app(&data_dir);
+            {
+                let estado = app.state::<BackendState>();
+                if let Ok(mut guard) = estado.data_dir.lock() {
+                    *guard = Some(data_dir.clone());
+                };
+            }
+            log_app_state(
+                &app.state::<BackendState>(),
+                &format!("datos en {}", data_dir.display()),
+            );
+
+            // Reapertura rápida: esperar al backend anterior en vez de
+            // abandonar el arranque. En desarrollo se reutiliza el que haya.
+            if !preparar_puerto(cfg!(debug_assertions), &app.state::<BackendState>()) {
+                return Ok(());
+            }
 
             // Datos de versiones anteriores (OpenWave actual y la marca
             // antigua SoundWave) al directorio nuevo, ANTES del spawn: si el
             // backend arranca primero crea su base de datos vacía y ya no
-            // hay dónde meter los datos del usuario. Solo la primera vez
-            // (marcador .migrated.json) y sin borrar el origen.
-            migrar_si_hace_falta(&data_dir);
+            // hay dónde meter los datos del usuario. Solo la base de datos y
+            // los ficheros pequeños; las descargas van en segundo plano.
+            let origenes_migracion = migrar_si_hace_falta(&data_dir);
 
             // Candidatos de intérprete, en orden:
             //  1. runtime empaquetado (instalación Windows: Python embebido
@@ -620,18 +1066,28 @@ pub fn run() {
                 }
             }
 
-            let project_root = backend_dir.parent();
-            let venv_python = project_root
-                .map(|p| {
-                    if cfg!(target_os = "windows") {
-                        p.join("venv").join("Scripts").join("python.exe")
+            // El venv de desarrollo vive JUNTO AL BACKEND (`backend/venv`),
+            // no en la raíz del repo. Buscarlo en el padre hacía que se
+            // lanzara el `python` del sistema, sin dependencias.
+            let venv_python = {
+                let ruta = backend_dir
+                    .join("venv")
+                    .join(if cfg!(target_os = "windows") {
+                        "Scripts"
                     } else {
-                        p.join("venv").join("bin").join("python")
-                    }
-                })
-                .filter(|p| p.exists())
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_default();
+                        "bin"
+                    })
+                    .join(if cfg!(target_os = "windows") {
+                        "python.exe"
+                    } else {
+                        "python"
+                    });
+                if ruta.is_file() {
+                    ruta.to_string_lossy().to_string()
+                } else {
+                    String::new()
+                }
+            };
 
             python_paths.extend([
                 venv_python,
@@ -649,13 +1105,19 @@ pub fn run() {
 
             let mut child = None;
             for py in &python_paths {
-                if py.is_empty() { continue; }
+                if py.is_empty() {
+                    continue;
+                }
                 let mut cmd = Command::new(py);
                 cmd.arg(&backend_path);
                 // Directorio del intérprete (y el ffmpeg empaquetado) al
                 // frente del PATH para que yt-dlp hereda las herramientas.
                 // ";" en Windows, ":" en el resto de plataformas.
-                let sep = if cfg!(target_os = "windows") { ";" } else { ":" };
+                let sep = if cfg!(target_os = "windows") {
+                    ";"
+                } else {
+                    ":"
+                };
                 let old = std::env::var("PATH").unwrap_or_default();
                 let mut path_prefix: Vec<String> = Vec::new();
                 let py_path = std::path::Path::new(py.as_str());
@@ -671,6 +1133,20 @@ pub fn run() {
                     cmd.env("PATH", format!("{}{}{}", path_prefix.join(sep), sep, old));
                 }
                 cmd.env("OPENWAVE_DATA_DIR", &data_dir);
+                // Ciclo de vida: Rust escribe «shutdown» (o cierra el pipe)
+                // y el backend sale ordenadamente. Solo se activa aquí; una
+                // ejecución manual de `python main.py` no se cierra sola.
+                cmd.env("OPENWAVE_LIFECYCLE_STDIN", "1");
+                cmd.env("OPENWAVE_APP_VERSION", env!("CARGO_PKG_VERSION"));
+                cmd.stdin(Stdio::piped());
+
+                // Grupo propio en Unix: al cerrar se puede limpiar también
+                // cualquier ffmpeg que haya lanzado una descarga.
+                #[cfg(unix)]
+                {
+                    use std::os::unix::process::CommandExt;
+                    cmd.process_group(0);
+                }
 
                 // En la app instalada (Windows release) no debe aparecer una
                 // consola: stdout va al vacío (todo lo importante ya cae en
@@ -679,7 +1155,6 @@ pub fn run() {
                 #[cfg(all(target_os = "windows", not(debug_assertions)))]
                 {
                     use std::os::windows::process::CommandExt;
-                    use std::process::Stdio;
                     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
                     cmd.creation_flags(CREATE_NO_WINDOW);
                     cmd.stdout(Stdio::null());
@@ -694,28 +1169,59 @@ pub fn run() {
                 }
 
                 match cmd.spawn() {
-                    Ok(c) => { child = Some(c); break; }
-                    Err(_) => continue,
+                    Ok(c) => {
+                        log_app_state(
+                            &app.state::<BackendState>(),
+                            &format!("backend lanzado con {py} (pid {})", c.id()),
+                        );
+                        child = Some(c);
+                        break;
+                    }
+                    Err(exc) => {
+                        log_app_state(
+                            &app.state::<BackendState>(),
+                            &format!("no se pudo lanzar {py}: {exc}"),
+                        );
+                        continue;
+                    }
                 }
             }
 
             let child = match child {
                 Some(c) => c,
                 None => {
-                    eprintln!(
-                        "[openwave] No se pudo iniciar el backend ({:?}): no se encontro Python", backend_path
+                    log_app_state(
+                        &app.state::<BackendState>(),
+                        &format!(
+                            "no se pudo iniciar el backend ({}): no hay intérprete válido",
+                            backend_path.display()
+                        ),
                     );
                     return Ok(());
                 }
             };
 
-            match app.state::<BackendProcess>().0.lock() {
+            match app.state::<BackendState>().child.lock() {
                 Ok(mut guard) => {
                     *guard = Some(child);
                 }
                 Err(e) => {
-                    eprintln!("[openwave] Error al bloquear BackendProcess: {e}");
+                    log_app_state(
+                        &app.state::<BackendState>(),
+                        &format!("error al guardar el backend: {e}"),
+                    );
+                    return Ok(());
                 }
+            }
+
+            // Descargas y letras antiguas: copia en un hilo. Si la app se
+            // cierra antes de terminar, el marcador no se escribe y la
+            // siguiente apertura lo reintenta.
+            if !origenes_migracion.is_empty() {
+                let dir = data_dir.clone();
+                std::thread::spawn(move || {
+                    migrar_carpetas_en_segundo_plano(dir, origenes_migracion)
+                });
             }
 
             // Vigila si el backend propio muere y deja rastro en el log. El
@@ -723,20 +1229,23 @@ pub fn run() {
             let handle = app.handle().clone();
             std::thread::spawn(move || loop {
                 std::thread::sleep(Duration::from_secs(1));
-                let state = handle.state::<BackendProcess>();
-                let Ok(mut guard) = state.0.lock() else {
+                let state = handle.state::<BackendState>();
+                if state.cerrando.load(Ordering::SeqCst) {
+                    break;
+                }
+                let Ok(mut guard) = state.child.lock() else {
                     break;
                 };
                 match guard.as_mut() {
                     Some(child) => match child.try_wait() {
                         Ok(Some(status)) => {
-                            eprintln!("[openwave] El backend terminó ({status}).");
+                            log_app_state(&state, &format!("el backend terminó ({status})"));
                             *guard = None;
                             break;
                         }
                         Ok(None) => {}
                         Err(e) => {
-                            eprintln!("[openwave] Error vigilando al backend: {e}");
+                            log_app_state(&state, &format!("error vigilando al backend: {e}"));
                             break;
                         }
                     },
@@ -750,12 +1259,21 @@ pub fn run() {
             // de pantalla en negro y sin animación de carga). La espera pasa
             // a un hilo y la ventana sale ya; el frontend se entera del
             // estado por su propio sondeo de /health (banner de conexión).
-            // El primer arranque con el runtime embebido tarda más: frío de
-            // disco + importar yt-dlp/curl_cffi sin pyc.
+            // El plazo se alinea con la ventana de gracia del frontend (30 s).
+            let handle = app.handle().clone();
             std::thread::spawn(move || {
-                if !wait_for_backend(15) {
-                    eprintln!(
-                        "[openwave] El backend no respondió en 15s: la app abrirá igual y mostrará «sin conexión»."
+                let inicio = Instant::now();
+                let listo = wait_for_backend(Duration::from_secs(30));
+                let estado = handle.state::<BackendState>();
+                if listo {
+                    log_app_state(
+                        &estado,
+                        &format!("backend listo en {} ms", inicio.elapsed().as_millis()),
+                    );
+                } else {
+                    log_app_state(
+                        &estado,
+                        "el backend no respondió en 30 s: la app abrirá sin conexión",
                     );
                 }
             });
@@ -763,21 +1281,47 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            // En cuanto el usuario pide cerrar, liberar el candado: el
+            // backend tarda unos cientos de ms en apagarse y una reapertura
+            // inmediata no debe encontrar una instancia "fantasma".
             if let tauri::WindowEvent::CloseRequested { .. } = event {
-                let child_opt = window
-                    .app_handle()
-                    .state::<BackendProcess>()
-                    .0
-                    .lock()
-                    .ok()
-                    .and_then(|mut guard| guard.take());
-                if let Some(mut child) = child_opt {
-                    let _ = child.kill();
-                }
+                liberar_instancia(window.app_handle());
             }
         })
-        .run(tauri::generate_context!())
-        .unwrap_or_else(|e| eprintln!("[openwave] Error al ejecutar la aplicación: {e}"));
+        .build(tauri::generate_context!());
+
+    let app = match app {
+        Ok(app) => app,
+        Err(e) => {
+            eprintln!("[openwave] Error al construir la aplicación: {e}");
+            return;
+        }
+    };
+
+    app.run(|handle, event| {
+        if let RunEvent::ExitRequested { api, .. } = event {
+            let state = handle.state::<BackendState>();
+            // El segundo ExitRequested es el de nuestro propio `exit(0)`.
+            if state.cerrando.swap(true, Ordering::SeqCst) {
+                return;
+            }
+            api.prevent_exit();
+            // Respaldo para salidas que no pasan por CloseRequested.
+            liberar_instancia(handle);
+            let handle = handle.clone();
+            std::thread::spawn(move || {
+                // Si el cierre del backend fallara de forma inesperada, la
+                // app no puede quedarse sin ventana y viva para siempre.
+                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    parar_backend(&handle);
+                }));
+                // `std::process::exit` en vez de `handle.exit`: el plugin ya
+                // liberó el candado a mano y su hook de `RunEvent::Exit` lo
+                // volvería a cerrar (doble CloseHandle en Windows).
+                std::process::exit(0);
+            });
+        }
+    });
 }
 
 #[cfg(test)]
@@ -787,7 +1331,28 @@ mod tests {
     use std::net::TcpListener;
     use std::time::Duration;
 
-    const OK_BODY: &str = "{\"service\":\"OpenWave\"}";
+    #[cfg(unix)]
+    #[test]
+    fn detener_backend_avisa_por_stdin_y_espera() {
+        use super::{detener_backend, BackendState};
+        use std::process::{Command, Stdio};
+
+        let estado = BackendState::new();
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c")
+            .arg("read linea; [ \"$linea\" = shutdown ]")
+            .stdin(Stdio::piped());
+        let child = cmd.spawn().expect("debe lanzar sh");
+        *estado.child.lock().unwrap() = Some(child);
+
+        let inicio = std::time::Instant::now();
+        detener_backend(&estado);
+
+        assert!(inicio.elapsed() < Duration::from_secs(3));
+        assert!(estado.child.lock().unwrap().is_none());
+    }
+
+    const OK_BODY: &str = "{\"status\":\"ok\",\"service\":\"OpenWave\"}";
 
     fn serve(response_parts: Vec<Vec<u8>>, close_after: bool) -> std::net::SocketAddr {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -843,6 +1408,21 @@ mod tests {
         );
         let addr = serve(vec![full.into_bytes()], true);
         assert!(health_probe(addr));
+    }
+
+    #[test]
+    fn info_backend_lee_version_y_pid() {
+        let body =
+            "{\"status\":\"ok\",\"service\":\"OpenWave\",\"version\":\"1.2.2\",\"pid\":4242}";
+        let full = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+            body.len(),
+            body
+        );
+        let addr = serve(vec![full.into_bytes()], true);
+        let info = super::info_backend(addr).expect("debe leer el health");
+        assert_eq!(info.version.as_deref(), Some("1.2.2"));
+        assert_eq!(info.pid, Some(4242));
     }
 
     #[test]
@@ -1031,7 +1611,7 @@ mod tests {
 
         let destino = tmp.join("datos");
         let copiados = migrar_datos_heredados(&destino, &[legacy.clone()]).unwrap();
-        assert_eq!(copiados, 8);
+        assert_eq!(copiados, 7);
 
         // soundwave.db* renombrado a openwave.db*
         assert_eq!(
@@ -1048,7 +1628,8 @@ mod tests {
             .join("x.jpg")
             .is_file());
         assert!(destino.join("lyrics").join("x.lrc").is_file());
-        assert!(destino.join("stream_cache").join("y.m4a").is_file());
+        // La caché de stream es derivada y no se copia.
+        assert!(!destino.join("stream_cache").join("y.m4a").exists());
 
         // el origen NO se borra (por si hay que recuperar a mano)
         assert!(legacy.join("soundwave.db").is_file());

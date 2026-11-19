@@ -249,10 +249,15 @@ class TestHealth:
         assert resp.status_code == 200
 
     def test_health_response_structure(self, client):
-        """Health check debe tener status ok y service OpenWave."""
+        """Health check mantiene la marca y añade datos de diagnóstico."""
         resp = client.get("/health")
         data = resp.json()
-        assert data == {"status": "ok", "service": "OpenWave"}
+        assert data["status"] == "ok"
+        assert data["service"] == "OpenWave"
+        assert data["version"]
+        assert data["pid"] > 0
+        assert data["started_at"] > 0
+        assert data["uptime_ms"] >= 0
 
     def test_health_response_method(self, client):
         """Solo GET debe funcionar, no POST."""
@@ -408,3 +413,54 @@ class TestErroresConCodigo:
         assert resp.headers["Retry-After"] == "42"
         # content-length recalculado con el cuerpo nuevo
         assert int(resp.headers["content-length"]) == len(resp.body)
+
+
+class TestCicloDeVida:
+    """Cierre ordenado y socket de escucha."""
+
+    def test_orden_de_cierre_por_linea(self):
+        import io
+
+        from main import _leer_orden_cierre
+
+        assert _leer_orden_cierre(io.StringIO("shutdown\n"))
+        assert _leer_orden_cierre(io.StringIO("  SHUTDOWN  \r\n"))
+
+    def test_eof_tambien_cierra(self):
+        import io
+
+        from main import _leer_orden_cierre
+
+        assert _leer_orden_cierre(io.StringIO(""))
+        assert _leer_orden_cierre(None) is False
+
+    def test_stdin_roto_cierra(self):
+        import main
+
+        class _Roto:
+            def __iter__(self):
+                raise OSError("tubería cerrada")
+
+        assert main._leer_orden_cierre(_Roto())
+
+    def test_socket_servidor_enlaza_un_puerto_libre(self):
+        from main import _crear_socket_servidor
+
+        sock = _crear_socket_servidor("127.0.0.1", 0)
+        assert sock is not None
+        try:
+            assert sock.getsockname()[1] > 0
+        finally:
+            sock.close()
+
+    def test_socket_servidor_no_pisa_un_listener_activo(self):
+        import socket
+
+        from main import _crear_socket_servidor
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as ocupado:
+            ocupado.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            ocupado.bind(("127.0.0.1", 0))
+            ocupado.listen(1)
+            puerto = ocupado.getsockname()[1]
+            assert _crear_socket_servidor("127.0.0.1", puerto) is None

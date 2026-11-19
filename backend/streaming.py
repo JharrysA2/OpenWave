@@ -13,8 +13,6 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from pathlib import Path
 
-import httpx
-import yt_dlp
 from cache import (
     cache_url,
     get_cached_url,
@@ -22,10 +20,13 @@ from cache import (
     in_flight_lock,
 )
 from config import STREAM_CACHE_DIR, STREAM_CACHE_MAX_BYTES, YT_DLP_CACHE_DIR
+from lazy_imports import LazyModule
 from logging_config import get_logger
 from ytdlp_auth import auth_variants
 
 logger = get_logger(__name__)
+httpx = LazyModule("httpx")
+yt_dlp = LazyModule("yt_dlp")
 
 # Calidad de reproducción
 # Escalera de formatos de yt-dlp por calidad de streaming. TODAS terminan en

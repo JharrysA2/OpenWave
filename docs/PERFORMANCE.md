@@ -1484,6 +1484,52 @@ subsistema:
   persistentes caen al httpx; fakes con `kill()` síncrono como en
   `asyncio.Process`).
 
+## 12. Arranque y cierre del backend
+
+Objetivo: que la ventana no espere a un backend que todavía está importando
+`yt-dlp`, y que cerrar/abrir rápido no deje el puerto 8765 a medias.
+
+### 12.1 Import perezoso
+
+`httpx` y `yt-dlp` sumaban más de medio segundo al import de `main` (medido
+con `python -X importtime`): ~1,55 s en total. Ahora `backend/lazy_imports.py`
+los carga en el primer uso y un hilo de precarga los importa cuando uvicorn
+ya escucha. El camino crítico hasta `/health` queda en **~0,91 s** en
+desarrollo (antes ~1,55 s).
+
+Lo que NO se toca: `fastapi`/`starlette` (siguen en el import) porque todas
+las rutas tienen que estar montadas antes del bind. Tampoco se retrasa
+`init_db()`: la base de datos debe estar lista para las primeras peticiones.
+
+### 12.2 Bytecode empaquetado
+
+`prepare-runtime.ps1` y `prepare-runtime.sh` compilan el backend con
+`compileall --invalidation-mode unchecked-hash` y conservan `__pycache__` en
+el staging. En una instalación (Program Files o `/usr/lib`) el directorio no
+es escribible: sin los `.pyc`, Python recompila el backend en cada arranque y
+Defender vuelve a leer cada `.py`.
+
+Medición con el runtime empaquetado y los `.pyc` (Linux, mismo equipo):
+`/health` en **~0,52 s**. El cierre ordenado tarda **~0,31 s** y deja el
+puerto libre para el siguiente arranque.
+
+### 12.3 Cierre y reapertura
+
+- La app escribe `shutdown` en el stdin del backend (o cierra el pipe si
+  muere). uvicorn fija `should_exit`, deja de aceptar y cierra con
+  `timeout_graceful_shutdown=2`.
+- Rust espera hasta 3 s; solo entonces mata. En Unix, el backend va en su
+  propio grupo de procesos para limpiar también ffmpeg.
+- El bind del backend usa `SO_REUSEADDR` después de comprobar que no haya un
+  listener activo: reabrir sobre conexiones en `TIME_WAIT` ya no falla.
+- Si el puerto sigue ocupado por un OpenWave anterior, la app espera su
+  cierre (y lo termina por PID si es un huérfano) en vez de abrir sin backend.
+- La segunda apertura de la app enfoca la ventana existente
+  (`tauri-plugin-single-instance`), así no hay dos ventanas compartiendo un
+  backend. Al pedir el cierre, esa instancia suelta el candado antes de apagar
+  el backend: una reapertura inmediata arranca en vez de enfocar una ventana
+  que ya no existe.
+
 ## Regla de oro
 
 Todo estilo con impacto potencial en GPU/CPU (backdrop-filter nuevo,

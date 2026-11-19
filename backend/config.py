@@ -167,7 +167,9 @@ TRENDING_TTL = 1800  # 30 min para tendencias
 # Tope de la caché de baja calidad (poda LRU por fecha de modificación)
 STREAM_CACHE_MAX_BYTES = 512 * 1024 * 1024  # 512 MB
 
-# Puerto del servidor
-API_PORT = 8765
+# Puerto del servidor. La app usa siempre 8765; OPENWAVE_API_PORT permite
+# levantar el backend en otro puerto para tests de integración y depuración
+# sin chocar con una instancia abierta.
+API_PORT = int(os.environ.get("OPENWAVE_API_PORT", "8765"))
 API_HOST = "127.0.0.1"
 API_BASE = f"http://{API_HOST}:{API_PORT}"

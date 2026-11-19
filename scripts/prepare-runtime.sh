@@ -86,7 +86,15 @@ fetch() {
 
 mkdir -p "$CACHE" "$STAGE"
 
-want="$( { code_hash; sha256sum "$REQUIREMENTS" | cut -d' ' -f1; } | sha256sum | cut -d' ' -f1)"
+# Versión del layout del staging. Súbela al cambiar cómo se empaqueta (p. ej.
+# al añadir los .pyc) para invalidar cachés `.ready` antiguas aunque el código
+# del backend no haya cambiado.
+LAYOUT_VERSION="2"
+want="$( {
+  printf 'layout=%s\n' "$LAYOUT_VERSION"
+  code_hash
+  sha256sum "$REQUIREMENTS" | cut -d' ' -f1
+} | sha256sum | cut -d' ' -f1)"
 if [ "$FORCE" -eq 0 ] && [ -f "$MARKER" ] && [ "$(cat "$MARKER")" = "$want" ]; then
   log "Staging ya preparado (build/staging-linux/.ready). Usa --force para reconstruir."
   exit 0
@@ -141,6 +149,14 @@ for f in "${py_files[@]}"; do
   cp "$f" "$BACKEND_DST/$rel"
 done
 log "  ${#py_files[@]} ficheros .py copiados"
+
+# Bytecode precompilado: en /usr/lib (paquete instalado) el directorio no es
+# escribible, así que sin esto Python compila el backend en cada arranque.
+# `unchecked-hash` ignora mtime/tamaño: el .pyc sigue siendo válido aunque el
+# instalador renueve los ficheros.
+log "  compilando bytecode del backend"
+"$PY" -m compileall -q -j 0 --invalidation-mode unchecked-hash "$BACKEND_DST" \
+  || die "no se pudo compilar el bytecode del backend"
 
 log "[5/7] Dependencias (requirements-runtime.txt, solo wheels)"
 if ! "$PY" -m pip --version >/dev/null 2>&1; then

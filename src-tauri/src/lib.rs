@@ -1133,6 +1133,12 @@ pub fn run() {
                     cmd.env("PATH", format!("{}{}{}", path_prefix.join(sep), sep, old));
                 }
                 cmd.env("OPENWAVE_DATA_DIR", &data_dir);
+                // El AppRun del AppImage exporta PYTHONHOME/PYTHONPATH
+                // apuntando a `usr/`; el intérprete empaquetado busca su
+                // stdlib junto al ejecutable y moría con «Failed to import
+                // encodings». El runtime es autocontenido: se ignoran.
+                cmd.env_remove("PYTHONHOME");
+                cmd.env_remove("PYTHONPATH");
                 // Ciclo de vida: Rust escribe «shutdown» (o cierra el pipe)
                 // y el backend sale ordenadamente. Solo se activa aquí; una
                 // ejecución manual de `python main.py` no se cierra sola.

@@ -6,6 +6,10 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Corregido
+
+- **El AppImage vuelve a arrancar el backend.** El `AppRun` que genera linuxdeploy exporta `PYTHONHOME`/`PYTHONPATH` apuntando a `usr/`; el intérprete empaquetado buscaba su stdlib en esa ruta y moría con «Failed to import encodings». Al lanzar el backend se eliminan esas dos variables del hijo: el runtime es autocontenido y ya no hereda el entorno del AppImage.
+
 ## [1.3.0] - 2026-11-19
 
 ### Corregido

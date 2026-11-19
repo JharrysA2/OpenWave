@@ -6,6 +6,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-19
+
 ### Corregido
 
 - **El AppImage vuelve a arrancar el backend.** El `AppRun` que genera linuxdeploy exporta `PYTHONHOME`/`PYTHONPATH` apuntando a `usr/`; el intérprete empaquetado buscaba su stdlib en esa ruta y moría con «Failed to import encodings». Al lanzar el backend se eliminan esas dos variables del hijo: el runtime es autocontenido y ya no hereda el entorno del AppImage.
@@ -547,7 +549,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.3.1
 [1.3.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.3.0
 [1.2.2]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.2
 [1.2.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.2.1

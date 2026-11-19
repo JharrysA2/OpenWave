@@ -18,7 +18,7 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 - **Ventana nativa en instalaciones Linux.** En paquetes Linux se detecta el escritorio y la app deja de pintar su barra de título personalizada. Con Hyprland la ventana queda sin marco, gestionada por el compositor; en GNOME, KDE u otros escritorios se activa la barra nativa con minimizar, maximizar y cerrar. El desarrollo local y Windows conservan la barra personalizada actual. Letras ajusta su altura al espacio realmente ocupado por la ventana.
 
-- **«Ahora suena» sin botón de reproducción y scroll más limpio.** El panel lateral deja de duplicar el Play del player bar, que ya queda siempre visible encima de cualquier pantalla. Las barras de desplazamiento pierden el borde blanco: el pulgar es semitransparente y se aclara solo al pasar el cursor, con la pista totalmente transparente.
+- **«Ahora suena» sin botón de reproducción y scroll más limpio.** El panel lateral deja de duplicar el Play del player bar, que ya queda siempre visible encima de cualquier pantalla. Las barras de desplazamiento son propias, finas y siempre visibles: el pulgar es blanco semitransparente, sin filo ni borde claro, y la pista queda transparente. Se evita la barra nativa del sistema, que se desvanecía al dejar de interactuar.
 
 ## [1.2.1] - 2026-10-27
 

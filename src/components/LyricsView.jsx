@@ -386,8 +386,6 @@ function FloatingModal({ title, icon, accentColor, onClose, children, width = "4
             minHeight: 0,
             position: "relative",
             zIndex: 1,
-            scrollbarWidth: "thin",
-            scrollbarColor: "rgba(255,255,255,.18) transparent",
           }}
         >
           {children}
@@ -1132,8 +1130,6 @@ function LyricsSettingsModal({
           overflowX: "hidden",
           flex: 1,
           minHeight: 0,
-          scrollbarWidth: "thin",
-          scrollbarColor: `${accentColor}33 transparent`,
         }}
       >
         {/* Buscar letras */}

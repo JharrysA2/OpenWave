@@ -1,4 +1,6 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { PlayerBar } from "./PlayerBar";
@@ -596,5 +598,15 @@ describe("PlayerBar — progreso imperativo", () => {
     expect(glow.style.filter).toBe("");
     expect(glow.style.transform).toBe("");
     expect(screen.getByTestId("progress-fill").style.boxShadow).toBe("");
+  });
+
+  it("los controles no animan transform ni hover sobre el backdrop-filter", () => {
+    // WebKitGTK 2.54 rompe el blur de la barra al animar el hover de un
+    // control (WebKit bug 328821): aparece un parche rectangular sin blur.
+    // Los controles deben cambiar fondo/color de golpe y no escalar.
+    const src = readFileSync(join(process.cwd(), "src/components/PlayerBar.jsx"), "utf8");
+    expect(src).not.toMatch(/style\.transform\s*=\s*"scale\(/);
+    expect(src).not.toMatch(/transition:\s*"background \.15s/);
+    expect(src).not.toContain("translateY(-1px)");
   });
 });

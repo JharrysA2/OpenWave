@@ -6,6 +6,10 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+### Corregido
+
+- **El player bar ya no muestra un parche rectangular al pasar el cursor por sus botones.** WebKitGTK 2.54 rompe el `backdrop-filter` cuando un control anima el hover (WebKit bug 328821): el cambio de fondo/color y el `scale` dejaban una zona sin blur alrededor del botón. Los controles del player ya no escalan ni tienen transición de hover (el cambio es instantáneo, acorde con las superficies planas), el play usa solo sombra y la barra dejó de desplazarse 1 px al entrar. Se añade una regresión en `PlayerBar.test`.
+
 ## [1.3.1] - 2026-11-19
 
 ### Corregido

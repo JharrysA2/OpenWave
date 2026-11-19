@@ -21,7 +21,11 @@ que se repinta con letras/scroll). Por tanto:
   detrás** o es una **superficie de modal**:
   - **player bar** (`blur(10px)`): el scroll de las vistas y el karaoke
     pasan por detrás (y aun así `html.overlay-open` la apaga mientras un
-    overlay la tapa);
+    overlay la tapa). Sus controles **no llevan `transition` ni `transform`
+    en hover**: WebKitGTK 2.54 rompe el `backdrop-filter` al animar el hover
+    (WebKit bug 328821) y deja un parche rectangular sin blur alrededor del
+    botón. El fondo/color cambia de golpe y Play usa solo sombra. Regresión:
+    `PlayerBar.test` comprueba que no vuelvan el `scale` ni la transición;
   - **cristal de modal**: `GLASS.sheet` (las hojas de opciones, incluida la
     de configuración de letras y los tres modales que abren sus opciones)
     difumina con `blur(40px)` sobre su degradado, con el detrás congelado por

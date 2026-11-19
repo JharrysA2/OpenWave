@@ -13,6 +13,10 @@ import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, safeAccentText } from "../
 
 /* Controles secundarios sin relleno: el único botón con masa visual es Play.
    La barra conserva su pastilla flotante y el blur como capa funcional. */
+// Los controles de la barra NO llevan transition ni transform en hover:
+// WebKitGTK 2.54 rompe el backdrop-filter al animar el hover (WebKit bug
+// 328821) y deja un parche rectangular sin blur sobre la barra. El cambio de
+// fondo/color es instantáneo y el play usa solo sombra.
 const BAR_BTN = {
   background: "transparent",
   border: "none",
@@ -20,6 +24,12 @@ const BAR_BTN = {
   backdropFilter: "none",
   WebkitBackdropFilter: "none",
 };
+
+// El play no escala en hover: un transform dentro de la barra con
+// backdrop-filter crea una capa rectangular y parte el blur. La pulsación se
+// comunica con la sombra, que se pinta dentro del propio botón.
+const PLAY_HOVER_SHADOW = "inset 0 1px 0 rgba(255,255,255,.32), 0 4px 12px rgba(0,0,0,.30)";
+const PLAY_PRESS_SHADOW = "inset 0 2px 4px rgba(0,0,0,.28), 0 1px 4px rgba(0,0,0,.18)";
 
 // ── VolSlider: slider de volumen vertical — barra gruesa, thumb solo en hover ─
 
@@ -418,17 +428,14 @@ export const PlayerBar = memo(function PlayerBar({
         position: "relative",
         zIndex: 100,
         fontFamily: FONT,
-        transition:
-          "transform .35s cubic-bezier(.16,1,.3,1), background .3s, box-shadow .3s, border .3s",
+        transition: "none",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-1px)";
         e.currentTarget.style.background = "rgba(16,16,22,.24)";
         e.currentTarget.style.boxShadow =
           "inset 0 1px 0 rgba(255,255,255,.10), 0 6px 18px rgba(0,0,0,.28)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
         e.currentTarget.style.background = GLASS.player.background;
         e.currentTarget.style.boxShadow = GLASS.player.boxShadow;
       }}
@@ -537,18 +544,15 @@ export const PlayerBar = memo(function PlayerBar({
                   alignItems: "center",
                   justifyContent: "center",
                   borderRadius: RADIUS.full,
-                  transition:
-                    "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
+                  transition: "none",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = GLASS.controlHover.background;
                   e.currentTarget.style.color = accentColor;
-                  e.currentTarget.style.transform = "scale(1.08)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = BAR_BTN.background;
                   e.currentTarget.style.color = btn.color;
-                  e.currentTarget.style.transform = "scale(1)";
                 }}
               >
                 {btn.icon}
@@ -569,25 +573,25 @@ export const PlayerBar = memo(function PlayerBar({
                 // (o blanco puro si playerBtnTone = "blanco")
                 color: playBtnColor,
                 borderRadius: btnShape.borderRadius,
-                transition: "transform .15s cubic-bezier(.16,1,.3,1), box-shadow .15s",
+                transition: "none",
                 ...GLASS.playBtn(neon),
               }}
               onMouseDown={(e) => {
                 if (!streamLoading) {
-                  // Apple: instant feedback on pointer-down, not release
-                  e.currentTarget.style.transform = "scale(0.93)";
+                  e.currentTarget.style.boxShadow = PLAY_PRESS_SHADOW;
                 }
               }}
               onMouseUp={(e) => {
-                e.currentTarget.style.transform = "scale(1.04)";
+                if (!streamLoading) {
+                  e.currentTarget.style.boxShadow = PLAY_HOVER_SHADOW;
+                }
               }}
               onMouseEnter={(e) => {
                 if (!streamLoading) {
-                  e.currentTarget.style.transform = "scale(1.04)";
+                  e.currentTarget.style.boxShadow = PLAY_HOVER_SHADOW;
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
                 e.currentTarget.style.boxShadow = GLASS.playBtn(neon).boxShadow;
               }}
             >
@@ -647,18 +651,15 @@ export const PlayerBar = memo(function PlayerBar({
                   alignItems: "center",
                   justifyContent: "center",
                   borderRadius: RADIUS.full,
-                  transition:
-                    "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
+                  transition: "none",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = GLASS.controlHover.background;
                   e.currentTarget.style.color = accentColor;
-                  e.currentTarget.style.transform = "scale(1.08)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = BAR_BTN.background;
                   e.currentTarget.style.color = btn.color;
-                  e.currentTarget.style.transform = "scale(1)";
                 }}
               >
                 {btn.icon}
@@ -697,18 +698,15 @@ export const PlayerBar = memo(function PlayerBar({
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: RADIUS.full,
-                transition:
-                  "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
+                transition: "none",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = GLASS.controlHover.background;
                 e.currentTarget.style.color = accentColor;
-                e.currentTarget.style.transform = "scale(1.08)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = BAR_BTN.background;
                 e.currentTarget.style.color = volume > 0 ? COLORS.iconActive : COLORS.iconDimmer;
-                e.currentTarget.style.transform = "scale(1)";
               }}
             >
               {volume > 0 ? Ic.vol(18) : Ic.volMute(18)}
@@ -748,19 +746,16 @@ export const PlayerBar = memo(function PlayerBar({
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: RADIUS.full,
-                transition:
-                  "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
+                transition: "none",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = GLASS.controlHover.background;
                 e.currentTarget.style.color = accentColor;
-                e.currentTarget.style.transform = "scale(1.08)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = BAR_BTN.background;
                 e.currentTarget.style.color =
                   crossfadeDuration > 0 ? safeAccentText(accentColor) : COLORS.iconDim;
-                e.currentTarget.style.transform = "scale(1)";
               }}
             >
               {cfHover ? (
@@ -862,18 +857,15 @@ export const PlayerBar = memo(function PlayerBar({
                 justifyContent: "center",
                 borderRadius: RADIUS.full,
                 flexShrink: 0,
-                transition:
-                  "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
+                transition: "none",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = GLASS.controlHover.background;
                 e.currentTarget.style.color = accentColor;
-                e.currentTarget.style.transform = "scale(1.08)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = BAR_BTN.background;
                 e.currentTarget.style.color = COLORS.iconActive;
-                e.currentTarget.style.transform = "scale(1)";
               }}
             >
               {Ic.dots}
@@ -895,14 +887,12 @@ export const PlayerBar = memo(function PlayerBar({
               alignItems: "center",
               justifyContent: "center",
               borderRadius: RADIUS.full,
-              transition:
-                "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
+              transition: "none",
             }}
             onMouseEnter={(e) => {
               if (song) {
                 e.currentTarget.style.background = GLASS.controlHover.background;
                 e.currentTarget.style.color = accentColor;
-                e.currentTarget.style.transform = "scale(1.08)";
               }
             }}
             onMouseLeave={(e) => {
@@ -912,7 +902,6 @@ export const PlayerBar = memo(function PlayerBar({
                 : song
                   ? "rgba(255,255,255,.45)"
                   : COLORS.textDimmest;
-              e.currentTarget.style.transform = "scale(1)";
             }}
           >
             {Ic.mic(18)}

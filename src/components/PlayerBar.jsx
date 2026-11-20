@@ -13,16 +13,15 @@ import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, safeAccentText } from "../
 
 /* Controles secundarios sin relleno: el único botón con masa visual es Play.
    La barra conserva su pastilla flotante y el blur como capa funcional. */
-// Los controles de la barra NO llevan transition ni transform en hover:
-// WebKitGTK 2.54 rompe el backdrop-filter al animar el hover (WebKit bug
-// 328821) y deja un parche rectangular sin blur sobre la barra. El cambio de
-// fondo/color es instantáneo y el play usa solo sombra.
+// Los controles de la barra NO son hijos del elemento con backdrop-filter
+// (el blur va en `barBgRef`, una capa de fondo aparte): WebKitGTK 2.54
+// recomponía el blur en una caja al repintar el hover de un hijo. Tampoco
+// llevan transition ni transform; el cambio de fondo/color es instantáneo y
+// el play usa solo sombra.
 const BAR_BTN = {
   background: "transparent",
   border: "none",
   boxShadow: "none",
-  backdropFilter: "none",
-  WebkitBackdropFilter: "none",
 };
 
 // El play no escala en hover: un transform dentro de la barra con
@@ -228,6 +227,7 @@ export const PlayerBar = memo(function PlayerBar({
   const progressBarRef = useRef(null);
   const progressFillRef = useRef(null);
   const progressThumbRef = useRef(null);
+  const barBgRef = useRef(null);
   const progressTimeRef = useRef(null);
   const { visible } = usePerformance();
   const { settings } = useSettings();
@@ -423,24 +423,42 @@ export const PlayerBar = memo(function PlayerBar({
         margin: "0 auto 12px",
         maxWidth: "680px",
         borderRadius: "20px",
-        ...GLASS.player,
+        // El blur vive en una capa de fondo separada. Si los controles son
+        // hijos del elemento con backdrop-filter, WebKitGTK 2.54 recompone
+        // el blur en una caja al repintar el hover (aunque no haya
+        // transición): cada botón quedaba con un rectángulo sin blur.
         position: "relative",
         zIndex: 100,
         fontFamily: FONT,
         transition: "none",
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(16,16,22,.24)";
-        e.currentTarget.style.boxShadow =
-          "inset 0 1px 0 rgba(255,255,255,.10), 0 6px 18px rgba(0,0,0,.28)";
+      onMouseEnter={() => {
+        const bg = barBgRef.current;
+        if (!bg) return;
+        bg.style.background = "rgba(16,16,22,.24)";
+        bg.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,.10), 0 6px 18px rgba(0,0,0,.28)";
       }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = GLASS.player.background;
-        e.currentTarget.style.boxShadow = GLASS.player.boxShadow;
+      onMouseLeave={() => {
+        const bg = barBgRef.current;
+        if (!bg) return;
+        bg.style.background = GLASS.player.background;
+        bg.style.boxShadow = GLASS.player.boxShadow;
       }}
     >
+      <div
+        ref={barBgRef}
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: "20px",
+          pointerEvents: "none",
+          zIndex: 0,
+          ...GLASS.player,
+        }}
+      />
       {/* Main row: Three-column layout */}
-      <div style={{ display: "flex", alignItems: "center" }}>
+      <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center" }}>
         {/* Left: Cover + Info — tamaño fijo */}
         <div
           style={{
@@ -531,7 +549,7 @@ export const PlayerBar = memo(function PlayerBar({
               <button
                 key={i}
                 onClick={btn.onClick}
-                title={btn.title}
+                aria-label={btn.title}
                 style={{
                   width: "36px",
                   height: "36px",
@@ -638,7 +656,7 @@ export const PlayerBar = memo(function PlayerBar({
               <button
                 key={i}
                 onClick={btn.onClick}
-                title={btn.title}
+                aria-label={btn.title}
                 style={{
                   width: "36px",
                   height: "36px",
@@ -727,11 +745,11 @@ export const PlayerBar = memo(function PlayerBar({
 
           {/* Crossfade — el icono NO se sustituye por «5s» en hover: el
               intercambio de contenido también rompía el backdrop-filter
-              (WebKit 328821). La duración va en el title. */}
+              (WebKit 328821). La duración va en el aria-label. */}
           <div style={{ position: "relative" }}>
             <button
               ref={cfBtnRef}
-              title={
+              aria-label={
                 crossfadeDuration > 0 ? `Crossfade ${crossfadeDuration}s` : "Crossfade desactivado"
               }
               onClick={() => onCrossfadeDuration(crossfadeDuration > 0 ? 0 : 5)}
@@ -869,7 +887,7 @@ export const PlayerBar = memo(function PlayerBar({
           {/* Lyrics */}
           <button
             onClick={() => song && onLyrics()}
-            title="Letras"
+            aria-label="Letras"
             style={{
               width: "36px",
               height: "36px",
@@ -904,7 +922,16 @@ export const PlayerBar = memo(function PlayerBar({
       </div>
 
       {/* Full-width Progress bar row — debajo de todo */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          width: "100%",
+        }}
+      >
         <span
           ref={progressTimeRef}
           data-testid="progress-time"

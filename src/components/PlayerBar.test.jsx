@@ -610,5 +610,8 @@ describe("PlayerBar — progreso imperativo", () => {
     expect(src).not.toContain("translateY(-1px)");
     // El crossfade no puede cambiar su contenido en hover.
     expect(src).not.toMatch(/cfHover/);
+    // Los controles no pueden volver a ser hijos del backdrop-filter.
+    expect(src).toContain("ref={barBgRef}");
+    expect(src).not.toContain('backdropFilter: "none"');
   });
 });

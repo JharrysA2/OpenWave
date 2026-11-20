@@ -608,5 +608,7 @@ describe("PlayerBar — progreso imperativo", () => {
     expect(src).not.toMatch(/style\.transform\s*=\s*"scale\(/);
     expect(src).not.toMatch(/transition:\s*"background \.15s/);
     expect(src).not.toContain("translateY(-1px)");
+    // El crossfade no puede cambiar su contenido en hover.
+    expect(src).not.toMatch(/cfHover/);
   });
 });

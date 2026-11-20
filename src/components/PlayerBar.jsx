@@ -279,7 +279,6 @@ export const PlayerBar = memo(function PlayerBar({
   const [showVolSlider, setShowVolSlider] = useState(false);
   const volHoverTimerRef = useRef(null);
   const [cfOpen, setCfOpen] = useState(false);
-  const [cfHover, setCfHover] = useState(false);
   const cfTimerRef = useRef(null);
   const volBtnRef = useRef(null);
   const cfBtnRef = useRef(null);
@@ -726,14 +725,15 @@ export const PlayerBar = memo(function PlayerBar({
             )}
           </div>
 
-          {/* Crossfade */}
-          <div
-            style={{ position: "relative" }}
-            onMouseEnter={() => setCfHover(true)}
-            onMouseLeave={() => setCfHover(false)}
-          >
+          {/* Crossfade — el icono NO se sustituye por «5s» en hover: el
+              intercambio de contenido también rompía el backdrop-filter
+              (WebKit 328821). La duración va en el title. */}
+          <div style={{ position: "relative" }}>
             <button
               ref={cfBtnRef}
+              title={
+                crossfadeDuration > 0 ? `Crossfade ${crossfadeDuration}s` : "Crossfade desactivado"
+              }
               onClick={() => onCrossfadeDuration(crossfadeDuration > 0 ? 0 : 5)}
               style={{
                 width: "36px",
@@ -758,13 +758,7 @@ export const PlayerBar = memo(function PlayerBar({
                   crossfadeDuration > 0 ? safeAccentText(accentColor) : COLORS.iconDim;
               }}
             >
-              {cfHover ? (
-                <span style={{ fontSize: "12px", fontWeight: "600" }}>
-                  {crossfadeDuration > 0 ? `${crossfadeDuration}s` : "Off"}
-                </span>
-              ) : (
-                Ic.crossfade(20)
-              )}
+              {Ic.crossfade(20)}
             </button>
             {createPortal(
               <div

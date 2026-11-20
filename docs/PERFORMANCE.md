@@ -24,8 +24,10 @@ que se repinta con letras/scroll). Por tanto:
     overlay la tapa). Sus controles **no llevan `transition` ni `transform`
     en hover**: WebKitGTK 2.54 rompe el `backdrop-filter` al animar el hover
     (WebKit bug 328821) y deja un parche rectangular sin blur alrededor del
-    botón. El fondo/color cambia de golpe y Play usa solo sombra. Regresión:
-    `PlayerBar.test` comprueba que no vuelvan el `scale` ni la transición;
+    botón. El fondo/color cambia de golpe, Play usa solo sombra y el crossfade
+    no cambia su contenido (icono → «5s») al hacer hover. Regresión:
+    `PlayerBar.test` comprueba que no vuelvan el `scale`, la transición ni el
+    intercambio de contenido;
   - **cristal de modal**: `GLASS.sheet` (las hojas de opciones, incluida la
     de configuración de letras y los tres modales que abren sus opciones)
     difumina con `blur(40px)` sobre su degradado, con el detrás congelado por

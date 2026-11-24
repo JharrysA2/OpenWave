@@ -66,6 +66,7 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 ## Interno
 
 ### Corregido
+- El paquete nativo de Arch vuelve a estar en el repo para 1.4.0 y el pin de ffmpeg de `scripts/prepare-runtime.sh` apunta al autobuild vigente: BtbN retira los autobuilds antiguos y el pin anterior devolvía 404, lo que impedía construir el `.pkg.tar.zst`.
 - Los paquetes de Linux de una release ya no dependen de la memoria: `scripts/package-linux.sh` construye `.deb`, `.AppImage` y `.pkg.tar.zst` de una vez (con el workaround del `strip` embebido en linuxdeploy, que no sabe tratar las secciones `.relr.dyn` de las libs actuales y abortaba el AppImage), y `AGENTS.md`, `docs/release.md` y la skill de release incluyen el paso de `gh release upload` — el workflow solo sube el MSI.
 - Tests en verde con Node ≥ 25: el `localStorage` nativo experimental de Node devolvía `undefined` y tapaba el de jsdom en vitest (300 tests fallaban con «Cannot read properties of undefined»). `src/test-setup.js` instala un almacén equivalente cuando el nativo no está disponible.
 

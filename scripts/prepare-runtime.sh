@@ -38,9 +38,13 @@ PY_SHA256="dfa4c5a40c47f338f41658017be550c72247c391e6bfb1fa4da03ebc8451abdf"
 PY_NAME="cpython-${PY_VERSION}+${PBS_RELEASE}-x86_64-unknown-linux-gnu-install_only.tar.gz"
 PY_URL="https://github.com/astral-sh/python-build-standalone/releases/download/${PBS_RELEASE}/${PY_NAME}"
 
-FFMPEG_BUILD="autobuild-2026-10-23-13-04"
-FFMPEG_NAME="ffmpeg-n8.1.3-24-g92611900bb-linux64-gpl-8.1.tar.xz"
-FFMPEG_SHA256="d0eb612b8994407f78413e2929cb4b073bc699c8ab79e198b31624736fdc2f93"
+# BtbN rota los autobuilds (los publica a diario y retira los antiguos): el
+# pin caduca. Para renovarlo, coge el asset linux64-gpl-8.1 del release
+# autobuild más reciente y actualiza nombre, URL y sha256 (la API de GitHub
+# expone el digest del asset).
+FFMPEG_BUILD="autobuild-2026-11-23-12-43"
+FFMPEG_NAME="ffmpeg-n8.1.3-39-g660b5aa7db-linux64-gpl-8.1.tar.xz"
+FFMPEG_SHA256="255b73431adc3c14f91533b6cf08090c0b1314f6789761140a196f820f6347a2"
 FFMPEG_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/${FFMPEG_BUILD}/${FFMPEG_NAME}"
 
 REQUIREMENTS="$ROOT/backend/requirements-runtime.txt"

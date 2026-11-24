@@ -21,21 +21,21 @@ export function GlassMagnifiedLens({
   rim = 14,
   maxDisp = 0,
   scene,
-  rect,
+  cover,
   settings = {},
   frostBlur = 0,
 }) {
   const reactId = useId();
   const uid = useMemo(() => `ow-mag-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [reactId]);
 
-  if (!scene?.cover || !scene?.url || width <= 0 || height <= 0) return null;
+  if (!cover || !scene?.url || width <= 0 || height <= 0) return null;
 
   const w = width + margin * 2;
   const h = height + margin * 2;
   const cx = margin + width / 2;
   const cy = margin + height / 2;
-  const imageX = scene.cover.left - rect.left + margin;
-  const imageY = scene.cover.top - rect.top + margin;
+  const imageX = cover.left + margin;
+  const imageY = cover.top + margin;
   const innerW = width - rim * 2;
   const innerH = height - rim * 2;
   const innerR = Math.max(0, radius - rim);
@@ -48,8 +48,8 @@ export function GlassMagnifiedLens({
   // de usar transform: mismo resultado y funciona en WebKitGTK.
   const scaledX = cx + (imageX - cx) * scale;
   const scaledY = cy + (imageY - cy) * scale;
-  const scaledW = scene.cover.width * scale;
-  const scaledH = scene.cover.height * scale;
+  const scaledW = cover.width * scale;
+  const scaledH = cover.height * scale;
 
   if (innerW <= 2 || innerH <= 2) return null;
 

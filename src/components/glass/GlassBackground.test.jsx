@@ -38,7 +38,7 @@ describe("GlassBackground — degradación y opt-in", () => {
   });
 
   it("con glassMode y sin escena pinta tinte + rim, sin lente", () => {
-    setSettings({ glassMode: true, glassScene: true });
+    setSettings({ glassMode: true });
     const { container } = renderGlass();
     const root = container.querySelector("[data-glass]");
     expect(root).toHaveAttribute("data-glass", "low");

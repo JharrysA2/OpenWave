@@ -6,6 +6,14 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-11-24
+
+### Corregido
+
+- **La portada ya no se pone como fondo de toda la app y desaparece el ajuste «Escena con portada».** Era el ajuste que el usuario podía desactivar, y al desactivarlo el vidrio se quedaba sin nada que doblar: la barra solo mostraba tinte y rim. Ahora la portada se recorta **dentro de la superficie de cristal**, no detrás del contenido. El fondo de la app sigue siendo el oscuro normal; la barra recorta la portada dentro de su cristal y las hojas conservan su blur sobre el contenido.
+- **El vidrio ya no depende de una escena global.** `GlassScene` solo carga la portada y publica su URL y tamaño natural; cada superficie calcula su propio recorte con `computeSceneCover`. La lente y el escarchado funcionan aunque no haya ningún fondo de portada.
+- **Segunda migración del preset Fino/60 a Grueso/80/35.** El primer 1.4.1 podía haber marcado la migración sin cambiar los valores; si siguen siendo los antiguos, se suben una vez. Una elección posterior con `glassPresetMigrated2` ya no se toca.
+
 ## [1.4.1] - 2026-11-24
 
 ### Corregido
@@ -578,7 +586,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.4.2
 [1.4.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.4.1
 [1.4.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.4.0
 [1.3.2]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.3.2

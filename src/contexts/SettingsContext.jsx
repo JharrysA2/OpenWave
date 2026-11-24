@@ -31,6 +31,21 @@ function loadSettings() {
         }
         merged.glassPresetMigrated = true;
       }
+      // Segunda pasada: el primer 1.4.1 pudo marcar la migración sin subir
+      // los valores (o el usuario los dejó en el preset antiguo). Si siguen
+      // siendo fino/60/25, se suben una vez a grueso/80/35.
+      if (stored && !("glassPresetMigrated2" in parsed) && merged.glassMode) {
+        if (
+          merged.glassDepth === "thin" &&
+          merged.glassRefraction === 60 &&
+          merged.glassDispersion === 25
+        ) {
+          merged.glassDepth = "thick";
+          merged.glassRefraction = 80;
+          merged.glassDispersion = 35;
+        }
+        merged.glassPresetMigrated2 = true;
+      }
       return merged;
     }
   } catch {}

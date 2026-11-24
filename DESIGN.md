@@ -245,12 +245,14 @@ La barra tiene dos materiales, y el usuario elige:
   `backdrop-filter: blur(10px)`, sin `saturate`. Es el material que midió el
   presupuesto de `docs/PERFORMANCE.md` y el que se ve con el modo apagado.
 - **Vidrio líquido (opcional, Apariencia → Vidrio líquido):** la portada
-  actual se convierte en una escena fija y oscurecida; el canto de la barra
-  la dobla con un mapa de desplazamiento SVG (SDF + perfil de lente), y encima
-  van tinte ahumado, rim Fresnel/especular y una luz de ventana. El ajuste
-  incluye seis estilos de luz (Comet, Twin, Halo, Outline, Aura, Prism),
-  grosor, refracción, dispersión, IOR, tinte, desenfoque, saturación, brillo,
-  contraste, luz de borde, ángulo y bisel.
+  actual se recorta **dentro de la barra**, no como fondo de la app; el canto
+  la dobla y encima van tinte ahumado, rim Fresnel/especular y una luz de
+  ventana. En Chromium/WebView2 la lente es un mapa de desplazamiento SVG
+  (SDF + perfil); en WebKitGTK es una copia ampliada enmascarada porque
+  `feImage` con data URLs no rasteriza. El ajuste incluye seis estilos de luz
+  (Comet, Twin, Halo, Outline, Aura, Prism), grosor, refracción, dispersión,
+  IOR, tinte, desenfoque, saturación, brillo, contraste, luz de borde, ángulo
+  y bisel.
 
 La intención es que la **shell** flote sobre la música: el vidrio marca
 jerarquía y pertenece a la barra y a las hojas. Nunca se aplica a tarjetas,

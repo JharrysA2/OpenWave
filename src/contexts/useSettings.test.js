@@ -107,6 +107,7 @@ describe("useSettings", () => {
         glassRefraction: 60,
         glassDispersion: 25,
         glassPresetMigrated: true,
+        glassPresetMigrated2: true,
       }),
     );
 
@@ -114,6 +115,26 @@ describe("useSettings", () => {
 
     expect(result.current.settings.glassDepth).toBe("thin");
     expect(result.current.settings.glassRefraction).toBe(60);
+  });
+
+  it("corrige el preset que quedó en fino/60 pese a la primera migración", () => {
+    localStorage.setItem(
+      SW_SETTINGS_KEY,
+      JSON.stringify({
+        glassMode: true,
+        glassDepth: "thin",
+        glassRefraction: 60,
+        glassDispersion: 25,
+        glassPresetMigrated: true,
+      }),
+    );
+
+    const { result } = renderUseSettings();
+
+    expect(result.current.settings.glassDepth).toBe("thick");
+    expect(result.current.settings.glassRefraction).toBe(80);
+    expect(result.current.settings.glassDispersion).toBe(35);
+    expect(result.current.settings.glassPresetMigrated2).toBe(true);
   });
 
   it("should switch translations when language is changed", () => {

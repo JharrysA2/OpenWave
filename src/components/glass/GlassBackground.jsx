@@ -11,7 +11,13 @@ import { createPortal } from "react-dom";
 import { GLASS } from "../../utils/theme";
 import { SettingsContext } from "../../contexts/SettingsContext";
 import { isGlassBlocked } from "../../utils/glassPresets";
-import { clamp, getLensMap, glassGeometry, sceneOffsetForRect } from "../../utils/glassEngine";
+import {
+  clamp,
+  computeSceneCover,
+  getLensMap,
+  glassGeometry,
+  sceneOffsetForRect,
+} from "../../utils/glassEngine";
 import { GlassMagnifiedLens } from "./GlassMagnifiedLens";
 import { GlassRim } from "./GlassRim";
 import { useGlassScene } from "./glassSceneContext";
@@ -123,16 +129,15 @@ export const GlassBackground = forwardRef(function GlassBackground(
     : radiusPx;
   const { glassDepth, glassIor, glassRefraction } = settings;
 
+  // La portada se recorta al tamaño de ESTA superficie, no a la ventana:
+  // el fondo de la app no se toca y el cristal tiene una escena local.
+  const localCover = useMemo(() => {
+    if (!scene?.enabled || !scene.natural || width <= 0 || height <= 0) return null;
+    return computeSceneCover(scene.natural.width, scene.natural.height, width, height);
+  }, [scene?.enabled, scene?.natural, width, height]);
+
   const lens = useMemo(() => {
-    if (
-      !glassOn ||
-      fallback ||
-      lowPower ||
-      !shell ||
-      !scene?.enabled ||
-      width <= 0 ||
-      height <= 0
-    ) {
+    if (!glassOn || fallback || lowPower || !shell || !localCover || width <= 0 || height <= 0) {
       return null;
     }
     const geometry = glassGeometry({ glassDepth, glassIor, glassRefraction }, width, height);
@@ -149,7 +154,7 @@ export const GlassBackground = forwardRef(function GlassBackground(
     fallback,
     lowPower,
     shell,
-    scene?.enabled,
+    localCover,
     width,
     height,
     effectiveRadius,
@@ -186,9 +191,11 @@ export const GlassBackground = forwardRef(function GlassBackground(
   const renderMagnified = !!lens && IS_WEBKIT;
   const renderFilter = !!lensMap && !!filterId && !IS_WEBKIT;
   const renderLens = renderMagnified || renderFilter;
-  const offset = scene?.cover ? sceneOffsetForRect(scene.cover, rect, lens?.margin || 0) : null;
-  const frostOffset = scene?.cover ? sceneOffsetForRect(scene.cover, rect, 0) : null;
-  const renderFrost = !!scene?.enabled && shell && frosted && frostBlur > 0;
+  const paneRect = { left: 0, top: 0 };
+  const offset = localCover ? sceneOffsetForRect(localCover, paneRect, lens?.margin || 0) : null;
+  const frostOffset = localCover ? sceneOffsetForRect(localCover, paneRect, 0) : null;
+  const renderFrost = !!localCover && shell && frosted && frostBlur > 0;
+  const renderPaneScene = !!localCover && shell && !renderFallback;
 
   const fallbackMaterial = shell ? GLASS.player : GLASS.sheet;
   const fallbackStyle = {
@@ -254,6 +261,24 @@ export const GlassBackground = forwardRef(function GlassBackground(
         />
       )}
 
+      {renderPaneScene && (
+        <div
+          className="ow-glass-pane-scene"
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "inherit",
+            overflow: "hidden",
+            backgroundImage: `url("${scene.url}")`,
+            backgroundRepeat: "no-repeat",
+            backgroundSize: frostOffset?.backgroundSize,
+            backgroundPosition: frostOffset?.backgroundPosition,
+          }}
+        >
+          <div style={{ position: "absolute", inset: 0, background: scene.veil }} />
+        </div>
+      )}
+
       {renderFrost && (
         <div
           className="ow-glass-frost"
@@ -282,7 +307,7 @@ export const GlassBackground = forwardRef(function GlassBackground(
           rim={lens.rim}
           maxDisp={lens.maxDisp}
           scene={scene}
-          rect={rect}
+          cover={localCover}
           settings={settings}
           frostBlur={frosted ? frostBlur : 0}
         />

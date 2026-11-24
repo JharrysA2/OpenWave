@@ -7,12 +7,11 @@ afterEach(() => cleanup());
 
 const scene = {
   url: "https://example.com/cover.jpg",
-  cover: { left: -100, top: 0, width: 1200, height: 800 },
   veil: "rgba(5,5,10,.6)",
   lensVeil: "rgba(5,5,10,.16)",
 };
 
-const rect = { left: 100, top: 600, width: 660, height: 94 };
+const cover = { left: -100, top: 0, width: 1200, height: 800 };
 
 function renderLens(overrides = {}) {
   return render(
@@ -24,7 +23,7 @@ function renderLens(overrides = {}) {
       rim={30}
       maxDisp={28}
       scene={scene}
-      rect={rect}
+      cover={cover}
       settings={{ glassSaturation: 1.2, glassBrightness: 1.1, glassContrast: 0.9 }}
       {...overrides}
     />,
@@ -42,8 +41,8 @@ describe("GlassMagnifiedLens — lente geométrica de WebKit", () => {
     const image = svg.querySelector("image");
     expect(image).toHaveAttribute("href", scene.url);
     // Pre-escalada: el ancho supera al de la portada.
-    expect(Number(image.getAttribute("width"))).toBeGreaterThan(scene.cover.width);
-    expect(Number(image.getAttribute("height"))).toBeGreaterThan(scene.cover.height);
+    expect(Number(image.getAttribute("width"))).toBeGreaterThan(cover.width);
+    expect(Number(image.getAttribute("height"))).toBeGreaterThan(cover.height);
 
     const veil = [...svg.querySelectorAll("rect")].find(
       (r) => r.getAttribute("fill") === scene.lensVeil,

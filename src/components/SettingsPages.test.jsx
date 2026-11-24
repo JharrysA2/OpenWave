@@ -444,7 +444,6 @@ describe("PageApariencia", () => {
     expect(row).toBeTruthy();
     fireEvent.click(row.querySelector('[role="switch"]'));
     expect(JSON.parse(localStorage.getItem("sw_settings_v1")).glassMode).toBe(true);
-    expect(screen.getByText("Escena con portada")).toBeInTheDocument();
     expect(screen.getByText("Grosor")).toBeInTheDocument();
     expect(screen.getByText("Luz de ventana")).toBeInTheDocument();
     localStorage.clear();

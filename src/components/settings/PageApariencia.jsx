@@ -174,18 +174,6 @@ export function PageApariencia({ neonColor, section = "all" }) {
             {settings.glassMode && (
               <>
                 <SettingRow
-                  icon={Ic.img}
-                  label={t.glassScene}
-                  desc={t.glassSceneDesc}
-                  right={
-                    <SettingsToggle
-                      value={settings.glassScene !== false}
-                      onChange={(v) => updateSetting("glassScene", v)}
-                      accent={accent}
-                    />
-                  }
-                />
-                <SettingRow
                   label={t.glassShell}
                   desc={t.glassShellDesc}
                   right={

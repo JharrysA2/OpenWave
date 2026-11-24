@@ -16,7 +16,6 @@ export const DEFAULT_SETTINGS = {
   // las hojas. Apagado por defecto para conservar el material plano actual
   // y el presupuesto de GPU de docs/PERFORMANCE.md.
   glassMode: false,
-  glassScene: true,
   glassFrostShell: "clear",
   glassFrostMenus: "auto",
   glassDepth: "thick",

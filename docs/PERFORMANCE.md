@@ -1559,8 +1559,11 @@ hojas devuelven exactamente `GLASS.player` / `GLASS.sheet`.
   informa «Apple GPU» y la detección conservadora lo clasifica como software;
   el interruptor de Vidrio líquido solo se bloquea con Rendimiento en Bajo
   consumo, Color sólido/Ninguno o el modo personalizado sin blur/sólido.
-- La escena es una imagen de fondo estática con un velo. No hay blur por
-  frame. La lente se monta en la barra (shell); las hojas usan tint + rim.
+- La escena es la portada recortada **dentro de cada superficie** (`computeSceneCover`
+  con el tamaño de la barra), no un fondo de portada a pantalla completa. El
+  contexto `GlassScene` solo carga la imagen y publica URL y tamaño natural.
+  No hay blur por frame; la lente se monta en la barra (shell) y las hojas
+  usan tint + rim.
 - Las hojas conservan `backdrop-filter: blur(40px)` sobre el contenido y
   añaden el rim SVG: siguen dentro del presupuesto de overlays de §7.
 - La luz de ventana es un `stroke-dashoffset` CSS sobre un trazo normalizado

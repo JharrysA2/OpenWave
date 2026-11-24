@@ -1,17 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { computeSceneCover } from "../../utils/glassEngine";
 import { GlassSceneContext } from "./glassSceneContext";
 
 /**
  * Escena del vidrio líquido.
  *
- * Es la única fuente de fondo que puede refractar la lente: la portada
- * actual, recortada como un `background-size: cover` y oscurecida con un
- * velo. `GlassSurface` recibe la misma geometría por contexto y alinea su
- * copia con esta escena, píxel a píxel.
+ * Solo carga la portada de la pista actual y publica su URL y tamaño natural
+ * por contexto. No pinta ningún fondo de pantalla: la portada se recorta
+ * localmente dentro de cada superficie de cristal, así que el fondo de la app
+ * sigue siendo el oscuro normal y no hay una opción de «portada de fondo».
  *
- * Si el modo está apagado, no hay portada o la imagen falla, el contexto
- * queda deshabilitado y el cristal cae al tinte + rim (sin lente).
+ * Si no hay portada o la imagen falla, el contexto queda deshabilitado y el
+ * cristal cae al tinte + rim.
  */
 function songCoverUrl(song) {
   const thumbs = song?.thumbnails;
@@ -24,7 +23,7 @@ function songCoverUrl(song) {
 const EMPTY_SCENE = {
   enabled: false,
   url: null,
-  cover: null,
+  natural: null,
   veil: "rgba(5,5,10,0.6)",
   // El cristal deja ver la portada más limpia que el fondo de contenido:
   // el velo de la escena protege la lectura de la app, no el canto de la
@@ -35,10 +34,6 @@ const EMPTY_SCENE = {
 export function GlassScene({ song, enabled, children }) {
   const url = enabled ? songCoverUrl(song) : null;
   const [natural, setNatural] = useState(null);
-  const [viewport, setViewport] = useState(() => ({
-    width: typeof window !== "undefined" ? window.innerWidth : 0,
-    height: typeof window !== "undefined" ? window.innerHeight : 0,
-  }));
 
   useEffect(() => {
     if (!url) {
@@ -62,66 +57,16 @@ export function GlassScene({ song, enabled, children }) {
     };
   }, [url]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    let timer = 0;
-    const onResize = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        setViewport({ width: window.innerWidth, height: window.innerHeight });
-      }, 120);
-    };
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("resize", onResize);
-    };
-  }, []);
-
   const model = useMemo(() => {
-    if (!enabled || !url || !natural || viewport.width <= 0 || viewport.height <= 0) {
-      return EMPTY_SCENE;
-    }
+    if (!enabled || !url || !natural) return EMPTY_SCENE;
     return {
       enabled: true,
       url,
-      cover: computeSceneCover(natural.width, natural.height, viewport.width, viewport.height),
+      natural,
       veil: EMPTY_SCENE.veil,
       lensVeil: EMPTY_SCENE.lensVeil,
     };
-  }, [enabled, url, natural, viewport]);
+  }, [enabled, url, natural]);
 
-  return (
-    <GlassSceneContext.Provider value={model}>
-      {model.enabled && (
-        <div
-          aria-hidden="true"
-          className="ow-glass-scene"
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: -1,
-            overflow: "hidden",
-            pointerEvents: "none",
-            background: "#0b0b10",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              left: `${model.cover.left}px`,
-              top: `${model.cover.top}px`,
-              width: `${model.cover.width}px`,
-              height: `${model.cover.height}px`,
-              backgroundImage: `url("${model.url}")`,
-              backgroundSize: "100% 100%",
-              backgroundRepeat: "no-repeat",
-            }}
-          />
-          <div style={{ position: "absolute", inset: 0, background: model.veil }} />
-        </div>
-      )}
-      {children}
-    </GlassSceneContext.Provider>
-  );
+  return <GlassSceneContext.Provider value={model}>{children}</GlassSceneContext.Provider>;
 }

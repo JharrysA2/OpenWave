@@ -662,7 +662,10 @@ function AppInner() {
   // que el usuario acaba de encender. Solo bloquean las elecciones manuales
   // de Color sólido, Ninguno o Bajo consumo.
   const glassBlocked = isGlassBlocked(settings);
-  const glassSceneEnabled = !!(settings.glassMode && settings.glassScene && !glassBlocked);
+  // La portada ya no se pinta como fondo de la app: solo alimenta la escena
+  // local del cristal. No hay ajuste «Escena con portada» que pueda dejarla
+  // sin lente.
+  const glassLensEnabled = !!(settings.glassMode && !glassBlocked);
 
   //  Renderizado principal
 
@@ -682,7 +685,7 @@ function AppInner() {
         isolation: "isolate",
       }}
     >
-      <GlassScene song={currentSong} enabled={glassSceneEnabled}>
+      <GlassScene song={currentSong} enabled={glassLensEnabled}>
         {/* Aviso de desconexión con el backend */}
         <ConnectionBanner />
 

@@ -87,6 +87,14 @@
           transform: translate(-50%, -50%) rotate(360deg);
         }
       }
+      /* Luz del vidrio líquido: un dash recorre el rim (pathLength=100).
+         La animación se apaga con perf-anim-off / app-hidden por las reglas
+         globales de más abajo; aquí solo vive el keyframe. */
+      @keyframes ow-glass-dash {
+        to {
+          stroke-dashoffset: -100;
+        }
+      }
       /* Apple Design: reduced motion = gentle cross-fades, not instant cuts */
       @media (prefers-reduced-motion: reduce) {
         *,
@@ -108,11 +116,24 @@
           }
         }
       }
+      /* La luz del vidrio no es información: con movimiento reducido se
+         queda quieta en lugar de dar una pasada rápida de 0.2s. */
+      @media (prefers-reduced-motion: reduce) {
+        .ow-glass-light {
+          animation: none !important;
+        }
+      }
       /* Apple Design: reduced transparency = solid backgrounds */
       @media (prefers-reduced-transparency: reduce) {
         .sidebar,
         .player-bar,
         .title-bar {
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+        }
+        .ow-glass-lens,
+        .ow-glass-backdrop {
+          filter: none !important;
           backdrop-filter: none !important;
           -webkit-backdrop-filter: none !important;
         }
@@ -214,6 +235,12 @@
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
         background: color-mix(in srgb, var(--neon) 18%, var(--bg-base, #0a0a0f)) !important;
+      }
+      /* El modo sólido y «sin filtros» no deben dejar la escena de la portada
+         detrás: el cristal ya está apagado y el fondo vuelve a ser plano. */
+      html.perf-solid .ow-glass-scene,
+      html.perf-blur-off .ow-glass-scene {
+        display: none !important;
       }
       /* SOLID ? buttons keep a visible accent border so they stand out
          against the solid background (GLASS.btn / close buttons use blur(6px)) */

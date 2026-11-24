@@ -434,6 +434,22 @@ describe("PageApariencia", () => {
     expect(screen.getByText("Ninguno")).toBeInTheDocument();
   });
 
+  it("activa el vidrio líquido y descubre sus controles", () => {
+    localStorage.clear();
+    renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
+    const row = screen
+      .getAllByText("Vidrio líquido")
+      .map((el) => el.closest(".ow-set-row"))
+      .find(Boolean);
+    expect(row).toBeTruthy();
+    fireEvent.click(row.querySelector('[role="switch"]'));
+    expect(JSON.parse(localStorage.getItem("sw_settings_v1")).glassMode).toBe(true);
+    expect(screen.getByText("Escena con portada")).toBeInTheDocument();
+    expect(screen.getByText("Grosor")).toBeInTheDocument();
+    expect(screen.getByText("Luz de ventana")).toBeInTheDocument();
+    localStorage.clear();
+  });
+
   it("should render font size SegBtn", () => {
     renderWithSettings(<PageApariencia neonColor="#a78bfa" />);
     expect(screen.getByText("Pequeño")).toBeInTheDocument();

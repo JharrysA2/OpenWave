@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useSettings } from "../../contexts/useSettings";
 import { BTN_SHAPES, BAR_STYLES } from "../../utils/playerStyles";
 import { deriveTheme } from "../../utils/colorTheme";
+import { COLORS } from "../../utils/theme";
 import {
   SettingRow,
   SettingsSection,
@@ -16,12 +17,15 @@ import { Ic } from "../../icons/Icons";
 import { BtnShapeModal } from "./BtnShapeModal";
 import { BarStyleModal } from "./BarStyleModal";
 import { AppColorModal } from "./AppColorModal";
+import { GlassSettingsModal } from "./GlassSettingsModal";
+import { glassLightLabel } from "../../utils/glassPresets";
 
 export function PageApariencia({ neonColor, section = "all" }) {
   const { settings, updateSetting, t } = useSettings();
   const [showBtnModal, setShowBtnModal] = useState(false);
   const [showBarModal, setShowBarModal] = useState(false);
   const [showColorModal, setShowColorModal] = useState(false);
+  const [showGlassModal, setShowGlassModal] = useState(false);
   const accent = neonColor || "#a78bfa";
   const appColor = settings.appColor || "#a78bfa";
   const showTheme = section === "all" || section === "theme";
@@ -139,6 +143,140 @@ export function PageApariencia({ neonColor, section = "all" }) {
                 />
               }
             />
+          </SettingsSection>
+
+          <SettingsSection title={t.glassTitle}>
+            <SettingRow
+              icon={Svg.rectangle}
+              label={t.glassEnable}
+              desc={t.glassEnableDesc}
+              right={
+                <SettingsToggle
+                  value={settings.glassMode}
+                  onChange={(v) => updateSetting("glassMode", v)}
+                  accent={accent}
+                />
+              }
+            />
+            {settings.glassMode && (
+              <>
+                <SettingRow
+                  icon={Ic.img}
+                  label={t.glassScene}
+                  desc={t.glassSceneDesc}
+                  right={
+                    <SettingsToggle
+                      value={settings.glassScene !== false}
+                      onChange={(v) => updateSetting("glassScene", v)}
+                      accent={accent}
+                    />
+                  }
+                />
+                <SettingRow
+                  label={t.glassShell}
+                  desc={t.glassShellDesc}
+                  right={
+                    <SegBtn
+                      options={[
+                        ["clear", t.glassClear],
+                        ["auto", t.glassAuto],
+                        ["frosted", t.glassFrosted],
+                      ]}
+                      settingKey="glassFrostShell"
+                      current={settings.glassFrostShell || "clear"}
+                    />
+                  }
+                />
+                <SettingRow
+                  label={t.glassMenus}
+                  desc={t.glassMenusDesc}
+                  right={
+                    <SegBtn
+                      options={[
+                        ["clear", t.glassClear],
+                        ["auto", t.glassAuto],
+                        ["frosted", t.glassFrosted],
+                      ]}
+                      settingKey="glassFrostMenus"
+                      current={settings.glassFrostMenus || "auto"}
+                    />
+                  }
+                />
+                <SettingRow
+                  label={t.glassDepth}
+                  right={
+                    <SegBtn
+                      options={[
+                        ["thin", t.glassThin],
+                        ["thick", t.glassThick],
+                      ]}
+                      settingKey="glassDepth"
+                      current={settings.glassDepth || "thin"}
+                    />
+                  }
+                />
+                <SettingRow
+                  label={t.glassDark}
+                  desc={t.glassDarkDesc}
+                  right={
+                    <SettingsToggle
+                      value={settings.glassDark !== false}
+                      onChange={(v) => updateSetting("glassDark", v)}
+                      accent={accent}
+                    />
+                  }
+                />
+                <SettingRow
+                  label={t.glassRound}
+                  desc={t.glassRoundDesc}
+                  right={
+                    <SettingsToggle
+                      value={settings.glassRound || false}
+                      onChange={(v) => updateSetting("glassRound", v)}
+                      accent={accent}
+                    />
+                  }
+                />
+                <SettingRow
+                  label={t.glassLight}
+                  desc={t.glassLightDesc}
+                  onClick={() => setShowGlassModal(true)}
+                  right={
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        color: COLORS.textTertiary,
+                        fontSize: "12px",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {glassLightLabel(t, settings.glassLightStyle)}
+                      <SettingsChevron />
+                    </span>
+                  }
+                />
+                <SettingRow
+                  label={t.glassLowPower}
+                  desc={t.glassLowPowerDesc}
+                  right={
+                    <SettingsToggle
+                      value={settings.glassLowPower || false}
+                      onChange={(v) => updateSetting("glassLowPower", v)}
+                      accent={accent}
+                    />
+                  }
+                />
+                <SettingRow
+                  border={false}
+                  label={t.glassAdvanced}
+                  desc={t.glassAdvancedDesc}
+                  onClick={() => setShowGlassModal(true)}
+                  right={<SettingsChevron />}
+                />
+              </>
+            )}
           </SettingsSection>
 
           <SettingsSection title={t.defaultTab}>
@@ -404,6 +542,18 @@ export function PageApariencia({ neonColor, section = "all" }) {
         showColorModal &&
         createPortal(
           <AppColorModal accent={accent} onClose={() => setShowColorModal(false)} />,
+          document.body,
+        )}
+      {showTheme &&
+        showGlassModal &&
+        createPortal(
+          <GlassSettingsModal
+            accent={accent}
+            settings={settings}
+            updateSetting={updateSetting}
+            t={t}
+            onClose={() => setShowGlassModal(false)}
+          />,
           document.body,
         )}
     </div>

@@ -5,6 +5,7 @@ import { fmtTime } from "../utils/formatTime";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, SPACING, SHADOWS, TRANSITIONS, GLASS, withAlpha } from "../utils/theme";
+import { GlassBackground } from "./glass/GlassBackground";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { useEscClose } from "../hooks/useEscape";
 import { useSettings } from "../contexts/useSettings";
@@ -323,6 +324,11 @@ export function SongOptionsSheet({
           width: "100%",
           maxWidth: "580px",
           ...GLASS.sheet,
+          background: "transparent",
+          backdropFilter: "none",
+          WebkitBackdropFilter: "none",
+          border: "none",
+          boxShadow: "none",
           borderRadius: "24px 24px 0 0",
           borderBottom: "none",
           zIndex: 1000001,
@@ -330,264 +336,267 @@ export function SongOptionsSheet({
           fontFamily: FONT,
         }}
       >
-        {/* Handle bar */}
-        <div
-          style={{
-            width: "40px",
-            height: "4px",
-            background: "rgba(255,255,255,.15)",
-            borderRadius: "4px",
-            margin: "14px auto 0",
-          }}
-        />
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-            padding: "16px 20px 14px",
-            // Sin sombra separadora entre el nombre y las opciones: la
-            // jerarquía la da el propio material.
-          }}
-        >
-          {/* Cover */}
+        <GlassBackground radius={24} borderRadius="24px 24px 0 0" variant="sheet" />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          {/* Handle bar */}
           <div
             style={{
-              width: "54px",
-              height: "54px",
-              borderRadius: RADIUS.card,
-              overflow: "hidden",
-              flexShrink: 0,
-              background: COLORS.surfaceCoverBg,
-              boxShadow: "0 4px 16px rgba(0,0,0,.4)",
+              width: "40px",
+              height: "4px",
+              background: "rgba(255,255,255,.15)",
+              borderRadius: "4px",
+              margin: "14px auto 0",
             }}
-          >
-            <MusicCover
-              thumbnails={song.thumbnails}
-              src={song.thumbnail}
-              displaySize={60}
-              alt=""
-              style={{ width: "54px", height: "54px" }}
-            />
-          </div>
-          {/* Info */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: "15px",
-                fontWeight: "800",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                letterSpacing: "-.2px",
-              }}
-            >
-              {song.title}
-            </div>
-            <div
-              style={{
-                fontSize: "13px",
-                color: "rgba(255,255,255,.45)",
-                marginTop: "3px",
-                fontWeight: "600",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {song.artist}
-            </div>
-          </div>
-          {/* OFFLINE badge */}
-          {song.downloaded && (
-            <span
-              style={{
-                fontSize: "11px",
-                color: COLORS.successColor,
-                fontWeight: "800",
-                background: withAlpha(COLORS.successColor, "1a"),
-                borderRadius: RADIUS.pill,
-                padding: "3px 10px",
-                flexShrink: 0,
-                letterSpacing: ".3px",
-              }}
-            >
-              OFFLINE
-            </span>
-          )}
-          {/* Close button */}
-          <button
-            onClick={onClose}
+          />
+          {/* Header */}
+          <div
             style={{
-              // Material del player bar: cristal, brillo interior y sombra,
-              // sin contorno (el aro de 1px se veía sobre el cristal de la hoja).
-              background: GLASS.btn.background,
-              border: "none",
-              borderRadius: RADIUS.full,
-              width: "34px",
-              height: "34px",
-              cursor: "pointer",
-              color: COLORS.winCtrlDefault,
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              boxShadow: SHADOWS.closeBtn,
-              transition: TRANSITIONS.normal,
+              gap: "14px",
+              padding: "16px 20px 14px",
+              // Sin sombra separadora entre el nombre y las opciones: la
+              // jerarquía la da el propio material.
             }}
           >
-            {Ic.close}
-          </button>
-        </div>
-        {/* Action buttons grid */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3,1fr)",
-            gap: "4px",
-            padding: "12px 14px",
-          }}
-        >
-          {buttons.map((btn, i) => (
-            <button
-              key={i}
-              onClick={btn.action}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "10px",
-                padding: "18px 8px 16px",
-                borderRadius: "16px",
-                border: "none",
-                cursor: "pointer",
-                background: "transparent",
-                color: btn.color || COLORS.textPlayerTitle,
-                fontFamily: FONT,
-                fontSize: "12.5px",
-                fontWeight: "700",
-                textAlign: "center",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceCardHover)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <div
-                style={{
-                  width: "50px",
-                  height: "50px",
-                  borderRadius: RADIUS.full,
-                  // Material del player bar: cristal con brillo interior y
-                  // sombra, sin contorno. El relleno del estado (♥ activo,
-                  // descargando, descargada) manda cuando existe.
-                  background: btn.bg || GLASS.btn.background,
-                  border: "none",
-                  boxShadow: SHADOWS.closeBtn,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: btn.color || "rgba(255,255,255,.55)",
-                }}
-              >
-                {btn.icon}
-              </div>
-              <span>{btn.label}</span>
-            </button>
-          ))}
-        </div>
-        {/* Details section */}
-        {showDetails && (
-          <div
-            style={{
-              boxShadow: SHADOWS.sepUp,
-              padding: "16px 22px 22px",
-            }}
-          >
+            {/* Cover */}
             <div
               style={{
-                fontSize: "11px",
-                color: COLORS.progressTime,
-                fontWeight: "800",
-                letterSpacing: "1.2px",
-                textTransform: "uppercase",
-                marginBottom: "14px",
+                width: "54px",
+                height: "54px",
+                borderRadius: RADIUS.card,
+                overflow: "hidden",
+                flexShrink: 0,
+                background: COLORS.surfaceCoverBg,
+                boxShadow: "0 4px 16px rgba(0,0,0,.4)",
               }}
             >
-              Detalles
+              <MusicCover
+                thumbnails={song.thumbnails}
+                src={song.thumbnail}
+                displaySize={60}
+                alt=""
+                style={{ width: "54px", height: "54px" }}
+              />
             </div>
-            {!details ? (
+            {/* Info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  color: COLORS.iconDimmer,
-                  fontSize: "13px",
-                  fontWeight: "600",
+                  fontSize: "15px",
+                  fontWeight: "800",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  letterSpacing: "-.2px",
                 }}
               >
-                Cargando...
+                {song.title}
               </div>
-            ) : (
               <div
+                style={{
+                  fontSize: "13px",
+                  color: "rgba(255,255,255,.45)",
+                  marginTop: "3px",
+                  fontWeight: "600",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {song.artist}
+              </div>
+            </div>
+            {/* OFFLINE badge */}
+            {song.downloaded && (
+              <span
+                style={{
+                  fontSize: "11px",
+                  color: COLORS.successColor,
+                  fontWeight: "800",
+                  background: withAlpha(COLORS.successColor, "1a"),
+                  borderRadius: RADIUS.pill,
+                  padding: "3px 10px",
+                  flexShrink: 0,
+                  letterSpacing: ".3px",
+                }}
+              >
+                OFFLINE
+              </span>
+            )}
+            {/* Close button */}
+            <button
+              onClick={onClose}
+              style={{
+                // Material del player bar: cristal, brillo interior y sombra,
+                // sin contorno (el aro de 1px se veía sobre el cristal de la hoja).
+                background: GLASS.btn.background,
+                border: "none",
+                borderRadius: RADIUS.full,
+                width: "34px",
+                height: "34px",
+                cursor: "pointer",
+                color: COLORS.winCtrlDefault,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                boxShadow: SHADOWS.closeBtn,
+                transition: TRANSITIONS.normal,
+              }}
+            >
+              {Ic.close}
+            </button>
+          </div>
+          {/* Action buttons grid */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3,1fr)",
+              gap: "4px",
+              padding: "12px 14px",
+            }}
+          >
+            {buttons.map((btn, i) => (
+              <button
+                key={i}
+                onClick={btn.action}
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: SPACING.gap.normal,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "10px",
+                  padding: "18px 8px 16px",
+                  borderRadius: "16px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: "transparent",
+                  color: btn.color || COLORS.textPlayerTitle,
+                  fontFamily: FONT,
+                  fontSize: "12.5px",
+                  fontWeight: "700",
+                  textAlign: "center",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceCardHover)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <div
+                  style={{
+                    width: "50px",
+                    height: "50px",
+                    borderRadius: RADIUS.full,
+                    // Material del player bar: cristal con brillo interior y
+                    // sombra, sin contorno. El relleno del estado (♥ activo,
+                    // descargando, descargada) manda cuando existe.
+                    background: btn.bg || GLASS.btn.background,
+                    border: "none",
+                    boxShadow: SHADOWS.closeBtn,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: btn.color || "rgba(255,255,255,.55)",
+                  }}
+                >
+                  {btn.icon}
+                </div>
+                <span>{btn.label}</span>
+              </button>
+            ))}
+          </div>
+          {/* Details section */}
+          {showDetails && (
+            <div
+              style={{
+                boxShadow: SHADOWS.sepUp,
+                padding: "16px 22px 22px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: COLORS.progressTime,
+                  fontWeight: "800",
+                  letterSpacing: "1.2px",
+                  textTransform: "uppercase",
+                  marginBottom: "14px",
                 }}
               >
-                {[
-                  ["Título", details.title || song.title],
-                  ["Artista", details.artist || song.artist],
-                  details.album && ["Álbum", details.album],
-                  details.year && ["Año", details.year],
-                  details.plays && ["Reproducciones", details.plays],
-                  details.views && ["Vistas", details.views],
-                  details.likes && ["Me gusta", details.likes],
-                  details.genre && ["Género", details.genre],
-                  song.duration > 0 && ["Duración", fmtTime(song.duration)],
-                  ["Video ID", song.videoId],
-                ]
-                  .filter(Boolean)
-                  .map(
-                    ([label, value]) =>
-                      value && (
-                        <div
-                          key={label}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "flex-start",
-                            gap: "16px",
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: "12px",
-                              fontWeight: "700",
-                              color: COLORS.progressTime,
-                              flexShrink: 0,
-                              paddingTop: "1px",
-                            }}
-                          >
-                            {label}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: "12.5px",
-                              fontWeight: "700",
-                              color: "rgba(255,255,255,.82)",
-                              textAlign: "right",
-                              wordBreak: "break-all",
-                            }}
-                          >
-                            {value}
-                          </span>
-                        </div>
-                      ),
-                  )}
+                Detalles
               </div>
-            )}
-          </div>
-        )}
+              {!details ? (
+                <div
+                  style={{
+                    color: COLORS.iconDimmer,
+                    fontSize: "13px",
+                    fontWeight: "600",
+                  }}
+                >
+                  Cargando...
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: SPACING.gap.normal,
+                  }}
+                >
+                  {[
+                    ["Título", details.title || song.title],
+                    ["Artista", details.artist || song.artist],
+                    details.album && ["Álbum", details.album],
+                    details.year && ["Año", details.year],
+                    details.plays && ["Reproducciones", details.plays],
+                    details.views && ["Vistas", details.views],
+                    details.likes && ["Me gusta", details.likes],
+                    details.genre && ["Género", details.genre],
+                    song.duration > 0 && ["Duración", fmtTime(song.duration)],
+                    ["Video ID", song.videoId],
+                  ]
+                    .filter(Boolean)
+                    .map(
+                      ([label, value]) =>
+                        value && (
+                          <div
+                            key={label}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                              gap: "16px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: "700",
+                                color: COLORS.progressTime,
+                                flexShrink: 0,
+                                paddingTop: "1px",
+                              }}
+                            >
+                              {label}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "12.5px",
+                                fontWeight: "700",
+                                color: "rgba(255,255,255,.82)",
+                                textAlign: "right",
+                                wordBreak: "break-all",
+                              }}
+                            >
+                              {value}
+                            </span>
+                          </div>
+                        ),
+                    )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

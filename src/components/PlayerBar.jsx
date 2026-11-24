@@ -9,6 +9,7 @@ import { useOverlayActive } from "../hooks/useOverlayLayer";
 import { fmtTime } from "../utils/formatTime";
 import { getBtnShapeStyle } from "../utils/playerStyles";
 import { Slider } from "./SettingsComponents";
+import { GlassBackground } from "./glass/GlassBackground";
 import { COLORS, RADIUS, SPACING, TRANSITIONS, GLASS, safeAccentText } from "../utils/theme";
 
 /* Controles secundarios sin relleno: el único botón con masa visual es Play.
@@ -229,6 +230,7 @@ export const PlayerBar = memo(function PlayerBar({
   const progressThumbRef = useRef(null);
   const barBgRef = useRef(null);
   const progressTimeRef = useRef(null);
+  const [barHovered, setBarHovered] = useState(false);
   const { visible } = usePerformance();
   const { settings } = useSettings();
 
@@ -432,30 +434,17 @@ export const PlayerBar = memo(function PlayerBar({
         fontFamily: FONT,
         transition: "none",
       }}
-      onMouseEnter={() => {
-        const bg = barBgRef.current;
-        if (!bg) return;
-        bg.style.background = "rgba(16,16,22,.24)";
-        bg.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,.10), 0 6px 18px rgba(0,0,0,.28)";
-      }}
-      onMouseLeave={() => {
-        const bg = barBgRef.current;
-        if (!bg) return;
-        bg.style.background = GLASS.player.background;
-        bg.style.boxShadow = GLASS.player.boxShadow;
-      }}
+      onMouseEnter={() => setBarHovered(true)}
+      onMouseLeave={() => setBarHovered(false)}
     >
-      <div
+      {/* El fondo (blur o vidrio líquido) es una capa hermana del contenido:
+          los controles nunca son hijos del backdrop-filter. */}
+      <GlassBackground
         ref={barBgRef}
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          borderRadius: "20px",
-          pointerEvents: "none",
-          zIndex: 0,
-          ...GLASS.player,
-        }}
+        radius={20}
+        variant="shell"
+        frost={settings.glassFrostShell}
+        hovered={barHovered}
       />
       {/* Main row: Three-column layout */}
       <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center" }}>
@@ -549,7 +538,7 @@ export const PlayerBar = memo(function PlayerBar({
               <button
                 key={i}
                 onClick={btn.onClick}
-                aria-label={btn.title}
+                title={btn.title}
                 style={{
                   width: "36px",
                   height: "36px",
@@ -656,7 +645,7 @@ export const PlayerBar = memo(function PlayerBar({
               <button
                 key={i}
                 onClick={btn.onClick}
-                aria-label={btn.title}
+                title={btn.title}
                 style={{
                   width: "36px",
                   height: "36px",
@@ -887,7 +876,7 @@ export const PlayerBar = memo(function PlayerBar({
           {/* Lyrics */}
           <button
             onClick={() => song && onLyrics()}
-            aria-label="Letras"
+            title="Letras"
             style={{
               width: "36px",
               height: "36px",

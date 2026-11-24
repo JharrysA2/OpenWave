@@ -24,6 +24,7 @@ import { NowPlayingPanel } from "./components/NowPlayingPanel";
 import { CreatePlaylistModal } from "./components/CreatePlaylistModal";
 import { Toasts } from "./components/Toast";
 import { ConnectionBanner } from "./components/ConnectionBanner";
+import { GlassScene } from "./components/glass/GlassScene";
 import { BootScreen } from "./components/BootScreen";
 import { TitleBar } from "./components/TitleBar";
 import { Sidebar } from "./components/Sidebar";
@@ -668,306 +669,311 @@ function AppInner() {
         ...bgStyle,
         position: "relative",
         overflow: "hidden",
+        // El escenario de vidrio (z-index -1) pinta sobre el fondo del root
+        // pero debajo del contenido: el aislamiento lo mantiene dentro.
+        isolation: "isolate",
       }}
     >
-      {/* Aviso de desconexión con el backend */}
-      <ConnectionBanner />
+      <GlassScene song={currentSong} enabled={!!(settings.glassMode && settings.glassScene)}>
+        {/* Aviso de desconexión con el backend */}
+        <ConnectionBanner />
 
-      {/* Pantalla de arranque: logo → primer health-check → lista */}
-      <BootScreen />
+        {/* Pantalla de arranque: logo → primer health-check → lista */}
+        <BootScreen />
 
-      {customTitleBar && <TitleBar />}
+        {customTitleBar && <TitleBar />}
 
-      {/* Sidebar + Main area — fills entire height below title bar */}
-      <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
-        {/* Sidebar — glassmorphism structural material */}
-        <Sidebar
-          tab={tab}
-          accentColor={neonColor}
-          likedCount={liked.size}
-          playlists={playlists}
-          selectedPlaylist={selectedPlaylist}
-          onTabChange={handleTabChange}
-          onSelectPlaylist={onSelectPlaylist}
-          onOpenSettings={onOpenSettings}
-          onCreatePlaylist={onCreatePlaylist}
-          visible={sidebarVisible}
-          onToggle={toggleSidebar}
-          nowPlayingOpen={nowPlayingOpen}
-          onToggleNowPlaying={toggleNowPlaying}
+        {/* Sidebar + Main area — fills entire height below title bar */}
+        <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
+          {/* Sidebar — glassmorphism structural material */}
+          <Sidebar
+            tab={tab}
+            accentColor={neonColor}
+            likedCount={liked.size}
+            playlists={playlists}
+            selectedPlaylist={selectedPlaylist}
+            onTabChange={handleTabChange}
+            onSelectPlaylist={onSelectPlaylist}
+            onOpenSettings={onOpenSettings}
+            onCreatePlaylist={onCreatePlaylist}
+            visible={sidebarVisible}
+            onToggle={toggleSidebar}
+            nowPlayingOpen={nowPlayingOpen}
+            onToggleNowPlaying={toggleNowPlaying}
+          />
+
+          {/* Mostrar barra lateral: botón » mientras esté oculta */}
+          {!sidebarVisible && (
+            <button
+              data-testid="sidebar-show-btn"
+              className="sidebar-show-btn"
+              onClick={toggleSidebar}
+              title="Mostrar barra lateral"
+              aria-label="Mostrar barra lateral"
+              style={{
+                position: "absolute",
+                left: "10px",
+                top: "10px",
+                zIndex: 6,
+                width: "34px",
+                height: "34px",
+                borderRadius: "10px",
+                // Liquid Glass canónico de superficie flotante sobre contenido
+                // en movimiento (mismo cristal que Toasts/popups): gradiente,
+                // rim light, sombra flotante y backdrop blur(6px) sin saturate.
+                // perf-blur-off / perf-solid / app-hidden / app-sleep lo apagan
+                // solos; html.overlay-open lo apaga vía .sidebar-show-btn.
+                ...GLASS.popup,
+                color: "rgba(255,255,255,.75)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition:
+                  "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
+                ...ANIMATIONS.fadeIn(0),
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = "scale(0.9)";
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "rgba(255,255,255,.95)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "rgba(255,255,255,.75)";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9.5 6 L15.5 12 L9.5 18" />
+              </svg>
+            </button>
+          )}
+
+          {/* Main content */}
+          <div style={{ flex: 1, minWidth: 0, overflow: "hidden", position: "relative" }}>
+            <div key={tab} style={{ height: "100%", ...ANIMATIONS.fadeIn(50) }}>
+              <MainRouter
+                showSettingsPanel={showSettingsPanel}
+                onCloseSettings={handleCloseSettings}
+                neonColor={neonColor}
+                crossfadeDuration={crossfadeDuration}
+                setCrossfadeDuration={setCrossfadeDuration}
+                sleep={sleep}
+                setSleep={setSleep}
+                downloads={downloads}
+                onClearDownloads={handleClearDownloads}
+                onClearHistory={handleClearHistory}
+                onDownloadsCleared={handleDownloadsCleared}
+                onDownloadsRemoved={handleDownloadsRemoved}
+                downloadedIds={downloadedIds}
+                onHistoryCleared={handleHistoryCleared}
+                liked={liked}
+                history={history}
+                playlists={playlists}
+                onSelectPlaylist={onSelectPlaylist}
+                toast={toast}
+                albumBrowseId={albumBrowseId}
+                artistBrowseId={artistBrowseId}
+                artistSongs={artistSongs}
+                goToArtist={goToArtist}
+                goToAlbum={goToAlbum}
+                goToArtistSongs={goToArtistSongs}
+                closeArtistSongs={closeArtistSongs}
+                goBackFromDetail={goBackFromDetail}
+                tab={tab}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                playSong={playSong}
+                toggleLike={handleToggleLike}
+                openOptions={openOptions}
+                historyItems={mostPlayed}
+                libraryStatus={libraryStatus}
+                libraryErrorCode={libraryError?.code}
+                onRetryLibrary={refreshLibrary}
+                onHomeSearch={handleHomeSearch}
+                query={query}
+                onQueryChange={handleSearchChange}
+                searchTab={searchTab}
+                onSearchTabChange={setSearchTab}
+                results={results}
+                searchArtists={searchArtists}
+                searchAlbums={searchAlbums}
+                songsVisible={songsVisible}
+                onShowMore={handleShowMore}
+                searchLoading={searchLoading}
+                videoResults={videoResults}
+                videoLoading={videoLoading}
+                videoError={videoError}
+                videoErrorCode={videoErrorCode}
+                searchError={searchError}
+                onRetrySearch={handleRetrySearch}
+                searchInputRef={searchInputRef}
+                likedSongs={likedSongs}
+                selectedPlaylist={selectedPlaylist}
+                onPlaylistBack={handlePlaylistBack}
+                onPlaylistUpdated={handlePlaylistUpdated}
+                refreshPlaylists={refreshPlaylists}
+                likedAlbums={likedAlbums}
+                followedArtists={followedArtists}
+                isAlbumLiked={isAlbumLiked}
+                toggleAlbumLike={toggleAlbumLike}
+                isArtistFollowed={isArtistFollowed}
+                toggleFollow={toggleFollow}
+                openEntityOptions={openEntityOptions}
+                playAlbum={playAlbum}
+                downloadAlbum={downloadAlbum}
+                fetchAlbumTracks={fetchAlbumTracks}
+              />
+            </div>
+          </div>
+
+          {nowPlayingOpen && (
+            <NowPlayingPanel
+              song={currentSong}
+              queue={queue}
+              queueIndex={queueIndex}
+              accentColor={neonColor}
+              onPlaySong={playSong}
+              onClose={closeNowPlaying}
+            />
+          )}
+        </div>
+
+        {/* Audio elements */}
+        <AudioElements
+          audioRef={audioRef}
+          nextAudioRef={nextAudioRef}
+          progressRef={progressRef}
+          loggedSongRef={loggedSongRef}
+          currentlyPlayingSongRef={currentlyPlayingSongRef}
+          setDuration={setDuration}
+          handleSongEnded={handleSongEnded}
+          handleAudioError={handleAudioError}
+          pauseHistory={settings.pauseHistory ?? false}
+          toast={toast}
         />
 
-        {/* Mostrar barra lateral: botón » mientras esté oculta */}
-        {!sidebarVisible && (
-          <button
-            data-testid="sidebar-show-btn"
-            className="sidebar-show-btn"
-            onClick={toggleSidebar}
-            title="Mostrar barra lateral"
-            aria-label="Mostrar barra lateral"
-            style={{
-              position: "absolute",
-              left: "10px",
-              top: "10px",
-              zIndex: 6,
-              width: "34px",
-              height: "34px",
-              borderRadius: "10px",
-              // Liquid Glass canónico de superficie flotante sobre contenido
-              // en movimiento (mismo cristal que Toasts/popups): gradiente,
-              // rim light, sombra flotante y backdrop blur(6px) sin saturate.
-              // perf-blur-off / perf-solid / app-hidden / app-sleep lo apagan
-              // solos; html.overlay-open lo apaga vía .sidebar-show-btn.
-              ...GLASS.popup,
-              color: "rgba(255,255,255,.75)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition:
-                "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)",
-              ...ANIMATIONS.fadeIn(0),
-            }}
-            onMouseDown={(e) => {
-              e.currentTarget.style.transform = "scale(0.9)";
-            }}
-            onMouseUp={(e) => {
-              e.currentTarget.style.transform = "scale(1)";
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "rgba(255,255,255,.95)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "rgba(255,255,255,.75)";
-              e.currentTarget.style.transform = "scale(1)";
-            }}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M9.5 6 L15.5 12 L9.5 18" />
-            </svg>
-          </button>
-        )}
+        {/* Toasts */}
+        <Toasts toasts={toasts} />
 
-        {/* Main content */}
-        <div style={{ flex: 1, minWidth: 0, overflow: "hidden", position: "relative" }}>
-          <div key={tab} style={{ height: "100%", ...ANIMATIONS.fadeIn(50) }}>
-            <MainRouter
-              showSettingsPanel={showSettingsPanel}
-              onCloseSettings={handleCloseSettings}
-              neonColor={neonColor}
-              crossfadeDuration={crossfadeDuration}
-              setCrossfadeDuration={setCrossfadeDuration}
-              sleep={sleep}
-              setSleep={setSleep}
-              downloads={downloads}
-              onClearDownloads={handleClearDownloads}
-              onClearHistory={handleClearHistory}
-              onDownloadsCleared={handleDownloadsCleared}
-              onDownloadsRemoved={handleDownloadsRemoved}
-              downloadedIds={downloadedIds}
-              onHistoryCleared={handleHistoryCleared}
-              liked={liked}
-              history={history}
-              playlists={playlists}
-              onSelectPlaylist={onSelectPlaylist}
-              toast={toast}
-              albumBrowseId={albumBrowseId}
-              artistBrowseId={artistBrowseId}
-              artistSongs={artistSongs}
-              goToArtist={goToArtist}
-              goToAlbum={goToAlbum}
-              goToArtistSongs={goToArtistSongs}
-              closeArtistSongs={closeArtistSongs}
-              goBackFromDetail={goBackFromDetail}
-              tab={tab}
-              currentSong={currentSong}
-              isPlaying={isPlaying}
-              playSong={playSong}
-              toggleLike={handleToggleLike}
-              openOptions={openOptions}
-              historyItems={mostPlayed}
-              libraryStatus={libraryStatus}
-              libraryErrorCode={libraryError?.code}
-              onRetryLibrary={refreshLibrary}
-              onHomeSearch={handleHomeSearch}
-              query={query}
-              onQueryChange={handleSearchChange}
-              searchTab={searchTab}
-              onSearchTabChange={setSearchTab}
-              results={results}
-              searchArtists={searchArtists}
-              searchAlbums={searchAlbums}
-              songsVisible={songsVisible}
-              onShowMore={handleShowMore}
-              searchLoading={searchLoading}
-              videoResults={videoResults}
-              videoLoading={videoLoading}
-              videoError={videoError}
-              videoErrorCode={videoErrorCode}
-              searchError={searchError}
-              onRetrySearch={handleRetrySearch}
-              searchInputRef={searchInputRef}
-              likedSongs={likedSongs}
-              selectedPlaylist={selectedPlaylist}
-              onPlaylistBack={handlePlaylistBack}
-              onPlaylistUpdated={handlePlaylistUpdated}
-              refreshPlaylists={refreshPlaylists}
-              likedAlbums={likedAlbums}
-              followedArtists={followedArtists}
-              isAlbumLiked={isAlbumLiked}
-              toggleAlbumLike={toggleAlbumLike}
-              isArtistFollowed={isArtistFollowed}
-              toggleFollow={toggleFollow}
-              openEntityOptions={openEntityOptions}
-              playAlbum={playAlbum}
-              downloadAlbum={downloadAlbum}
-              fetchAlbumTracks={fetchAlbumTracks}
-            />
-          </div>
-        </div>
+        {/* Song Options Sheet */}
+        {songOptionsSheet}
 
-        {nowPlayingOpen && (
-          <NowPlayingPanel
-            song={currentSong}
-            queue={queue}
-            queueIndex={queueIndex}
-            accentColor={neonColor}
-            onPlaySong={playSong}
-            onClose={closeNowPlaying}
-          />
-        )}
-      </div>
+        {/* Entity Options Sheet (álbum / artista) */}
+        {entityOptionsSheet}
 
-      {/* Audio elements */}
-      <AudioElements
-        audioRef={audioRef}
-        nextAudioRef={nextAudioRef}
-        progressRef={progressRef}
-        loggedSongRef={loggedSongRef}
-        currentlyPlayingSongRef={currentlyPlayingSongRef}
-        setDuration={setDuration}
-        handleSongEnded={handleSongEnded}
-        handleAudioError={handleAudioError}
-        pauseHistory={settings.pauseHistory ?? false}
-        toast={toast}
-      />
+        {/* Playlist Picker Modal — mejorado con tokens de tema y animación */}
+        <PlaylistPickerModal
+          open={playlistPickerOpen}
+          playlists={playlists}
+          song={playlistPickerSong}
+          songs={playlistPickerSongs}
+          toast={toast}
+          refreshPlaylists={refreshPlaylists}
+          onClose={() => {
+            setPlaylistPickerOpen(false);
+            setPlaylistPickerSong(null);
+            setPlaylistPickerSongs(null);
+          }}
+        />
 
-      {/* Toasts */}
-      <Toasts toasts={toasts} />
+        {/* Lyrics View (overlay) */}
+        {/* Create Playlist Modal */}
+        <CreatePlaylistModal
+          open={showCreatePlaylistModal}
+          onClose={() => setShowCreatePlaylistModal(false)}
+          onCreated={async (newPlaylist) => {
+            // Refrescar desde el servidor — la fuente de verdad
+            await refreshPlaylists();
+            setSelectedPlaylist(newPlaylist);
+            closeDetailViews();
+            setTab("playlist");
+          }}
+          toast={toast}
+        />
 
-      {/* Song Options Sheet */}
-      {songOptionsSheet}
-
-      {/* Entity Options Sheet (álbum / artista) */}
-      {entityOptionsSheet}
-
-      {/* Playlist Picker Modal — mejorado con tokens de tema y animación */}
-      <PlaylistPickerModal
-        open={playlistPickerOpen}
-        playlists={playlists}
-        song={playlistPickerSong}
-        songs={playlistPickerSongs}
-        toast={toast}
-        refreshPlaylists={refreshPlaylists}
-        onClose={() => {
-          setPlaylistPickerOpen(false);
-          setPlaylistPickerSong(null);
-          setPlaylistPickerSongs(null);
-        }}
-      />
-
-      {/* Lyrics View (overlay) */}
-      {/* Create Playlist Modal */}
-      <CreatePlaylistModal
-        open={showCreatePlaylistModal}
-        onClose={() => setShowCreatePlaylistModal(false)}
-        onCreated={async (newPlaylist) => {
-          // Refrescar desde el servidor — la fuente de verdad
-          await refreshPlaylists();
-          setSelectedPlaylist(newPlaylist);
-          closeDetailViews();
-          setTab("playlist");
-        }}
-        toast={toast}
-      />
-
-      {/* Montaje condicional: cerrar letras desmonta el overlay (y su chunk
+        {/* Montaje condicional: cerrar letras desmonta el overlay (y su chunk
           dnd-kit) — `open` interno queda siempre true, sin cambio visual
           (LyricsView ya devolvía null sin animación de salida). */}
-      {lyricsOpen && (
-        <Suspense fallback={null}>
-          <LyricsView
-            song={currentSong}
-            open={lyricsOpen}
-            onClose={handleLyricsClose}
-            queue={queue}
-            queueIndex={queueIndex}
-            setQueueIndex={setQueueIndex}
-            playSong={playSong}
-            onSeek={handleSeek}
-            progressRef={progressRef}
-            audioRef={audioRef}
-            accentColor={neonColor}
-            lyricsCacheRef={lyricsCacheRef}
-            onRemoveFromQueue={removeFromQueue}
-            onMoveUp={moveUp}
-            onMoveDown={moveDown}
-            onMoveInQueue={moveInQueue}
-            streamCacheRef={streamCacheRef}
-            topOffset={customTitleBar ? 32 : 0}
-          />
-        </Suspense>
-      )}
-
-      {/* Player bar — absolute overlay at bottom, floating over content */}
-      {!showSettingsPanel && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            zIndex: 999999,
-            display: "flex",
-            justifyContent: "center",
-            pointerEvents: "none",
-          }}
-        >
-          <div style={{ pointerEvents: "all" }}>
-            <PlayerBar
+        {lyricsOpen && (
+          <Suspense fallback={null}>
+            <LyricsView
               song={currentSong}
-              isPlaying={isPlaying}
-              streamLoading={streamLoading}
-              duration={duration}
-              volume={volume}
-              onPlayPause={togglePlay}
-              onNext={handleNext}
-              onPrev={handlePrev}
+              open={lyricsOpen}
+              onClose={handleLyricsClose}
+              queue={queue}
+              queueIndex={queueIndex}
+              setQueueIndex={setQueueIndex}
+              playSong={playSong}
               onSeek={handleSeek}
-              onVolume={handleVolume}
-              onPlayModeToggle={handlePlayModeToggle}
-              accentColor={neonColor}
-              onLyrics={handleToggleLyrics}
-              lyricsOpen={lyricsOpen}
-              onOpenOptions={handleOpenCurrentOptions}
-              shuffleActive={shuffleActive}
-              repeatMode={repeatMode}
-              crossfadeDuration={crossfadeDuration}
-              onCrossfadeDuration={setCrossfadeDuration}
               progressRef={progressRef}
+              audioRef={audioRef}
+              accentColor={neonColor}
+              lyricsCacheRef={lyricsCacheRef}
+              onRemoveFromQueue={removeFromQueue}
+              onMoveUp={moveUp}
+              onMoveDown={moveDown}
+              onMoveInQueue={moveInQueue}
+              streamCacheRef={streamCacheRef}
+              topOffset={customTitleBar ? 32 : 0}
             />
+          </Suspense>
+        )}
+
+        {/* Player bar — absolute overlay at bottom, floating over content */}
+        {!showSettingsPanel && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 999999,
+              display: "flex",
+              justifyContent: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <div style={{ pointerEvents: "all" }}>
+              <PlayerBar
+                song={currentSong}
+                isPlaying={isPlaying}
+                streamLoading={streamLoading}
+                duration={duration}
+                volume={volume}
+                onPlayPause={togglePlay}
+                onNext={handleNext}
+                onPrev={handlePrev}
+                onSeek={handleSeek}
+                onVolume={handleVolume}
+                onPlayModeToggle={handlePlayModeToggle}
+                accentColor={neonColor}
+                onLyrics={handleToggleLyrics}
+                lyricsOpen={lyricsOpen}
+                onOpenOptions={handleOpenCurrentOptions}
+                shuffleActive={shuffleActive}
+                repeatMode={repeatMode}
+                crossfadeDuration={crossfadeDuration}
+                onCrossfadeDuration={setCrossfadeDuration}
+                progressRef={progressRef}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </GlassScene>
     </div>
   );
 }

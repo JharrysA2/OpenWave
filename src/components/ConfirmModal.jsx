@@ -2,6 +2,7 @@ import React from "react";
 import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { COLORS, RADIUS, TRANSITIONS, GLASS, SHADOWS } from "../utils/theme";
+import { GlassBackground } from "./glass/GlassBackground";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { useEscClose } from "../hooks/useEscape";
 
@@ -37,15 +38,22 @@ export function ConfirmModal({
         onClick={(e) => e.stopPropagation()}
         style={{
           ...GLASS.sheet,
+          background: "transparent",
+          backdropFilter: "none",
+          WebkitBackdropFilter: "none",
+          border: "none",
+          boxShadow: "none",
           borderRadius: RADIUS.card,
           width: "380px",
           maxWidth: "90vw",
           display: "flex",
           flexDirection: "column",
+          position: "relative",
           fontFamily: FONT,
           animation: "sw-fade-slide-up .2s cubic-bezier(.16,1,.3,1) both",
         }}
       >
+        <GlassBackground radius={14} variant="sheet" />
         {/* Header */}
         <div
           style={{
@@ -53,6 +61,8 @@ export function ConfirmModal({
             alignItems: "center",
             justifyContent: "space-between",
             padding: "18px 20px 14px",
+            position: "relative",
+            zIndex: 1,
             // Sin línea de contorno: la separación con el cuerpo es sombra.
             boxShadow: SHADOWS.sepZone,
           }}
@@ -96,7 +106,7 @@ export function ConfirmModal({
         </div>
 
         {/* Body */}
-        <div style={{ padding: "20px" }}>
+        <div style={{ padding: "20px", position: "relative", zIndex: 1 }}>
           <div
             style={{
               display: "flex",
@@ -157,6 +167,8 @@ export function ConfirmModal({
             justifyContent: "flex-end",
             gap: "10px",
             padding: "12px 20px 16px",
+            position: "relative",
+            zIndex: 1,
             boxShadow: SHADOWS.sepUp,
           }}
         >

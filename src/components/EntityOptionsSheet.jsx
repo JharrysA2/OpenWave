@@ -3,6 +3,7 @@ import { FONT } from "../constants";
 import { Ic } from "../icons/Icons";
 import { MusicCover } from "./MusicCover";
 import { COLORS, RADIUS, TRANSITIONS, GLASS, SHADOWS, withAlpha } from "../utils/theme";
+import { GlassBackground } from "./glass/GlassBackground";
 import { useOverlayLayer } from "../hooks/useOverlayLayer";
 import { useEscClose } from "../hooks/useEscape";
 
@@ -223,6 +224,11 @@ export function EntityOptionsSheet({
           width: "100%",
           maxWidth: "580px",
           ...GLASS.sheet,
+          background: "transparent",
+          backdropFilter: "none",
+          WebkitBackdropFilter: "none",
+          border: "none",
+          boxShadow: "none",
           borderRadius: "24px 24px 0 0",
           borderBottom: "none",
           zIndex: 1000001,
@@ -230,156 +236,159 @@ export function EntityOptionsSheet({
           fontFamily: FONT,
         }}
       >
-        {/* Handle bar */}
-        <div
-          style={{
-            width: "40px",
-            height: "4px",
-            background: "rgba(255,255,255,.15)",
-            borderRadius: "4px",
-            margin: "14px auto 0",
-          }}
-        />
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-            padding: "16px 20px 14px",
-            // Sin sombra separadora entre el nombre y las opciones: la
-            // jerarquía la da el propio material.
-          }}
-        >
+        <GlassBackground radius={24} borderRadius="24px 24px 0 0" variant="sheet" />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          {/* Handle bar */}
           <div
             style={{
-              width: "54px",
-              height: "54px",
-              borderRadius: isAlbum ? RADIUS.card : RADIUS.full,
-              overflow: "hidden",
-              flexShrink: 0,
-              background: COLORS.surfaceCoverBg,
-              boxShadow: "0 4px 16px rgba(0,0,0,.4)",
+              width: "40px",
+              height: "4px",
+              background: "rgba(255,255,255,.15)",
+              borderRadius: "4px",
+              margin: "14px auto 0",
             }}
-          >
-            <MusicCover
-              thumbnails={entity.thumbnails}
-              src={entity.thumbnail}
-              displaySize={60}
-              alt=""
-              style={{ width: "54px", height: "54px" }}
-            />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: "15px",
-                fontWeight: "800",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                letterSpacing: "-.2px",
-              }}
-            >
-              {title}
-            </div>
-            <div
-              style={{
-                fontSize: "13px",
-                color: "rgba(255,255,255,.45)",
-                marginTop: "3px",
-                fontWeight: "600",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {subtitle}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            onMouseEnter={() => setHoverIdx("close")}
-            onMouseLeave={() => setHoverIdx((k) => (k === "close" ? null : k))}
+          />
+          {/* Header */}
+          <div
             style={{
-              // Material del player bar: cristal, brillo interior y sombra,
-              // sin contorno (el aro de 1px se veía sobre el cristal de la hoja).
-              background: GLASS.btn.background,
-              border: "none",
-              borderRadius: RADIUS.full,
-              width: "34px",
-              height: "34px",
-              cursor: "pointer",
-              color: hoverIdx === "close" ? "#fff" : COLORS.winCtrlDefault,
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              boxShadow: SHADOWS.closeBtn,
-              transition: TRANSITIONS.fast,
+              gap: "14px",
+              padding: "16px 20px 14px",
+              // Sin sombra separadora entre el nombre y las opciones: la
+              // jerarquía la da el propio material.
             }}
           >
-            {Ic.close}
-          </button>
-        </div>
-        {/* Action buttons grid */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3,1fr)",
-            gap: "4px",
-            padding: "12px 14px 22px",
-          }}
-        >
-          {buttons.map((btn, i) => (
-            <button
-              key={i}
-              onClick={btn.action}
-              onMouseEnter={() => setHoverIdx(i)}
-              onMouseLeave={() => setHoverIdx((k) => (k === i ? null : k))}
+            <div
               style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "10px",
-                padding: "18px 8px 16px",
-                borderRadius: "16px",
-                border: "none",
-                cursor: "pointer",
-                // Realce tenue (antes: blanco .08 sobre el cristal de la hoja,
-                // que se veía como cristal doblado y muy blanco).
-                background: hoverIdx === i ? COLORS.surfaceNav : "transparent",
-                color: btn.color || COLORS.textPlayerTitle,
-                fontFamily: FONT,
-                fontSize: "12.5px",
-                fontWeight: "700",
-                textAlign: "center",
-                transition: "background .15s ease",
+                width: "54px",
+                height: "54px",
+                borderRadius: isAlbum ? RADIUS.card : RADIUS.full,
+                overflow: "hidden",
+                flexShrink: 0,
+                background: COLORS.surfaceCoverBg,
+                boxShadow: "0 4px 16px rgba(0,0,0,.4)",
               }}
             >
+              <MusicCover
+                thumbnails={entity.thumbnails}
+                src={entity.thumbnail}
+                displaySize={60}
+                alt=""
+                style={{ width: "54px", height: "54px" }}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  width: "50px",
-                  height: "50px",
-                  borderRadius: RADIUS.full,
-                  // Material del player bar: cristal con brillo interior y
-                  // sombra, sin contorno. El relleno del estado (♥ activo,
-                  // descargando) manda cuando existe.
-                  background: btn.bg || GLASS.btn.background,
-                  border: "none",
-                  boxShadow: SHADOWS.closeBtn,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: btn.color || "rgba(255,255,255,.55)",
+                  fontSize: "15px",
+                  fontWeight: "800",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  letterSpacing: "-.2px",
                 }}
               >
-                {btn.icon}
+                {title}
               </div>
-              <span>{btn.label}</span>
+              <div
+                style={{
+                  fontSize: "13px",
+                  color: "rgba(255,255,255,.45)",
+                  marginTop: "3px",
+                  fontWeight: "600",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {subtitle}
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              onMouseEnter={() => setHoverIdx("close")}
+              onMouseLeave={() => setHoverIdx((k) => (k === "close" ? null : k))}
+              style={{
+                // Material del player bar: cristal, brillo interior y sombra,
+                // sin contorno (el aro de 1px se veía sobre el cristal de la hoja).
+                background: GLASS.btn.background,
+                border: "none",
+                borderRadius: RADIUS.full,
+                width: "34px",
+                height: "34px",
+                cursor: "pointer",
+                color: hoverIdx === "close" ? "#fff" : COLORS.winCtrlDefault,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                boxShadow: SHADOWS.closeBtn,
+                transition: TRANSITIONS.fast,
+              }}
+            >
+              {Ic.close}
             </button>
-          ))}
+          </div>
+          {/* Action buttons grid */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3,1fr)",
+              gap: "4px",
+              padding: "12px 14px 22px",
+            }}
+          >
+            {buttons.map((btn, i) => (
+              <button
+                key={i}
+                onClick={btn.action}
+                onMouseEnter={() => setHoverIdx(i)}
+                onMouseLeave={() => setHoverIdx((k) => (k === i ? null : k))}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "10px",
+                  padding: "18px 8px 16px",
+                  borderRadius: "16px",
+                  border: "none",
+                  cursor: "pointer",
+                  // Realce tenue (antes: blanco .08 sobre el cristal de la hoja,
+                  // que se veía como cristal doblado y muy blanco).
+                  background: hoverIdx === i ? COLORS.surfaceNav : "transparent",
+                  color: btn.color || COLORS.textPlayerTitle,
+                  fontFamily: FONT,
+                  fontSize: "12.5px",
+                  fontWeight: "700",
+                  textAlign: "center",
+                  transition: "background .15s ease",
+                }}
+              >
+                <div
+                  style={{
+                    width: "50px",
+                    height: "50px",
+                    borderRadius: RADIUS.full,
+                    // Material del player bar: cristal con brillo interior y
+                    // sombra, sin contorno. El relleno del estado (♥ activo,
+                    // descargando) manda cuando existe.
+                    background: btn.bg || GLASS.btn.background,
+                    border: "none",
+                    boxShadow: SHADOWS.closeBtn,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: btn.color || "rgba(255,255,255,.55)",
+                  }}
+                >
+                  {btn.icon}
+                </div>
+                <span>{btn.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </>

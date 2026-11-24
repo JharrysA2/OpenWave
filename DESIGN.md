@@ -163,7 +163,7 @@ A core rhythm of 4px-6px increments is used for internal component spacing. Tigh
 
 Elevation in this design system is conveyed through **chromatic light and transparency** rather than physical shadows. 
 
-1.  **Glassmorphism:** Overlays (modals, sheets, settings panel) use a base `rgba(0,0,0,.2)` transparency with a heavy backdrop-blur (minimum 20px, `blur(40px)` on the modal glass surface) to maintain legibility while hinting at the content beneath. Static chrome — sidebar, title bar, search bar, connection banner — keeps the translucent base **without** backdrop blur: nothing animates behind it (see `docs/PERFORMANCE.md` §1/§7).
+1.  **Glassmorphism:** Overlays (modals, sheets, settings panel) use a base `rgba(0,0,0,.2)` transparency with a heavy backdrop-blur (minimum 20px, `blur(40px)` on the modal glass surface) to maintain legibility while hinting at the content beneath. Static chrome — sidebar, title bar, search bar, connection banner — keeps the translucent base **without** backdrop blur: nothing animates behind it (see `docs/PERFORMANCE.md` §1/§7). El modo opcional de vidrio líquido añade refracción de canto al player bar y a las hojas; no cambia las superficies planas (ver «Player Bar — vidrio líquido»).
 2.  **Tonal Layers (M3):** Flat surfaces step through the Material 3 `surfaceContainer*` ladder already defined in this palette — `surfaceContainerLow` (#1a1c1c) for resting cards and fills, `surfaceContainer` (#1e2020) for row/nav hovers, `surfaceContainerHigh` (#282a2b) for card hovers and `surfaceContainerHighest` (#333535) for focused selections. `GLASS.card` renders `surfaceContainer → surfaceContainerLowest` as its resting gradient (and `GLASS.cardHover` `Highest → Container`). Depth by tone, never by blur (docs/PERFORMANCE.md §1/§7).
 3.  **Neon Glows:** Active elements (like the currently playing track or a focused button) emit light. This is achieved via a layered box-shadow using the current `--neon` variable.
 4.  **Background Tints:** Radial gradients (`radial-gradient(ellipse at 30% 20%, ${accentColor}12 0%, transparent 70%)`) are placed behind content to create a cohesive atmosphere that shifts with the music.
@@ -237,8 +237,30 @@ Album artwork drives the entire color system at runtime (`src/hooks/useDynamicTh
 - **Image fading:** Album art crossfades in (0.35s spring) instead of popping; the player bar uses a `blur(6px)` placeholder behind the final art.
 - **Progressive immersion:** Dynamic background tint (`--bg-base`) is applied as soon as colors arrive, so the atmosphere is present before content finishes loading.
 
-## Player Bar — True Liquid Glass
+## Player Bar — vidrio líquido
 
-- `backdrop-filter: blur(50px) saturate(180%) brightness(1.05)` with a subtle translucent surface — the player bar reads as a physical frosted panel floating over artwork.
-- The volume **slider thumb** is pill-shaped, visible only on hover, with an 8px neon glow.
-- Progress fill, thumb glow and the equalizer all use `var(--neon)` so the player reacts visually to the current track's colors.
+La barra tiene dos materiales, y el usuario elige:
+
+- **Base (por defecto):** `GLASS.player`, tinte `rgba(10,10,18,.18)` y
+  `backdrop-filter: blur(10px)`, sin `saturate`. Es el material que midió el
+  presupuesto de `docs/PERFORMANCE.md` y el que se ve con el modo apagado.
+- **Vidrio líquido (opcional, Apariencia → Vidrio líquido):** la portada
+  actual se convierte en una escena fija y oscurecida; el canto de la barra
+  la dobla con un mapa de desplazamiento SVG (SDF + perfil de lente), y encima
+  van tinte ahumado, rim Fresnel/especular y una luz de ventana. El ajuste
+  incluye seis estilos de luz (Comet, Twin, Halo, Outline, Aura, Prism),
+  grosor, refracción, dispersión, IOR, tinte, desenfoque, saturación, brillo,
+  contraste, luz de borde, ángulo y bisel.
+
+La intención es que la **shell** flote sobre la música: el vidrio marca
+jerarquía y pertenece a la barra y a las hojas. Nunca se aplica a tarjetas,
+listas ni grids, porque ahí el blur por superficie se pagaba en cada
+repintado y no aportaba lectura. Dial: **ENERGY 2 / RHYTHM 2 / MOTION 1**.
+
+- La lente se calcula una vez por geometría y se cachea; no hay
+  `requestAnimationFrame`. La luz en movimiento es la única animación
+  continua y se apaga en bajo consumo, Rendimiento y con la ventana oculta.
+- El volume **slider thumb** es pill-shaped, visible solo en hover, con un
+  glow de 8px.
+- Progress fill, thumb glow y el ecualizador usan `var(--neon)` para que la
+  barra reaccione al color de la pista.

@@ -8,7 +8,7 @@ App de música para PC usando **Tauri + React + FastAPI + ytmusicapi**.
 - ✅ **Temas dinámicos** — colores extraídos de la portada del álbum
 - ✅ Vistas de **Álbum, Artista y Playlist**, historial y likes
 - ✅ Descarga offline con yt-dlp
-- ✅ UI oscura con glassmorphism (True Liquid Glass)
+- ✅ UI oscura con glassmorphism y **vidrio líquido óptico opcional** (refracción de borde sobre la portada, seis luces de ventana y ajustes finos)
 - ✅ Instalador .MSI para Windows
 - ✅ Suite de **tests**: 970 tests unitarios (Vitest) + e2e (Playwright) + Pytest
 

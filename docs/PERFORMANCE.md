@@ -1539,6 +1539,32 @@ puerto libre para el siguiente arranque.
   el backend: una reapertura inmediata arranca en vez de enfocar una ventana
   que ya no existe.
 
+## 13. Vidrio líquido (opcional, 2026-11)
+
+Modo opt-in en Apariencia → Vidrio líquido, **apagado por defecto**. Mientras
+el interruptor esté apagado no cambia el perfil de la app: el player y las
+hojas devuelven exactamente `GLASS.player` / `GLASS.sheet`.
+
+- La lente es un `filter: url(#...)` sobre una copia recortada de la escena
+  (la portada) alineada por coordenadas, no un `backdrop-filter` sobre el DOM
+  vivo. El mapa de desplazamiento (SDF + perfil de canto) se calcula una vez
+  por geometría y se cachea en `src/utils/glassEngine.js`; solo se regenera
+  al redimensionar.
+- La escena es una imagen de fondo estática con un velo. No hay blur por
+  frame. La lente se monta en la barra (shell); las hojas usan tint + rim.
+- Las hojas conservan `backdrop-filter: blur(40px)` sobre el contenido y
+  añaden el rim SVG: siguen dentro del presupuesto de overlays de §7.
+- La luz de ventana es un `stroke-dashoffset` CSS sobre un trazo normalizado
+  a 100 unidades. `Outline` (el estilo por defecto) no anima. `Bajo consumo`,
+  `perf-anim-off`, `perf-blur-off`, `perf-solid`, `app-hidden`, `app-sleep` y
+  `prefers-reduced-motion/transparency` apagan la lente y/o la luz. No hay
+  `requestAnimationFrame`.
+- Regresión cubierta por `glassEngine.test.js`, `GlassBackground.test.jsx`,
+  `GlassSettingsModal.test.jsx`, `ModalsPerf.test.jsx` y `PlayerBar.test.jsx`.
+- **Medición pendiente** en la iGPU del MSI (`scripts/measure-perf.ps1`):
+  reposo, reproducción con la barra, apertura de hoja y resize. Hasta tener
+  esa cifra, el modo no se activa por defecto ni se publica como estable.
+
 ## Regla de oro
 
 Todo estilo con impacto potencial en GPU/CPU (backdrop-filter nuevo,

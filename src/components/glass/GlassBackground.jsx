@@ -187,6 +187,8 @@ export const GlassBackground = forwardRef(function GlassBackground(
   const renderFilter = !!lensMap && !!filterId && !IS_WEBKIT;
   const renderLens = renderMagnified || renderFilter;
   const offset = scene?.cover ? sceneOffsetForRect(scene.cover, rect, lens?.margin || 0) : null;
+  const frostOffset = scene?.cover ? sceneOffsetForRect(scene.cover, rect, 0) : null;
+  const renderFrost = !!scene?.enabled && shell && frosted && frostBlur > 0;
 
   const fallbackMaterial = shell ? GLASS.player : GLASS.sheet;
   const fallbackStyle = {
@@ -252,6 +254,25 @@ export const GlassBackground = forwardRef(function GlassBackground(
         />
       )}
 
+      {renderFrost && (
+        <div
+          className="ow-glass-frost"
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "inherit",
+            overflow: "hidden",
+            backgroundImage: `url("${scene.url}")`,
+            backgroundRepeat: "no-repeat",
+            backgroundSize: frostOffset?.backgroundSize,
+            backgroundPosition: frostOffset?.backgroundPosition,
+            filter: `blur(${frostBlur}px)`,
+          }}
+        >
+          <div style={{ position: "absolute", inset: 0, background: scene.veil }} />
+        </div>
+      )}
+
       {renderMagnified && (
         <GlassMagnifiedLens
           width={lens.width}
@@ -263,6 +284,7 @@ export const GlassBackground = forwardRef(function GlassBackground(
           scene={scene}
           rect={rect}
           settings={settings}
+          frostBlur={frosted ? frostBlur : 0}
         />
       )}
 

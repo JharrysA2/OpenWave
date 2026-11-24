@@ -23,6 +23,7 @@ export function GlassMagnifiedLens({
   scene,
   rect,
   settings = {},
+  frostBlur = 0,
 }) {
   const reactId = useId();
   const uid = useMemo(() => `ow-mag-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [reactId]);
@@ -55,6 +56,7 @@ export function GlassMagnifiedLens({
   const sat = Math.min(2, Math.max(0.4, Number(settings.glassSaturation) || 1.15));
   const bright = Math.min(1.8, Math.max(0.5, Number(settings.glassBrightness) || 1));
   const contrast = Math.min(1.8, Math.max(0.5, Number(settings.glassContrast) || 1));
+  const blur = frostBlur > 0 ? `blur(${Number(frostBlur)}px) ` : "";
 
   return (
     <svg
@@ -70,7 +72,7 @@ export function GlassMagnifiedLens({
         height: `${h}px`,
         pointerEvents: "none",
         overflow: "hidden",
-        filter: `saturate(${sat}) brightness(${bright}) contrast(${contrast})`,
+        filter: `${blur}saturate(${sat}) brightness(${bright}) contrast(${contrast})`,
       }}
     >
       <defs>

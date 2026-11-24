@@ -208,7 +208,7 @@
       /* El vidrio líquido explícito conserva su lente y su blur de hoja:
          el modo «auto» de WebKitGTK cae en bajo consumo por una detección
          conservadora de GPU y no debe anular un interruptor del usuario. */
-      html.perf-blur-off *:not(.ow-glass-lens):not(.ow-glass-backdrop),
+      html.perf-blur-off *:not(.ow-glass-lens):not(.ow-glass-backdrop):not(.ow-glass-frost),
       html.perf-blur-off *::before,
       html.perf-blur-off *::after {
         backdrop-filter: none !important;

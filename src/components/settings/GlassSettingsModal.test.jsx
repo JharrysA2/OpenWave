@@ -39,8 +39,8 @@ describe("GlassSettingsModal", () => {
   it("los sliders avanzados escriben el ajuste con su valor numérico", () => {
     const { updateSetting } = renderModal();
     const refraction = document.querySelector('input[type="range"]');
-    fireEvent.change(refraction, { target: { value: "80" } });
-    expect(updateSetting).toHaveBeenCalledWith("glassRefraction", 80);
+    fireEvent.change(refraction, { target: { value: "90" } });
+    expect(updateSetting).toHaveBeenCalledWith("glassRefraction", 90);
   });
 
   it("cierra con el botón", () => {

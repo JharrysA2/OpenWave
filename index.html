@@ -205,7 +205,10 @@
          PERFORMANCE MODES — applied on <html> by PerformanceContext
          These !important rules override INLINE styles from React.
          ═══════════════════════════════════════════════════════════════════════ */
-      html.perf-blur-off *,
+      /* El vidrio líquido explícito conserva su lente y su blur de hoja:
+         el modo «auto» de WebKitGTK cae en bajo consumo por una detección
+         conservadora de GPU y no debe anular un interruptor del usuario. */
+      html.perf-blur-off *:not(.ow-glass-lens):not(.ow-glass-backdrop),
       html.perf-blur-off *::before,
       html.perf-blur-off *::after {
         backdrop-filter: none !important;
@@ -231,17 +234,14 @@
       html.perf-shadow-off [style*="drop-shadow"] {
         filter: none !important;
       }
-      html.perf-solid [style*="backdrop-filter"] {
+      html.perf-solid [style*="backdrop-filter"]:not(.ow-glass-backdrop) {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
         background: color-mix(in srgb, var(--neon) 18%, var(--bg-base, #0a0a0f)) !important;
       }
-      /* El modo sólido y «sin filtros» no deben dejar la escena de la portada
-         detrás: el cristal ya está apagado y el fondo vuelve a ser plano. */
-      html.perf-solid .ow-glass-scene,
-      html.perf-blur-off .ow-glass-scene {
-        display: none !important;
-      }
+      /* La escena la decide React con `isGlassBlocked`: solo las elecciones
+         manuales (Color sólido, Ninguno, Rendimiento) la apagan. El modo auto
+         de WebKitGTK no debe ocultarla si el usuario encendió el vidrio. */
       /* SOLID ? buttons keep a visible accent border so they stand out
          against the solid background (GLASS.btn / close buttons use blur(6px)) */
       html.perf-solid [style*="blur(6px)"] {

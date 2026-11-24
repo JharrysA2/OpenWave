@@ -7,14 +7,25 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { GLASS } from "../../utils/theme";
 import { SettingsContext } from "../../contexts/SettingsContext";
-import { usePerformance } from "../../contexts/PerformanceContext";
-import { clamp, getLensMap, sceneOffsetForRect } from "../../utils/glassEngine";
+import { isGlassBlocked } from "../../utils/glassPresets";
+import { clamp, getLensMap, glassGeometry, sceneOffsetForRect } from "../../utils/glassEngine";
+import { GlassMagnifiedLens } from "./GlassMagnifiedLens";
 import { GlassRim } from "./GlassRim";
 import { useGlassScene } from "./glassSceneContext";
 
 let filterSeq = 0;
+
+// WebKitGTK no rasteriza `feImage` con data URLs dentro de un filtro SVG:
+// la capa filtrada sale en blanco. En WebKit se usa la lente geométrica
+// (copia ampliada en el anillo); en Chromium/WebView2, el desplazamiento
+// real por píxeles.
+const IS_WEBKIT =
+  typeof navigator !== "undefined" &&
+  /AppleWebKit/i.test(navigator.userAgent) &&
+  !/Chrome|Chromium|Edg/i.test(navigator.userAgent);
 
 function useElementRect(ref) {
   const [rect, setRect] = useState({ width: 0, height: 0, left: 0, top: 0 });
@@ -91,12 +102,13 @@ export const GlassBackground = forwardRef(function GlassBackground(
   // piezas aisladas; sin provider debe degradar al material plano, no romper.
   const settingsCtx = useContext(SettingsContext);
   const settings = settingsCtx?.settings || {};
-  const performance = usePerformance();
   const scene = useGlassScene();
 
   const glassOn = !!settings.glassMode;
   const shell = variant !== "sheet";
-  const fallback = !glassOn || !performance.blurOn || !!performance.solidOn;
+  // El modo auto puede resolver a bajo consumo por la detección conservadora
+  // de WebKitGTK («Apple GPU»); el interruptor explícito del vidrio manda.
+  const fallback = !glassOn || isGlassBlocked(settings);
   const lowPower = !!settings.glassLowPower;
   const frostMode =
     frost || (shell ? settings.glassFrostShell : settings.glassFrostMenus) || "auto";
@@ -109,6 +121,7 @@ export const GlassBackground = forwardRef(function GlassBackground(
   const effectiveRadius = settings.glassRound
     ? Math.min(height / 2 || radiusPx, Math.max(radiusPx, 26))
     : radiusPx;
+  const { glassDepth, glassIor, glassRefraction } = settings;
 
   const lens = useMemo(() => {
     if (
@@ -122,20 +135,14 @@ export const GlassBackground = forwardRef(function GlassBackground(
     ) {
       return null;
     }
-    const short = Math.max(1, Math.min(width, height));
-    const nominal = settings.glassDepth === "thick" ? 30 : 14;
-    const rim = clamp(Math.min(nominal, short * 0.44), 6, short * 0.44);
-    const ior = clamp(Number(settings.glassIor) || 1.5, 1, 2);
-    const iorFactor = clamp((ior - 1) / 0.5, 0.35, 2);
-    const refraction = clamp((Number(settings.glassRefraction) || 0) / 60, 0, 1.6);
-    const maxDisp = clamp(rim * 0.6 * iorFactor * refraction, 0, rim);
+    const geometry = glassGeometry({ glassDepth, glassIor, glassRefraction }, width, height);
     return {
       width,
       height,
       radius: effectiveRadius,
-      rim,
-      maxDisp,
-      margin: Math.ceil(maxDisp + 8),
+      rim: geometry.rim,
+      maxDisp: geometry.maxDisp,
+      margin: geometry.margin,
     };
   }, [
     glassOn,
@@ -146,13 +153,13 @@ export const GlassBackground = forwardRef(function GlassBackground(
     width,
     height,
     effectiveRadius,
-    settings.glassDepth,
-    settings.glassIor,
-    settings.glassRefraction,
+    glassDepth,
+    glassIor,
+    glassRefraction,
   ]);
 
   const lensMap = useMemo(() => {
-    if (!lens) return null;
+    if (!lens || IS_WEBKIT) return null;
     const map = getLensMap(lens);
     return map?.url ? map : null;
   }, [lens]);
@@ -176,7 +183,9 @@ export const GlassBackground = forwardRef(function GlassBackground(
   }, [lensMap, sceneTag]);
 
   const renderFallback = fallback;
-  const renderLens = !!lensMap && !!filterId;
+  const renderMagnified = !!lens && IS_WEBKIT;
+  const renderFilter = !!lensMap && !!filterId && !IS_WEBKIT;
+  const renderLens = renderMagnified || renderFilter;
   const offset = scene?.cover ? sceneOffsetForRect(scene.cover, rect, lens?.margin || 0) : null;
 
   const fallbackMaterial = shell ? GLASS.player : GLASS.sheet;
@@ -243,33 +252,56 @@ export const GlassBackground = forwardRef(function GlassBackground(
         />
       )}
 
-      {renderLens && (
-        <>
+      {renderMagnified && (
+        <GlassMagnifiedLens
+          width={lens.width}
+          height={lens.height}
+          radius={lens.radius}
+          margin={lens.margin}
+          rim={lens.rim}
+          maxDisp={lens.maxDisp}
+          scene={scene}
+          rect={rect}
+          settings={settings}
+        />
+      )}
+
+      {renderFilter && (
+        <div
+          className="ow-glass-lens"
+          style={{
+            position: "absolute",
+            inset: `-${lens.margin}px`,
+            filter: `url(#${filterId})`,
+          }}
+        >
           <div
-            className="ow-glass-lens"
             style={{
               position: "absolute",
-              inset: `-${lens.margin}px`,
-              filter: `url(#${filterId})`,
+              inset: 0,
+              backgroundImage: `url("${scene.url}")`,
+              backgroundRepeat: "no-repeat",
+              backgroundSize: offset?.backgroundSize,
+              backgroundPosition: offset?.backgroundPosition,
             }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                backgroundImage: `url("${scene.url}")`,
-                backgroundRepeat: "no-repeat",
-                backgroundSize: offset?.backgroundSize,
-                backgroundPosition: offset?.backgroundPosition,
-              }}
-            />
-            <div style={{ position: "absolute", inset: 0, background: scene.veil }} />
-          </div>
+          />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: scene.lensVeil || scene.veil,
+            }}
+          />
+        </div>
+      )}
+      {renderFilter &&
+        typeof document !== "undefined" &&
+        createPortal(
           <svg
             width="0"
             height="0"
             aria-hidden="true"
-            style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}
+            style={{ position: "absolute", left: 0, top: 0 }}
           >
             <defs>
               <filter
@@ -376,9 +408,9 @@ export const GlassBackground = forwardRef(function GlassBackground(
                 </feComponentTransfer>
               </filter>
             </defs>
-          </svg>
-        </>
-      )}
+          </svg>,
+          document.body,
+        )}
 
       {!renderFallback && (
         <>

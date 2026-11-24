@@ -21,8 +21,8 @@ const SLIDERS = [
 ];
 
 const DEFAULTS = {
-  glassRefraction: 60,
-  glassDispersion: 25,
+  glassRefraction: 80,
+  glassDispersion: 35,
   glassIor: 1.5,
   glassTint: 0.4,
   glassBlur: 20,

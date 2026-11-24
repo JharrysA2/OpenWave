@@ -14,9 +14,29 @@ export const GLASS_LIGHT_STYLES = [
 ];
 
 export function glassLightStyle(id) {
-  return GLASS_LIGHT_STYLES.find((style) => style.id === id) || GLASS_LIGHT_STYLES[3];
+  return (
+    GLASS_LIGHT_STYLES.find((style) => style.id === id) ||
+    GLASS_LIGHT_STYLES.find((style) => style.id === "outline") ||
+    GLASS_LIGHT_STYLES[0]
+  );
 }
 
 export function glassLightLabel(t, id) {
   return t[glassLightStyle(id).labelKey] || "Outline";
+}
+
+/**
+ * El vidrio líquido es una elección explícita: solo se bloquea cuando el
+ * usuario apagó los filtros a mano (Color sólido / Ninguno) o eligió Bajo
+ * consumo. El modo «auto» puede resolver a bajo consumo por una detección
+ * conservadora de GPU (WebKitGTK informa «Apple GPU»), y eso no debe anular
+ * un interruptor que el usuario acaba de encender.
+ */
+export function isGlassBlocked(settings = {}) {
+  return (
+    settings.blurStyle === "solid" ||
+    settings.blurStyle === "none" ||
+    settings.perfMode === "performance" ||
+    (settings.perfMode === "custom" && (settings.perfBlur === false || settings.perfSolid === true))
+  );
 }

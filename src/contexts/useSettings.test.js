@@ -79,6 +79,43 @@ describe("useSettings", () => {
     expect(result.current.settings.crossfade).toBe(5);
   });
 
+  it("migra el preset antiguo del vidrio (fino/60) a grueso/80 una vez", () => {
+    localStorage.setItem(
+      SW_SETTINGS_KEY,
+      JSON.stringify({
+        glassMode: true,
+        glassDepth: "thin",
+        glassRefraction: 60,
+        glassDispersion: 25,
+      }),
+    );
+
+    const { result } = renderUseSettings();
+
+    expect(result.current.settings.glassDepth).toBe("thick");
+    expect(result.current.settings.glassRefraction).toBe(80);
+    expect(result.current.settings.glassDispersion).toBe(35);
+    expect(result.current.settings.glassPresetMigrated).toBe(true);
+  });
+
+  it("respeta el grosor elegido después de la migración", () => {
+    localStorage.setItem(
+      SW_SETTINGS_KEY,
+      JSON.stringify({
+        glassMode: true,
+        glassDepth: "thin",
+        glassRefraction: 60,
+        glassDispersion: 25,
+        glassPresetMigrated: true,
+      }),
+    );
+
+    const { result } = renderUseSettings();
+
+    expect(result.current.settings.glassDepth).toBe("thin");
+    expect(result.current.settings.glassRefraction).toBe(60);
+  });
+
   it("should switch translations when language is changed", () => {
     const { result } = renderUseSettings();
 

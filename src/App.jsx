@@ -25,6 +25,7 @@ import { CreatePlaylistModal } from "./components/CreatePlaylistModal";
 import { Toasts } from "./components/Toast";
 import { ConnectionBanner } from "./components/ConnectionBanner";
 import { GlassScene } from "./components/glass/GlassScene";
+import { isGlassBlocked } from "./utils/glassPresets";
 import { BootScreen } from "./components/BootScreen";
 import { TitleBar } from "./components/TitleBar";
 import { Sidebar } from "./components/Sidebar";
@@ -656,6 +657,13 @@ function AppInner() {
     [setShuffleActive, toggleRepeatMode],
   );
 
+  // El vidrio es una elección explícita: el modo «auto» puede resolver a
+  // bajo consumo por la detección de WebKitGTK y no debe apagar la escena
+  // que el usuario acaba de encender. Solo bloquean las elecciones manuales
+  // de Color sólido, Ninguno o Bajo consumo.
+  const glassBlocked = isGlassBlocked(settings);
+  const glassSceneEnabled = !!(settings.glassMode && settings.glassScene && !glassBlocked);
+
   //  Renderizado principal
 
   return (
@@ -674,7 +682,7 @@ function AppInner() {
         isolation: "isolate",
       }}
     >
-      <GlassScene song={currentSong} enabled={!!(settings.glassMode && settings.glassScene)}>
+      <GlassScene song={currentSong} enabled={glassSceneEnabled}>
         {/* Aviso de desconexión con el backend */}
         <ConnectionBanner />
 

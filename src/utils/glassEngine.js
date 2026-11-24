@@ -71,7 +71,7 @@ export function glassGeometry(settings = {}, width, height) {
   const ior = clamp(Number(settings.glassIor) || 1.5, 1, 2);
   const iorFactor = clamp((ior - 1) / 0.5, 0.35, 2);
   const refraction = clamp((Number(settings.glassRefraction) || 0) / 60, 0, 1.6);
-  const maxDisp = clamp(rim * 0.6 * iorFactor * refraction, 0, rim);
+  const maxDisp = clamp(rim * 0.72 * iorFactor * refraction, 0, rim);
   const margin = Math.ceil(maxDisp + 8);
   const dispersion = clamp((Number(settings.glassDispersion) || 0) / 100, 0, 1) * 0.03;
   return { rim, maxDisp, margin, dispersion };

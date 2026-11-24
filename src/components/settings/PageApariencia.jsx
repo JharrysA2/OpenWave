@@ -18,7 +18,7 @@ import { BtnShapeModal } from "./BtnShapeModal";
 import { BarStyleModal } from "./BarStyleModal";
 import { AppColorModal } from "./AppColorModal";
 import { GlassSettingsModal } from "./GlassSettingsModal";
-import { glassLightLabel } from "../../utils/glassPresets";
+import { glassLightLabel, isGlassBlocked } from "../../utils/glassPresets";
 
 export function PageApariencia({ neonColor, section = "all" }) {
   const { settings, updateSetting, t } = useSettings();
@@ -158,6 +158,19 @@ export function PageApariencia({ neonColor, section = "all" }) {
                 />
               }
             />
+            {settings.glassMode && isGlassBlocked(settings) && (
+              <div
+                style={{
+                  padding: "10px 18px 12px",
+                  fontSize: "12px",
+                  lineHeight: 1.5,
+                  color: "#fbbf24",
+                  fontWeight: "500",
+                }}
+              >
+                {t.glassBlockedNote}
+              </div>
+            )}
             {settings.glassMode && (
               <>
                 <SettingRow

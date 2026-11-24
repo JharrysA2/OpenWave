@@ -53,6 +53,8 @@ export const TRANSLATIONS = {
     glassLightDesc: "A light on the rim of the focused surface",
     glassLowPower: "Low power",
     glassLowPowerDesc: "Keeps the tint and rim but disables the lens and the moving light",
+    glassBlockedNote:
+      "Liquid glass stays off while Performance is set to Low power, or Background style is Solid color or None. Switch to Balanced and Blur to see it.",
     glassLightNote:
       "Comet, Twin, Halo and Aura repaint the rim while they move; Outline and Prism stay still.",
     glassAdvanced: "Glass settings",
@@ -295,6 +297,8 @@ export const TRANSLATIONS = {
     glassLightDesc: "Una luz en el borde de la superficie activa",
     glassLowPower: "Bajo consumo",
     glassLowPowerDesc: "Mantiene el tinte y el borde, pero apaga la lente y la luz en movimiento",
+    glassBlockedNote:
+      "El vidrio líquido no se pinta con Rendimiento en Bajo consumo ni con Estilo de fondo en Color sólido o Ninguno. Cambia a Equilibrado y Desenfoque para verlo.",
     glassLightNote:
       "Comet, Twin, Halo y Aura repintan el borde mientras se mueven; Outline y Prism se quedan quietos.",
     glassAdvanced: "Ajustes del vidrio",

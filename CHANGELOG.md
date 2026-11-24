@@ -6,6 +6,15 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-24
+
+### Corregido
+
+- **El vidrio líquido ya se ve en Linux (WebKitGTK) y no solo en Windows.** El modo `auto` de Rendimiento clasificaba el renderer «Apple GPU» de WebKitGTK como software y apagaba todos los filtros, incluido el vidrio que el usuario acababa de encender. Ahora el interruptor explícito de Vidrio líquido manda sobre esa detección conservadora: solo se apaga con Rendimiento en Bajo consumo, Estilo de fondo en Color sólido/Ninguno o el modo personalizado sin blur/sólido. La escena de la portada y las exenciones CSS acompañan ese cambio.
+- **La lente de WebKitGTK usa una copia ampliada enmascarada en el canto.** WebKitGTK no rasteriza `feImage` con data URLs dentro de un filtro SVG y la capa salía en blanco, sin distorsión. En WebKit se dibuja una copia pre-escalada de la portada recortada al anillo del borde (máscara SVG con borde suavizado): el centro queda intacto y el canto se ve realmente deformado. Chromium/WebView2 conserva el desplazamiento por píxeles con `feImage`.
+- **El preset inicial sube a Grueso/80 una sola vez.** El primer preset (Fino/60) era demasiado sutil en una barra baja; al actualizar desde 1.4.0, si el usuario no había tocado grosor/refracción/dispersión, se migra a Grueso/80/35. Una elección posterior ya no se toca.
+- **Aviso en Apariencia cuando el vidrio está bloqueado.** Si Rendimiento está en Bajo consumo o el Estilo de fondo es Color sólido/Ninguno, la sección de Vidrio líquido explica por qué no se pinta y qué cambiar.
+
 ## [1.4.0] - 2026-11-24
 
 ### Añadido
@@ -568,7 +577,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.4.1
 [1.4.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.4.0
 [1.3.2]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.3.2
 [1.3.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.3.1

@@ -26,6 +26,10 @@ const EMPTY_SCENE = {
   url: null,
   cover: null,
   veil: "rgba(5,5,10,0.6)",
+  // El cristal deja ver la portada más limpia que el fondo de contenido:
+  // el velo de la escena protege la lectura de la app, no el canto de la
+  // lente. Un velo claro hace visible la refracción.
+  lensVeil: "rgba(5,5,10,0.16)",
 };
 
 export function GlassScene({ song, enabled, children }) {
@@ -83,6 +87,7 @@ export function GlassScene({ song, enabled, children }) {
       url,
       cover: computeSceneCover(natural.width, natural.height, viewport.width, viewport.height),
       veil: EMPTY_SCENE.veil,
+      lensVeil: EMPTY_SCENE.lensVeil,
     };
   }, [enabled, url, natural, viewport]);
 

@@ -1550,6 +1550,15 @@ hojas devuelven exactamente `GLASS.player` / `GLASS.sheet`.
   vivo. El mapa de desplazamiento (SDF + perfil de canto) se calcula una vez
   por geometría y se cachea en `src/utils/glassEngine.js`; solo se regenera
   al redimensionar.
+- **WebKitGTK no rasteriza `feImage` con data URLs** dentro del filtro (la
+  capa salía en blanco). En WebKit la lente es una copia pre-escalada de la
+  portada recortada al anillo del canto con una máscara SVG: una capa
+  estática más, sin `feImage` ni `requestAnimationFrame`. Chromium/WebView2
+  conserva la lente por desplazamiento de píxeles.
+- **El modo `auto` de Rendimiento no apaga el vidrio explícito.** WebKitGTK
+  informa «Apple GPU» y la detección conservadora lo clasifica como software;
+  el interruptor de Vidrio líquido solo se bloquea con Rendimiento en Bajo
+  consumo, Color sólido/Ninguno o el modo personalizado sin blur/sólido.
 - La escena es una imagen de fondo estática con un velo. No hay blur por
   frame. La lente se monta en la barra (shell); las hojas usan tint + rim.
 - Las hojas conservan `backdrop-filter: blur(40px)` sobre el contenido y

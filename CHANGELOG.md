@@ -6,6 +6,8 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-24
+
 ### Añadido
 
 - **Vidrio líquido óptico opcional en Apariencia → Vidrio líquido.** La barra del reproductor y las hojas de opciones pueden usar un cristal que dobla la portada en el borde (mapa de desplazamiento SVG + SDF), con tinte ahumado, rim Fresnel/especular, seis estilos de luz de ventana (Comet, Twin, Halo, Outline, Aura, Prism) y ajustes de refracción, dispersión, IOR, grosor, tinte, desenfoque, saturación, brillo, contraste, luz de borde, ángulo y bisel. La escena es la portada actual, oscurecida; sin ella el cristal queda en tinte + rim. El modo está **apagado por defecto**: con el interruptor apagado se mantiene exactamente el material anterior.
@@ -565,7 +567,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.4.0
 [1.3.2]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.3.2
 [1.3.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.3.1
 [1.3.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.3.0

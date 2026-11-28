@@ -42,9 +42,11 @@ requests==2.34.2
 urllib3==2.8.0
 
 # Música / YouTube
-yt-dlp==2026.7.4
+yt-dlp==2026.11.23
 # Retos de firma de YouTube («n-sig»): sin esto yt-dlp solo ve los formatos
-# firmados débiles y el vídeo de fondo se queda en 360p.
+# firmados débiles y el vídeo de fondo se queda en 360p. Para descargas,
+# además, el cliente por defecto necesita un runtime de JS (Node/Deno/Bun/
+# QuickJS); sin él se cae al cliente android y al itag 18.
 yt-dlp-ejs==0.8.0
 ytmusicapi==1.12.3
 

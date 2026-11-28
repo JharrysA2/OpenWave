@@ -618,8 +618,12 @@ class TestDownloadCoverEmbed:
     @patch("downloads.Path.exists")
     @patch("downloads.get_mp3_path")
     @patch("yt_dlp.YoutubeDL")
+    @patch("downloads.browser_cookie_opts", return_value=[])
+    @patch("downloads.cookies_file_opt", return_value=None)
     def test_download_retries_with_itag18(
         self,
+        mock_cookies_file,
+        mock_browser_cookies,
         mock_ydl_cls,
         mock_path,
         mock_exists,
@@ -630,70 +634,7 @@ class TestDownloadCoverEmbed:
         mock_lyrics_dir,
         mock_covers_dir,
     ):
-        """Si bestaudio 403ea, se reintenta con la cadena histórica (18)."""
-        from yt_dlp.utils import DownloadError
-
-        mock_ydl = MagicMock()
-        mock_ydl.download.side_effect = [DownloadError("403 Forbidden"), None]
-        mock_ydl_cls.return_value.__enter__.return_value = mock_ydl
-
-        mp3_mock = MagicMock(spec=Path)
-        mp3_mock.exists.return_value = False
-        mock_path.return_value = mp3_mock
-        mock_exists.return_value = True
-
-        mock_conn = MagicMock()
-        mock_get_db.return_value.__enter__.return_value = mock_conn
-
-        mock_cover_path = MagicMock(spec=Path)
-        mock_cover_path.exists.return_value = False
-        mock_covers_dir.__truediv__.return_value = mock_cover_path
-        mock_urlopen.side_effect = Exception("sin red")
-
-        mock_lyric_path = MagicMock(spec=Path)
-        mock_lyric_path.exists.return_value = True  # saltar paso de letras
-        mock_lyrics_dir.__truediv__.return_value = mock_lyric_path
-
-        do_download(
-            video_id="retry_vid",
-            title="Retry",
-            artist="Art",
-            thumbnail="https://x.example/c.jpg",
-            duration=100,
-        )
-
-        assert mock_ydl_cls.call_count == 2
-        first_opts = mock_ydl_cls.call_args_list[0][0][0]
-        second_opts = mock_ydl_cls.call_args_list[1][0][0]
-        assert first_opts["format"].startswith("bestaudio")
-        assert second_opts["format"] == "18/bestaudio/best"
-        # La descarga terminó bien pese al reintento
-        assert mock_subprocess_run.call_count == 1
-
-    @patch("downloads.COVERS_DIR")
-    @patch("downloads.LYRICS_DIR")
-    @patch("downloads.get_db")
-    @patch("downloads.urllib.request.urlopen")
-    @patch("downloads.os.replace")
-    @patch("downloads.subprocess.run")
-    @patch("downloads.Path.exists")
-    @patch("downloads.get_mp3_path")
-    @patch("yt_dlp.YoutubeDL")
-    @patch("ytdlp_auth.cookies_file_opt", return_value=None)
-    def test_download_reintenta_con_cookies(
-        self,
-        mock_cookie_file,
-        mock_ydl_cls,
-        mock_path,
-        mock_exists,
-        mock_subprocess_run,
-        mock_os_replace,
-        mock_urlopen,
-        mock_get_db,
-        mock_lyrics_dir,
-        mock_covers_dir,
-    ):
-        """Si el 18 también 403ea, se reintenta con cookies del navegador."""
+        """Si el cliente por defecto y android fallan, se prueba el itag 18."""
         from yt_dlp.utils import DownloadError
 
         mock_ydl = MagicMock()
@@ -722,6 +663,81 @@ class TestDownloadCoverEmbed:
         mock_lyrics_dir.__truediv__.return_value = mock_lyric_path
 
         do_download(
+            video_id="retry_vid",
+            title="Retry",
+            artist="Art",
+            thumbnail="https://x.example/c.jpg",
+            duration=100,
+        )
+
+        assert mock_ydl_cls.call_count == 3
+        first_opts = mock_ydl_cls.call_args_list[0][0][0]
+        second_opts = mock_ydl_cls.call_args_list[1][0][0]
+        third_opts = mock_ydl_cls.call_args_list[2][0][0]
+        # La primera intenta la mejor fuente sin cookies y sin /18.
+        assert first_opts["format"] == "bestaudio/best"
+        assert "extractor_args" not in first_opts
+        # La segunda usa android (sin cookies) como respaldo.
+        assert second_opts["format"] == "bestaudio/best"
+        assert second_opts["extractor_args"]["youtube"]["player_client"] == ["android"]
+        # La última cae al muxed 18, ya sin pretender calidad.
+        assert third_opts["format"] == "18/best"
+        # La descarga terminó bien pese al reintento
+        assert mock_subprocess_run.call_count == 1
+
+    @patch("downloads.COVERS_DIR")
+    @patch("downloads.LYRICS_DIR")
+    @patch("downloads.get_db")
+    @patch("downloads.urllib.request.urlopen")
+    @patch("downloads.os.replace")
+    @patch("downloads.subprocess.run")
+    @patch("downloads.Path.exists")
+    @patch("downloads.get_mp3_path")
+    @patch("yt_dlp.YoutubeDL")
+    @patch(
+        "downloads.browser_cookie_opts",
+        return_value=[{"cookiesfrombrowser": ("chrome",)}],
+    )
+    @patch("downloads.cookies_file_opt", return_value=None)
+    def test_download_reintenta_con_cookies(
+        self,
+        mock_cookies_file,
+        mock_browser_cookies,
+        mock_ydl_cls,
+        mock_path,
+        mock_exists,
+        mock_subprocess_run,
+        mock_os_replace,
+        mock_urlopen,
+        mock_get_db,
+        mock_lyrics_dir,
+        mock_covers_dir,
+    ):
+        """Si la descarga anónima falla, se reintenta con cookies del navegador."""
+        from yt_dlp.utils import DownloadError
+
+        mock_ydl = MagicMock()
+        mock_ydl.download.side_effect = [DownloadError("403 Forbidden"), None]
+        mock_ydl_cls.return_value.__enter__.return_value = mock_ydl
+
+        mp3_mock = MagicMock(spec=Path)
+        mp3_mock.exists.return_value = False
+        mock_path.return_value = mp3_mock
+        mock_exists.return_value = True
+
+        mock_conn = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_conn
+
+        mock_cover_path = MagicMock(spec=Path)
+        mock_cover_path.exists.return_value = False
+        mock_covers_dir.__truediv__.return_value = mock_cover_path
+        mock_urlopen.side_effect = Exception("sin red")
+
+        mock_lyric_path = MagicMock(spec=Path)
+        mock_lyric_path.exists.return_value = True  # saltar paso de letras
+        mock_lyrics_dir.__truediv__.return_value = mock_lyric_path
+
+        do_download(
             video_id="cookie_vid",
             title="Cookie",
             artist="Art",
@@ -729,10 +745,72 @@ class TestDownloadCoverEmbed:
             duration=100,
         )
 
-        # Dos intentos anónimos + el primero con cookies (chrome).
-        assert mock_ydl_cls.call_count == 3
-        third_opts = mock_ydl_cls.call_args_list[2][0][0]
-        assert third_opts["cookiesfrombrowser"] == ("chrome",)
+        # Anónimo primero; al fallar, cookies del navegador.
+        assert mock_ydl_cls.call_count == 2
+        second_opts = mock_ydl_cls.call_args_list[1][0][0]
+        assert second_opts["cookiesfrombrowser"] == ("chrome",)
+        assert mock_subprocess_run.call_count == 1
+
+    @patch("downloads.COVERS_DIR")
+    @patch("downloads.LYRICS_DIR")
+    @patch("downloads.get_db")
+    @patch("downloads.urllib.request.urlopen")
+    @patch("downloads.os.replace")
+    @patch("downloads.subprocess.run")
+    @patch("downloads.Path.exists")
+    @patch("downloads.get_mp3_path")
+    @patch("yt_dlp.YoutubeDL")
+    @patch("downloads.browser_cookie_opts", return_value=[])
+    @patch(
+        "downloads.cookies_file_opt", return_value={"cookiefile": "/tmp/cookies.txt"}
+    )
+    def test_download_usa_cookies_txt_primero(
+        self,
+        mock_cookies_file,
+        mock_browser_cookies,
+        mock_ydl_cls,
+        mock_path,
+        mock_exists,
+        mock_subprocess_run,
+        mock_os_replace,
+        mock_urlopen,
+        mock_get_db,
+        mock_lyrics_dir,
+        mock_covers_dir,
+    ):
+        """Con cookies.txt, el primer intento ya va autenticado y pide bestaudio."""
+        mock_ydl = MagicMock()
+        mock_ydl_cls.return_value.__enter__.return_value = mock_ydl
+
+        mp3_mock = MagicMock(spec=Path)
+        mp3_mock.exists.return_value = False
+        mock_path.return_value = mp3_mock
+        mock_exists.return_value = True
+
+        mock_conn = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_conn
+
+        mock_cover_path = MagicMock(spec=Path)
+        mock_cover_path.exists.return_value = False
+        mock_covers_dir.__truediv__.return_value = mock_cover_path
+        mock_urlopen.side_effect = Exception("sin red")
+
+        mock_lyric_path = MagicMock(spec=Path)
+        mock_lyric_path.exists.return_value = True
+        mock_lyrics_dir.__truediv__.return_value = mock_lyric_path
+
+        do_download(
+            video_id="cookie_first_vid",
+            title="Cookie first",
+            artist="Art",
+            thumbnail="https://x.example/c.jpg",
+            duration=100,
+        )
+
+        assert mock_ydl_cls.call_count == 1
+        first_opts = mock_ydl_cls.call_args_list[0][0][0]
+        assert first_opts["cookiefile"] == "/tmp/cookies.txt"
+        assert first_opts["format"] == "bestaudio/best"
         assert mock_subprocess_run.call_count == 1
 
 

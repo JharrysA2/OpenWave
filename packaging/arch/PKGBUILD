@@ -10,7 +10,7 @@
 # solo se ordena qué acaba en cada ruta del sistema.
 
 pkgname=openwave
-pkgver=1.4.2
+pkgver=1.4.3
 pkgrel=1
 pkgdesc="Reproductor de música de YouTube Music para el escritorio"
 arch=(x86_64)
@@ -18,6 +18,7 @@ url="https://github.com/JharrysA2/OpenWave"
 license=(GPL-3.0-or-later)
 # webkit2gtk-4.1 y gtk3: ventana Tauri. gst-*: vídeo de fondo (H.264).
 depends=(gtk3 webkit2gtk-4.1 gstreamer gst-plugins-good gst-libav hicolor-icon-theme util-linux)
+optdepends=('nodejs: resolver los retos de YouTube y descargar audio en la máxima calidad')
 install=openwave.install
 # El strip de makepkg depura TODO lo que encuentra en $pkgdir y rompe el
 # intérprete de python-build-standalone («.dynstr no está en el segmento» →

@@ -21,12 +21,17 @@ from config import (
 from db import _db_lock, get_db
 from lazy_imports import LazyModule
 from logging_config import get_logger
-from ytdlp_auth import auth_variants
+from ytdlp_auth import browser_cookie_opts, cookies_file_opt
 
 from utils import get_mp3_path
 
 logger = get_logger(__name__)
 yt_dlp = LazyModule("yt_dlp")
+
+# Retos de firma de YouTube: sin un runtime de JS, yt-dlp solo ve los formatos
+# sin firmar (el 18 muxed). Se habilitan todos los que soporta yt-dlp; en
+# Windows suele haber Node/Deno instalado y en Linux Node o Deno.
+_JS_RUNTIMES = {"deno": {}, "node": {}, "bun": {}, "quickjs": {}}
 
 # Lock por vídeo: dos descargas del mismo video_id escribían el mismo
 # `.part` y rompían la invariante «exists() ⇒ COMPLETO». El lock de BD se
@@ -116,12 +121,20 @@ def do_download(
         quality = "192"
     download_progress[video_id] = {"status": "downloading", "progress": 0}
 
+    elegido: dict = {}
+
     def _hook(d):
         if d["status"] == "downloading":
             pct = d.get("_percent_str", "0%").strip().replace("%", "")
             with suppress(Exception):
                 download_progress[video_id]["progress"] = float(pct)
         elif d["status"] == "finished":
+            info = d.get("info_dict") or {}
+            elegido.update(
+                format_id=info.get("format_id"),
+                abr=info.get("abr"),
+                acodec=info.get("acodec"),
+            )
             download_progress[video_id] = {"status": "converting", "progress": 100}
 
     # Ver comentario de `_get_download_lock`: si otra hebra está descargando
@@ -182,13 +195,14 @@ def do_download(
 
         # Descargar audio
         _ydl_opts = {
-            # Mejor fuente de AUDIO disponible (m4a/opus de mayor bitrate
-            # que el muxed) con caída al itag 18 (360p) dentro de la propia
-            # cadena de selectores. El client "android" es el único que
-            # sirve el archivo completo: el default restringe rangos a
-            # ~512KB y devuelve HTTP 403.
-            "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/18/best",
-            "extractor_args": {"youtube": {"player_client": ["android"]}},
+            # Mejor fuente de AUDIO disponible, sin preferir m4a: el Opus
+            # 251 suele tener más bitrate que el AAC 140 y el MP3 final se
+            # genera igual. Nada de /18 aquí: ese muxed (96k) solo debe
+            # entrar como último recurso.
+            "format": "bestaudio/best",
+            # Habilitar explícitamente todos los runtimes: yt-dlp solo activa
+            # deno por defecto y muchos equipos tienen Node/Deno/Bun.
+            "js_runtimes": _JS_RUNTIMES,
             "outtmpl": str(MUSIC_DIR / f"{video_id}.%(ext)s"),
             "progress_hooks": [_hook],
             "quiet": True,
@@ -207,19 +221,38 @@ def do_download(
             logger.info("skip yt-dlp %s: MP3 ya descargado", video_id)
             download_progress[video_id] = {"status": "converting", "progress": 100}
         else:
-            # Cadena de intentos del audio, de más rápido a más fiable:
-            #   1. bestaudio (con caída a itag 18 dentro del propio selector).
-            #   2. Forzar itag 18: en algunos vídeos el bestaudio baja pero
-            #      403ea al descargar los bytes; el muxed 18 siempre va.
-            #   3. Cookies (cookies.txt del usuario y, si no, las del
-            #      navegador): sesiones restringidas que sin sesión válida no
-            #      sirven ni el 18. Copias de opts: la primera configuración
-            #      queda intacta (auditoría/tests).
-            attempts = [
-                _ydl_opts,
-                {**_ydl_opts, "format": "18/bestaudio/best"},
-                *({**_ydl_opts, **auth} for auth in auth_variants()),
-            ]
+            # Cadena de intentos del audio, de mejor a más fiable:
+            #   1. cookies.txt primero: es la única vía para que la sesión
+            #      aporte los formatos de más bitrate (YouTube Music Premium).
+            #      Los clientes por defecto (web/tv) sí aceptan cookies; el
+            #      android las ignora y yt-dlp lo descarta.
+            #   2. Sin cookies, clientes por defecto: la fuente de más
+            #      bitrate disponible para una sesión anónima.
+            #   3. Cookies del navegador, si el fichero no existe o falló.
+            #   4. Cliente android sin cookies: sirve el archivo completo
+            #      cuando los retos JS de YouTube no se pueden resolver.
+            #   5. itag 18 (360p muxed): último recurso, calidad baja.
+            attempts = []
+            archivo_cookies = cookies_file_opt()
+            if archivo_cookies:
+                attempts.append({**_ydl_opts, **archivo_cookies})
+            attempts.append(dict(_ydl_opts))
+            attempts.extend(
+                {**_ydl_opts, **cookies} for cookies in browser_cookie_opts()
+            )
+            attempts.append(
+                {
+                    **_ydl_opts,
+                    "extractor_args": {"youtube": {"player_client": ["android"]}},
+                }
+            )
+            attempts.append(
+                {
+                    **_ydl_opts,
+                    "format": "18/best",
+                    "extractor_args": {"youtube": {"player_client": ["android"]}},
+                }
+            )
             last_error = None
             for opts in attempts:
                 try:
@@ -236,6 +269,14 @@ def do_download(
                     )
             if last_error is not None:
                 raise last_error
+            if elegido:
+                logger.info(
+                    "audio %s: formato %s (%s kbps, %s)",
+                    video_id,
+                    elegido.get("format_id") or "?",
+                    round(elegido.get("abr") or 0, 1),
+                    elegido.get("acodec") or "?",
+                )
 
             # Conversión ATÓMICA a MP3
             # Sin el postprocesador FFmpegExtractAudio: ese PP escribe el .mp3
@@ -336,6 +377,8 @@ def do_download(
                         "albumType": album_type,
                         "year": year,
                         "quality": str(quality),
+                        "sourceFormat": elegido.get("format_id"),
+                        "sourceAbr": elegido.get("abr"),
                         "thumbnail": thumbnail,
                         "duration": duration,
                         "cover": str(cover_path) if cover_path.exists() else None,

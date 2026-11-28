@@ -6,6 +6,13 @@ proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/spec/v2.0.
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-11-27
+
+### Corregido
+
+- **Las descargas usan las cookies y la mejor fuente de audio.** yt-dlp sube a 2026.11.23. El cliente `android` ya no recibe los formatos de audio y yt-dlp lo descarta cuando hay cookies; ahora se intenta primero `bestaudio` con `cookies.txt` y los clientes por defecto, luego sin sesión, cookies del navegador, `android` y el itag 18 como último recurso. Se habilitan todos los runtimes de JS y el JSON de cada descarga guarda `sourceFormat` y `sourceAbr`.
+- **`nodejs` como dependencia opcional** del paquete Arch para resolver los retos de YouTube y bajar por encima del itag 18.
+
 ## [1.4.2] - 2026-11-24
 
 ### Corregido
@@ -586,7 +593,8 @@ Primera versión pública y completa de OpenWave.
   con Host de su dominio). Sin cabecera Origin = cliente nativo, se
   permite.
 
-[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/JharrysA2/OpenWave/compare/v1.4.3...HEAD
+[1.4.3]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.4.3
 [1.4.2]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.4.2
 [1.4.1]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.4.1
 [1.4.0]: https://github.com/JharrysA2/OpenWave/releases/tag/v1.4.0
